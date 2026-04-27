@@ -4,7 +4,7 @@ sys.path.insert(0, '/work/submit/david_w/WRemnants')
 sys.path.insert(0, '/work/submit/david_w/WRemnants/wums')
 import wums.plot_tools as plot_tools
 
-lam = np.loadtxt("/tmp/lam_masses.txt")  # mass(MeV), pt(GeV), eta
+lam = np.loadtxt("/tmp/lam_kinematics.txt")  # mass(MeV) pt eta phi vx vy vz Lxy L3d ...
 
 bins = np.linspace(1080, 1160, 60)
 counts, _ = np.histogram(lam[:,0], bins=bins)

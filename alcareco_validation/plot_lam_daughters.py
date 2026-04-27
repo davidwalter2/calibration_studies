@@ -12,23 +12,23 @@ import wums.plot_tools as plot_tools
 
 outdir = '/home/submit/david_w/public_html/ZMass/260424'
 
-# columns: mass pt eta phi vx vy vz Lxy L3d  d0_pt d0_eta d0_phi d0_q  d1_pt d1_eta d1_phi d1_q
+# columns: mass pt eta phi vx vy vz Lxy L3d cosTheta_XY  d0_pt d0_eta d0_phi d0_q  d1_pt d1_eta d1_phi d1_q
 lam = np.loadtxt('/tmp/lam_kinematics.txt')
 
 # daughter(0) = p/pbar (baryon), daughter(1) = pi-/pi+ (pion)
-bar_pt  = lam[:, 9]
-bar_eta = lam[:,10]
-bar_phi = lam[:,11]
-bar_q   = lam[:,12].astype(int)  # +1 for Lambda0 (proton), -1 for anti-Lambda0 (antiproton)
-pi_pt   = lam[:,13]
-pi_eta  = lam[:,14]
-pi_phi  = lam[:,15]
+bar_pt  = lam[:,10]
+bar_eta = lam[:,11]
+bar_phi = lam[:,12]
+bar_q   = lam[:,13].astype(int)  # +1 for Lambda0 (proton), -1 for anti-Lambda0 (antiproton)
+pi_pt   = lam[:,14]
+pi_eta  = lam[:,15]
+pi_phi  = lam[:,16]
 
 n_lam     = np.sum(bar_q > 0)
 n_antilam = np.sum(bar_q < 0)
 
 # ─── daughter pT: p/pbar vs pi ────────────────────────────────────────────────
-bins_pt = np.linspace(0, 10, 40)
+bins_pt = np.linspace(0, 10, 101)   # 0.1 GeV bins; edge at 0.35 GeV aligns with ptMin cut
 w = bins_pt[1] - bins_pt[0]
 centers_pt = 0.5 * (bins_pt[:-1] + bins_pt[1:])
 c_bar, _ = np.histogram(bar_pt, bins=bins_pt)
@@ -36,7 +36,7 @@ c_pi,  _ = np.histogram(pi_pt,  bins=bins_pt)
 
 fig, ax = plot_tools.figure(
     centers_pt, xlabel=r'Daughter $p_T$ [GeV]',
-    ylabel='Tracks / %.2f GeV' % w, xlim=(0, 10), automatic_scale=False, width_scale=1)
+    ylabel='Tracks / %.1f GeV' % w, xlim=(0, 10), automatic_scale=False, width_scale=1)
 ax.bar(centers_pt, c_bar, width=w, color='darkorange', alpha=0.7,
        edgecolor='darkorange', linewidth=0.5, label=r'$p$ / $\bar{p}$')
 ax.bar(centers_pt, c_pi,  width=w, color='forestgreen', alpha=0.7,
@@ -90,18 +90,18 @@ for i in range(len(lam)):
     ux, uy, uz = v0_px/v0_p, v0_py/v0_p, v0_pz/v0_p
 
     # daughter 0 (baryon)
-    d0_pt  = lam[i, 9]
-    d0_eta = lam[i,10]
-    d0_phi = lam[i,11]
-    d0_q   = lam[i,12]
+    d0_pt  = lam[i,10]
+    d0_eta = lam[i,11]
+    d0_phi = lam[i,12]
+    d0_q   = lam[i,13]
     d0_px  = d0_pt * math.cos(d0_phi)
     d0_py  = d0_pt * math.sin(d0_phi)
     d0_pz  = d0_pt * math.sinh(d0_eta)
 
     # daughter 1 (pion)
-    d1_pt  = lam[i,13]
-    d1_eta = lam[i,14]
-    d1_phi = lam[i,15]
+    d1_pt  = lam[i,14]
+    d1_eta = lam[i,15]
+    d1_phi = lam[i,16]
     d1_px  = d1_pt * math.cos(d1_phi)
     d1_py  = d1_pt * math.sin(d1_phi)
     d1_pz  = d1_pt * math.sinh(d1_eta)
