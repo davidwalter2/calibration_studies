@@ -2,10 +2,10 @@
 Plot sin²θW vs Q: SM prediction (V-shape), existing measurements, and future projections.
 
 Run with the mfs venv:
-  source ../mfs/.venv/bin/activate
+  source ../../mfs/.venv/bin/activate
   python plot_sin2thetaW_running.py
 
-Output: ../Documents/AN-EN-XXX/plots/sin2thetaW_running.{pdf,png}
+Output: ../../Documents/AN-EN-XXX/plots/sin2thetaW_running.{pdf,png}
 """
 
 import numpy as np
