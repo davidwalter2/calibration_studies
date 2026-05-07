@@ -9,6 +9,7 @@ set -euo pipefail
 CFG=$1
 INPUT=$2
 OUTDIR=$3
+shift 3   # any further args (extra VarParsing knobs) get appended to cmsRun
 
 cd /work/submit/david_w/ZMass/CMSSW_10_6_26/src
 source /cvmfs/cms.cern.ch/cmsset_default.sh
@@ -25,6 +26,7 @@ if [[ -n "${X509_USER_PROXY:-}" ]]; then
   TLEFT=$(voms-proxy-info -timeleft -file "$X509_USER_PROXY" 2>/dev/null || echo 0)
   echo ">>> proxy=$X509_USER_PROXY ($((TLEFT/3600))h ${TLEFT}s left)"
 fi
+echo ">>> extra cmsRun args: $*"
 echo ">>> cmsRun starting"
 
-exec cmsRun "$CFG" input="$INPUT"
+exec cmsRun "$CFG" input="$INPUT" "$@"

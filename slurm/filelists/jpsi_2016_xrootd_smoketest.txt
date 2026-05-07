@@ -1,0 +1,1 @@
+root://cms-xrd-global.cern.ch//store/data/Run2016F/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/20000/70E0A4A9-075B-0443-9935-9AE3223CE243.root

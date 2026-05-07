@@ -32,12 +32,20 @@ fi
 TASK_DIR="$OUTDIR/task_$(printf '%04d' "$SLURM_ARRAY_TASK_ID")"
 mkdir -p "$TASK_DIR"
 
-# Point the inner runner at this task's working dir.
-RUN_ONE=$(dirname "$(readlink -f "$0")")/run_one.sh
+# Slurm copies $0 into its spool dir, so we get the runner from $SLURM_DIR
+# (set by submit.sh via --export).
+RUN_ONE="${SLURM_DIR:?}/run_one.sh"
+[[ -x "$RUN_ONE" ]] || { echo "runner missing: $RUN_ONE" >&2; exit 1; }
 
 # Forward the X509 proxy through to the el7 container (env var + the
 # binding /work/submit makes the proxy file visible to cmsRun).
 export APPTAINERENV_X509_USER_PROXY="${X509_USER_PROXY:-}"
 
+# Optional extra cmsRun VarParsing args, space-separated string.
+EXTRA_ARGS=()
+if [[ -n "${CMSRUN_ARGS:-}" ]]; then
+  read -r -a EXTRA_ARGS <<< "$CMSRUN_ARGS"
+fi
+
 APPTAINER_BIND="/tmp,/home/submit,/work/submit,/scratch/submit,/ceph/submit,/cvmfs,/etc/grid-security,/run" \
-  cmssw-el7 --command-to-run "$RUN_ONE" "$CONFIG" "$INFILE" "$TASK_DIR"
+  cmssw-el7 --command-to-run "$RUN_ONE" "$CONFIG" "$INFILE" "$TASK_DIR" "${EXTRA_ARGS[@]}"

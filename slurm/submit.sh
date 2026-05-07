@@ -23,6 +23,7 @@ MEM="4G"
 PARTITION="submit"
 NAME="cvh"
 DRY_RUN=0
+CMSRUN_ARGS=""
 
 usage() {
   sed -n '2,15p' "$0"
@@ -39,6 +40,7 @@ while [[ $# -gt 0 ]]; do
     --mem)         MEM=$2; shift 2;;
     --partition)   PARTITION=$2; shift 2;;
     --name)        NAME=$2; shift 2;;
+    --cmsrun-args) CMSRUN_ARGS=$2; shift 2;;
     --dry-run)     DRY_RUN=1; shift;;
     -h|--help)     usage;;
     *) echo "unknown arg: $1" >&2; usage;;
@@ -84,8 +86,9 @@ ARRAY_SPEC="0-$LAST"
 
 mkdir -p "$OUTDIR/logs"
 
-EXPORT="ALL,CONFIG=$CONFIG,FILELIST=$FILELIST,OUTDIR=$OUTDIR"
-[[ -n "$PROXY_DST" ]] && EXPORT="${EXPORT},X509_USER_PROXY=$PROXY_DST"
+EXPORT="ALL,CONFIG=$CONFIG,FILELIST=$FILELIST,OUTDIR=$OUTDIR,SLURM_DIR=$SLURM_DIR"
+[[ -n "$PROXY_DST"   ]] && EXPORT="${EXPORT},X509_USER_PROXY=$PROXY_DST"
+[[ -n "$CMSRUN_ARGS" ]] && EXPORT="${EXPORT},CMSRUN_ARGS=$CMSRUN_ARGS"
 
 cmd=(
   sbatch
