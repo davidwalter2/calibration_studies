@@ -37,9 +37,12 @@ mkdir -p "$TASK_DIR"
 RUN_ONE="${SLURM_DIR:?}/run_one.sh"
 [[ -x "$RUN_ONE" ]] || { echo "runner missing: $RUN_ONE" >&2; exit 1; }
 
-# Forward the X509 proxy through to the el7 container (env var + the
-# binding /work/submit makes the proxy file visible to cmsRun).
+# Forward the X509 proxy and the chosen CMSSW prod area through to the
+# el7 container (env vars + the /work/submit bind mount). CMSSW_AREA tells
+# run_one.sh which CMSSW project area to source -- the dev area can move
+# while a production array is running and existing tasks are unaffected.
 export APPTAINERENV_X509_USER_PROXY="${X509_USER_PROXY:-}"
+export APPTAINERENV_CMSSW_AREA="${CMSSW_AREA:-}"
 
 # Optional extra cmsRun VarParsing args, space-separated string.
 EXTRA_ARGS=()

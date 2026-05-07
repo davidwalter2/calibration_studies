@@ -5,12 +5,15 @@
 #   ./submit.sh --config <cfg> --filelist <list> --outdir <dir>
 #               [--max-running N] [--time HH:MM:SS] [--mem 4G]
 #               [--partition submit] [--name cvh] [--dry-run]
+#               [--cmssw-area /path] [--cmsrun-args "k=v k=v"]
 #
 # Notes:
 #   * The cmsRun config must accept VarParsing 'input=<path>'. See
-#     Analysis/HitAnalyzer/test/benchmark_io/bench_cmsrun_cfg.py for a
-#     template (raw JPsi ALCARECO -> CVH refit).
+#     Analysis/HitAnalyzer/test/runCvhJpsi.py for the production driver.
 #   * Per-task output lands in $OUTDIR/task_<idx>/; Slurm logs in $OUTDIR/logs/.
+#   * Default --cmssw-area is the dedicated prod tree (separate from dev).
+#     The prod-tree HEAD short hash is auto-appended to OUTDIR for
+#     reproducibility; advance prod via "git pull && scram b" in-place.
 #   * --max-running caps concurrent array tasks (Ceph/NFS friendliness).
 set -euo pipefail
 
@@ -24,6 +27,14 @@ PARTITION="submit"
 NAME="cvh"
 DRY_RUN=0
 CMSRUN_ARGS=""
+# Default to the dedicated prod CMSSW area (separate from dev tree). To
+# advance prod to a newer commit:
+#   cd /work/submit/david_w/ZMass/CMSSW_10_6_26_prod/src
+#   git pull && scram b -j 8        # incremental, no re-clone
+# OUTDIR auto-suffix below tags every submission with the prod HEAD hash,
+# so reproducibility is preserved without per-commit area names.
+# Override with --cmssw-area for debugging.
+CMSSW_AREA="/work/submit/david_w/ZMass/CMSSW_10_6_26_prod"
 
 usage() {
   sed -n '2,15p' "$0"
@@ -41,6 +52,7 @@ while [[ $# -gt 0 ]]; do
     --partition)   PARTITION=$2; shift 2;;
     --name)        NAME=$2; shift 2;;
     --cmsrun-args) CMSRUN_ARGS=$2; shift 2;;
+    --cmssw-area)  CMSSW_AREA=$2; shift 2;;
     --dry-run)     DRY_RUN=1; shift;;
     -h|--help)     usage;;
     *) echo "unknown arg: $1" >&2; usage;;
@@ -86,7 +98,18 @@ ARRAY_SPEC="0-$LAST"
 
 mkdir -p "$OUTDIR/logs"
 
-EXPORT="ALL,CONFIG=$CONFIG,FILELIST=$FILELIST,OUTDIR=$OUTDIR,SLURM_DIR=$SLURM_DIR"
+CMSSW_AREA=$(readlink -f "$CMSSW_AREA")
+[[ -d "$CMSSW_AREA/src" ]] || { echo "CMSSW_AREA invalid: $CMSSW_AREA" >&2; exit 1; }
+
+# Tag OUTDIR with the prod-area commit hash so outputs are traceable to
+# the build that made them. Idempotent: skipped if the hash is already
+# the suffix.
+HASH=$(cd "$CMSSW_AREA/src" && git rev-parse --short HEAD 2>/dev/null || true)
+if [[ -n "$HASH" && "$OUTDIR" != *"_${HASH}" ]]; then
+  OUTDIR="${OUTDIR}_${HASH}"
+fi
+
+EXPORT="ALL,CONFIG=$CONFIG,FILELIST=$FILELIST,OUTDIR=$OUTDIR,SLURM_DIR=$SLURM_DIR,CMSSW_AREA=$CMSSW_AREA"
 [[ -n "$PROXY_DST"   ]] && EXPORT="${EXPORT},X509_USER_PROXY=$PROXY_DST"
 [[ -n "$CMSRUN_ARGS" ]] && EXPORT="${EXPORT},CMSRUN_ARGS=$CMSRUN_ARGS"
 
@@ -107,6 +130,7 @@ echo "submitting: array $ARRAY_SPEC ($NJOBS files)"
 echo "  config   : $CONFIG"
 echo "  filelist : $FILELIST"
 echo "  outdir   : $OUTDIR"
+echo "  cmssw    : $CMSSW_AREA"
 echo "  partition: $PARTITION  time=$TIME  mem=$MEM"
 [[ -n "$MAX_RUNNING" ]] && echo "  max-running: $MAX_RUNNING"
 

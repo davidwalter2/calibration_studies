@@ -94,9 +94,26 @@ shared) AND the job is short enough that 3 minutes matters.
 
 ## Cmsrun config requirements
 
-The config must accept `input=<absolute path>` via `VarParsing.analysis`
-and write its output ROOT file relative to the current directory.
-`Analysis/HitAnalyzer/test/benchmark_io/bench_cmsrun_cfg.py` is a working
-template (raw JPsi ALCARECO -> CVH refit, with optional `srcCandidates`
-fallback to in-module pair selection — works on raw ALCARECO without a
-prior candidate-producer step).
+The config must accept `input=<absolute path or root:// URL>` via
+`VarParsing.analysis` and write its output ROOT file relative to the
+current directory. The production driver is
+`Analysis/HitAnalyzer/test/runCvhJpsi.py` (committed alongside the CVH
+refit producer; reads raw `ALCARECOTkAlJpsiMuMu` directly and falls back
+to the legacy in-module pair loop when `srcCandidates` is unset).
+
+## Dev / prod separation
+
+`submit.sh` defaults `--cmssw-area` to a dedicated tree
+`/work/submit/david_w/ZMass/CMSSW_10_6_26_prod/` so the dev tree at
+`/work/submit/david_w/ZMass/CMSSW_10_6_26/` is free for active work
+without affecting queued or running tasks. Advance prod when ready:
+
+```bash
+cd /work/submit/david_w/ZMass/CMSSW_10_6_26_prod/src
+git fetch && git checkout <branch-or-hash>
+eval $(scramv1 runtime -sh)   # SCRAM_ARCH=slc7_amd64_gcc700
+scram b -j 8                  # incremental
+```
+
+The submission auto-appends the prod HEAD short hash to `--outdir`, so
+which build produced any given output is recorded by the path alone.
