@@ -55,6 +55,25 @@ SLURM_DIR=$(dirname "$(readlink -f "$0")")
 [[ -f "$CONFIG" ]]   || { echo "config not found: $CONFIG"   >&2; exit 1; }
 [[ -f "$FILELIST" ]] || { echo "filelist not found: $FILELIST" >&2; exit 1; }
 
+# Stage X509 grid proxy to a path visible from worker nodes (worker /tmp
+# is private; /work/submit is shared). Required when the filelist contains
+# root:// URLs to /store/data; harmless otherwise.
+SRC_PROXY=${X509_USER_PROXY:-/tmp/x509up_u$(id -u)}
+PROXY_DST=/work/submit/${USER}/.x509up_slurm.proxy
+if [[ -r "$SRC_PROXY" ]]; then
+  install -m 600 "$SRC_PROXY" "$PROXY_DST"
+  TLEFT=$(voms-proxy-info -timeleft -file "$PROXY_DST" 2>/dev/null || echo 0)
+  if [[ "$TLEFT" -lt 86400 ]]; then
+    printf 'WARNING: proxy has only %dh%dm left; refresh with:\n  voms-proxy-init -voms cms -valid 192:00\n' \
+      $((TLEFT/3600)) $(((TLEFT%3600)/60)) >&2
+  else
+    printf 'proxy: %s (%dh left)\n' "$PROXY_DST" $((TLEFT/3600))
+  fi
+else
+  echo "WARNING: no readable X509 proxy at $SRC_PROXY (xrootd reads will fail)" >&2
+  PROXY_DST=""
+fi
+
 # Count non-blank, non-comment lines.
 NJOBS=$(grep -cvE '^\s*(#|$)' "$FILELIST")
 [[ $NJOBS -eq 0 ]] && { echo "filelist has 0 jobs"; exit 1; }
@@ -65,6 +84,9 @@ ARRAY_SPEC="0-$LAST"
 
 mkdir -p "$OUTDIR/logs"
 
+EXPORT="ALL,CONFIG=$CONFIG,FILELIST=$FILELIST,OUTDIR=$OUTDIR"
+[[ -n "$PROXY_DST" ]] && EXPORT="${EXPORT},X509_USER_PROXY=$PROXY_DST"
+
 cmd=(
   sbatch
   --job-name="$NAME"
@@ -74,7 +96,7 @@ cmd=(
   --mem="$MEM"
   --output="$OUTDIR/logs/${NAME}_%A_%a.out"
   --error="$OUTDIR/logs/${NAME}_%A_%a.err"
-  --export="ALL,CONFIG=$CONFIG,FILELIST=$FILELIST,OUTDIR=$OUTDIR"
+  --export="$EXPORT"
   "$SLURM_DIR/array.sbatch"
 )
 

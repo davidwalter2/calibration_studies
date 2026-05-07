@@ -35,5 +35,9 @@ mkdir -p "$TASK_DIR"
 # Point the inner runner at this task's working dir.
 RUN_ONE=$(dirname "$(readlink -f "$0")")/run_one.sh
 
+# Forward the X509 proxy through to the el7 container (env var + the
+# binding /work/submit makes the proxy file visible to cmsRun).
+export APPTAINERENV_X509_USER_PROXY="${X509_USER_PROXY:-}"
+
 APPTAINER_BIND="/tmp,/home/submit,/work/submit,/scratch/submit,/ceph/submit,/cvmfs,/etc/grid-security,/run" \
   cmssw-el7 --command-to-run "$RUN_ONE" "$CONFIG" "$INFILE" "$TASK_DIR"

@@ -14,7 +14,7 @@ chain), 1 CPU + 4 GB by default, 12 h walltime, on the `submit` partition.
                     `cmsenv` and `exec cmsRun "$CFG" input="$INPUT"`
 - `filelists/`    — convention: keep input filelists here
 
-## Quick start
+## Quick start — local files
 
 ```bash
 # 1. Build a filelist (one absolute path per line)
@@ -33,6 +33,38 @@ slurm/submit.sh \
 Drop `--dry-run` to actually submit. Per-task output lands in
 `$OUTDIR/task_<NNNN>/globalcor_*.root`; Slurm stdout/stderr in
 `$OUTDIR/logs/`.
+
+## Quick start — xrootd (`/store/data/...` from CMS)
+
+For inputs that aren't pre-staged locally, build a filelist of `root://`
+URLs and let cmsRun stream them. The CVH config
+(`bench_cmsrun_cfg.py`) auto-detects the `root://` prefix.
+
+```bash
+# 1. DAS -> filelist with the global redirector
+> filelists/jpsi_2016_xrootd.txt
+for era in F G H; do
+  dasgoclient -query="file dataset=/Charmonium/Run2016${era}-TkAlJpsiMuMu-21Feb2020_UL2016-v1/ALCARECO" \
+    | sed 's|^|root://cms-xrd-global.cern.ch/|' \
+    >> filelists/jpsi_2016_xrootd.txt
+done
+wc -l filelists/jpsi_2016_xrootd.txt   # 250 across F/G/H
+
+# 2. Refresh proxy with a long lifetime (8 days), THEN submit
+voms-proxy-init -voms cms -valid 192:00
+
+slurm/submit.sh \
+  --config   /work/submit/david_w/ZMass/CMSSW_10_6_26/src/Analysis/HitAnalyzer/test/benchmark_io/bench_cmsrun_cfg.py \
+  --filelist slurm/filelists/jpsi_2016_xrootd.txt \
+  --outdir   /ceph/submit/data/user/d/david_w/ZMass/cvh/jpsi_stage2_2016_xrootd \
+  --max-running 50
+```
+
+`submit.sh` stages the proxy from `$X509_USER_PROXY` (defaulting to
+`/tmp/x509up_u$UID`) to `/work/submit/$USER/.x509up_slurm.proxy` so the
+worker nodes can reach it through the bind-mount, and warns if it has
+< 24 h left. If `submit.sh` exits with no output and unset proxy var,
+run `voms-proxy-init` and try again.
 
 ## Tunables
 

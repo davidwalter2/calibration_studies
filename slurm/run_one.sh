@@ -21,6 +21,10 @@ echo ">>> $(date) host=$(hostname)"
 echo ">>> cfg=$CFG"
 echo ">>> input=$INPUT"
 echo ">>> outdir=$OUTDIR"
+if [[ -n "${X509_USER_PROXY:-}" ]]; then
+  TLEFT=$(voms-proxy-info -timeleft -file "$X509_USER_PROXY" 2>/dev/null || echo 0)
+  echo ">>> proxy=$X509_USER_PROXY ($((TLEFT/3600))h ${TLEFT}s left)"
+fi
 echo ">>> cmsRun starting"
 
 exec cmsRun "$CFG" input="$INPUT"
