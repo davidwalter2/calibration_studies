@@ -1,9 +1,6 @@
 import numpy as np
-from scipy.integrate import quad_vec
+from scipy.integrate import quad
 import constants
-import lhapdf
-pdf = lhapdf.mkPDF("NNPDF31_nnlo_as_0118", 0)
-
 
 def get_quark_couplings(sin2theta_w):
     # Quarks
@@ -24,11 +21,6 @@ def get_quark_couplings(sin2theta_w):
         g_fR = -Q_f * sin2theta_w
         g_fL = I3 - Q_f * sin2theta_w
         
-        # Rounding to 4 decimal places
-        e_f = round(e_f, 10)
-        g_fR = round(g_fR, 10)
-        g_fL = round(g_fL, 10)
-        
         quark_couplings.append((flavor, e_f, g_fR, g_fL))
     return quark_couplings
 
@@ -39,7 +31,7 @@ def convert_gev2pb(d_sigma):
     return factor * 0.389379 * 1e9* d_sigma
 
 
-def f_s(x, tau, flavor, Q2):
+def f_s(x, tau, flavor, Q2, pdf):
     tau_x = tau / x
 
     pdf_flavor_x = pdf.xfxQ2(flavor, x, Q2)
@@ -53,32 +45,42 @@ def f_s(x, tau, flavor, Q2):
     return term1 + term2
 
 
-def integrate_sigma_hat_prime_sm(s, flavor, Q2):
-    scalar = np.isscalar(Q2)
-    Q2_arr = np.atleast_1d(np.asarray(Q2, dtype=float))
-    tau = Q2_arr / s
+# def integrate_sigma_hat_prime_sm(s, flavor, Q2):
+#     def integrate_one(Q2_i):
+#         tau_i = Q2_i / s
+#         result, _ = quad(lambda x: f_s(x, tau_i, flavor, Q2_i) * (tau_i / x), tau_i, 1)
+#         return result
 
-    # Change of variables: x = tau_i + t*(1 - tau_i), mapping [tau_i, 1] -> [0, 1]
-    # for each component, so all components share a smooth domain with no discontinuities.
-    def integrand(t):
-        vals = np.zeros(len(Q2_arr))
-        for i, (tau_i, Q2_i) in enumerate(zip(tau, Q2_arr)):
-            x_i = tau_i + t * (1 - tau_i)
-            vals[i] = f_s(x_i, tau_i, flavor, Q2_i) * (tau_i / x_i) * (1 - tau_i)
-        return vals
+#     if np.isscalar(Q2):
+#         return integrate_one(Q2)
 
-    result, _ = quad_vec(integrand, 0, 1)
-    return result[0] if scalar else result
+#     return np.array([integrate_one(iQ2) for iQ2 in Q2])
+
+def integrate_sigma_hat_prime_sm(s, flavor, Q2, pdf):
+    if not np.isscalar(Q2):
+        return np.array([integrate_sigma_hat_prime_sm(s, flavor, iQ2, pdf) for iQ2 in Q2])
+    
+    tau = Q2 / s
+    def integrand1(x):
+        tau_x = tau/x
+        return f_s(x, tau, flavor, Q2, pdf) * tau_x
+
+    result1, _ = quad(integrand1, tau, 1, epsrel=1e-5)
+    return result1
 
 
-def d_sigma_sm(Q2, quark_couplings, s, mass_z, width_z, sin2theta_w):
+
+def d_sigma_sm(Q2, quark_couplings, s, mass_z, width_z, sin2theta_w, integrals=None):
     d_sigma = 0
     for flavor, e_f, g_fR, g_fL in quark_couplings:
 
         termL = summation_terms(Q2, e_f, g_fL, mass_z, width_z, sin2theta_w)
         termR = summation_terms(Q2, e_f, g_fR, mass_z, width_z, sin2theta_w)
         
-        integral = integrate_sigma_hat_prime_sm(s, flavor, Q2)
+        if integrals is None:
+            integral = integrate_sigma_hat_prime_sm(s, flavor, Q2)
+        else:
+            integral = integrals[flavor-1]
 
         d_sigma +=  (termL+ termR )* integral
     
@@ -102,9 +104,9 @@ def summation_terms(Q2, e_f, g, mass_z, width_z, sin2theta_w):
     return  (term_1(Q2, e_f) + term_2(Q2, e_f, g, mass_z, width_z, sin2theta_w) + term_3(Q2, e_f, g, mass_z, width_z, sin2theta_w))
 
 
-def dsigma_dQ(Q2, quark_couplings, s, mass_z, width_z, sin2theta_w):
+def dsigma_dQ(Q2, quark_couplings, s, mass_z, width_z, sin2theta_w, integrals=None):
     Q= np.sqrt(Q2)
-    sm = d_sigma_sm(Q2, quark_couplings, s, mass_z, width_z, sin2theta_w)
+    sm = d_sigma_sm(Q2, quark_couplings, s, mass_z, width_z, sin2theta_w, integrals=integrals)
     
     return 2*Q*sm
 
