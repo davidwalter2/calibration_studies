@@ -1,0 +1,12 @@
+experiment,Q_GeV,sin2thetaW,err_up,err_dn,scheme,reference,label,note
+Cs APV,0.0024,0.2356,0.0011,0.0011,MSbar,Porsev:2009,Cs APV,Parity violation in atomic Cs; Q is nuclear momentum transfer scale
+E158,0.1585,0.2397,0.0013,0.0013,MSbar,Anthony:2005pm,E158,Moller scattering at SLAC; Q=sqrt(Q2) with Q2=0.026 GeV2
+NuTeV,20.0,0.2277,0.0016,0.0016,onshell,Zeller:2001hh,NuTeV,Neutrino-nucleus DIS; on-shell scheme; ~3sigma discrepancy from SM (nuclear corrections)
+LEP combined,91.2,0.23221,0.00029,0.00029,eff-lept,ALEPH:2005ab,LEP,4-experiment combination at Z pole
+SLD,91.2,0.23098,0.00026,0.00026,eff-lept,ALEPH:2005ab,SLD,Most precise single-experiment Z-pole value; 2.9sigma tension with LEP
+CDF,91.2,0.23221,0.00046,0.00046,eff-lept,CDF:2018ugm,CDF,Tevatron; forward-backward asymmetry in Drell-Yan
+D0,91.2,0.23095,0.00040,0.00040,eff-lept,D0:2014kma,D0,Tevatron
+ATLAS 7 TeV,91.2,0.23080,0.00120,0.00120,eff-lept,ATLAS:2018wsm,ATLAS,Run 1 at LHC
+CMS 8 TeV,91.2,0.23101,0.00053,0.00053,eff-lept,CMS:2018ktx,CMS 8,Run 1 at LHC
+LHCb 13 TeV,91.2,0.23147,0.00050,0.00050,eff-lept,LHCb:2021tnr,LHCb,Forward acceptance provides better quark-direction determination
+CMS 13 TeV,91.2,0.23156,0.00024,0.00024,eff-lept,CMS:2024xxx,CMS 13,Best single-experiment measurement; Run 2 138 fb-1
