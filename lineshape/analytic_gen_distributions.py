@@ -26,38 +26,9 @@ def plot_resonance(h_minnlo, mass, width, resonance="z", sin2theta_w=constants.s
 
     hists = [h_minnlo]
     labels = ["MiNNLO (pre-FSR)"]
-    
-    # 1. Gaussian
-    h_gaussian = h_minnlo.copy()
-    # We match the Gaussian's Full Width at Half Maximum (FWHM) to the Z boson's width
-    # FWHM = 2 * sqrt(2 * ln(2)) * sigma
-    sigma = width / (2 * np.sqrt(2 * np.log(2)))
-    gaussian = (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((m - mass) / sigma)**2)
-    h_gaussian.values()[...] = gaussian
-    h_gaussian = hh.normalize(h_gaussian, scale=1)
-    hists.append(h_gaussian)
-    labels.append("Gaussian")
+    colors = ["black"]
+    linestyles=["-"]
 
-    # 2. Non-relativistic Breit-Wigner
-    h_non_rel_bw = h_minnlo.copy()
-    # Simple Cauchy distribution with constant width
-
-    non_rel_bw = functions.non_relativistic_breit_wigner(m, mass, width)
-    h_non_rel_bw.values()[...] = non_rel_bw
-    h_non_rel_bw = hh.normalize(h_non_rel_bw, scale=1)
-    hists.append(h_non_rel_bw)
-    labels.append("Non Rel. BW")
-
-    # 3. Relativistic Breit-Wigner
-    h_rel_bw = h_minnlo.copy()
-    # With energy-dependent width: Gamma(m) = width * (m^2 / mass^2)
-    gamma_m = width * (m**2 / mass**2)
-    rel_bw = (m**2 * gamma_m) / ((m**2 - mass**2)**2 + (m * gamma_m)**2)
-    h_rel_bw.values()[...] = rel_bw
-    h_rel_bw = hh.normalize(h_rel_bw, scale=1)
-    hists.append(h_rel_bw)
-    labels.append("Rel. BW")
-    
     if resonance[0] == "z":
         # 4. Fixed order calculation
 
@@ -70,12 +41,14 @@ def plot_resonance(h_minnlo, mass, width, resonance="z", sin2theta_w=constants.s
 
         quark_couplings = dy.get_quark_couplings(sin2theta_w)
 
-        Q_val = m
-        # gamma = [functions.dsigma_dQ_1(Q**2, quark_couplings) for Q in Q_val]
-        # gamma_z = [functions.dsigma_dQ_2(Q**2, quark_couplings, **settings) for Q in Q_val]
-        # z = [functions.dsigma_dQ_3(Q**2, quark_couplings, **settings) for Q in Q_val]
+        h5file = h5py.File("data/NNPDF31_nnlo_as_0118.hdf5", "r")
+        if resonance == "z":
+            integrals = [a[320:420] for a in ioutils.load_results_h5py(h5file)[0]]
+        else:
+            integrals = [a for a in ioutils.load_results_h5py(h5file)[0]]
 
-        prefsr = dy.dsigma_dQ(Q_val**2, quark_couplings, **settings)
+        Q2 = m**2
+        prefsr = dy.dsigma_dQ(Q2, quark_couplings, integrals=integrals, **settings)
 
         h_fo = h_minnlo.copy()
         h_fo.values()[...] = prefsr
@@ -83,16 +56,55 @@ def plot_resonance(h_minnlo, mass, width, resonance="z", sin2theta_w=constants.s
 
         hists.append(h_fo)
         labels.append(r"FO Z/$\gamma*$")
+        colors.append("red")
+        linestyles.append("--")
 
+        # normalize resonance models on Z peak region
+        norm = h_fo[{"mass":slice(80j,105j,hist.sum)}].value
     else:
+        norm = 1
+
+    # 1. Gaussian
+    h_gaussian = h_minnlo.copy()
+    # We match the Gaussian's Full Width at Half Maximum (FWHM) to the Z boson's width
+    # FWHM = 2 * sqrt(2 * ln(2)) * sigma
+    sigma = width / (2 * np.sqrt(2 * np.log(2)))
+    gaussian = (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((m - mass) / sigma)**2)
+    h_gaussian.values()[...] = gaussian
+    h_gaussian = hh.normalize(h_gaussian, scale=norm)
+    hists.append(h_gaussian)
+    labels.append("Gaussian")
+    colors.append("blue")
+    linestyles.append("--")
+
+    # 2. Non-relativistic Breit-Wigner
+    h_non_rel_bw = h_minnlo.copy()
+    # Simple Cauchy distribution with constant width
+
+    non_rel_bw = functions.non_relativistic_breit_wigner(m, mass, width)
+    h_non_rel_bw.values()[...] = non_rel_bw
+    h_non_rel_bw = hh.normalize(h_non_rel_bw, scale=norm)
+    hists.append(h_non_rel_bw)
+    labels.append("Non Rel. BW")
+    colors.append("orange")
+    linestyles.append(":")
+
+    # 3. Relativistic Breit-Wigner
+    h_rel_bw = h_minnlo.copy()
+    # With energy-dependent width: Gamma(m) = width * (m^2 / mass^2)
+    gamma_m = width * (m**2 / mass**2)
+    rel_bw = (m**2 * gamma_m) / ((m**2 - mass**2)**2 + (m * gamma_m)**2)
+    h_rel_bw.values()[...] = rel_bw
+    h_rel_bw = hh.normalize(h_rel_bw, scale=norm)
+    hists.append(h_rel_bw)
+    labels.append("Rel. BW")
+    colors.append("green")
+    linestyles.append("-.")
+
+    if resonance[0] != "z":
         #FIXME: replace by MC
         hists[0].values()[...] = rel_bw
-        hists[0] = hh.normalize(hists[0], scale=1)
-
-    # Normalize the shapes over the plotted range to compare their profiles fairly
-    # gaussian_normalized = gaussian / np.trapz(gaussian, m)
-    # non_rel_bw_normalized = non_rel_bw / np.trapz(non_rel_bw, m)
-    # rel_bw_normalized = rel_bw / np.trapz(rel_bw, m)
+        hists[0] = hh.normalize(hists[0], scale=norm)
 
     fig, ax1, ratio_axes = plot_tools.figureWithRatio(
         h_minnlo,
@@ -108,9 +120,6 @@ def plot_resonance(h_minnlo, mass, width, resonance="z", sin2theta_w=constants.s
     )
     ax2 = ratio_axes[-1]
 
-    colors=["black", "blue", "green", "orange", "red", "red", "red", "red"][:len(hists)]
-    linestyles=["-", "--",":","-.", "-", "--",":","-.",][:len(hists)]
-
     # Plotting
     hep.histplot(
         hists,
@@ -123,11 +132,6 @@ def plot_resonance(h_minnlo, mass, width, resonance="z", sin2theta_w=constants.s
         linewidth=2,
         flow="none",
     )
-
-    
-    # ax1.plot(m, gaussian, label='Gaussian', linestyle=':', linewidth=2.5, color="green")
-    # ax1.plot(m, non_rel_bw, label='Non-Rel. BW', linestyle='--', linewidth=2.5, color="orange")
-    # ax1.plot(m, rel_bw, label='Rel. BW', linestyle='-', linewidth=2.5, color="red")
 
     ax1.axvline(mass, color='grey', linestyle='--')
 
@@ -173,6 +177,7 @@ z_hist_high = ioutils.get_hist(result, "Zmumu_13TeVGen", histname="nominal_gen")
 z_hist_low = ioutils.get_hist(result, "DYJetsToMuMuMass10to50_13TeVGen", histname="nominal_gen")
 
 z_hist = hh.addHists(z_hist_high, z_hist_low)
+z_hist = z_hist[{"mass":slice(10j,None)}]
 z_hist = hh.normalize(z_hist, scale=1)
 
 plot_resonance(z_hist, constants.mass_z, constants.width_z, "zgamma", ylim=[0,0.15])

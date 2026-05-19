@@ -5,6 +5,7 @@ import mplhep as hep
 from wums import boostHistHelpers as hh
 from wums import plot_tools
 
+
 def get_kernel_hist(h, mass):
 
     k = h.axes["k"].centers
@@ -16,6 +17,7 @@ def get_kernel_hist(h, mass):
 
     return h_kernel
 
+
 def plot(h_kernel):
 
     hists = [
@@ -26,16 +28,16 @@ def plot(h_kernel):
         get_kernel_hist(h_kernel, constants.mass_j)
         ]
     labels = [
-        r"p($\mathit{k};\mathit{m}_\mathrm{Z}$)",
-        r"p($\mathit{k};\mathit{m}_{\mathrm{Y}(3S)}$)",
-        r"p($\mathit{k};\mathit{m}_{\mathrm{Y}(2S)}$)",
-        r"p($\mathit{k};\mathit{m}_{\mathrm{Y}(1S)}$)",
-        r"p($\mathit{k};\mathit{m}_{J/\psi}$)",
+        r"p($\mathit{z};\mathit{m}_\mathrm{Z}$)",
+        r"p($\mathit{z};\mathit{m}_{\mathrm{Y}(3S)}$)",
+        r"p($\mathit{z};\mathit{m}_{\mathrm{Y}(2S)}$)",
+        r"p($\mathit{z};\mathit{m}_{\mathrm{Y}(1S)}$)",
+        r"p($\mathit{z};\mathit{m}_{J/\psi}$)",
         ]
 
     fig, ax1, ratio_axes = plot_tools.figureWithRatio(
         h_kernel,
-        r"$\mathit{k}=\mathit{E}_\gamma / \mathit{E}_\mu$",
+        r"$\mathit{z}=1-\mathit{E}_\gamma / \mathit{E}_\mu$",
         "Frequency",
         [0,0.4],
         "Ratio",
@@ -61,13 +63,6 @@ def plot(h_kernel):
         flow="none",
     )
 
-
-    # ax1.plot(m, gaussian, label='Gaussian', linestyle=':', linewidth=2.5, color="green")
-    # ax1.plot(m, non_rel_bw, label='Non-Rel. BW', linestyle='--', linewidth=2.5, color="orange")
-    # ax1.plot(m, rel_bw, label='Rel. BW', linestyle='-', linewidth=2.5, color="red")
-
-    # ax1.axvline(mass, color='grey', linestyle='--')
-
     ax1.legend(ncol=2)
 
     hep.histplot(
@@ -81,7 +76,6 @@ def plot(h_kernel):
         flow="none",
     )
 
-    # ax2.axvline(mass, color='grey', linestyle='--')
     ax2.axhline(1, color='grey', linestyle='--')
 
     plot_tools.fix_axes(ax1, ax2, fig)
