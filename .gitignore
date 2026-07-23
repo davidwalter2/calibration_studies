@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtualenv created by setup_env.sh
+env/
+
+# Generated plot/output artifacts
+lineshape/results/
+
+# Auto-generated temporary / retry slurm filelists
+slurm/filelists/_*
+
+# CVH hotspot-2 study: large caches and cmsRun outputs (regenerable)
+module_level_corrections/*.npz
+module_level_corrections/runtree_map*/
+module_level_corrections/diag_run*/
