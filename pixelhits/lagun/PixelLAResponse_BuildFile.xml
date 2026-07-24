@@ -1,0 +1,14 @@
+<use name="FWCore/Framework"/>
+<use name="FWCore/ParameterSet"/>
+<use name="FWCore/ServiceRegistry"/>
+<use name="CommonTools/UtilAlgos"/>
+<use name="DataFormats/TrackerRecHit2D"/>
+<use name="DataFormats/TrackReco"/>
+<use name="DataFormats/SiPixelDetId"/>
+<use name="TrackingTools/PatternTools"/>
+<use name="SimDataFormats/TrackingHit"/>
+<use name="Geometry/TrackerGeometryBuilder"/>
+<use name="Geometry/CommonTopologies"/>
+<use name="Geometry/Records"/>
+<use name="root"/>
+<flags EDM_PLUGIN="1"/>

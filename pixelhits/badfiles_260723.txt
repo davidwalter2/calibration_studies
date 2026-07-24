@@ -1,0 +1,4 @@
+/ceph/submit/data/group/cms/store/mc/inclusive_btojpsix_2016postvfp/mc_inclusive_btojpsix_c3231198_p11950.root
+/ceph/submit/data/group/cms/store/mc/inclusive_btojpsix_2016postvfp/mc_inclusive_btojpsix_c3231198_p12080.root
+/ceph/submit/data/group/cms/store/mc/inclusive_btojpsix_2016postvfp/mc_inclusive_btojpsix_c3231198_p12809.root
+/ceph/submit/data/group/cms/store/mc/inclusive_btojpsix_2016postvfp/mc_inclusive_btojpsix_c3231198_p4022.root
