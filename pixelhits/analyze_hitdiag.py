@@ -31,8 +31,12 @@ CM2UM = 1e4
 def load(rundir):
     cols = ["hitdiag_detid", "hitdiag_class", "hitdiag_dx", "hitdiag_dy",
             "hitdiag_exx", "hitdiag_eyy", "hitdiag_lx", "hitdiag_ly"]
+    files = sorted(glob.glob(rundir + "/globalcor_*.root"))
+    t0 = uproot.open(files[0])["tree"]
+    if "hitdiag_charge" in t0.keys():
+        cols = cols + ["hitdiag_charge"]
     out = {c: [] for c in cols}
-    for f in sorted(glob.glob(rundir + "/globalcor_*.root")):
+    for f in files:
         a = uproot.open(f)["tree"].arrays(cols, library="np")
         for c in cols:
             out[c].append(np.concatenate(a[c]) if len(a[c]) else np.array([]))
@@ -92,6 +96,24 @@ def main():
                 continue
             m, e = robust_mean(res[s])
             print(f"{label:>14s} {sdname:>7s} {s.sum():8d} {m:+10.2f} {e:8.2f} {res[s].std():8.1f}")
+
+    # --- charge split (production-readiness check: charge-odd residuals
+    # would feed the W charge asymmetry directly) --------------------------
+    if "hitdiag_charge" in a:
+        q = a["hitdiag_charge"]
+        print("\n=== charge split, BPix (robust means, um) ===")
+        print(f"{'class':>14s} {'q':>3s} {'n':>8s} {'<res>':>10s} {'err':>7s}"
+              f"   {'q+ - q-':>14s}")
+        for label, res, sel, _c in cats:
+            s = sel & (subdet == 1)
+            mp, ep = robust_mean(res[s & (q > 0)])
+            mm, em = robust_mean(res[s & (q < 0)])
+            if not (np.isfinite(mp) and np.isfinite(mm)):
+                continue
+            d, de = mp - mm, np.hypot(ep, em)
+            print(f"{label:>14s}  q+ {(s & (q > 0)).sum():8d} {mp:+10.2f} {ep:7.2f}"
+                  f"   {d:+8.2f} ± {de:.2f} ({abs(d)/de:4.1f}σ)")
+            print(f"{'':>14s}  q- {(s & (q < 0)).sum():8d} {mm:+10.2f} {em:7.2f}")
 
     print("\n=== BPix per-layer (um) ===")
     for label, res, sel, _c in cats:
