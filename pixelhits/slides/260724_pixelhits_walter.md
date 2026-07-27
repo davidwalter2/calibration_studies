@@ -319,27 +319,34 @@ Data-quality handling from the per-module version of the fit:
 
 1. **A handful of modules (3–8 per era) fit at mm-level values** → blacklisted
    (<1% of modules; two are genuine detector findings, next slide)
-2. One of the two 2016H runs (283453) carries a real run-localized pathology
-   → also split by run. Golden-JSON filtering: **no effect** (all lumis certified)
+2. **Per-candidate convergence gate** (edmvalref < 10⁻²): ~0.5% of free-fit
+   candidates are non-converged, and a *single* diverged fit can dominate the
+   unprotected gradient sum (next slide). Golden-JSON filtering: no effect
 
 ---
 
-## Two detector defects found by the per-module fit
+## A cautionary tale: apparent "detector defects" were fit artifacts
 
-**1. BPix module 302123012 (L2, ladder 8, module 1) — 2016G only**
+Two striking anomalies appeared in the first per-module / per-run fits:
 
-- Fits at **+22.7 mm** (edge-y-mean) / **−20.2 mm** (edge-y-diff) from 9 hits (pull ≈ 790)
-- Normal in 2016F and 2016H → alignment corruption specific to the 2016G IOV
-  (pixel analogue of the garbage-aligned TIB module 369141860 found earlier)
-- Before exclusion it faked a "+32 μm edge-y-mean anomaly" for the whole layer
+- *BPix module 302123012 fitted at +22.7 mm (2016G only)* — looked like an
+  IOV-specific alignment corruption
+- *Run 283453, LS 451–514: sizeX1 shift up to +403 μm* — looked like an
+  end-of-fill HV/timing scan inside the golden JSON
 
-**2. Run 283453 (2016H, certified data) — module-and-run-localized Lorentz shift**
+**Both were traced to single non-converged fits.** The 283453 case: ONE candidate
+(LS 466, χ² = 7·10¹⁰, edm 10¹¹ × threshold, "J/ψ mass" 259 GeV, μ⁺ pT 10 TeV)
+contributing a gradient 10⁵ × the median — the whole "anomaly" was its shadow.
+The independent per-hit attribution (robust means) saw nothing; the discrepancy
+between the two methods exposed the artifact.
 
-- Pre-exclusion signature: sizeX1 bias +34 / −2 / +101 μm (L1/L2/L3), anti-correlated
-  edge-x-mean (ratio ≈ −0.6), y-side untouched → pure local-x / Lorentz-drift effect
-- Localized in a few modules *in this run only* (e.g. 302192140: sizeX1 +10.8 mm);
-  the other run in the sample (283478) is clean
-- Candidate cause: HV/readout sector condition in that run → worth reporting to Pixel DPG
+- With a convergence gate (edmvalref < 10⁻², rejecting 0.4–0.5% of candidates)
+  **both anomalies vanish and no module blacklist is needed** — the era table
+  is unchanged
+- Full certified-2016 scan (250 files, 160 runs, all F/G/H): **no condition
+  pathologies found**; single mild flag (run 279681, sizeY1-y, +12 μm, weak-y channel)
+
+**Production lesson: the calibration solve must gate on per-candidate convergence.**
 
 ---
 
@@ -423,10 +430,13 @@ testable signature.
 
 ---
 
-## δtanθ_L validation: run 283453 as data test case, MC as control
+## δtanθ_L validation: internal consistency test, MC as control
 
-**Run 283453** (the real condition shift): one parameter per layer absorbs the
-entire x-side anomaly and *predicts* the edge-x response:
+**Run 283453 artifact as a stress test** (at the time believed to be a real
+condition shift; later traced to one diverged fit — previous slide): one
+parameter per layer absorbs the entire x-side pattern and *predicts* the
+edge-x response — demonstrating the machinery's internal consistency on a
+large coherent signal, whatever its origin:
 
 | BPix | x-drift fit (size-1-eq.) | implied edge-x-mean (κ·LX) | measured edge-x-mean |
 |---|---:|---:|---:|
@@ -456,11 +466,12 @@ entire x-side anomaly and *predicts* the edge-x response:
 - Recovering the hits with corrections: **~2.5% better J/ψ mass resolution,
   momentum scale untouched (≤ 5×10⁻⁵)** in MC
 - Data: edge-y bias **half of MC** and era-stable (45–77 μm); L1 shows a
-  radiation-like era trend; two detector defects identified on the way
+  radiation-like era trend; two apparent detector defects traced to
+  single non-converged fits → convergence gate now part of the solve
 
 - **Physics parameterization implemented**: a single Lorentz-drift parameter
-  (δtanθ_L, solver-level column combination) absorbs the full x-side condition
-  shift of run 283453 at the 2–12% level and is separable from truncation
+  (δtanθ_L) with digitizer-measured response weights, exact injected-signal
+  closure, zero leakage into simultaneous alignment
 
 **Next:**
 
@@ -469,7 +480,7 @@ entire x-side anomaly and *predicts* the edge-x response:
 - Digitizer-level study to normalize the Lorentz parameter to physical δtanθ_L
   (and derive per-layer response weights); optional soft prior b(−x edge) = 0
 - Extend to the remaining eras / full statistics; per-module granularity where populated
-- Report module 302123012 (2016G alignment) and run 283453 (Lorentz shift) upstream
+- Full-statistics eras + the simultaneous fit with the convergence-gated solve
 
 ---
 

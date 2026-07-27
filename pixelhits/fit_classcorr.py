@@ -55,6 +55,11 @@ def main():
                    help="only accumulate candidates with lumisection >= this")
     p.add_argument("--lumi-max", type=int, default=10**9,
                    help="only accumulate candidates with lumisection <= this")
+    p.add_argument("--max-edm", type=float, default=1e-2,
+                   help="skip candidates whose fit did not converge "
+                        "(edmval above this); guards the unprotected "
+                        "gradient sum against diverged fits (the fake "
+                        "run-283453 anomaly was ONE such candidate)")
     p.add_argument("--exclude-from-permodule", type=float, default=0.,
                    help="blacklist modules whose per-module fit "
                         "(classcorr_permodule.pkl in the rundir) has any "
@@ -143,17 +148,22 @@ def main():
     ntouch = np.zeros(ngrp, dtype=np.int64)
 
     ncand = 0
+    nskip_edm = 0
     for fn in files:
         t = uproot.open(fn)["tree"]
         if t.num_entries == 0:
             continue
-        arrs = t.arrays(["globalidxv", "gradv", "hesspackedv", "run", "lumi"],
-                        library="np")
-        for gi, gr, hp, rn, ls in zip(arrs["globalidxv"], arrs["gradv"],
-                                      arrs["hesspackedv"], arrs["run"], arrs["lumi"]):
+        arrs = t.arrays(["globalidxv", "gradv", "hesspackedv", "run", "lumi",
+                         "edmvalref"], library="np")
+        for gi, gr, hp, rn, ls, edm in zip(arrs["globalidxv"], arrs["gradv"],
+                                           arrs["hesspackedv"], arrs["run"],
+                                           arrs["lumi"], arrs["edmvalref"]):
             if rn < args.run_min or rn > args.run_max:
                 continue
             if ls < args.lumi_min or ls > args.lumi_max:
+                continue
+            if edm > args.max_edm:
+                nskip_edm += 1
                 continue
             ncand += 1
             gi = np.asarray(gi)
@@ -180,7 +190,7 @@ def main():
             gmi = np.broadcast_to(gids[:, None], v.shape)
             np.add.at(H, (gmi, gmi.T), v)
 
-    print(f"candidates: {ncand}")
+    print(f"candidates: {ncand}  (skipped {nskip_edm} non-converged, edm > {args.max_edm})")
 
     # Gaussian prior on the alignment deviations (centred on the current
     # alignment, i.e. theta = 0): H += 1/sigma^2 on their diagonal.
