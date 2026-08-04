@@ -95,15 +95,23 @@ def _delta_term_2d(a, w):
         t1 -= ia * np.log(w)
     norm = 1.0 - 1.0 / w
     out = t1 / norm
-    small = np.abs(a) < 1e-6
+    wb = np.broadcast_to(w, a.shape)
+    # The series expansion of <e^{iaE}-1-iaE> requires a*E << 1 over the WHOLE
+    # support, and the support reaches E = w, so the expansion parameter is
+    # a*w -- NOT a. For muons w = tmax/e0 ~ 1e8-1e10 (keV-scale e0 against a
+    # multi-GeV kinematic tmax), so a guard on |a| alone selects the series in
+    # a regime where it is wrong by orders of magnitude: at w = 1e9, a = 1e-6
+    # the series gives Im = -8.3e-2 against the true -6.5e-6 (verified against
+    # direct sampling of the 1/E^2 spectrum). That spurious phase, stacked over
+    # ~350 steps, turns the model CF into a pure oscillation at small t.
+    # Below a*w ~ 1e-2 the closed form loses precision to cancellation and the
+    # series is the accurate one, so switch there; the two agree to ~3e-4
+    # across a*w = 1e-2 .. 1e-1.
+    small = np.abs(a) * wb < 5e-2
     if small.any():
-        # small-|a| expansion MUST keep the cubic imaginary term: it is the
-        # transmitted Landau skew (mean-vs-mode). For the 1/E^2 spectrum on
-        # [1, w]: <E^2>_raw = w-1, <E^3>_raw = (w^2-1)/2. Dropping the
-        # imaginary part here silently killed the muon ionization skew
-        # (every muon step has |a| < 1e-6; found 2026-08-04 as |Sio_im| ~
-        # 1e-13 instead of the ~3e-4 first-principles estimate).
-        wb = np.broadcast_to(w, a.shape)
+        # The series MUST keep the cubic imaginary term: it is the transmitted
+        # Landau skew (mean-vs-mode). For the 1/E^2 spectrum on [1, w]:
+        # <E^2>_raw = w-1, <E^3>_raw = (w^2-1)/2.
         nb = np.broadcast_to(norm, a.shape)
         ar = a.real
         quad = (-0.5 * ar ** 2 * (wb - 1.)

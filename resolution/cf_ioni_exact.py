@@ -103,11 +103,17 @@ def delta_term(a):
     # small-a fallback (E1 cancellation): quadratic term with
     # <E^2>/e0^2 = w (for the 1/E^2 spectrum, <E^2> = e0 tmax) -- relative
     # to the mean-subtracted quadratic: -(a^2/2) * <E^2>/norm-ish
-    small = np.abs(a) < 1e-6
+    # The expansion parameter is a*w, not a: the 1/E^2 support reaches E = w,
+    # so the series needs a*w << 1. For muons w = tmax/e0 ~ 1e8-1e10 and a
+    # guard on |a| alone picks the series where it is wrong by orders of
+    # magnitude (w = 1e9, a = 1e-6: series Im = -8.3e-2 vs true -6.5e-6).
+    # Below a*w ~ 1e-2 the closed form is cancellation-limited and the series
+    # is the accurate branch. Same fix as cf_track_resolution._delta_term_2d.
+    small = np.abs(a) * w < 5e-2
     if small.any():
         # raw quadratic + CUBIC IMAGINARY term (the transmitted skew --
         # <E^3>_raw = (w^2-1)/2 for the 1/E^2 spectrum; dropping it zeroed
-        # the muon ionization skew, every muon step has |a| < 1e-6)
+        # the muon ionization skew)
         ar = a[small].real
         out[small] = (-0.5 * ar ** 2 * (w - 1.)
                       - 1j * ar ** 3 / 6. * (w * w - 1.) / 2.) / norm

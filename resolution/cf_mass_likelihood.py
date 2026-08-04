@@ -63,6 +63,19 @@ def parse_args():
     p.add_argument("--pairs-cache", default=os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "runs/cf_masspairs_cache.npz"))
     p.add_argument("--covtol", type=float, default=5e-3)
+    p.add_argument("--vtx-tol", type=float, default=1e-3,
+                   help="gen production-vertex match tolerance [cm] for true "
+                        "J/psi pairs; <=0 keeps all opposite-charge combinations "
+                        "(the old behaviour, which leaks combinatorics)")
+    # --demo scan grids; the r range must BRACKET the minimum, otherwise the
+    # profile rails at an edge and the reported alpha is pulled by the
+    # alpha-r correlation
+    p.add_argument("--r-min", type=float, default=0.30)
+    p.add_argument("--r-max", type=float, default=1.15)
+    p.add_argument("--r-step", type=float, default=0.05)
+    p.add_argument("--alpha-min", type=float, default=-1e-3)
+    p.add_argument("--alpha-max", type=float, default=4e-3)
+    p.add_argument("--alpha-n", type=int, default=41)
     p.add_argument("--outpath", default=None)
     p.add_argument("--postfix", default="")
     return p.parse_args()
@@ -85,10 +98,18 @@ def pair_mass(g1, g2):
     return np.sqrt(np.maximum(m2, 0.))
 
 
-def collect_pairs(files, want=("genParms",)):
+def collect_pairs(files, want=("genParms",), vtxtol=None):
     """Group tracks by (run, lumi, event); yield per file the index pairs
     of opposite-charge gen-matched muons (all combinations; the J/psi
-    window cut is applied downstream on the gen mass)."""
+    window cut is applied downstream on the gen mass).
+
+    vtxtol (cm), if set, additionally requires the two muons to share a gen
+    production vertex -- i.e. to be the SAME J/psi. Without it every
+    opposite-charge combination is kept, and the samples reach 12 gen-matched
+    muons per event, so mispaired combinations leak in: they populate
+    m_gen ABOVE the pole (up to +295 MeV), which FSR cannot produce. The
+    separation distribution is sharply bimodal (0 vs cm-scale) so any
+    tolerance in 1e-4..1e-2 cm gives the same answer."""
     for fn in files:
         try:
             f = uproot.open(fn)
@@ -98,7 +119,9 @@ def collect_pairs(files, want=("genParms",)):
         except Exception as e:
             logger.warning(f"skipping {fn}: {type(e).__name__}")
             continue
-        branches = sorted(set(("run", "lumi", "event", "genParms", "genCharge") + want))
+        vtxb = ("genX", "genY", "genZ") if vtxtol is not None else ()
+        branches = sorted(set(("run", "lumi", "event", "genParms", "genCharge")
+                              + want + vtxb))
         a = t.arrays(branches, library="np")
         gp = np.stack(a["genParms"]) if len(a["genParms"]) else np.zeros((0, 5))
         ok = np.abs(gp[:, 0]) > 0.
@@ -113,8 +136,16 @@ def collect_pairs(files, want=("genParms",)):
             idx = [k for k in order[i:j] if ok[k]]
             for ia in range(len(idx)):
                 for ib in range(ia + 1, len(idx)):
-                    if a["genCharge"][idx[ia]] * a["genCharge"][idx[ib]] < 0:
-                        pairs.append((idx[ia], idx[ib]))
+                    k1, k2 = idx[ia], idx[ib]
+                    if a["genCharge"][k1] * a["genCharge"][k2] >= 0:
+                        continue
+                    if vtxtol is not None:
+                        d2 = ((a["genX"][k1] - a["genX"][k2]) ** 2
+                              + (a["genY"][k1] - a["genY"][k2]) ** 2
+                              + (a["genZ"][k1] - a["genZ"][k2]) ** 2)
+                        if d2 > vtxtol ** 2:
+                            continue
+                    pairs.append((k1, k2))
             i = j
         yield fn, a, gp, pairs
 
@@ -196,7 +227,8 @@ def build_pairs(args, outdir):
     pt = None
     want = ("refParms", "refCov", "reseigidx", "resinfbv",
             "msmoliidx", "msmoliv", "ioniurbanidx", "ioniurbanv")
-    for fn, a, gp, pairs in collect_pairs(files, want=want):
+    vtxtol = args.vtx_tol if args.vtx_tol > 0 else None
+    for fn, a, gp, pairs in collect_pairs(files, want=want, vtxtol=vtxtol):
         if pt is None:
             f = uproot.open(fn)
             pt = f["runtree"]["parmtype"].array(library="np")
@@ -262,7 +294,8 @@ def build_kernel(args, outdir):
     files = sorted(glob.glob(args.files))[:args.ntasks]
     logger.info(f"{len(files)} files")
     masses = []
-    for fn, a, gp, pairs in collect_pairs(files):
+    vtxtol = args.vtx_tol if args.vtx_tol > 0 else None
+    for fn, a, gp, pairs in collect_pairs(files, vtxtol=vtxtol):
         if not pairs:
             continue
         i1 = np.array([p[0] for p in pairs])
@@ -329,8 +362,8 @@ def demo(args, outdir):
 
     mobs_minus_M = z * sig + (d["eta"] - MJPSI)   # m_reco - M_JPSI per candidate
 
-    alphas = np.linspace(-1e-3, 4e-3, 41)
-    rs = np.array([0.85, 0.9, 0.95, 1.0, 1.05, 1.1])
+    alphas = np.linspace(args.alpha_min, args.alpha_max, args.alpha_n)
+    rs = np.arange(args.r_min, args.r_max + 1e-9, args.r_step)
     tgi = TG[None, :] / sig[:, None]              # absolute t grid per candidate
     phiK = np.interp(tgi, tabs, phiK_tab.real) + 1j * np.interp(tgi, tabs, phiK_tab.imag)
     nll = np.zeros((len(rs), len(alphas)))
@@ -348,11 +381,17 @@ def demo(args, outdir):
             nll[ir, ia] = -np.sum(np.log(Li))
         logger.info(f"r={r:.2f}: min NLL at alpha={alphas[np.argmin(nll[ir])]*1e3:.3f}e-3")
     irbest, iabest = np.unravel_index(np.argmin(nll), nll.shape)
+    if irbest in (0, len(rs) - 1):
+        logger.warning(f"r profile RAILED at grid edge r={rs[irbest]:.2f} "
+                       f"(scanned {rs[0]:.2f}-{rs[-1]:.2f}) -- widen --r-min/--r-max")
+    if iabest in (0, len(alphas) - 1):
+        logger.warning(f"alpha profile RAILED at grid edge "
+                       f"alpha={alphas[iabest]:.3e} -- widen --alpha-min/--alpha-max")
     # parabolic alpha error at best r
     y = nll[irbest]
     ia = np.clip(iabest, 1, len(alphas) - 2)
     c = (y[ia+1] + y[ia-1] - 2*y[ia]) / (alphas[1]-alphas[0])**2
-    alpha_hat = alphas[ia] - (y[ia+1]-y[ia-1])/(2*c*(alphas[1]-alphas[0])**2)*(alphas[1]-alphas[0])**2
+    alpha_hat = alphas[ia] - (y[ia+1]-y[ia-1])/(2*c*(alphas[1]-alphas[0]))
     err = 1./np.sqrt(c)
     logger.info(f"BEST: alpha = ({alpha_hat*1e3:.4f} +- {err*1e3:.4f})e-3, "
                 f"r = {rs[irbest]:.2f}  (Dm = {alpha_hat*MJPSI*1e3:.2f} MeV)")
@@ -395,7 +434,7 @@ def demo(args, outdir):
     output_tools.write_logfile(outdir, name, args=args,
                                wd=os.path.dirname(os.path.abspath(__file__)))
     np.savez(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "runs/masslik_demo_scan.npz"),
+                          f"runs/masslik_demo_scan{args.postfix}.npz"),
              alphas=alphas, rs=rs, nll=nll, alpha_hat=alpha_hat, err=err,
              alpha_gauss=alpha_gauss)
     logger.info(f"wrote {outdir}/{name}")
