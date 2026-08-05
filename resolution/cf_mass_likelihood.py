@@ -56,6 +56,8 @@ def parse_args():
     p.add_argument("--ntasks", type=int, default=100)
     p.add_argument("--kernel", action="store_true")
     p.add_argument("--pairs", action="store_true")
+    p.add_argument("--pairs-tt", action="store_true",
+                   help="build the candidate cache from a TwoTrack per-candidate tree (no pairing)")
     p.add_argument("--closure", action="store_true")
     p.add_argument("--demo", action="store_true")
     p.add_argument("--kernel-cache", default=os.path.join(
@@ -290,6 +292,103 @@ def build_pairs(args, outdir):
                 f"{ndropid} dropped by identity guard)")
 
 
+def build_pairs_tt(args, outdir):
+    """TwoTrack-tree adapter: the ditrack maker's tree is per CANDIDATE
+    (vertex-constrained fit, mass-projected influence exports), so no
+    pairing loop is needed. resinfv holds the SIGNED mass-projected dof
+    weights per entry, resinfvarv their variance contributions, and
+    resinfcov the material share of Jpsi_sigmamass^2 (hits+beamspot are
+    the Gaussian remainder). Output cache matches build_pairs exactly."""
+    files = sorted(glob.glob(args.files))[:args.ntasks]
+    logger.info(f"{len(files)} files (TwoTrack per-candidate trees)")
+    zs, sigs, mgen, vgf = [], [], [], []
+    Sms_l, Sio_re_l, Sio_im_l = [], [], []
+    nsel = ndrop = 0
+    pt = None
+    for fn in files:
+        try:
+            f = uproot.open(fn)
+            if "tree" not in f:
+                continue
+            if pt is None:
+                pt = f["runtree"]["parmtype"].array(library="np")
+            t = f["tree"]
+        except Exception as e:
+            logger.warning(f"skipping {fn}: {type(e).__name__}")
+            continue
+        a = t.arrays(["Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass",
+                      "resinfv", "resinfvarv", "resinfcov", "reseigidx",
+                      "msmoliidx", "msmoliv", "ioniurbanidx", "ioniurbanv"],
+                     library="np")
+        for ic in range(len(a["Jpsi_mass"])):
+            sig = float(a["Jpsi_sigmamass"][ic])
+            mg = float(a["Jpsigen_mass"][ic])
+            if not (np.isfinite(sig) and sig > 0.) or abs(mg - MJPSI) > 0.35:
+                ndrop += 1
+                continue
+            gi = np.asarray(a["reseigidx"][ic])
+            vb = np.asarray(a["resinfvarv"][ic], dtype=np.float64)
+            uw = np.asarray(a["resinfv"][ic], dtype=np.float64).reshape(-1, 5)
+            if not len(gi):
+                ndrop += 1
+                continue
+            fam = pt[gi]
+            cov = float(a["resinfcov"][ic])
+            vg = sig * sig - cov     # hits + beamspot Gaussian remainder
+            uvm = np.asarray(a["msmoliv"][ic], dtype=np.float64)
+            uim = np.asarray(a["msmoliidx"][ic])
+            uvm = uvm.reshape(-1, len(uvm) // max(len(uim), 1)) if len(uim) else uvm.reshape(0, 8)
+            uvi = np.asarray(a["ioniurbanv"][ic], dtype=np.float64)
+            uii = np.asarray(a["ioniurbanidx"][ic])
+            uvi = uvi.reshape(-1, len(uvi) // max(len(uii), 1)) if len(uii) else uvi.reshape(0, 11)
+            Sms = np.zeros(len(TG))
+            Sio = np.zeros(len(TG), dtype=np.complex128)
+            ok = True
+            for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
+                sel = fam == famcode
+                for g in np.unique(gi[sel]):
+                    m = sel & (gi == g)
+                    vpool = vb[m].sum()
+                    if vpool <= 0.:
+                        continue
+                    steps = uv[uidx == g]
+                    if not len(steps):
+                        ok = False
+                        break
+                    if famcode == 10:
+                        sq2 = steps[:, 5].sum()
+                    else:
+                        gq = steps[:, 10] * 1e-3
+                        sq2 = float(np.sum(steps[:, 1] * gq * gq))
+                    if sq2 <= 0.:
+                        continue
+                    sgn = np.sign(uw[m].sum()) or 1.
+                    if famcode == 10:
+                        Sms += ms_step_exponent(steps, np.sqrt(vpool / sq2) / sig, TG)
+                    else:
+                        Sio += ioni_step_exponent(steps, sgn * np.sqrt(vpool / sq2) / sig, TG)
+                if not ok:
+                    break
+            if not ok:
+                ndrop += 1
+                continue
+            zs.append((float(a["Jpsi_mass"][ic]) - mg) / sig)
+            sigs.append(sig)
+            mgen.append(mg)
+            vgf.append(vg / (sig * sig))
+            Sms_l.append(Sms.astype(np.float32))
+            Sio_re_l.append(Sio.real.astype(np.float32))
+            Sio_im_l.append(Sio.imag.astype(np.float32))
+            nsel += 1
+        logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} candidates (drop {ndrop})")
+    os.makedirs(os.path.dirname(args.pairs_cache), exist_ok=True)
+    np.savez_compressed(args.pairs_cache, z=np.array(zs), sigma=np.array(sigs),
+                        eta=np.array(mgen), vgf=np.array(vgf),
+                        Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
+                        Sio_im=np.array(Sio_im_l), tgrid=TG)
+    logger.info(f"wrote {args.pairs_cache} ({nsel} candidates, {ndrop} dropped)")
+
+
 def build_kernel(args, outdir):
     files = sorted(glob.glob(args.files))[:args.ntasks]
     logger.info(f"{len(files)} files")
@@ -451,6 +550,8 @@ def main():
         build_kernel(args, outdir)
     if args.pairs:
         build_pairs(args, outdir)
+    if args.pairs_tt:
+        build_pairs_tt(args, outdir)
     if args.closure:
         import cf_track_resolution as ctr
         ns = argparse.Namespace(**vars(args))
