@@ -192,7 +192,7 @@ def extract(args):
     scalings can be applied at closure time."""
     files = sorted(glob.glob(args.files))[:args.ntasks]
     logger.info(f"{len(files)} files")
-    zs, sigs, etas, vgf = [], [], [], []
+    zs, sigs, etas, phis, chgs, vgf = [], [], [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l = [], [], []
     nsel = ndropcov = ndropgen = 0
     pt = None
@@ -267,6 +267,16 @@ def extract(args):
             zs.append((a["refParms"][ic][0] - qg) / sig)
             sigs.append(sig)
             etas.append(-np.log(np.tan((np.pi / 2. - a["refParms"][ic][1]) / 2.)))
+            # phi is stored so a SIM-vs-refit field mismatch can be TESTED
+            # rather than assumed: the OAE tracker parametrization is
+            # phi-symmetric, so any residual phi structure in <z> is the
+            # sharpest handle on a field-model difference (2026-08-07).
+            phis.append(a["refParms"][ic][2])
+            # charge from sign(gen q/p): the discriminator between a
+            # curvature-like (charge-ODD) and a material/eloss-like
+            # (charge-EVEN) bias. Useless on the mu- only gun sample,
+            # essential on the both-charge one (2026-08-07).
+            chgs.append(np.sign(qg))
             vgf.append(vgauss / c00)
             Sms_l.append(Sms.astype(np.float32))
             Sio_re_l.append(Sio.real.astype(np.float32))
@@ -278,7 +288,8 @@ def extract(args):
             break
     os.makedirs(os.path.dirname(args.cache), exist_ok=True)
     np.savez_compressed(args.cache, z=np.array(zs), sigma=np.array(sigs),
-                        eta=np.array(etas), vgf=np.array(vgf),
+                        eta=np.array(etas), phi=np.array(phis),
+                        charge=np.array(chgs), vgf=np.array(vgf),
                         Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
                         Sio_im=np.array(Sio_im_l), tgrid=TG)
     logger.info(f"wrote {args.cache} ({nsel} tracks)")

@@ -40,7 +40,13 @@ run_task() {
   echo "[run ] task $idx step1"
   cmsRun step1_task.py > step1.log 2>&1 || { echo "[FAIL] task $idx step1"; return 1; }
   echo "[run ] task $idx step2"
-  cmsRun step2_task.py > step2.log 2>&1 || { echo "[FAIL] task $idx step2"; return 1; }
+  # Write step2 to a temp name and rename on success. cmsRun creates its output
+  # file at START, so a crashed/running task leaves a NON-EMPTY step2.root that
+  # the `-s` skip test above would accept -- a resumed run would then silently
+  # keep a truncated sample. (Same trap as the clean-prop sim outputs.)
+  sed -i "s|fileName = cms.untracked.string('file:step2.root')|fileName = cms.untracked.string('file:step2.tmp.root')|" step2_task.py
+  cmsRun step2_task.py > step2.log 2>&1 || { echo "[FAIL] task $idx step2"; rm -f step2.tmp.root; return 1; }
+  mv -f step2.tmp.root step2.root
   rm -f step1.root   # keep only the RECO+simhits output
   echo "[done] task $idx"
 }

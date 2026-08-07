@@ -1,0 +1,20 @@
+# clean-propagation campaign, 2026-08-06
+# <pt> <eta> <phi> <partId> <label>
+# phi chosen by scan_ray.sh + rank_rays.py (clean fraction at 400 events):
+#   pt3 phi0.70 94.3% | pt40 phi0.50 100% | pt100 phi0.10 100%
+#   eta1.00 phi0.10 100% | eta1.60 phi0.10 100%
+# hadrons reuse the muon ray at the same (pt, eta): same charge, so the
+# trajectory is the same to within the dE/dx difference.
+#
+# --- pT scan (mu-, eta = 0.30); pt10 is the 2026-08-04 baseline ---
+3    0.30 0.70 13    mu_pt3_eta0.30
+40   0.30 0.50 13    mu_pt40_eta0.30
+100  0.30 0.10 13    mu_pt100_eta0.30
+# --- eta scan (mu-, pt = 10) ---
+10   1.00 0.10 13    mu_pt10_eta1.00
+10   1.60 0.10 13    mu_pt10_eta1.60
+# --- species: T_max(mu)/T_max(K) = 17x at p=3, 12x at p=10 ---
+3    0.30 0.70 -321  K_pt3_eta0.30
+3    0.30 0.70 -211  pi_pt3_eta0.30
+10   0.30 0.20 -321  K_pt10_eta0.30
+10   0.30 0.20 -211  pi_pt10_eta0.30

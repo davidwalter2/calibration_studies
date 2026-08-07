@@ -99,6 +99,28 @@ process.genstepfilter.triggerConditions=cms.vstring("generation_step")
 from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_design', '')
 
+# --- Geant4 field-integration precision in the tracker -----------------------
+# Josh: "really really really important" for the CVH momentum scale. The
+# official UL16 SIM sets the GLOBAL DeltaOneStep=1e-5 / DeltaIntersection=1e-6
+# (CMSSW_10_6 has no region-specific variants, so the globals are what the
+# tracker uses there -- which is why the B->J/psi+X MC, produced in 10_6_20,
+# genuinely runs at the 100x-looser 1e-4).
+#
+# CMSSW_15_0 is different: CMSFieldManager::setChordFinderForTracker applies
+# DeltaOneStepTracker / DeltaIntersectionTracker whenever the track has
+# E > EnergyThTracker (0.2 GeV) and is inside RmaxTracker (8 m) -- always true
+# for our muons. Of those, DeltaIntersectionTracker is ALREADY 1e-6 by default,
+# so the surface-intersection precision was never the loose one here; only
+# DeltaOneStepTracker (1e-4) sits 10x above the official target.
+#
+# Set the tracker pair to the official targets, and the globals too so that
+# tracks below 0.2 GeV or outside the tracker region are covered as well.
+_sp = process.g4SimHits.MagneticField.ConfGlobalMFM.OCMS.StepperParam
+_sp.DeltaOneStepTracker = 1e-5
+_sp.DeltaIntersectionTracker = 1e-6
+_sp.DeltaOneStep = 1e-5
+_sp.DeltaIntersection = 1e-6
+
 process.generator = cms.EDFilter("Pythia8PtGun",
     PGunParameters = cms.PSet(
         AddAntiParticle = cms.bool(False),

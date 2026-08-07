@@ -59,6 +59,7 @@ import mplhep as hep
 from wums import logging  # noqa: E402
 
 from cf_track_resolution import ioni_step_exponent, ms_step_exponent
+import cf_brems_exact
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -73,6 +74,21 @@ logger = logging.child_logger(__name__)
 TAU = np.concatenate([[0.0], np.geomspace(1e-3, 40.0, 1600)])
 
 # linear functionals of the local 5D state (q/p, dx/dz, dy/dz, x, y)
+# !! BASIS MISMATCH -- KNOWN, NOT YET FIXED (found 2026-08-06) !!
+# The residuals below are LOCAL (DetUnit frame: q/p, dx/dz, dy/dz, x, y) but the
+# exported Q/F/dQMS/dQI are CURVILINEAR (q/p, lambda, phi, yT, zT) and load_model
+# reads them raw. Applying these a-vectors to a curvilinear covariance omits the
+# curv->local Jacobian H.
+#   qop  : unaffected (same variable in both frames).
+#   locx : unaffected WHEN the shallow incidence lies in the local y-z plane
+#          (true for the barrel geometries scanned so far) -- not general.
+#   dxdz : WRONG by sec(theta_inc), because dx/dz = u_x/u_z carries 1/u_z.
+#          Measured: rob68 * cos(theta_inc) collapses to 0.90-0.94 at eta =
+#          0.30/1.00/1.60 while sec spans 1.05-2.61. Negligible centrally
+#          (<=1.08), a factor 2.6 at eta = 1.6.
+# The CVH FIT is not affected -- it applies curv2localJacobianAltelossD at every
+# measurement surface. This is a defect of THIS TEST only.
+# Fix: export H per leg from G4ePropagationExport.cc and use (H^T a) here.
 FUNCTIONALS = {
     "qop": np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
     "dxdz": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
@@ -100,6 +116,10 @@ def parse_args():
                    help="restrict to these layer indices (default: all)")
     p.add_argument("--outpath", default="", help="plot output dir (default ~/public_html/cvh/<date>_cleanprop)")
     p.add_argument("--postfix", default="", help="suffix for output file names")
+    p.add_argument("--label", default="",
+                   help="campaign point label (e.g. 'pt40_eta0.30_pdg13'), stored "
+                        "in the npz dump so a (pt, eta, species) scan can be "
+                        "aggregated across runs")
     return p.parse_args()
 
 
@@ -164,6 +184,9 @@ def load_model(path):
     keys = ["ileg", "detid", "ok", "zoff", "refqop", "refdxdz", "refdydz", "reflocx",
             "reflocy", "reflocz", "refglobr", "refp", "refpt", "F", "Q", "dQMS", "dQI",
             "msmoliv", "ioniurbanv", "stepjacc", "stepnms", "stepnioni"]
+    have_rad = all(b in t.keys() for b in ("radv", "radspecv", "radvgrid"))
+    if have_rad:
+        keys += ["radv", "radspecv", "radvgrid"]
     a = t.arrays(keys, library="np")
     nlegs = len(a["ileg"])
     legs = []
@@ -183,6 +206,12 @@ def load_model(path):
             jacc=np.asarray(a["stepjacc"][k], dtype=np.float64).reshape(-1, 5, 5),
             nms=np.asarray(a["stepnms"][k], dtype=np.int64),
             nioni=np.asarray(a["stepnioni"][k], dtype=np.int64),
+            rad=(np.asarray(a["radv"][k], dtype=np.float64).reshape(
+                -1, cf_brems_exact.RADV_STRIDE) if have_rad else None),
+            radspec=(np.asarray(a["radspecv"][k], dtype=np.float64).reshape(
+                -1, 2 * cf_brems_exact.NRADV) if have_rad else None),
+            radvgrid=(np.asarray(a["radvgrid"][k], dtype=np.float64)
+                      if have_rad else None),
         ))
     logger.info(f"model: {nlegs} legs, {sum(len(l['ms']) for l in legs)} MS steps, "
                 f"{sum(len(l['ioni']) for l in legs)} ionization steps")
@@ -266,6 +295,21 @@ def model_phi(legs, k, avec, sigma, tau):
             steps = leg["ioni"].copy()
             steps[:, 10] *= w
             S += ioni_step_exponent(steps, 1.0, tau)
+        # --- radiative (brems + pair): same compound-Poisson structure and the
+        # same qop-only weighting as ionization. Centred (the "-1-ix" in the
+        # exponent), which is exactly right because the propagator's mean-loss
+        # table is built with ionOnly=false and has ALREADY subtracted the
+        # radiative mean -- so only the fluctuation is being added here, with
+        # no double counting of the mean.
+        if leg.get("rad") is not None and len(leg["rad"]):
+            q = np.sign(leg["refqop"]) or 1.0
+            w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
+            # rad records are aligned with the MOLIERE log, ioni weights with
+            # the ionization log; both are per-step, so reuse the ioni
+            # transport when the counts match and fall back to the leg mean.
+            wr = w if len(w) == len(leg["rad"]) else np.full(len(leg["rad"]), np.mean(w))
+            S += cf_brems_exact.rad_exponent(tau, leg["rad"], leg["radspec"],
+                                             leg["radvgrid"], weights=wr)
         # --- multiple scattering: an isotropic 2D kick in (lambda, phi).
         # Measuring the azimuthal angle as phi*cos(lambda) makes the two
         # projected angles iid with variance thp2, so by azimuthal isotropy
@@ -294,15 +338,27 @@ def ecf(z, tau):
 
 def write_targets(args):
     sim = load_sim(args.sim)
+    # Build the whole list BEFORE opening the file. Writing incrementally meant
+    # a mid-loop failure left a short but non-empty targets file, which the
+    # campaign driver's `[[ -s ]]` check then accepted -- the model propagated
+    # to the one surface that had been written and the comparison died with
+    # "model has 1 legs but sim crossed 19 modules". Fail before touching disk.
+    lines = ["# detid  localZ[cm]   (sensor entry face in the DetUnit frame)"]
+    for i, did in enumerate(sim["detid"]):
+        z = float(np.median(sim["locz"][:, i]))
+        spread = float(np.std(sim["locz"][:, i]))
+        # The modal pattern groups on round(locz, 4), so members of one group
+        # may legitimately differ by up to 1e-4 cm; asserting 1e-6 here was
+        # tighter than the grouping that produced the group and tripped on
+        # perfectly good samples (pi- at pT=3 gave rms 1.7e-6). A REAL failure
+        # -- the selection not isolating one entry face -- shows up at the
+        # module half-thickness, ~1e-2 cm, so 1e-4 cm (1 um) is still strong.
+        assert spread < 1e-4, (
+            f"entry local z is not constant for detid {did} even after the "
+            f"(module, entry-face) selection: rms {spread}")
+        lines.append(f"{int(did)} {z:.6f}")
     with open(args.out, "w") as fh:
-        fh.write("# detid  localZ[cm]   (sensor entry face in the DetUnit frame)\n")
-        for i, did in enumerate(sim["detid"]):
-            z = float(np.median(sim["locz"][:, i]))
-            spread = float(np.std(sim["locz"][:, i]))
-            assert spread < 1e-6, (
-                f"entry local z is not constant for detid {did} even after the "
-                f"(module, entry-face) selection: rms {spread}")
-            fh.write(f"{int(did)} {z:.6f}\n")
+        fh.write("\n".join(lines) + "\n")
     logger.info(f"wrote {len(sim['detid'])} target surfaces to {args.out}")
     for i, did in enumerate(sim["detid"]):
         logger.info(f"  layer {i:2d}  detid {int(did):10d}  r = {np.median(sim['globr'][:, i]):7.3f} cm  "
@@ -354,8 +410,37 @@ def compare(args, outdir):
             results[(name, k)] = dict(z=z, phi=phi, sigma=sigma)
 
     report(rows, sim, outdir, args)
+    dump_rows(rows, sim, outdir, args)
     make_plots(results, rows, sim, tau, outdir, args)
     return rows
+
+
+def dump_rows(rows, sim, outdir, args):
+    """Flat npz of the per-(functional, layer) scalars, for scan aggregation.
+
+    The text summary is for reading; this is for scan_summary.py, which has to
+    put many (pt, eta, species) points on one axis. Probe order is fixed by
+    args.probes and stored alongside so the caller never has to guess it.
+    """
+    if not rows:
+        return
+    probes = np.asarray(args.probes, dtype=float)
+    out = {
+        "label": np.array(args.label),
+        "probes": probes,
+        "func": np.array([r["func"] for r in rows]),
+        "layer": np.array([r["layer"] for r in rows], dtype=int),
+        "nkept": np.array(sim["nkept"]), "ntot": np.array(sim["ntot"]),
+    }
+    for key in ("r", "sigma", "sigma_ms", "sigma_ioni",
+                "mean", "median", "rob", "std"):
+        out[key] = np.array([r[key] for r in rows], dtype=float)
+    # (nrow, nprobe) data and model bounded averages
+    out["fdata"] = np.array([[r["probes"][u][0] for u in args.probes] for r in rows])
+    out["fmodel"] = np.array([[r["probes"][u][1] for u in args.probes] for r in rows])
+    path = os.path.join(outdir, f"cleanprop_rows{args.postfix}.npz")
+    np.savez(path, **out)
+    logger.info(f"wrote {path}")
 
 
 def report(rows, sim, outdir, args):
