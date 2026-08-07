@@ -51,7 +51,12 @@ export -f run_shard_wrap
 seq 0 $((NSHARD - 1)) | xargs -P "$NSHARD" -I{} bash -c 'mapfile -t FILES < "$TMP/all_files.txt"; run_shard {}'
 
 echo "[extract_parallel] merging"
-python3 - "$TMP" "$OUT" <<'PY'
+# Write to a temp name and rename only on success. np.savez_compressed on a
+# multi-GB cache takes minutes, during which the final path already exists
+# and is a TRUNCATED zip -- any reader that waits on `[ -f ... ]` gets
+# BadZipFile. Rename is atomic within a filesystem, so the final path never
+# exists in a partial state. (Same trap as the step2/simprod outputs.)
+python3 - "$TMP" "$OUT.tmp" <<'PY'
 import glob, sys
 import numpy as np
 tmp, out = sys.argv[1], sys.argv[2]
@@ -74,3 +79,5 @@ np.savez_compressed(out, **merged)
 n = len(merged["z"])
 print(f"[extract_parallel] {len(fs)} shards -> {out}  ({n} tracks)")
 PY
+mv -f "$OUT.tmp" "$OUT"
+echo "[extract_parallel] -> $OUT"
