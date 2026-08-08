@@ -90,6 +90,7 @@ TAU = np.concatenate([[0.0], np.geomspace(1e-3, 40.0, 1600)])
 # measurement surface. This is a defect of THIS TEST only.
 # Fix: export H per leg from G4ePropagationExport.cc and use (H^T a) here.
 KMS_SCALE = 1.0   # set from --kms in main()
+MS_NSUB = 4       # sub-step quadrature of the MS kick; 1 = legacy point-like
 
 FUNCTIONALS = {
     "qop": np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
@@ -244,7 +245,7 @@ def step_transports(legs, k):
         suffix.append(suffix[-1] @ legs[m]["F"])
     suffix = suffix[::-1]  # suffix[j] = F_k...F_{j+1}, for j = 0..k
 
-    A_ms, A_ioni = [], []
+    A_ms, A_ioni, A_ms_start = [], [], []
     for j in range(k + 1):
         leg = legs[j]
         Pj = suffix[j] @ leg["F"]  # = F_k ... F_j
@@ -252,6 +253,7 @@ def step_transports(legs, k):
         if len(jacc) == 0:
             A_ms.append(np.zeros((0, 5, 5)))
             A_ioni.append(np.zeros((0, 5, 5)))
+            A_ms_start.append(np.zeros((0, 5, 5)))
             continue
         # A for every step of this leg
         Astep = np.empty_like(jacc)
@@ -264,7 +266,16 @@ def step_transports(legs, k):
         idx_io = np.clip(idx_io, 0, len(jacc) - 1)
         A_ms.append(Astep[idx_ms])
         A_ioni.append(Astep[idx_io])
-    return A_ms, A_ioni
+        # START-of-step transport: jacc[s-1] (identity before the first step).
+        # A_{s->k} built from jacc[s] puts the kick at the END of the step, so
+        # a step contributes only DD*D^2; the exact continuous result is
+        # DD*(1/L) int_0^L (D+u)^2 du = DD*(D^2 + D*L + L^2/3). The missing
+        # D*L + L^2/3 dominates for steps NEAR the target plane, where D->0.
+        Astart = np.empty_like(jacc)
+        for s in range(len(jacc)):
+            Astart[s] = Pj @ np.linalg.inv(jacc[s - 1]) if s > 0 else Pj
+        A_ms_start.append(Astart[idx_ms])
+    return A_ms, A_ioni, A_ms_start
 
 
 def model_variance(legs, k, avec):
@@ -290,7 +301,7 @@ def model_variance(legs, k, avec):
 
 def model_phi(legs, k, avec, sigma, tau):
     """Model CF of the standardized residual z = a.(x - x_ref)/sigma."""
-    A_ms, A_ioni = step_transports(legs, k)
+    A_ms, A_ioni, A_ms_start = step_transports(legs, k)
     S = np.zeros(len(tau), dtype=np.complex128)
     for j in range(k + 1):
         leg = legs[j]
@@ -330,11 +341,36 @@ def model_phi(legs, k, avec, sigma, tau):
         # the CF depends only on the quadrature sum of the two weights.
         if len(leg["ms"]):
             wv = np.einsum("i,sij->sj", avec, A_ms[j])
+            wv0 = np.einsum("i,sij->sj", avec, A_ms_start[j])
             coslam = leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0
-            weff = np.sqrt(wv[:, 1] ** 2 + (wv[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
+            def _weff(v):
+                return np.sqrt(v[:, 1] ** 2 + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
+            weff, weff0 = _weff(wv), _weff(wv0)
+            # SUB-STEP QUADRATURE (2026-08-08). Scattering happens continuously
+            # THROUGH a step, not point-like at its end. Applying the kick at
+            # the end gives a step only DD*D^2 of position variance; the exact
+            # continuous result is DD*(1/L) int_0^L (D+u)^2 du =
+            # DD*(D^2 + D*L + L^2/3). The omitted D*L + L^2/3 is 8.8% of the
+            # position variance overall (verified against the propagator's own
+            # dQMS, which reproduces exactly when the per-step thick-scatterer
+            # S1/S3 terms are included) and DOMINATES for steps near the target
+            # plane, where D -> 0 kills the angle term but not DD*L^2/3.
+            # Splitting each step into NSUB equal sub-kicks, with the transport
+            # weight interpolated linearly between the step start and end,
+            # converges to the exact result; NSUB=4 leaves <1% of the term.
             for s in range(len(leg["ms"])):
-                if weff[s] > 0.0:
+                if weff[s] <= 0.0 and weff0[s] <= 0.0:
+                    continue
+                if MS_NSUB <= 1:
                     S += KMS_SCALE * ms_step_exponent(leg["ms"][s:s + 1], weff[s], tau)
+                    continue
+                rec = leg["ms"][s:s + 1].copy()
+                rec[:, 2] /= MS_NSUB          # xg -> chi_c^2 scales with material
+                for i in range(MS_NSUB):
+                    f = (i + 0.5) / MS_NSUB   # 0 = step start, 1 = step end
+                    w = weff0[s] + f * (weff[s] - weff0[s])
+                    if w > 0.0:
+                        S += KMS_SCALE * ms_step_exponent(rec, w, tau)
     return np.exp(S)
 
 

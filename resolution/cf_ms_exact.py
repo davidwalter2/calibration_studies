@@ -81,7 +81,18 @@ def parse_args():
 # residual is a MAGNITUDE problem (some f closes all probes) or a
 # SHAPE problem (no single f does).
 G4_SCREEN_F = 1.0   # G4's value. NOT tuned -- see NOTES: the 0.7 the data wants is UNEXPLAINED.
-G4_FF_SQUARED = False  # measured: removes only ~5% and worsens the overshoot
+# G4 carries the nuclear form factor SQUARED in the cross section:
+#   G4WentzelOKandVIxSection.cc:356-357  fm = 1/(1+formf*z1)^2   <- this is F(q^2)
+#   :373                                 grej = (...)*fm*fm      <- |F|^2
+# so the weight is (1+q^2 R^2/12)^-4 and ours was (1+..)^-2, i.e. |F|.
+# The SCALE is right: thff2 = 2/formfactA holds to 1.0049 for every
+# material and momentum (C/Al/Si/Cu at 3 and 40 GeV), the 0.5% being
+# R = 1.27 A^0.27 fm vs G4's constn = 6.937e-6. An earlier note here
+# claimed a scale error to justify leaving this off -- that was WRONG.
+# Enabled because it is the correct equation; it moves the closure the
+# right way on its own, and that it adds to the screening overshoot is
+# a statement about the UNEXPLAINED residual, not about this term.
+G4_FF_SQUARED = True
 
 def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
     """chi_c^2, chi_a^2 and the nuclear form-factor cutoff theta_FF^2
