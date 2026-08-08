@@ -200,6 +200,12 @@ def extract(args):
     files = sorted(glob.glob(args.files))[:args.ntasks]
     logger.info(f"{len(files)} files")
     zs, sigs, etas, phis, chgs, vgf = [], [], [], [], [], []
+    # Track-quality and kinematics, stored so the closure can be scanned
+    # AGAINST THE SELECTION rather than reported at one arbitrary cut. The
+    # historical trimming-dependence (MS +0.007 at chi2/hit < 10 against
+    # -0.073 at < 3) was never separable from model error without these
+    # (2026-08-08).
+    chi2n, nvhit, ptrk, ptgen, chisq, ndofs = [], [], [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l = [], [], []
     nsel = ndropcov = ndropgen = 0
     pt = None
@@ -216,7 +222,10 @@ def extract(args):
             continue
         a = t.arrays(["refParms", "refCov", "genParms", "resinfcov",
                       "resinfvarv", "reseigidx", "msmoliidx", "msmoliv",
-                      "ioniurbanidx", "ioniurbanv"], library="np")
+                      "ioniurbanidx", "ioniurbanv",
+                      "normalizedChi2", "nValidHits", "trackPt", "genPt",
+                      "chisqval", "ndof"],
+                     library="np")
         for ic in range(len(a["resinfcov"])):
             qg = a["genParms"][ic][0]
             if qg == 0.:
@@ -285,6 +294,16 @@ def extract(args):
             # essential on the both-charge one (2026-08-07).
             chgs.append(np.sign(qg))
             vgf.append(vgauss / c00)
+            chi2n.append(float(a["normalizedChi2"][ic]))
+            nvhit.append(float(a["nValidHits"][ic]))
+            ptrk.append(float(a["trackPt"][ic]))
+            ptgen.append(float(a["genPt"][ic]))
+            # chisqval/nValidHits is the HISTORICAL trim variable (the
+            # --max-chi2-per-hit of fit_global_grads). Stored raw so the exact
+            # historical cut can be reproduced rather than approximated by
+            # normalizedChi2 = chisqval/ndof.
+            chisq.append(float(a["chisqval"][ic]))
+            ndofs.append(float(a["ndof"][ic]))
             Sms_l.append(Sms.astype(np.float32))
             Sio_re_l.append(Sio.real.astype(np.float32))
             Sio_im_l.append(Sio.imag.astype(np.float32))
@@ -297,6 +316,9 @@ def extract(args):
     np.savez_compressed(args.cache, z=np.array(zs), sigma=np.array(sigs),
                         eta=np.array(etas), phi=np.array(phis),
                         charge=np.array(chgs), vgf=np.array(vgf),
+                        normchi2=np.array(chi2n), nvalidhits=np.array(nvhit),
+                        trackpt=np.array(ptrk), genpt=np.array(ptgen),
+                        chisqval=np.array(chisq), ndof=np.array(ndofs),
                         Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
                         Sio_im=np.array(Sio_im_l), tgrid=TG)
     logger.info(f"wrote {args.cache} ({nsel} tracks)")
