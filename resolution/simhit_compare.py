@@ -42,7 +42,8 @@ import numpy as np
 import uproot
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
-BRANCHES = ["refParms", "refCov", "genParms", "chisqval", "ndof", "nValidHits", "genPt"]
+BRANCHES = ["refParms", "refCov", "genParms", "chisqval", "ndof", "nValidHits",
+            "genPt", "run", "lumi", "event"]
 
 
 def parse_args():
@@ -53,6 +54,38 @@ def parse_args():
     p.add_argument("--maxchi2", type=float, default=0., help="cut on chisqval/nValidHits; 0 = none")
     p.add_argument("--nboot", type=int, default=200)
     return p.parse_args()
+
+
+def load_keyed(tag, nfiles):
+    """Per-track quantities keyed on identity, NOT on array index.
+
+    The reco-hit and sim-hit configurations select the SAME tracks (119866 of
+    119871 match) but EMIT THEM IN A DIFFERENT ORDER, so index-based pairing
+    matches only ~15% and returns a meaningless "paired" difference. The gun
+    puts two muons in an event, so the event id alone is not unique either --
+    genPt and the charge sign are needed to disambiguate. The file index is in
+    the key because run/lumi/event repeat across tasks.
+    """
+    fs = sorted(glob.glob(f"{CEPH}/resolution_trackres_{tag}/task_*/globalcor_resclosure_0.root"))
+    if nfiles:
+        fs = fs[:nfiles]
+    rec = {}
+    for fi, fn in enumerate(fs):
+        try:
+            a = uproot.open(fn)["tree"].arrays(BRANCHES, library="np")
+        except Exception:
+            continue
+        for i in range(len(a["refCov"])):
+            qg = a["genParms"][i][0]
+            c0 = a["refCov"][i][0]
+            if qg == 0. or c0 <= 0.:
+                continue
+            k = (fi, int(a["run"][i]), int(a["lumi"][i]), int(a["event"][i]),
+                 round(float(a["genPt"][i]), 5), int(np.sign(qg)))
+            rec[k] = ((a["refParms"][i][0] - qg) / qg,          # Dk/k
+                      (a["refParms"][i][0] - qg) / np.sqrt(c0),  # z
+                      float(a["chisqval"][i]) / max(float(a["ndof"][i]), 1.))
+    return rec, len(fs)
 
 
 def load(tag, nfiles):
@@ -118,19 +151,30 @@ def main():
               f"med(z)={o['mz']:+.4f}  CVH chi2/ndof={o['chi2']:.4f}  "
               f"median Dk/k = {o['mdk']*1e4:+8.3f} +- {o['edk']*1e4:.3f}  x1e-4")
 
+    # ---- PAIRED comparison on identical tracks ---------------------------
+    ra, nfa = load_keyed(args.tag, args.nfiles)
+    rb, _ = load_keyed(f"{args.tag}_simhit", args.nfiles)
+    common = sorted(set(ra) & set(rb))
+    print(f"\n  key-matched: reco={len(ra)} sim={len(rb)} COMMON={len(common)} "
+          f"({100. * len(common) / max(len(ra), 1):.2f}%)")
+    da = np.array([ra[k][0] for k in common])
+    db = np.array([rb[k][0] for k in common])
+    mdiff, ediff = med_err(db - da, args.nboot, rng)
+    print(f"  PAIRED median shift (SIM - RECO) = {mdiff*1e4:+.3f} +- {ediff*1e4:.3f} x1e-4"
+          f"   ({abs(mdiff)/max(ediff,1e-12):.1f} sigma)")
+    if abs(mdiff) > 3 * ediff:
+        print("  => the offset MOVES with the hits: hit reconstruction (CPE / "
+              "Lorentz angle / charge sharing), not transport.")
+    else:
+        print(f"  => the offset does NOT move (|shift| < {3*ediff*1e4:.2f}e-4 at "
+              f"3 sigma): TRANSPORT / FIELD, not hits.")
+
     a, b = out["RECO hits"], out["SIM hits "]
     ratio = (b["rob"] / a["rob"]) ** 2
     print(f"\n  var(simhit)/var(reco) = {ratio:.4f}  ->  HIT SHARE of the q/p "
           f"variance f_hit = {1 - ratio:.4f}")
-    d = b["mdk"] - a["mdk"]
-    e = np.hypot(a["edk"], b["edk"])
-    print(f"  scale shift (SIM - RECO) = {d*1e4:+.3f} +- {e*1e4:.3f} x1e-4"
-          f"   ({abs(d)/e:.1f} sigma)")
-    if abs(d) > 3 * e:
-        print("  => the offset MOVES with the hits: hit reconstruction (CPE / "
-              "Lorentz angle / charge sharing), not transport.")
-    else:
-        print("  => the offset does NOT move: it is transport / field, not hits.")
+    # NB the unpaired quadrature error on the shift is ~4x too large -- the two
+    # samples are the same tracks. The paired number above is the one to quote.
 
 
 if __name__ == "__main__":
