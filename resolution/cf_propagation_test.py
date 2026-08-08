@@ -124,6 +124,21 @@ def parse_args():
                         "deterministic reference path. "
                         "MUONS ONLY: for hadrons neither mode is a valid test -- "
                         "see the note in load_sim")
+    p.add_argument("--veto-eloss", type=float, default=0.0,
+                   help="drop rays whose worst single-plane momentum loss "
+                        "exceeds the per-plane median by more than this "
+                        "FRACTION of p0. 0 (default) = no veto. This removes "
+                        "HADRONIC INELASTIC interactions, which the model side "
+                        "(G4ErrorPhysicsListForCVH: ionization + bremsstrahlung "
+                        "+ transportation only) does not contain and cannot "
+                        "predict. Measured at pT=3: the muon's loss tail is "
+                        "smooth (15% of p0 at the 1e-4 quantile) while pi and p "
+                        "have a DISCRETE population losing ~95% of p0 -- 0.85% "
+                        "of protons, flat across thresholds. Those 0.85% are "
+                        "what take std(z) from ~1 to 5.05. A cut of 0.2 "
+                        "separates the two cleanly. NOTE it does not remove "
+                        "nuclear ELASTIC scattering, which costs no momentum "
+                        "and which the model also lacks")
     p.add_argument("--functionals", nargs="+", default=["qop", "locx"],
                    choices=sorted(FUNCTIONALS), help="which linear functionals to test")
     p.add_argument("--probes", nargs="+", type=float,
@@ -145,7 +160,38 @@ def parse_args():
 # simulation side
 # --------------------------------------------------------------------------
 
-def load_sim(path, acceptance="modal"):
+def _apply_eloss_veto(out, frac):
+    """Mask rays that lost anomalous momentum on any single plane.
+
+    A hadronic INELASTIC interaction removes most of the momentum at one point.
+    The model side has no hadronic processes at all, so those rays are not a
+    test of it -- under per-plane acceptance they are readmitted and dominate
+    the variance (0.85% of pT=3 protons take std(z) from ~1 to 5.05).
+
+    The discriminant is the worst single-plane loss in EXCESS of the per-plane
+    median, relative to p0, so ordinary ionization (which is what the median
+    tracks) subtracts out. Measured separation at pT=3: the muon reaches 15% of
+    p0 only at the 1e-4 quantile, while pi/p have a discrete population at
+    ~95%. Anything in 0.2-0.5 splits them.
+
+    Elastic nuclear scattering costs no momentum and is NOT caught here.
+    """
+    if not frac or frac <= 0.:
+        return
+    P = out["pabs"]
+    fin = np.isfinite(P)
+    d = P[:, :-1] - P[:, 1:]
+    med = np.nanmedian(d, axis=0)
+    excess = np.where(np.isfinite(d), d - med, -np.inf).max(axis=1)
+    p0 = np.nanmedian(P[:, 0])
+    bad = excess > frac * p0
+    out["valid"][bad, :] = False
+    logger.info(f"eloss veto (> {frac:.3g} x p0 on one plane): "
+                f"{int(bad.sum())} of {len(bad)} rays masked "
+                f"({100. * bad.mean():.3f}%)")
+
+
+def load_sim(path, acceptance="modal", veto_eloss=0.0):
     """Per-event true local states on the modal module sequence.
 
     Events that miss a module (a large scatter near a module edge, or a decay
@@ -220,6 +266,7 @@ def load_sim(path, acceptance="modal"):
         for k in branches:
             out[k] = np.stack([np.asarray(v, dtype=np.float64) for v in arr[k][keep]])  # (nev, nlayer)
         out["valid"] = np.ones(out["locx"].shape, dtype=bool)
+        _apply_eloss_veto(out, veto_eloss)
         return out
 
     # ---- per-plane acceptance -------------------------------------------
@@ -249,6 +296,7 @@ def load_sim(path, acceptance="modal"):
         for k in branches:
             out[k][rows, j] = flat[k][sel]
     out["valid"] = valid
+    _apply_eloss_veto(out, veto_eloss)
     nrec = int(valid.sum(axis=0).mean()) - int(keep.sum())
     logger.info(f"sim: per-plane acceptance recovers on average {nrec} of the "
                 f"{ntot - nmodal} dropped rays per plane "
@@ -497,7 +545,8 @@ def write_targets(args):
 
 
 def compare(args, outdir):
-    sim = load_sim(args.sim, acceptance=args.acceptance)
+    sim = load_sim(args.sim, acceptance=args.acceptance,
+                   veto_eloss=args.veto_eloss)
     legs = load_model(args.model)
     assert len(legs) == len(sim["detid"]), \
         f"model has {len(legs)} legs but sim crossed {len(sim['detid'])} modules"
