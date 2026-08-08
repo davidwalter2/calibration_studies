@@ -111,6 +111,17 @@ def parse_args():
     p.add_argument("--out", default="targets.txt", help="target list output (with --targets)")
     p.add_argument("--kms", type=float, default=0.0,
                    help="log-scale on the MS log-CF exponent, exactly as cf_track_resolution --kms. Scanning this here measures the SAME quantity as the track-level k_ms but with NO fit, NO hits and NO block pooling: exact per-step transport Jacobians. If the two agree, the discrepancy is in the Moliere FORMULA; if only the track-level one is non-zero, it is in the fit machinery (pooling / wstd / hit-MS split).")
+    p.add_argument("--acceptance", default="modal", choices=("modal", "perplane"),
+                   help="how the crossed-module acceptance is applied. 'modal' "
+                        "(default, and what every earlier number used) keeps "
+                        "only rays whose whole (module, entry-face) sequence is "
+                        "the modal one -- that drops 5.6%% of pT=3 muons and 21-26%% "
+                        "of pT=3 hadrons, and it drops them tail-first, biasing "
+                        "the closure by +0.0022 (mu) to +0.0130 (p) at u=1. "
+                        "'perplane' uses every ray that crossed a given plane's "
+                        "(detid, entry-face) on that plane, which is valid "
+                        "because the model's prediction there depends only on the "
+                        "deterministic reference path")
     p.add_argument("--functionals", nargs="+", default=["qop", "locx"],
                    choices=sorted(FUNCTIONALS), help="which linear functionals to test")
     p.add_argument("--probes", nargs="+", type=float,
@@ -132,13 +143,43 @@ def parse_args():
 # simulation side
 # --------------------------------------------------------------------------
 
-def load_sim(path):
-    """Per-event true local states, restricted to the modal module sequence.
+def load_sim(path, acceptance="modal"):
+    """Per-event true local states on the modal module sequence.
 
     Events that miss a module (a large scatter near a module edge, or a decay
     in flight) have a different detid sequence; they are counted and dropped,
     and the drop fraction is reported -- it is the one selection effect this
     test cannot avoid, so it must be small and it must be quoted.
+
+    THE DROP IS NOT SMALL AT LOW MOMENTUM (measured 2026-08-08):
+
+        pT = 40  mu   0.086 %
+        pT =  3  mu   5.587 %
+        pT =  3  K-  21.218 %
+        pT =  3  pi- 21.216 %
+        pT =  3  p   25.615 %
+
+    and it is tail-selective by construction -- a ray is dropped precisely
+    when it scattered enough to miss or clip a module -- so acceptance="modal"
+    hands the closure a distribution with its tail cut off. That makes the data
+    look NARROWER than the model, i.e. E[exp(-u z^2)] too large, i.e.
+    data - model > 0, which is the sign and the momentum dependence of the
+    observed residual. It biases the pT=3 muon closure by +0.0022 at u=1 and
+    the proton by +0.0130, and because the bias grows with radius (+0.00000 at
+    planes 0-3, +0.0097 at plane 18) it manufactures a rising-with-radius trend
+    out of nothing. See cleanprop/acceptance_bias.py.
+
+    acceptance="perplane" applies the acceptance PER PLANE instead: every ray
+    that crossed a plane's (detid, entry-face) is used on that plane, whatever
+    it did elsewhere. This is legitimate because the model's predicted variance
+    at plane j is a property of the DETERMINISTIC reference path, not of the
+    individual ray -- requiring a common sequence was never needed for the
+    model side, only for the convenience of a rectangular array. It recovers
+    74-97% of the dropped rays (the remainder missed the module altogether and
+    are unrecoverable in principle, so even this mode is a slight
+    under-estimate of the tail).
+
+    "modal" remains the default so earlier numbers stay reproducible.
     """
     files = sorted(__import__("glob").glob(path)) if any(c in path for c in "*?[") else [path]
     keys = ["detid", "qop", "dxdz", "dydz", "locx", "locy", "locz", "pabs", "eloss", "globr", "nhit"]
@@ -168,11 +209,49 @@ def load_sim(path):
                 f"modal covers {nmodal} ({100.*nmodal/ntot:.4f}%), "
                 f"dropped {ntot - nmodal}")
 
+    branches = ("qop", "dxdz", "dydz", "locx", "locy", "locz", "pabs", "eloss", "globr")
     out = {"detid": np.array([m[0] for m in modal], dtype=np.uint32),
            "locz_modal": np.array([m[1] for m in modal], dtype=np.float64),
            "nkept": int(keep.sum()), "ntot": ntot}
-    for k in ("qop", "dxdz", "dydz", "locx", "locy", "locz", "pabs", "eloss", "globr"):
-        out[k] = np.stack([np.asarray(v, dtype=np.float64) for v in arr[k][keep]])  # (nev, nlayer)
+
+    if acceptance == "modal":
+        for k in branches:
+            out[k] = np.stack([np.asarray(v, dtype=np.float64) for v in arr[k][keep]])  # (nev, nlayer)
+        out["valid"] = np.ones(out["locx"].shape, dtype=bool)
+        return out
+
+    # ---- per-plane acceptance -------------------------------------------
+    # Flatten the jagged per-ray arrays once and scatter each modal plane's
+    # hits into an (ntot, nlayer) slot. NaN where the ray never crossed that
+    # (detid, entry-face); `valid` says where the numbers are real.
+    nlayer = len(modal)
+    nper = np.array([len(d) for d in arr["detid"]])
+    ray = np.repeat(np.arange(ntot), nper)
+    fdet = np.concatenate([np.asarray(d) for d in arr["detid"]])
+    # Round in the NATIVE dtype, exactly as the modal pattern above does.
+    # locz is float32 and its values sit on a rounding boundary: np.round(x, 4)
+    # in float32 gives 0.0142 where promoting to float64 first gives 0.0143,
+    # so a float64 promotion matches ZERO planes.
+    fface = np.concatenate([np.round(np.asarray(z), 4).astype(np.float64)
+                            for z in arr["locz"]])
+    flat = {k: np.concatenate([np.asarray(v, dtype=np.float64) for v in arr[k]])
+            for k in branches}
+
+    valid = np.zeros((ntot, nlayer), dtype=bool)
+    for k in branches:
+        out[k] = np.full((ntot, nlayer), np.nan)
+    for j, (mdet, mface) in enumerate(modal):
+        sel = (fdet == mdet) & (fface == mface)
+        rows = ray[sel]
+        valid[rows, j] = True
+        for k in branches:
+            out[k][rows, j] = flat[k][sel]
+    out["valid"] = valid
+    nrec = int(valid.sum(axis=0).mean()) - int(keep.sum())
+    logger.info(f"sim: per-plane acceptance recovers on average {nrec} of the "
+                f"{ntot - nmodal} dropped rays per plane "
+                f"({100. * nrec / max(ntot - nmodal, 1):.1f}%); "
+                f"per-plane usable = {valid.sum(axis=0).min()}-{valid.sum(axis=0).max()}")
     return out
 
 
@@ -416,7 +495,7 @@ def write_targets(args):
 
 
 def compare(args, outdir):
-    sim = load_sim(args.sim)
+    sim = load_sim(args.sim, acceptance=args.acceptance)
     legs = load_model(args.model)
     assert len(legs) == len(sim["detid"]), \
         f"model has {len(legs)} legs but sim crossed {len(sim['detid'])} modules"
@@ -432,7 +511,11 @@ def compare(args, outdir):
     for name in args.functionals:
         avec = FUNCTIONALS[name]
         for k in layers:
-            d = sim[SIM_BRANCH[name]][:, k] - legs[k][REF_BRANCH[name]]
+            # per-plane acceptance leaves NaN where a ray never crossed this
+            # plane; under acceptance="modal" the mask is all-True and this is
+            # a no-op.
+            m = sim["valid"][:, k]
+            d = sim[SIM_BRANCH[name]][m, k] - legs[k][REF_BRANCH[name]]
             var, varms, varioni = model_variance(legs, k, avec)
             if var <= 0:
                 logger.warning(f"{name} layer {k}: non-positive model variance, skipping")
@@ -451,7 +534,7 @@ def compare(args, outdir):
                 fm = weier_scalar(phi, u, tau)
                 fd = float(np.mean(np.exp(-u * z ** 2)))
                 probes[u] = (fd, fm)
-            rows.append(dict(func=name, layer=k, r=float(np.median(sim["globr"][:, k])),
+            rows.append(dict(func=name, layer=k, r=float(np.nanmedian(sim["globr"][:, k])),
                              sigma=sigma, sigma_ms=np.sqrt(max(varms, 0.)),
                              sigma_ioni=np.sqrt(max(varioni, 0.)),
                              mean=float(z.mean()), median=float(q50),
@@ -481,6 +564,10 @@ def dump_rows(rows, sim, outdir, args):
         "func": np.array([r["func"] for r in rows]),
         "layer": np.array([r["layer"] for r in rows], dtype=int),
         "nkept": np.array(sim["nkept"]), "ntot": np.array(sim["ntot"]),
+        # which acceptance produced these numbers -- they are NOT comparable
+        # across modes (perplane is wider by up to 19% at pT=3)
+        "acceptance": np.array(args.acceptance),
+        "nused": np.array(sim["valid"].sum(axis=0)),
     }
     for key in ("r", "sigma", "sigma_ms", "sigma_ioni",
                 "mean", "median", "rob", "std"):
@@ -497,6 +584,10 @@ def report(rows, sim, outdir, args):
     lines = []
     lines.append(f"clean propagation test -- {sim['nkept']}/{sim['ntot']} events on the modal module sequence "
                  f"({100.*sim['nkept']/sim['ntot']:.3f}%)")
+    lines.append(f"acceptance = {args.acceptance}"
+                 + ("" if args.acceptance == "modal" else
+                    f"  (per-plane usable {sim['valid'].sum(axis=0).min()}-"
+                    f"{sim['valid'].sum(axis=0).max()} rays)"))
     lines.append("")
     lines.append("residual in units of the propagator's own truncated sigma "
                  "(mean/median/rob68/std of z)")
@@ -551,7 +642,7 @@ def make_plots(results, rows, sim, tau, outdir, args):
             ax.set_xscale("log")
             ax.set_xlabel("t")
             ax.set_ylabel(r"$\varphi(t)$")
-            ax.set_title(f"{name}, layer {k}  (r = {np.median(sim['globr'][:, k]):.1f} cm)")
+            ax.set_title(f"{name}, layer {k}  (r = {np.nanmedian(sim['globr'][:, k]):.1f} cm)")
             ax.axhline(0., color="0.7", lw=.8)
             ax.legend(fontsize=9)
             # --- row 1: bounded average across probes
