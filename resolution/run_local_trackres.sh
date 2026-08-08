@@ -18,13 +18,6 @@ COMMON="nEvents=${NEVENTS:--1} numberOfThreads=1 doRes=True fillGrads=True fitFr
 
 run_task() {
   local idx=$1
-  # STAGGERED START. xargs -P fires all NPAR jobs at the same instant; at 60+
-  # that wedged every one of them in futex_do_wait inside the NSS/sssd user
-  # lookup (0 s CPU in 2 min, nothing open but the log and
-  # /var/lib/sss/mc/passwd), while a SINGLE job runs at 90% CPU. Spreading the
-  # starts over a few seconds each avoids the thundering herd on CMSSW/CVMFS
-  # startup. Cost is bounded: STAGGER*NPAR seconds once per batch.
-  sleep $(( (idx % ${NPAR:-12}) * ${STAGGER:-2} ))
   local outdir="$OUTROOT/resolution_trackres_${OUTTAG}/task_$(printf '%04d' "$idx")"
   local outfile="$outdir/globalcor_resclosure_0.root"
   # Resume on a COMPLETION SENTINEL, never on the .root itself. cmsRun creates
@@ -32,7 +25,18 @@ run_task() {
   # TRUNCATED file, and a `-s` test then skips it forever -- the run looks
   # instantaneous and silently produces nothing. (Cost ~an hour on 2026-08-08;
   # same trap as the simprod step2 outputs and the extract_parallel merge.)
+  #
+  # Checked BEFORE the stagger sleep below: a fully-complete sample re-run for
+  # resume would otherwise have all 160 tasks sleep up to STAGGER*NPAR seconds
+  # each only to skip, ~8 minutes of pure waiting per pass (measured).
   if [[ -f "$outdir/.complete" ]]; then echo "[skip] task $idx"; return 0; fi
+  # STAGGERED START. xargs -P fires all NPAR jobs at the same instant; at 60+
+  # that wedged every one of them in futex_do_wait inside the NSS/sssd user
+  # lookup (0 s CPU in 2 min, nothing open but the log and
+  # /var/lib/sss/mc/passwd), while a SINGLE job runs at 90% CPU. Spreading the
+  # starts over a few seconds each avoids the thundering herd on CMSSW/CVMFS
+  # startup. Cost is bounded: STAGGER*NPAR seconds once per batch.
+  sleep $(( (idx % ${NPAR:-12}) * ${STAGGER:-2} ))
   local input
   input=$(sed -n "$((idx + 1))p" "$FILELIST")
   [[ -n "$input" ]] || { echo "[err] empty filelist line for task $idx"; return 1; }
