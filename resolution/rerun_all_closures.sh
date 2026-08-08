@@ -26,6 +26,23 @@ CEPH=/ceph/submit/data/user/d/david_w/ZMass/cvh
 LOG=${LOG:-/tmp/claude-125124/-work-submit-david-w-ZMass/40621a07-b09b-46d9-b7b3-4189252bcf3e/scratchpad}
 cd "$RES"
 
+# The venv is NOT optional and NOT inherited. Stages 2 and 3 are plain python3
+# and every interactive run of them had been preceded by a manual
+# `source .venv/bin/activate`; the pipeline had no such line, so all five
+# extractions and the k_ms solve died instantly on
+# "ModuleNotFoundError: No module named 'matplotlib'" while stage 1 (cmsRun,
+# which sets up its own environment) ran perfectly. Fail loudly rather than
+# discover it 25 minutes in.
+# The venv lives in mfs/, NOT under resolution/ -- interactive runs used
+# `source .venv/bin/activate 2>/dev/null || source .../mfs/.venv/bin/activate`
+# and the first arm always failed silently, so the mfs one is what has been
+# doing the work all along. numpy 2.0.2 there, which the histmaker pickles need.
+VENV=${VENV:-/work/submit/david_w/ZMass/mfs/.venv}
+# shellcheck disable=SC1091
+source "$VENV/bin/activate" || { echo "FATAL: no venv at $VENV"; exit 1; }
+python3 -c "import numpy, matplotlib, uproot" \
+  || { echo "FATAL: venv missing numpy/matplotlib/uproot"; exit 1; }
+
 echo "=== [1/3] refit the low-pT muon control ($(date +%H:%M:%S)) ==="
 ls $CEPH/resolution_simprod_mugun_lowpt/task_*/step2.root | sort > simprod/filelist_mugun_lowpt.txt
 # 60-way with a STAGGERED RAMP. Launching 160 at once wedged every job in
@@ -50,7 +67,11 @@ for blk in 0 40 80 120; do
 done
 unset STAGGER
 unset FILELIST OUTTAG EXTRA
-echo "    done: $(grep -c '^\[done\]' $LOG/refit_lowpt.log) tasks, $(grep -c FAIL $LOG/refit_lowpt.log) fail"
+# Count SENTINELS, not log lines. refit_lowpt.log is appended across runs, so
+# grepping it reported "136 done, 60 fail" when in fact all 160 tasks had
+# succeeded -- the 60 FAILs were the killed jobs of an earlier, wedged run that
+# the resume had since redone.
+echo "    done: $(ls -d $CEPH/resolution_trackres_mugun_lowpt/task_*/.complete 2>/dev/null | wc -l)/160 tasks complete"
 
 echo "=== [2/3] re-extract all samples with the corrected model ($(date +%H:%M:%S)) ==="
 # two samples at a time: 2 x 160 shards x ~2 GB stays well inside memory

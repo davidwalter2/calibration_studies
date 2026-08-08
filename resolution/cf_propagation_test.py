@@ -121,7 +121,9 @@ def parse_args():
                         "'perplane' uses every ray that crossed a given plane's "
                         "(detid, entry-face) on that plane, which is valid "
                         "because the model's prediction there depends only on the "
-                        "deterministic reference path")
+                        "deterministic reference path. "
+                        "MUONS ONLY: for hadrons neither mode is a valid test -- "
+                        "see the note in load_sim")
     p.add_argument("--functionals", nargs="+", default=["qop", "locx"],
                    choices=sorted(FUNCTIONALS), help="which linear functionals to test")
     p.add_argument("--probes", nargs="+", type=float,
