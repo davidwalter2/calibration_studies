@@ -90,6 +90,6 @@ run_task() {
   echo "[done] task $idx"
 }
 export -f run_task
-export CMSSW_AREA SIMPROD OUTROOT NEVT PTMIN PTMAX PARTICLE_IDS
+export CMSSW_AREA SIMPROD OUTROOT NEVT PTMIN PTMAX PARTICLE_IDS SIMPROD_GT
 seq "$FROM" "$TO" | xargs -P "$NPAR" -I{} bash -c 'run_task {}'
 echo "all mugun simprod tasks finished -> $OUTROOT"

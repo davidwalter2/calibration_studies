@@ -72,7 +72,18 @@ def parse_args():
     return p.parse_args()
 
 
-def moliere_params(effZ, effA, xg, pGeV, beta):
+# Switchable so the two G4-matching corrections can be A/B tested against
+# the clean-propagation ground truth (see Documents/Resolution/NOTES.md).
+# Coefficient f in chi_a^2 *= (1 + f*exp(-Z^2/1000)).
+#   f = 0 -> the original (pre-2026-08-07) screening
+#   f = 1 -> Geant4's G4WentzelOKandVIxSection.cc:154 exactly
+# Scannable so the clean-propagation ground truth can say whether the
+# residual is a MAGNITUDE problem (some f closes all probes) or a
+# SHAPE problem (no single f does).
+G4_SCREEN_F = 1.0   # G4's value. NOT tuned -- see NOTES: the 0.7 the data wants is UNEXPLAINED.
+G4_FF_SQUARED = False  # measured: removes only ~5% and worsens the overshoot
+
+def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
     """chi_c^2, chi_a^2 and the nuclear form-factor cutoff theta_FF^2
     [rad^2] for one step (WentzelVI-consistent single-scattering inputs).
 
@@ -85,10 +96,39 @@ def moliere_params(effZ, effA, xg, pGeV, beta):
     WentzelVI's FF); implemented as a hard cutoff of the y^2 integral.
     Mott (McKinley-Feshbach) factor not yet included (few-% tail shape).
     """
-    chic2 = 0.157e-6 * effZ * (effZ + 1.) / effA * xg / (pGeV ** 2 * beta ** 2)
+    # PER-ELEMENT sums when the exporter provides them (msmoliv stride 10,
+    # 2026-08-08). Both Moliere parameters are non-linear in Z and Geant4
+    # evaluates them per element, so using the mass-averaged effZ/effA is
+    # wrong for compounds -- it was what forced the empirical G4_SCREEN_F=0.7.
+    #   zzp1OverA = sum_i massfrac_i Z_i(Z_i+1)/A_i
+    #   lnScreenW = scattering-power-weighted mean of
+    #               ln[Z^(2/3)(1.13+3.76(alpha Z/beta)^2)(1+exp(-Z^2/1000))]
+    # The geometric mean is the right one for chi_a: the exponent depends on
+    # it only through ln(chi_a).
+    if zzp1OverA is not None and zzp1OverA > 0.:
+        chic2 = 0.157e-6 * zzp1OverA * xg / (pGeV ** 2 * beta ** 2)
+    else:
+        chic2 = 0.157e-6 * effZ * (effZ + 1.) / effA * xg / (pGeV ** 2 * beta ** 2)
     az = ALPHA_EM * effZ / beta
     chi0 = 4.214e-6 * effZ ** (1. / 3.) / pGeV
-    chia2 = chi0 ** 2 * (1.13 + 3.76 * az ** 2)
+    # G4 SCREENING FACTOR (2026-08-07). G4WentzelOKandVIxSection.cc:154
+    #   ScreenRSquare[j]     = afact*(1 + G4Exp(-j*j*0.001))*Z^(2/3)   <- NUCLEUS
+    #   ScreenRSquareElec[j] = afact*Z^(2/3)                           <- electrons
+    # and for muons (:217) screenZ = (1.13 + 3.76 Z^2 alpha^2/beta^2)
+    # * ScreenRSquare[Z]/p^2.  G4's Wentzel form is 1/(1-cos+screenZ)^2 in
+    # d(1-cos), which maps to chi_a^2 = 2*screenZ; and 2*afact = 1.776e-11
+    # = chi0^2 to 0.1%.  So G4's screening angle is OURS times
+    # (1 + exp(-Z^2/1000)) -- 1.822 for Si, 1.965 for C, 1.431 for Cu.
+    # Without it chi_a^2 is ~1.8x too SMALL for silicon, which inflates the
+    # Moliere log and over-predicts the scattering.
+    if lnScreenW is not None and np.isfinite(lnScreenW) and lnScreenW != 0.:
+        # exact: chi_a^2 = (4.214e-6/p)^2 * exp(<ln screening>_weighted)
+        chia2 = (4.214e-6 / pGeV) ** 2 * np.exp(lnScreenW)
+    else:
+        # legacy fallback for stride-8 files: apply the G4 factor at effZ with
+        # the empirically calibrated coefficient (mix-dependent, see NOTES).
+        g4screen = 1. + G4_SCREEN_F * np.exp(-effZ * effZ * 1.0e-3)
+        chia2 = chi0 ** 2 * (1.13 + 3.76 * az ** 2) * g4screen
     rn_fm = 1.27 * max(effA, 1.) ** 0.27
     # dipole form-factor characteristic angle^2 (G4WentzelOKandVIxSection
     # convention: FF = 1/(1 + q^2 R^2/12)^2, i.e. theta_c^2 = 12 (hbarc/pR)^2
@@ -116,7 +156,12 @@ _k0 = j0(np.outer(_GTAU, np.sqrt(_Y2))) - 1.
 for _iy, _ym in enumerate(_YMAXG):
     # smooth dipole form factor 1/(1+y^2/ymax^2)^2 (G4 convention), not a
     # hard cutoff
-    _w = _DY2 / (1. + _Y2) ** 2 / (1. + _Y2 / _ym ** 2) ** 2
+    # G4 applies the exponential nuclear form factor SQUARED:
+    # G4WentzelOKandVIxSection.cc:355 fm = 1/(1+formfactA*z1)^2 and the
+    # cross section carries fm*fm (:373), i.e. |F|^2 = (1+q^2R^2/12)^-4.
+    # Ours had the square root of that.
+    _ffpow = 4 if G4_FF_SQUARED else 2
+    _w = _DY2 / (1. + _Y2) ** 2 / (1. + _Y2 / _ym ** 2) ** _ffpow
     _G2D[_iy] = _k0 @ _w
 _G = _G2D[-1]  # backwards-compatible: effectively uncut
 

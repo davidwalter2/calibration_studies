@@ -166,7 +166,14 @@ def ms_step_exponent(steps, wstd, tau):
     ok = steps[:, 5] > 0.
     if not ok.any():
         return np.zeros(len(tau))
-    prm = np.array([moliere_params(*s) for s in steps[ok, :5]])  # (ns, 3)
+    # stride 10 (2026-08-08) carries the per-element sums in cols 8,9;
+    # stride 8 files fall back to the effZ approximation inside
+    # moliere_params.
+    _st = steps[ok]
+    if _st.shape[1] >= 10:
+        prm = np.array([moliere_params(*s[:5], s[7], s[8]) for s in _st])
+    else:
+        prm = np.array([moliere_params(*s[:5]) for s in _st])  # (ns, 3)
     chic2, chia2, thff2 = prm[:, 0], prm[:, 1], prm[:, 2]
     act = (chic2 > 0.) & (chia2 > 0.)
     if not act.any():

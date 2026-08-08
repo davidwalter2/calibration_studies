@@ -56,7 +56,7 @@ echo "[extract_parallel] merging"
 # and is a TRUNCATED zip -- any reader that waits on `[ -f ... ]` gets
 # BadZipFile. Rename is atomic within a filesystem, so the final path never
 # exists in a partial state. (Same trap as the step2/simprod outputs.)
-python3 - "$TMP" "$OUT.tmp" <<'PY'
+python3 - "$TMP" "$OUT.tmp.npz" <<'PY'
 import glob, sys
 import numpy as np
 tmp, out = sys.argv[1], sys.argv[2]
@@ -79,5 +79,5 @@ np.savez_compressed(out, **merged)
 n = len(merged["z"])
 print(f"[extract_parallel] {len(fs)} shards -> {out}  ({n} tracks)")
 PY
-mv -f "$OUT.tmp" "$OUT"
+mv -f "$OUT.tmp.npz" "$OUT"
 echo "[extract_parallel] -> $OUT"

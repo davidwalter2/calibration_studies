@@ -89,6 +89,8 @@ TAU = np.concatenate([[0.0], np.geomspace(1e-3, 40.0, 1600)])
 # The CVH FIT is not affected -- it applies curv2localJacobianAltelossD at every
 # measurement surface. This is a defect of THIS TEST only.
 # Fix: export H per leg from G4ePropagationExport.cc and use (H^T a) here.
+KMS_SCALE = 1.0   # set from --kms in main()
+
 FUNCTIONALS = {
     "qop": np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
     "dxdz": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
@@ -106,6 +108,8 @@ def parse_args():
     p.add_argument("--targets", action="store_true", help="write the target-surface list and exit")
     p.add_argument("--compare", action="store_true", help="run the data/model comparison")
     p.add_argument("--out", default="targets.txt", help="target list output (with --targets)")
+    p.add_argument("--kms", type=float, default=0.0,
+                   help="log-scale on the MS log-CF exponent, exactly as cf_track_resolution --kms. Scanning this here measures the SAME quantity as the track-level k_ms but with NO fit, NO hits and NO block pooling: exact per-step transport Jacobians. If the two agree, the discrepancy is in the Moliere FORMULA; if only the track-level one is non-zero, it is in the fit machinery (pooling / wstd / hit-MS split).")
     p.add_argument("--functionals", nargs="+", default=["qop", "locx"],
                    choices=sorted(FUNCTIONALS), help="which linear functionals to test")
     p.add_argument("--probes", nargs="+", type=float,
@@ -175,6 +179,15 @@ def load_sim(path):
 # model side
 # --------------------------------------------------------------------------
 
+def _reshape_ms(v):
+    """msmoliv is 8 doubles/step in legacy files, 10 since 2026-08-08."""
+    v = np.asarray(v, dtype=np.float64)
+    for w in (10, 8):
+        if v.size % w == 0:
+            return v.reshape(-1, w)
+    raise ValueError(f'msmoliv size {v.size} matches neither stride')
+
+
 def load_model(path):
     # TFileService puts the tree in a directory named after the module label
     f = uproot.open(path)
@@ -201,7 +214,8 @@ def load_model(path):
             Q=np.asarray(a["Q"][k], dtype=np.float64).reshape(5, 5),
             dQMS=np.asarray(a["dQMS"][k], dtype=np.float64).reshape(5, 5),
             dQI=np.asarray(a["dQI"][k], dtype=np.float64).reshape(5, 5),
-            ms=np.asarray(a["msmoliv"][k], dtype=np.float64).reshape(-1, 8),
+            # stride auto-detect: 8 (legacy) or 10 (with per-element sums)
+            ms=_reshape_ms(a["msmoliv"][k]),
             ioni=np.asarray(a["ioniurbanv"][k], dtype=np.float64).reshape(-1, 11),
             jacc=np.asarray(a["stepjacc"][k], dtype=np.float64).reshape(-1, 5, 5),
             nms=np.asarray(a["stepnms"][k], dtype=np.int64),
@@ -320,7 +334,7 @@ def model_phi(legs, k, avec, sigma, tau):
             weff = np.sqrt(wv[:, 1] ** 2 + (wv[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
             for s in range(len(leg["ms"])):
                 if weff[s] > 0.0:
-                    S += ms_step_exponent(leg["ms"][s:s + 1], weff[s], tau)
+                    S += KMS_SCALE * ms_step_exponent(leg["ms"][s:s + 1], weff[s], tau)
     return np.exp(S)
 
 
@@ -545,6 +559,8 @@ def make_plots(results, rows, sim, tau, outdir, args):
 
 def main():
     args = parse_args()
+    global KMS_SCALE
+    KMS_SCALE = float(np.exp(args.kms))
     if args.targets:
         write_targets(args)
         return

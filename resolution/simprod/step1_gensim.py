@@ -3,6 +3,7 @@
 # Revision: 1.19 
 # Source: /local/reps/CMSSW/CMSSW/Configuration/Applications/python/ConfigBuilder.py,v 
 # with command line options: Analysis/HitAnalyzer/python/simprod_JpsiGun_cfi.py --python_filename step1_gensim.py --fileout file:step1.root --mc --eventcontent RAWSIM --datatier GEN-SIM --conditions auto:run2_design --beamspot Realistic25ns13TeV2016Collision --step GEN,SIM --era Run2_2016 --geometry DB:Ideal --no_exec -n 10
+import os
 import FWCore.ParameterSet.Config as cms
 
 from Configuration.Eras.Era_Run2_2016_cff import Run2_2016
@@ -97,7 +98,27 @@ if hasattr(process, "XMLFromDBSource"): process.XMLFromDBSource.label="Ideal"
 if hasattr(process, "DDDetectorESProducerFromDB"): process.DDDetectorESProducerFromDB.label="Ideal"
 process.genstepfilter.triggerConditions=cms.vstring("generation_step")
 from Configuration.AlCa.GlobalTag import GlobalTag
-process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_design', '')
+# Conditions MUST match what the CVH refit uses, because the fit
+# RE-EVALUATES hit positions with its own CPEs: a mismatched
+# SiPixelLorentzAngle / SiPixelTemplate payload shifts local-x per
+# module and fakes a pixel hit-quality bias. Measured 2026-08-07:
+# with auto:run2_design (-> 131X_mcRun2_design_v3, whose pixel
+# templates are SiPixelTemplates38T_2010_2011_mc) against a fit on
+# 106X_mcRun2_asymptotic_v17, 97.5% of BPix L1 modules carried a
+# >3sigma mean local-x residual; matching the GTs took that to 0.6%.
+# UL16 is also simply the right description of the 2016 detector.
+# 150X_mcRun2_asymptotic_v1 (auto:run2_mc) is the RELEASE-NATIVE Run2 GT
+# for CMSSW_15_0 and carries the IDENTICAL UL16 pixel payloads to the
+# fit's 106X_mcRun2_asymptotic_v17:
+#   SiPixelLorentzAngle(Sim)  _2016_ultralegacymc_v2
+#   SiPixelTemplateDBObject   _38T_2016_ultralegacymc_v2
+#   SiPixelGenErrorDBObject   _38T_2016_ultralegacymc_v2
+# Forcing the 106X GT itself through a 15_0 simulation does NOT work --
+# 15_0 digitisation wants records 106X never carried (L1TCaloParamsO2ORcd,
+# EcalSimComponentShapeRcd, ...). Pass the SAME GT to the fit
+# (globalTag=150X_mcRun2_asymptotic_v1) so the two sides are identical.
+_GT = os.environ.get('SIMPROD_GT', '150X_mcRun2_asymptotic_v1')
+process.GlobalTag = GlobalTag(process.GlobalTag, _GT, '')
 
 # --- Geant4 field-integration precision in the tracker -----------------------
 # Josh: "really really really important" for the CVH momentum scale. The
