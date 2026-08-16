@@ -124,6 +124,10 @@ def block_exponent(steps, tau):
     """S_b(tau): centered log-CF exponent of the block's straggling in qop
     units standardized by sigma_ref (rates at k=0). steps: (n, NPARS)."""
     reg = steps[:, 0]
+    if np.any(reg == 2):
+        raise NotImplementedError(
+            "cf_ioni_exact: regime-2 (exact delta spectrum) records repurpose "
+            "column 6 as xi; use cf_track_resolution.ioni_step_exponent.")
     gsig2 = steps[:, 1].astype(np.float64)
     g = steps[:, 10].astype(np.float64) * 1e-3  # qop per MeV
     sigref2 = np.sum(gsig2 * g * g)
