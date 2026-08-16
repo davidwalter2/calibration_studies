@@ -108,8 +108,25 @@ os.makedirs(OUT, exist_ok=True)
 # ~1 sigma out) while every hadron still reproduces exactly.  That is a
 # statistics change, not a physics one, but a control that does not reproduce
 # is not a control.  Pin the glob to the archived decade.
+#
+# BOTH GLOBS ARE PINNED, and for a while only one was.  `hadron_probe` keeps
+# the simulation and its step census in two parallel file sets
+# (`*_s???_sim.root` and `*_s???_census.bin`), and `census_of` REFUSES to run
+# if the two sets differ -- a deliberate guard, because a census that does not
+# describe the events being scored is worse than none.  Pinning `sim_glob`
+# alone therefore left `hp.sim_glob` returning ten muon `off` files while
+# `hp.census_glob` returned eleven, and every consumer of the census died with
+# "census/sim file sets differ for mum_pt3_off".
+#
+# Nothing published hit it because the closure path only ever calls `sim_of`;
+# it surfaced the first time `radoff_species.py live` asked for the step census
+# of the same arm.  The fix is here rather than in the caller because the pin's
+# whole purpose is to make "the archived decade" a single well-defined sample,
+# and a sample whose events and whose census disagree is not one.
 _SIM_GLOB = hp.sim_glob
+_CENSUS_GLOB = hp.census_glob
 hp.sim_glob = lambda pdg, arm: _SIM_GLOB(pdg, arm).replace("_s*", "_s1*")
+hp.census_glob = lambda pdg, arm: _CENSUS_GLOB(pdg, arm).replace("_s*", "_s1*")
 
 MEL = 0.51099895                 # MeV, CLHEP electron_mass_c2
 MPROT = 938.27208816             # MeV, CLHEP proton_mass_c2
