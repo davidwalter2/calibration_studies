@@ -1,6 +1,6 @@
 """
 Compare the ditrack candidate mass and related kinematics across the four
-configurations of the step-2 chain for KS, Lambda and D*:
+configurations of the step-2 chain for KS, Lambda and J/psi:
 
     (a) raw track-pair invariant mass with daughter mass hypothesis
         (= Jpsitrk_mass; identical in all CVH outputs)
@@ -11,8 +11,8 @@ configurations of the step-2 chain for KS, Lambda and D*:
 
 Inputs are produced by:
     run_cvh_variants.sh
-    -> /tmp/cvh_validation/<channel>_<variant>/<basename>_0.root
-       channels: ks, lambda, d0
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/260506_variants/<channel>_<variant>/<basename>_0.root
+       channels: ks, lambda, jpsi
        variants: nv_np, v_np, v_p
 
 Run inside the wmassdev singularity:
@@ -20,11 +20,12 @@ Run inside the wmassdev singularity:
       singularity run --nv \
       /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/bendavid/cmswmassdocker/wmassdevrolling:v48_patch0 \
       bash -c "source /work/submit/david_w/WRemnants/setup.sh > /dev/null 2>&1 && \
-               python3 /work/submit/david_w/ZMass/CMSSW_10_6_26/src/calibration_studies/alcareco_validation/plot_cvh_variants.py"
+               python3 /work/submit/david_w/ZMass/calibration_studies/alcareco_validation/plot_cvh_variants.py"
 """
 
 import os
 import math
+import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -32,8 +33,11 @@ import uproot
 import wums.plot_tools as plot_tools
 
 
-INBASE = '/tmp/cvh_validation'
-OUTDIR = '/home/submit/david_w/public_html/ZMass/cvh_variants'
+INBASE = '/ceph/submit/data/user/d/david_w/ZMass/cvh/260506_variants'
+# Output dir is prefixed with today's date (YYMMDD) so successive runs
+# accumulate side by side rather than overwriting each other.
+_DATE = datetime.date.today().strftime('%y%m%d')
+OUTDIR = f'/home/submit/david_w/public_html/ZMass/{_DATE}_cvh_variants_v2'
 os.makedirs(OUTDIR, exist_ok=True)
 
 # copy index.php so the directory is browsable in the public_html web view
@@ -43,12 +47,25 @@ if os.path.exists(_src_php) and not os.path.exists(_dst_php):
     import shutil
     shutil.copy(_src_php, _dst_php)
 
-# (channel-tag, output-basename, PDG mass [MeV], V0 mass-window [MeV], display label)
+# (channel-tag, output-basename, PDG mass [MeV], mass-window [MeV], display label)
 CHANNELS = [
-    ('ks',     'globalcor_ks',            497.611, (440, 560), r'$K_S \to \pi^+\pi^-$'),
-    ('lambda', 'globalcor_lambda',       1115.683, (1080, 1160), r'$\Lambda^0 \to p\,\pi^-$'),
-    ('d0',     'globalcor_d0_selected',  1864.84,  (1820, 1910), r'$D^0 \to K^-\pi^+$'),
+    ('ks',     'globalcor_ks',      497.611, (440,  560),  r'$K_S \to \pi^+\pi^-$'),
+    ('lambda', 'globalcor_lambda', 1115.683, (1080, 1160), r'$\Lambda^0 \to p\,\pi^-$'),
+    ('jpsi',   'globalcor_jpsi',   3096.900, (2700, 3400), r'$J/\psi \to \mu^+\mu^-$'),
 ]
+
+# Per-channel daughter labels for the Muplus / Muminus slots in the CVH ntuplizer
+# output. The candidate producer orders daughters with positive-charge first:
+#   KS     -- both pions (Muplus = pi+, Muminus = pi-)
+#   Lambda -- (proton, pion); the proton-candidate slot mixes p and pbar across
+#             Lambda + anti-Lambda events, the pion-candidate slot mixes pi- and pi+
+#   J/psi  -- (mu+, mu-) by the TwoBodyDecayCandidateProducer's positive-first
+#             ordering (matches V0Producer's KS convention)
+DAUGHTER_LABELS = {
+    'ks':     (r'$\pi^+$',       r'$\pi^-$'),
+    'lambda': (r'$p / \bar{p}$', r'$\pi^\mp$'),
+    'jpsi':   (r'$\mu^+$',       r'$\mu^-$'),
+}
 
 VARIANTS = [
     ('nv_np', 'no vtx, no pt',  'tab:blue'),
@@ -59,10 +76,16 @@ VARIANTS = [
 # branches we care about
 BRANCHES = [
     'Jpsitrk_mass', 'Jpsitrk_pt', 'Jpsitrk_eta', 'Jpsitrk_phi',
-    'Jpsikin_mass', 'Jpsikin_pt', 'Jpsikin_eta', 'Jpsikin_phi',
-    'Jpsikin_x', 'Jpsikin_y', 'Jpsikin_z',
-    'Mupluskin_pt', 'Mupluskin_eta', 'Mupluskin_phi',
-    'Muminuskin_pt', 'Muminuskin_eta', 'Muminuskin_phi',
+    'Jpsi_mass', 'Jpsi_pt', 'Jpsi_eta', 'Jpsi_phi',
+    'Jpsi_x', 'Jpsi_y', 'Jpsi_z',
+    'Muplus_pt', 'Muplus_eta', 'Muplus_phi',
+    'Muminus_pt', 'Muminus_eta', 'Muminus_phi',
+    # CMSSW kinematic vertex fit results (always vertex-constrained;
+    # input is the original tracks, so the value does not depend on the
+    # CVH constraint variant). 'kincons' carries the same fit with an
+    # additional dimuon-mass constraint -- only filled when
+    # doMassConstraint=True in the channel cfi.
+    'Jpsikin_mass', 'Jpsikincons_mass',
     'chisqval', 'niter',
 ]
 
@@ -108,26 +131,53 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
         2, 1, sharex=True, figsize=(8, 6),
         gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.05})
 
-    # histograms first (raw + 3 CVH variants)
+    # histograms first (raw + 3 CVH variants + CMSSW kin fit + optional kincons)
+    # Legend "N" = (in-window-count / total-tree-count) so the user can see
+    # how many fall outside the [mass_window] plot range -- particularly
+    # important for the raw track-pair distribution which has long tails.
+    def _nlabel(values_mev, cnt):
+        return f'{int(cnt.sum())} / {len(values_mev)}'
+
     cnt_a, _ = np.histogram(raw_mass_mev, bins=bins)
     cnts = {}
     for v, _, _ in VARIANTS:
-        cnts[v], _ = np.histogram(data[v]['Jpsikin_mass'] * 1000.0, bins=bins)
+        cnts[v], _ = np.histogram(data[v]['Jpsi_mass'] * 1000.0, bins=bins)
+    # CMSSW KinematicParticleVertexFitter result -- vertex-constrained
+    # by construction, no mass constraint, fed by the input tracks (so
+    # variant-independent). Take from the nv_np tree.
+    kin_mass_mev = base_var['Jpsikin_mass'] * 1000.0
+    cnt_kin, _   = np.histogram(kin_mass_mev, bins=bins)
+    # CMSSW KinematicConstrainedVertexFitter (vertex + mass constraint)
+    # -- only filled when doMassConstraint=True; show only when non-zero
+    kincons_mass_mev = base_var['Jpsikincons_mass'] * 1000.0
+    cnt_kincons, _   = np.histogram(kincons_mass_mev, bins=bins)
+    show_kincons = cnt_kincons.sum() > 0
 
-    # main panel
+    # main panel: each legend entry uses a 2-line label -- description on
+    # the first line, N value indented underneath. Larger font for both.
     ax.step(np.append(bins[:-1], bins[-1]), np.append(cnt_a, cnt_a[-1]),
             where='post', color='black', linewidth=1.4,
-            label=f'(a) raw track pair  N={cnt_a.sum()}')
+            label=f'(a) raw track pair\n      N = {_nlabel(raw_mass_mev, cnt_a)}')
     for v, vlabel, vcolor in VARIANTS:
         cnt = cnts[v]
         tag = {'nv_np': 'b', 'v_np': 'c', 'v_p': 'd'}[v]
+        m_v = data[v]['Jpsi_mass'] * 1000.0
         ax.step(np.append(bins[:-1], bins[-1]), np.append(cnt, cnt[-1]),
                 where='post', color=vcolor, linewidth=1.4,
-                label=f'({tag}) CVH {vlabel}  N={cnt.sum()}')
+                label=f'({tag}) CVH {vlabel}\n      N = {_nlabel(m_v, cnt)}')
+    ax.step(np.append(bins[:-1], bins[-1]), np.append(cnt_kin, cnt_kin[-1]),
+            where='post', color='tab:purple', linewidth=1.4, linestyle='--',
+            label=f'(e) CMSSW kin fit (vtx)\n      N = {_nlabel(kin_mass_mev, cnt_kin)}')
+    if show_kincons:
+        ax.step(np.append(bins[:-1], bins[-1]), np.append(cnt_kincons, cnt_kincons[-1]),
+                where='post', color='tab:brown', linewidth=1.4, linestyle='--',
+                label=f'(f) CMSSW kin fit (vtx + mass)\n      N = {_nlabel(kincons_mass_mev, cnt_kincons)}')
     ax.axvline(pdg_mev, color='red', linestyle='--', linewidth=1.0,
                label=f'PDG: {pdg_mev:.2f} MeV')
     ax.set_ylabel(f'Candidates / {width:.2f} MeV')
-    ax.legend(fontsize=10, loc='upper right')
+    ax.set_ylim(bottom=0)
+    ax.legend(fontsize=12, loc='upper right',
+              labelspacing=0.6, handletextpad=0.5)
     ax.text(0.03, 0.97, channel_label, transform=ax.transAxes,
             va='top', ha='left', fontsize=13,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.85))
@@ -148,6 +198,14 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
         r = _ratio(cnts[v].astype(float))
         axr.step(np.append(bins[:-1], bins[-1]), np.append(r, r[-1]),
                  where='post', color=vcolor, linewidth=1.2)
+    # CMSSW kin fit (always shown) + kincons (when filled)
+    r_kin = _ratio(cnt_kin.astype(float))
+    axr.step(np.append(bins[:-1], bins[-1]), np.append(r_kin, r_kin[-1]),
+             where='post', color='tab:purple', linewidth=1.2, linestyle='--')
+    if show_kincons:
+        r_kincons = _ratio(cnt_kincons.astype(float))
+        axr.step(np.append(bins[:-1], bins[-1]), np.append(r_kincons, r_kincons[-1]),
+                 where='post', color='tab:brown', linewidth=1.2, linestyle='--')
     axr.axhline(1.0, color='gray', linestyle=':', linewidth=0.8)
     axr.axvline(pdg_mev, color='red', linestyle='--', linewidth=0.8)
     axr.set_xlabel(r'$m(\mathrm{ditrack})$ [MeV]')
@@ -155,10 +213,10 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
     axr.set_xlim(mass_window)
     axr.set_ylim(0.5, 1.6)
 
-    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True)
+    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True, loc=0)
     fig.tight_layout()
-    fig.savefig(os.path.join(OUTDIR, f'{chan}_mass_compare.png'), dpi=150)
-    fig.savefig(os.path.join(OUTDIR, f'{chan}_mass_compare.pdf'))
+    fig.savefig(os.path.join(OUTDIR, f'{chan}_mass_compare.png'), dpi=150, bbox_inches='tight')
+    fig.savefig(os.path.join(OUTDIR, f'{chan}_mass_compare.pdf'), bbox_inches='tight')
     plt.close(fig)
     print(f'  saved {chan}_mass_compare')
 
@@ -168,11 +226,11 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
     # the typical KS/Lambda flight (~cm). For D0 the proxy is dominated
     # by the BS itself — interpret with care.
     def lxy_proxy(d):
-        return np.hypot(d['Jpsikin_x'], d['Jpsikin_y'])
+        return np.hypot(d['Jpsi_x'], d['Jpsi_y'])
 
     # axis ranges per channel
-    if chan == 'd0':
-        lxy_max = 2.0    # cm
+    if chan == 'jpsi':
+        lxy_max = 2.0    # cm; J/psi is mostly prompt with non-prompt tail
     elif chan == 'ks':
         lxy_max = 25.0
     else:
@@ -196,7 +254,7 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
 
     for i, (v, vlabel, _) in enumerate(VARIANTS, start=1):
         ax = axes[i]
-        m = data[v]['Jpsikin_mass'] * 1000.0
+        m = data[v]['Jpsi_mass'] * 1000.0
         x = lxy_proxy(data[v])
         h, _, _ = np.histogram2d(x, m, bins=[lxy_bins, mass_bins])
         h_safe = np.where(h.T > 0, h.T, np.nan)
@@ -210,8 +268,8 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
 
     fig.suptitle(channel_label + r' — $m$ vs $L_{xy}$ proxy', fontsize=13)
     fig.tight_layout()
-    fig.savefig(os.path.join(OUTDIR, f'{chan}_mass_vs_lxy.png'), dpi=150)
-    fig.savefig(os.path.join(OUTDIR, f'{chan}_mass_vs_lxy.pdf'))
+    fig.savefig(os.path.join(OUTDIR, f'{chan}_mass_vs_lxy.png'), dpi=150, bbox_inches='tight')
+    fig.savefig(os.path.join(OUTDIR, f'{chan}_mass_vs_lxy.pdf'), bbox_inches='tight')
     plt.close(fig)
     print(f'  saved {chan}_mass_vs_lxy')
 
@@ -232,7 +290,7 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
     profiles = {}
     for v, _, _ in VARIANTS:
         x = lxy_proxy(data[v])
-        m = data[v]['Jpsikin_mass'] * 1000.0
+        m = data[v]['Jpsi_mass'] * 1000.0
         profiles[v] = profile_mean(x, m)
 
     # two-panel layout
@@ -257,16 +315,15 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
             va='top', ha='left', fontsize=12,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.85))
 
-    # ratio panel: each variant (and raw) divided by v_p mean, bin-by-bin
-    mu_ref, er_ref = profiles['v_p']
-    safe = ~np.isnan(mu_ref) & (mu_ref > 0)
+    # ratio panel: each variant (and raw) divided by the channel's PDG
+    # mass, bin-by-bin. Reference is a constant (no error), so the ratio
+    # error is just num_err / pdg_mev.
     def _profile_ratio(num, num_err):
-        r = np.full_like(num, np.nan)
+        r  = np.full_like(num, np.nan)
         re = np.full_like(num, np.nan)
-        r[safe]  = num[safe] / mu_ref[safe]
-        # propagate errors (independent for distinct variants; rough approximation)
-        re[safe] = r[safe] * np.hypot(num_err[safe] / num[safe],
-                                       er_ref[safe] / mu_ref[safe])
+        sel = ~np.isnan(num)
+        r[sel]  = num[sel]     / pdg_mev
+        re[sel] = num_err[sel] / pdg_mev
         return r, re
     r_raw, e_raw = _profile_ratio(m_a, e_a)
     axr.errorbar(centers, r_raw, yerr=e_raw, fmt='o-', color='black',
@@ -278,23 +335,36 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
                      markersize=3, linewidth=1.0)
     axr.axhline(1.0, color='gray', linestyle=':', linewidth=0.8)
     axr.set_xlabel(r'$L_{xy}^{\mathrm{proxy}}$ [cm]')
-    axr.set_ylabel('ratio / (d) v_p')
-    # tight ratio range — these are means so deviations are typically tiny
+    axr.set_ylabel('ratio / PDG')
+    # tight ratio range — means typically deviate by O(few permille)
     axr.set_ylim(0.998, 1.002)
 
-    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True)
+    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True, loc=0)
     fig.tight_layout()
-    fig.savefig(os.path.join(OUTDIR, f'{chan}_meanmass_vs_lxy.png'), dpi=150)
-    fig.savefig(os.path.join(OUTDIR, f'{chan}_meanmass_vs_lxy.pdf'))
+    fig.savefig(os.path.join(OUTDIR, f'{chan}_meanmass_vs_lxy.png'), dpi=150, bbox_inches='tight')
+    fig.savefig(os.path.join(OUTDIR, f'{chan}_meanmass_vs_lxy.pdf'), bbox_inches='tight')
     plt.close(fig)
     print(f'  saved {chan}_meanmass_vs_lxy')
 
-    # --- (4) V0 pT, eta, Lxy proxy, daughter pT (using v_p variant) ----
+    # --- (4) V0 pT, eta, rapidity, Lxy proxy, daughter pT (using v_p variant) ----
     d = data['v_p']
+    # Rapidity y = atanh(p_z / E),   p_z = pT sinh(eta),  E = sqrt(p^2 + m^2)
+    pt_arr  = np.asarray(d['Jpsi_pt'])
+    eta_arr = np.asarray(d['Jpsi_eta'])
+    m_arr   = np.asarray(d['Jpsi_mass'])
+    pz_arr  = pt_arr * np.sinh(eta_arr)
+    p_arr   = pt_arr * np.cosh(eta_arr)
+    E_arr   = np.sqrt(p_arr**2 + m_arr**2)
+    y_arr   = 0.5 * np.log((E_arr + pz_arr) / (E_arr - pz_arr))
+    d['Jpsi_rapidity'] = y_arr
+
+    pt_max = 30.0 if chan == 'jpsi' else 15.0
+    cand_label = 'mother' if chan == 'jpsi' else 'V0'
     plot_specs = [
-        ('Jpsikin_pt',  np.linspace(0, 15, 60), r'V0 $p_T$ [GeV]', f'{chan}_v0_pt'),
-        ('Jpsikin_eta', np.linspace(-3, 3, 60), r'V0 $\eta$',      f'{chan}_v0_eta'),
-        ('Jpsikin_phi', np.linspace(-np.pi, np.pi, 60), r'V0 $\phi$ [rad]', f'{chan}_v0_phi'),
+        ('Jpsi_pt',       np.linspace(0, pt_max, 60),     fr'{cand_label} $p_T$ [GeV]', f'{chan}_v0_pt'),
+        ('Jpsi_eta',      np.linspace(-3, 3, 60),         fr'{cand_label} $\eta$',      f'{chan}_v0_eta'),
+        ('Jpsi_rapidity', np.linspace(-3, 3, 60),         fr'{cand_label} $y$',         f'{chan}_v0_rapidity'),
+        ('Jpsi_phi',      np.linspace(-np.pi, np.pi, 60), fr'{cand_label} $\phi$ [rad]', f'{chan}_v0_phi'),
     ]
     for branch, bins_, xlabel, name in plot_specs:
         fig, ax = plot_tools.figure(
@@ -311,7 +381,7 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
         ax.text(0.03, 0.97, channel_label + r' (CVH, vtx+pt)',
                 transform=ax.transAxes, va='top', ha='left', fontsize=11,
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.85))
-        plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True)
+        plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True, loc=0)
         plot_tools.save_pdf_and_png(OUTDIR, name, fig)
         plt.close(fig)
         print(f'  saved {name}')
@@ -331,7 +401,7 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
     ax.text(0.03, 0.97, channel_label + r' (CVH, vtx+pt)',
             transform=ax.transAxes, va='top', ha='left', fontsize=11,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.85))
-    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True)
+    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True, loc=0)
     plot_tools.save_pdf_and_png(OUTDIR, f'{chan}_v0_lxy', fig)
     plt.close(fig)
     print(f'  saved {chan}_v0_lxy')
@@ -343,17 +413,18 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
     fig, ax = plot_tools.figure(
         c, xlabel=r'Daughter $p_T$ [GeV]', ylabel=f'Tracks / {w:.2f} GeV',
         xlim=(bins_[0], bins_[-1]), automatic_scale=False, width_scale=1)
-    c_pos, _ = np.histogram(d['Mupluskin_pt'],  bins=bins_)
-    c_neg, _ = np.histogram(d['Muminuskin_pt'], bins=bins_)
+    c_pos, _ = np.histogram(d['Muplus_pt'],  bins=bins_)
+    c_neg, _ = np.histogram(d['Muminus_pt'], bins=bins_)
+    pos_lbl, neg_lbl = DAUGHTER_LABELS.get(chan, ('positive daughter', 'negative daughter'))
     ax.bar(c, c_pos, width=w, color='steelblue', alpha=0.7,
-           edgecolor='steelblue', linewidth=0.5, label='positive daughter')
+           edgecolor='steelblue', linewidth=0.5, label=pos_lbl)
     ax.bar(c, c_neg, width=w, color='tomato', alpha=0.7,
-           edgecolor='tomato', linewidth=0.5, label='negative daughter')
-    ax.legend(fontsize=11)
+           edgecolor='tomato', linewidth=0.5, label=neg_lbl)
+    ax.legend(fontsize=12)
     ax.text(0.03, 0.97, channel_label + r' (CVH, vtx+pt)',
             transform=ax.transAxes, va='top', ha='left', fontsize=11,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.85))
-    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True)
+    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True, loc=0)
     plot_tools.save_pdf_and_png(OUTDIR, f'{chan}_daughter_pt', fig)
     plt.close(fig)
     print(f'  saved {chan}_daughter_pt')
@@ -365,24 +436,24 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
     fig, ax = plot_tools.figure(
         c, xlabel=r'Daughter $\eta$', ylabel=f'Tracks / {w:.2f}',
         xlim=(bins_[0], bins_[-1]), automatic_scale=False, width_scale=1)
-    c_pos, _ = np.histogram(d['Mupluskin_eta'],  bins=bins_)
-    c_neg, _ = np.histogram(d['Muminuskin_eta'], bins=bins_)
+    c_pos, _ = np.histogram(d['Muplus_eta'],  bins=bins_)
+    c_neg, _ = np.histogram(d['Muminus_eta'], bins=bins_)
     ax.bar(c, c_pos, width=w, color='steelblue', alpha=0.7,
-           edgecolor='steelblue', linewidth=0.5, label='positive daughter')
+           edgecolor='steelblue', linewidth=0.5, label=pos_lbl)
     ax.bar(c, c_neg, width=w, color='tomato', alpha=0.7,
-           edgecolor='tomato', linewidth=0.5, label='negative daughter')
-    ax.legend(fontsize=11)
+           edgecolor='tomato', linewidth=0.5, label=neg_lbl)
+    ax.legend(fontsize=12)
     ax.text(0.03, 0.97, channel_label + r' (CVH, vtx+pt)',
             transform=ax.transAxes, va='top', ha='left', fontsize=11,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.85))
-    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True)
+    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True, loc=0)
     plot_tools.save_pdf_and_png(OUTDIR, f'{chan}_daughter_eta', fig)
     plt.close(fig)
     print(f'  saved {chan}_daughter_eta')
 
     # ΔR between daughters
-    deta = d['Mupluskin_eta'] - d['Muminuskin_eta']
-    dphi = d['Mupluskin_phi'] - d['Muminuskin_phi']
+    deta = d['Muplus_eta'] - d['Muminus_eta']
+    dphi = d['Muplus_phi'] - d['Muminus_phi']
     dphi = (dphi + np.pi) % (2*np.pi) - np.pi
     dr   = np.sqrt(deta**2 + dphi**2)
     bins_ = np.linspace(0, 4, 60)
@@ -397,7 +468,7 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
     ax.text(0.03, 0.97, channel_label + r' (CVH, vtx+pt)',
             transform=ax.transAxes, va='top', ha='left', fontsize=11,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.85))
-    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True)
+    plot_tools.add_cms_decor(ax, label='Preliminary', lumi=None, data=True, loc=0)
     plot_tools.save_pdf_and_png(OUTDIR, f'{chan}_deltaR', fig)
     plt.close(fig)
     print(f'  saved {chan}_deltaR')
@@ -429,8 +500,8 @@ for chan, basename, pdg_mev, mass_window, channel_label in CHANNELS:
     axes[1].legend(fontsize=10)
     axes[1].set_title(f'{channel_label}: iterations to convergence')
     fig.tight_layout()
-    fig.savefig(os.path.join(OUTDIR, f'{chan}_fit_quality.png'), dpi=150)
-    fig.savefig(os.path.join(OUTDIR, f'{chan}_fit_quality.pdf'))
+    fig.savefig(os.path.join(OUTDIR, f'{chan}_fit_quality.png'), dpi=150, bbox_inches='tight')
+    fig.savefig(os.path.join(OUTDIR, f'{chan}_fit_quality.pdf'), bbox_inches='tight')
     plt.close(fig)
     print(f'  saved {chan}_fit_quality')
 
