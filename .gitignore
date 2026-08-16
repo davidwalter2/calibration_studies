@@ -18,3 +18,28 @@ module_level_corrections/diag_run*/
 
 # resolution study caches and job logs (multi-GB npz + logs)
 resolution/runs/
+# ... and its scan caches, the same rule module_level_corrections already has
+resolution/*.npz
+
+# pixelhits study: cmsRun outputs, per-job logs and pickled caches.
+# 13.3 GB of globalcor ntuples + 1.9 GB of logs, all regenerable from the
+# drivers and filelists that ARE committed.  `pixelhits/lagun/ana_*.log` alone
+# is 1.8 GB -- the two largest files in the tree.
+pixelhits/runs/
+pixelhits/lagun/*.root
+pixelhits/lagun/*.log
+pixelhits/lagun/resp_*.txt
+
+# slurm array stdout, captured next to the job rather than in a log dir
+**/slurm_*.out
+
+# Machine-generated chunk/retry filelists.  The HAND-MAINTAINED ones are
+# tracked and stay tracked (pixelhits/filelist_data_all.txt,
+# resolution/simprod/filelist_*.txt, slurm/filelists/jpsi_2016_*.txt); these
+# are the ones a script writes.  The existing `slurm/filelists/_*` rule was
+# meant to catch the retry lists and the naming drifted away from it.
+pixelhits/filelist_mc*.txt
+pixelhits/filelist_jpsimc*.txt
+slurm/filelists/*retry*.txt
+slurm/filelists/*redo*.txt
+slurm/filelists/*resubmit*.txt
