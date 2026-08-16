@@ -508,18 +508,26 @@ def _clean_env(extra):
     its own interpreter, picks up PYTHONPATH / PYTHONHOME / LD_LIBRARY_PATH and
     dies MUTELY (toy_pt_scan._cmsrun documents the diagnosis).  Allowlist.
 
-    EVERY ARM IS PINNED, IN BOTH DIRECTIONS (2026-08-16).  The four
-    corrections `CVH_IONI_EXACTDELTA`, `CVH_IONI_KOKOULIN`,
-    `CVH_REF_CHARGEAWARE` and `CVH_REF_SPECIESDEDX` are now DEFAULT-ON in the
-    C++ (NOTES_DEFAULTON).  Every published control arm in this directory --
-    `off`, `nominal`, `caoff`, `spdoff` -- is an EMPTY overlay, which used to
-    mean "all four off" and would now silently mean "all four on", i.e. the
-    control would become a second copy of the signal arm and every
-    bit-identity table in NOTES_DELTASPEC / NOTES_QVALID / NOTES_CHARGEODD /
-    NOTES_SPECIESDEDX would read PASS for the wrong reason.
+    EVERY ARM IS PINNED, IN BOTH DIRECTIONS.  The four corrections
+    `CVH_IONI_EXACTDELTA`, `CVH_IONI_KOKOULIN`, `CVH_REF_CHARGEAWARE` and
+    `CVH_REF_SPECIESDEDX` were DEFAULT-ON for one week (2026-08-16,
+    NOTES_DEFAULTON) and are DEFAULT-OFF again (NOTES_CLOSURE_FINAL s1).
+    Every published control arm in this directory -- `off`, `nominal`,
+    `caoff`, `spdoff` -- is an EMPTY overlay, which under the default-ON state
+    silently meant "all four on", i.e. the control became a second copy of the
+    signal arm and every bit-identity table in NOTES_DELTASPEC / NOTES_QVALID /
+    NOTES_CHARGEODD / NOTES_SPECIESDEDX would have read PASS for the wrong
+    reason.
 
-    So the historical state is applied as the BASE and the arm's own overlay
-    still wins.  Two consequences worth being explicit about:
+    The historical state is therefore applied as the BASE, and the arm's own
+    overlay still wins.  THE PIN IS KEPT NOW THAT THE DEFAULTS ARE OFF AGAIN
+    and it is deliberately not a no-op-by-luck: it makes a control arm
+    independent of the ambient shell (and of any future re-flip), which is
+    what a reproducibility harness owes its published numbers.  A closure
+    study turns the corrections on through `ctr.SWITCHES_ON`, which is
+    greppable and appears in the run log where a default does not.
+
+    Two consequences worth being explicit about:
 
       * every existing arm dict keeps EXACTLY the meaning it had when its
         numbers were published, with no per-arm edit and therefore no arm

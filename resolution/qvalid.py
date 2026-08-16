@@ -68,13 +68,17 @@ ENVS = {
     # `caonly` and `on` are the two that must be LIVE here.
     "caonly":  {"CVH_REF_CHARGEAWARE": "1"},
     "spdonly": {"CVH_REF_SPECIESDEDX": "1"},
-    # THE UNPINNED ARM (2026-08-16).  Every other arm here pins all four
-    # default-on switches explicitly, which is what keeps the archived
-    # comparisons valid -- and which also means no other arm can tell you what
-    # the DEFAULT is.  `None` means "leave the variable unset" (see
-    # deltaspec._clean_env), so this arm runs with nothing set at all and its
-    # export is what a production job with no environment gets.  It must equal
-    # the all-four-on arm and it must NOT equal `off`.
+    # THE UNPINNED ARM.  Every other arm here pins all four switches
+    # explicitly, which is what keeps the archived comparisons valid -- and
+    # which also means no other arm can tell you what the DEFAULT is.  `None`
+    # means "leave the variable unset" (see deltaspec._clean_env), so this arm
+    # runs with nothing set at all and its export is what a production job with
+    # no environment gets.
+    #
+    # Since the four are DEFAULT-OFF (the 2026-08-16 flip was reverted) it must
+    # equal `off` and must NOT equal `allon`.  That is the opposite of what it
+    # was written to assert, and cmd_bitid spells the expectation out in the
+    # row label so the polarity cannot silently rot again.
     "defaults": {k: None for k in ctr.CVH_DEFAULT_ON},
     # the explicit all-four-on arm the unpinned one is compared against
     "allon":   {k: "1" for k in ctr.CVH_DEFAULT_ON},
@@ -139,18 +143,26 @@ def cmd_bitid(args):
         # 4. LIVE control
         pairs.append((mp(which, "on"), mp(which, "onk"),
                       f"{which} on vs on+KOKOULIN        (LIVE: expect Q, dQI, ioniurbanv)"))
-        # 5. THE DEFAULT IS WHAT IT IS CLAIMED TO BE (2026-08-16).
-        #    `defaults` sets nothing at all; `allon` sets all four to 1. If the
-        #    C++ defaults are on, the two are the same job. This is the only
-        #    check here that is not run against a pinned arm, and it is the
-        #    only one that can catch "the flip did not land".
+        # 5. THE DEFAULT IS WHAT IT IS CLAIMED TO BE.
+        #    `defaults` sets nothing at all; `allon` sets all four to 1, `off`
+        #    sets all four to 0. This is the only check here that is not run
+        #    against a pinned arm, and it is the only one that can catch a
+        #    default that is not what the source says.
+        #
+        #    THE POLARITY OF THESE TWO ROWS IS THE TEST. They were written on
+        #    2026-08-16 with the four DEFAULT-ON, i.e. `defaults` == `allon`
+        #    and `defaults` != `off`. The flip was REVERTED (NOTES_CLOSURE_FINAL
+        #    s1), so both expectations invert: an unpinned job is now the
+        #    HISTORICAL state, and it must NOT be the all-four-on one. Getting
+        #    this backwards is exactly the failure mode the rows exist to
+        #    catch, which is why the expectation is spelled out in the label.
         if args.defaults:
-            pairs.append((mp(which, "allon"), mp(which, "defaults"),
-                          f"{which} all-four-ON vs UNPINNED (DEFAULT-ON: must be identical)"))
-            #    ... and it must not be the historical state either, or the
-            #    switches are simply dead.
             pairs.append((mp(which, "off"), mp(which, "defaults"),
-                          f"{which} off vs UNPINNED         (LIVE: must DIFFER)"))
+                          f"{which} off vs UNPINNED         (DEFAULT-OFF: must be identical)"))
+            #    ... and the switches must not be dead: turning them all on has
+            #    to move the export.
+            pairs.append((mp(which, "allon"), mp(which, "defaults"),
+                          f"{which} all-four-ON vs UNPINNED (LIVE: must DIFFER)"))
         if args.compose:
             # each switch alone, against `off`.  Two are PREDICTED nulls on a
             # muon model and two are predicted live -- see ENVS.
@@ -732,8 +744,9 @@ def main():
     q.add_argument("which", nargs="*", default=["pt3", "pt40", "real"])
     q.add_argument("--kokonly", action="store_true")
     q.add_argument("--defaults", action="store_true",
-                   help="also compare the UNPINNED export against all-four-on "
-                        "and against off (the default-ON check)")
+                   help="also compare the UNPINNED export against off "
+                        "(must match: the four are DEFAULT-OFF) and against "
+                        "all-four-on (must differ: they are not dead)")
     q.add_argument("--compose", action="store_true",
                    help="also compare each of the four switches ALONE against "
                         "off, and all four against EXACTDELTA alone")

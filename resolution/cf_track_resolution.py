@@ -79,17 +79,32 @@ def env_flag(name, dflt):
     return v.strip().lower() not in ("", "0", "false", "off", "no")
 
 
-# The four corrections that went default-ON on 2026-08-16.  See
-# Documents/Resolution/NOTES_DEFAULTON.md.
+# The four energy-loss corrections.  They were flipped default-ON on
+# 2026-08-16 (Documents/Resolution/NOTES_DEFAULTON.md) and REVERTED the same
+# week (NOTES_CLOSURE_FINAL.md s1): the attribution gate is unchanged -- the
+# global fit that consumes the exported Jacobians has not been run, and
+# CVH_REF_CHARGEAWARE is charge-odd, i.e. degenerate with the calibration's
+# `M`.  They are DEFAULT-OFF and closure studies enable them EXPLICITLY.
+#
+# The name is kept (rather than renamed to CVH_FOUR) because it is the list
+# that matters, not the direction: every consumer wants "the four", and both
+# overlays below are derived from it.
 CVH_DEFAULT_ON = ("CVH_IONI_EXACTDELTA", "CVH_IONI_KOKOULIN",
                   "CVH_REF_CHARGEAWARE", "CVH_REF_SPECIESDEDX")
+CVH_FOUR = CVH_DEFAULT_ON            # the direction-neutral alias
 
-# The environment overlay that restores the PRE-2026-08-16 state, i.e. the
-# state every published `off`/`nominal`/`caoff` control arm in this directory
-# was measured in.  Those arms used to be `{}`; an empty dict now means ALL
-# FOUR ON, so every one of them has to carry this explicitly or the control
-# silently becomes a second copy of the signal arm.
+# The environment overlay that pins the historical state explicitly.  With the
+# defaults back OFF this is a no-op on an otherwise-clean environment -- but it
+# is KEPT and still applied in every cmsRun funnel, because it is what makes a
+# control arm independent of the default: an arm that reads `{}` is at the
+# mercy of whatever the ambient shell exports, and the whole point of these
+# arms is that they reproduce published numbers.
 SWITCHES_OFF = {n: "0" for n in CVH_DEFAULT_ON}
+
+# The overlay a closure study uses to turn all four ON explicitly.  This is now
+# the ONLY way they come on, which is deliberate: `SWITCHES_ON` in an arm dict
+# is greppable and appears in the run log, where a default does not.
+SWITCHES_ON = {n: "1" for n in CVH_DEFAULT_ON}
 
 
 def parse_args():
@@ -498,11 +513,13 @@ def ioni_step_exponent(steps, wstd, tau):
 # `samplergap.py real --kok 0 1` runs both arms in one process); the
 # environment only supplies the DEFAULT.
 #
-# DEFAULT ON since 2026-08-16, mirroring `cvhcgf::ioniKokoulinEnabled()`
-# (Documents/Resolution/NOTES_DEFAULTON.md).  `env_flag` is the SAME tri-state
-# convention the C++ reader uses -- unset means the default, `=0` means off --
-# so the two halves of the shared switch cannot disagree in either direction.
-IONI_KOKOULIN = 1.0 if env_flag("CVH_IONI_KOKOULIN", True) else 0.0
+# DEFAULT OFF, mirroring `cvhcgf::ioniKokoulinEnabled()`.  It was ON for one
+# week (2026-08-16, NOTES_DEFAULTON.md) and reverted; the SHARED-SWITCH
+# property is what matters here and is unchanged.  `env_flag` is the SAME
+# tri-state convention the C++ reader uses -- unset means the default, `=0`
+# means off, `=1` means on -- so the two halves of the shared switch cannot
+# disagree in either direction, at either default.
+IONI_KOKOULIN = 1.0 if env_flag("CVH_IONI_KOKOULIN", False) else 0.0
 IONI_KOKOULIN_TCUT = 0.0
 IONI_KOKOULIN_NBIN = 96
 
