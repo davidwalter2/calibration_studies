@@ -1,0 +1,2 @@
+/scratch/submit/cms/dwalter/data/TkAlJpsiMuMu-21Feb2020_UL2016-v1/60000/00B62243-C89A-F142-9306-6D93DE7EB196.root
+/ceph/submit/data/user/d/david_w/ZMass/data/TkAlJpsiMuMu-21Feb2020_UL2016-v1/60000/00B62243-C89A-F142-9306-6D93DE7EB196.root

@@ -3,7 +3,7 @@
 #
 # usage:
 #   ./submit.sh --config <cfg> --filelist <list> --outdir <dir>
-#               [--max-running N] [--time HH:MM:SS] [--mem 4G]
+#               [--max-running N] [--time HH:MM:SS] [--mem 4G] [--cpus N]
 #               [--partition submit] [--name cvh] [--dry-run]
 #               [--cmssw-area /path] [--cmsrun-args "k=v k=v"]
 #
@@ -23,6 +23,7 @@ OUTDIR=""
 MAX_RUNNING=""
 TIME="12:00:00"
 MEM="4G"
+CPUS="1"
 PARTITION="submit"
 NAME="cvh"
 DRY_RUN=0
@@ -49,6 +50,7 @@ while [[ $# -gt 0 ]]; do
     --max-running) MAX_RUNNING=$2; shift 2;;
     --time)        TIME=$2; shift 2;;
     --mem)         MEM=$2; shift 2;;
+    --cpus)        CPUS=$2; shift 2;;
     --partition)   PARTITION=$2; shift 2;;
     --name)        NAME=$2; shift 2;;
     --cmsrun-args) CMSRUN_ARGS=$2; shift 2;;
@@ -120,6 +122,7 @@ cmd=(
   --array="$ARRAY_SPEC"
   --time="$TIME"
   --mem="$MEM"
+  --cpus-per-task="$CPUS"
   --output="$OUTDIR/logs/${NAME}_%A_%a.out"
   --error="$OUTDIR/logs/${NAME}_%A_%a.err"
   --export="$EXPORT"
@@ -131,7 +134,7 @@ echo "  config   : $CONFIG"
 echo "  filelist : $FILELIST"
 echo "  outdir   : $OUTDIR"
 echo "  cmssw    : $CMSSW_AREA"
-echo "  partition: $PARTITION  time=$TIME  mem=$MEM"
+echo "  partition: $PARTITION  time=$TIME  mem=$MEM  cpus=$CPUS"
 [[ -n "$MAX_RUNNING" ]] && echo "  max-running: $MAX_RUNNING"
 
 if (( DRY_RUN )); then

@@ -50,5 +50,12 @@ if [[ -n "${CMSRUN_ARGS:-}" ]]; then
   read -r -a EXTRA_ARGS <<< "$CMSRUN_ARGS"
 fi
 
-APPTAINER_BIND="/tmp,/home/submit,/work/submit,/scratch/submit,/ceph/submit,/cvmfs,/etc/grid-security,/run" \
-  cmssw-el7 --command-to-run "$RUN_ONE" "$CONFIG" "$INFILE" "$TASK_DIR" "${EXTRA_ARGS[@]}"
+# el9-native CMSSW areas (15_0+) run directly on the host; legacy el7
+# areas (10_6) still go through the cmssw-el7 container.
+if compgen -G "${CMSSW_AREA:-/nonexistent}/lib/el9_*" > /dev/null; then
+  X509_USER_PROXY="${X509_USER_PROXY:-}" CMSSW_AREA="$CMSSW_AREA" \
+    "$RUN_ONE" "$CONFIG" "$INFILE" "$TASK_DIR" "${EXTRA_ARGS[@]}"
+else
+  APPTAINER_BIND="/tmp,/home/submit,/work/submit,/scratch/submit,/ceph/submit,/cvmfs,/etc/grid-security,/run" \
+    cmssw-el7 --command-to-run "$RUN_ONE" "$CONFIG" "$INFILE" "$TASK_DIR" "${EXTRA_ARGS[@]}"
+fi

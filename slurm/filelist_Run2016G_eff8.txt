@@ -1,0 +1,8 @@
+root://cms-xrd-global.cern.ch//store/data/Run2016G/SingleMuon/MINIAOD/21Feb2020_UL2016_WMass_MiniAODv2-v1/260000/FEB322C0-57B9-ED41-BA40-CAB8278F3D32.root
+root://cms-xrd-global.cern.ch//store/data/Run2016G/SingleMuon/MINIAOD/21Feb2020_UL2016_WMass_MiniAODv2-v1/260000/0BF3F2FE-A28D-C349-9794-97E2D74DD874.root
+root://cms-xrd-global.cern.ch//store/data/Run2016G/SingleMuon/MINIAOD/21Feb2020_UL2016_WMass_MiniAODv2-v1/260000/835FCD6B-6F29-D944-8CC8-55E61FD23CB9.root
+root://cms-xrd-global.cern.ch//store/data/Run2016G/SingleMuon/MINIAOD/21Feb2020_UL2016_WMass_MiniAODv2-v1/260000/F7BDBB24-DA74-F541-9565-3970489BAE00.root
+root://cms-xrd-global.cern.ch//store/data/Run2016G/SingleMuon/MINIAOD/21Feb2020_UL2016_WMass_MiniAODv2-v1/260000/D44FF179-CD10-BB4B-88D5-25120EAD507A.root
+root://cms-xrd-global.cern.ch//store/data/Run2016G/SingleMuon/MINIAOD/21Feb2020_UL2016_WMass_MiniAODv2-v1/260000/8FE45D17-E730-4541-AF07-623002F9D1FC.root
+root://cms-xrd-global.cern.ch//store/data/Run2016G/SingleMuon/MINIAOD/21Feb2020_UL2016_WMass_MiniAODv2-v1/260000/AFC37FDA-6EE9-A449-A8C6-FE02B2AC17A2.root
+root://cms-xrd-global.cern.ch//store/data/Run2016G/SingleMuon/MINIAOD/21Feb2020_UL2016_WMass_MiniAODv2-v1/260000/BAD07702-B8A1-254E-9EB6-563C948E7206.root

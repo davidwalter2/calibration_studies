@@ -1,0 +1,15 @@
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/2023231B-D879-464F-802C-757D9B598B26.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/C20BF413-7121-CE44-AAF2-942A0C57A0AC.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/0EF34CFD-0600-5F4B-98F8-2D6F27384734.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/F8C67888-FD95-C248-8F69-F9C5335BF06F.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/9B73DD7F-BB82-1044-82C0-B7E751A94099.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/EB2DA692-50E1-D840-9407-75A9AAAE2FD6.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/94FC4A7B-DE84-1D4E-A429-C75153BFA1ED.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/291D988C-DE7C-8640-987A-F7A8559664EA.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/F84AAA52-6BA5-B948-A5BB-D3D50494496A.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/10CEDEEA-EB53-BB4C-BB9D-742958064842.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/2F53DDBD-2D52-B344-BA8D-BD4253EF654B.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/358A2293-747D-D04C-935E-9181874A250F.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/16E25955-865A-6544-8FB4-4EAB0EF91D19.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/753C406A-E131-FB44-85D1-4AB0408648C0.root
+/ceph/submit/data/user/d/david_w/data/original_splitLevel99/Run2016G/Charmonium/ALCARECO/TkAlJpsiMuMu-21Feb2020_UL2016-v1/50000/FEA54499-AEAF-BA43-A5CD-E092F99A78BC.root

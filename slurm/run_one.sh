@@ -17,7 +17,11 @@ shift 3   # any further args (extra VarParsing knobs) get appended to cmsRun
 
 cd "${CMSSW_AREA}/src"
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-export SCRAM_ARCH=slc7_amd64_gcc700
+# Only force the slc7 arch for legacy el7 areas (10_6, run inside
+# cmssw-el7); el9-native areas (15_0+) let scram pick the host arch.
+if compgen -G "${CMSSW_AREA}/lib/slc7_*" > /dev/null; then
+  export SCRAM_ARCH=slc7_amd64_gcc700
+fi
 eval $(scramv1 runtime -sh)
 
 mkdir -p "$OUTDIR"
