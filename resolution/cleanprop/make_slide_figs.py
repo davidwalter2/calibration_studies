@@ -3,7 +3,28 @@
 
 Run from calibration_studies/resolution/ (imports cf_propagation_test):
     python cleanprop/make_slide_figs.py
+
+NORMALIZATION (changed 2026-08-14). The two result figures are standardized by
+the FISHER scale s_F = sigma sqrt(1/I) rather than by the propagator's own
+alpha-truncated sigma. Documents/Resolution/NOTES_FISHERNORM.md: the truncated
+sigma is a convention that moves with StepLengthLimit (7.1x over a 100x step
+change) while s_F moves by 0.13 %. I is the Fisher information of the model's
+own density by EXACT FFT inversion of the block CF (cgf_channels.exact_density
+-> fisher_exact, relative floor) -- never the saddlepoint, which NOTES_XXII
+showed is 5-38 % wrong away from the mode.
+
+The change is exactly a relabelling of the axes (z -> z sqrt(I), so the CF's t
+axis stretches by the same factor and the CF's extrema are invariant); it
+cannot create or destroy a data-model difference, and `--check` verifies
+closure_F(u) == closure_sigma(u I) on this very pair. `--legacy` reproduces the
+old sigma-normalized figures.
+
+Each result figure now also PRINTS its closure at u = 1, for this plane and
+averaged over the ladder, so the quantitative residual is visible on the plot
+rather than left to the caption.
 """
+import argparse
+import datetime
 import os
 import sys
 
@@ -12,6 +33,8 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import cgf_channels as cc
+import fisher_norm as fn
 from cf_propagation_test import (load_sim, load_model, model_phi, model_variance,
                                  ecf, weier_scalar, FUNCTIONALS, SIM_BRANCH,
                                  REF_BRANCH, TAU)
@@ -20,18 +43,31 @@ hep.style.use(hep.style.ROOT)
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "slides", "assets")
 os.makedirs(OUT, exist_ok=True)
+# Dated mirror, same convention as cf_propagation_test's own plot output.
+DATED = os.path.expanduser(
+    f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_cleanprop/")
 
-SIM = "/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/sim_260804_pt10_eta0.30_phi0.20/simstates_*.root"
-MODEL = "/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/model/model_pt10_eta0.30_phi0.20.root"
+# pT=3, phi=0.70 -- the SAME matched pair the deck's closure results use.
+#
+# NOT the old pt10/phi0.20 pair: regen_models.sh's JOBS table regenerates
+# model_pt10_eta0.30_phi0.20 against targets_mu_pt3_eta0.30.txt (phi=0.70),
+# i.e. a different material path, so since 2026-08-08 that model's modules do
+# not correspond to the pt10 sim's at all (20 sim planes vs 19 model legs,
+# detid mismatch from index 0). Any comparison on that pair is meaningless.
+SIM = "/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/sim_260808tight_pt3_eta0.30_phi0.70/simstates_*.root"
+MODEL = "/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/model/model_mu_pt3_eta0.30.root"
 
 RED, BLUE, GREY = "#A31F34", "#1f4e9c", "0.45"
 
 
 def save(fig, name):
-    for ext in ("png", "pdf"):
-        fig.savefig(os.path.join(OUT, f"{name}.{ext}"), bbox_inches="tight", dpi=160)
+    for d in (OUT, DATED):
+        os.makedirs(d, exist_ok=True)
+        for ext in ("png", "pdf"):
+            fig.savefig(os.path.join(d, f"{name}.{ext}"),
+                        bbox_inches="tight", dpi=160)
     plt.close(fig)
-    print("wrote", name)
+    print("wrote", name, "->", OUT, "and", DATED)
 
 
 # ---------------------------------------------------------------- schematic
@@ -156,11 +192,57 @@ def fig_impact():
 
 
 # ------------------------------------------------------- clean-test results
-def _panel(name, k, sim, legs, axcf, axls, title):
+def plane_scale(legs, k, name, norm="fisher"):
+    """(scale, sigma, 1/I) for one plane.
+
+    sigma is the propagator's own alpha-truncated width; 1/I is the Fisher
+    information of the MODEL's density in units of that sigma, from the exact
+    FFT inversion of the block CF on a grid matched to the block, with a
+    RELATIVE density floor (an absolute one was a 57x error in this study).
+
+    Routed through `fisher_norm.plane_scales` (2026-08-15) rather than calling
+    `cc.exact_density` directly. It is the SAME computation -- `plane_scales`
+    calls `exact_density` with exactly these defaults (`nt=1<<17`, `npad=32`,
+    `lncut=-60`, all three channels) and `fisher_exact` with the same 1e-8
+    RELATIVE floor -- but it is memoized per (model, functional), in-process and
+    on disk. That matters here because `fig_results` already builds every
+    plane's scale in its per-plane loop and `_panel` then rebuilt the outermost
+    plane's from scratch: one full FFT inversion per panel, 2.4 s at plane 13.
+    """
+    avec = FUNCTIONALS[name]
+    sigma = float(np.sqrt(model_variance(legs, k, avec)[0]))
+    if norm == "sigma":
+        return sigma, sigma, 1.0
+    sc = fn.plane_scales(legs, name)
+    invI = float(sc["invI"][k])
+    if not np.isfinite(invI):
+        raise RuntimeError(f"Fisher inversion failed at plane {k} ({name})")
+    return float(sc["sF"][k]), sigma, invI
+
+
+def closure_at(name, k, sim, legs, scale, probes=(1.0,)):
+    """<e^{-u z^2}>_data - <e^{-u z^2}>_model on one plane, z = residual/scale.
+
+    The t grid is matched to the LARGEST probe (the Weierstrass weight is
+    e^{-t^2/4u}); TAU's 40.0 ceiling already covers u <= 1 with room to spare,
+    and it is the grid the CF panel is drawn on, so figure and number agree.
+    """
     avec = FUNCTIONALS[name]
     d = sim[SIM_BRANCH[name]][:, k] - legs[k][REF_BRANCH[name]]
-    var, _, _ = model_variance(legs, k, avec)
-    sigma = np.sqrt(var)
+    good = sim["valid"][:, k] & np.isfinite(d)
+    z = d[good] / scale
+    phi = model_phi(legs, k, avec, scale, TAU)
+    return np.array([float(np.mean(np.exp(-u * z ** 2))) - weier_scalar(phi, u, TAU)
+                     for u in probes])
+
+
+def _panel(name, k, sim, legs, axcf, axls, title, norm="fisher", note=None):
+    avec = FUNCTIONALS[name]
+    d = sim[SIM_BRANCH[name]][:, k] - legs[k][REF_BRANCH[name]]
+    # per-plane acceptance leaves NaN where a ray never crossed this plane
+    good = sim["valid"][:, k] & np.isfinite(d)
+    d = d[good]
+    sigma, sig_trunc, invI = plane_scale(legs, k, name, norm)
     z = d / sigma
     phi = model_phi(legs, k, avec, sigma, TAU)
     e = ecf(z, TAU)
@@ -189,19 +271,74 @@ def _panel(name, k, sim, legs, axcf, axls, title):
               color="k", lw=1.8, label="Geant4")
     axls.plot(zg, pz, color=RED, lw=2.0, ls="--", label="model")
     axls.set_yscale("log")
-    axls.set_xlabel(r"$z$ = residual / (propagator $\sigma$)")
+    axls.set_xlabel(r"$z$ = residual / $s_F$,   $s_F=\sigma\sqrt{1/I}$ (Fisher)"
+                    if norm != "sigma" else
+                    r"$z$ = residual / (propagator $\sigma$)")
     axls.set_ylabel("density")
-    axls.legend(fontsize=13)
-    return z, phi, sigma
+    axls.legend(fontsize=13, loc="upper right")
+    if note:
+        # As the panel TITLE, not as an inset. Inside the axes it collides with
+        # the legend in the q/p figure and with the Moliere peak in the MS one
+        # (both were tried); the title band is free in both and needs no
+        # rescaling of a log density axis to make room.
+        axls.set_title(note, fontsize=15, color="0.2")
+    return z, phi, sigma, sig_trunc, invI
 
 
-def fig_results(sim, legs):
-    for name, k, tag, title in (("qop", 19, "qop", "$q/p$ at $r=110$ cm — pure ionization"),
-                                ("locx", 19, "ms", "local $x$ at $r=110$ cm — multiple scattering")):
+_CL_CTX = None
+
+
+def _closure_one_plane(kk):
+    """closure(u=1) on plane kk in the requested normalization. Module level so
+    `pmap` can pickle it by reference; the arrays come from the fork."""
+    legs, sim, name, norm = _CL_CTX
+    return closure_at(name, kk, sim, legs,
+                      plane_scale(legs, kk, name, norm)[0])[0]
+
+
+def fig_results(sim, legs, norm="fisher"):
+    # outermost plane, not a hardcoded index: the model file was regenerated
+    # 2026-08-08 with 19 legs (was 20), so k=19 is now out of range
+    k = len(legs) - 1
+    r = float(np.nanmedian(sim["globr"][:, k]))
+    nplane = len(legs)
+    out = {}
+    for name, tag, what in (("qop", "qop", "pure ionization"),
+                            ("locx", "ms", "multiple scattering")):
+        lab = {"qop": "$q/p$", "locx": "local $x$"}[name]
+        # The ladder mean is the number the deck's closure slide quotes, so it
+        # is computed here in the SAME normalization rather than carried over.
+        # One plane per forked worker (fisher_norm.pmap): each plane's scale and
+        # model CF depend only on the legs, so this is the same serial code run
+        # on 19 cores instead of one, and returns the same float64.
+        global _CL_CTX
+        _CL_CTX = (legs, sim, name, norm)
+        cl = np.array(fn.pmap(_closure_one_plane, range(nplane)))
+        print(f"  {name} closure(u=1, {norm}) per plane: "
+              + " ".join(f"{v:+.4f}" for v in cl))
+        print(f"  {name} closure(u=1, {norm}) this plane {cl[k]:+.4f}, "
+              f"ladder mean {cl.mean():+.4f}, rms {cl.std():.4f}")
+        # The closure statistic, ON the plot. Two curves can lie on top of each
+        # other over 2.5 decades of a log density and still differ by several
+        # percent in a bounded functional -- which is what the statistic is
+        # for, so it is quoted rather than left to the caption.
+        note = (r"closure $\langle e^{-uz^2}\rangle_{\rm data}-"
+                r"\langle e^{-uz^2}\rangle_{\rm model}$ at $u=1$" "\n"
+                f"{cl[k]:+.3f} here  ·  {nplane}-plane mean {cl.mean():+.3f}")
         fig, (a1, a2) = plt.subplots(1, 2, figsize=(13.6, 5.3))
-        _panel(name, k, sim, legs, a1, a2, title)
+        title = (f"{lab} at $r={r:.0f}$ cm — {what}\n"
+                 f"real tracker geometry, {nplane} planes · "
+                 r"$\mu$, $p_T=3$ GeV, $\eta=0.30$, $\phi=0.70$")
+        _, _, s, sig_trunc, invI = _panel(name, k, sim, legs, a1, a2, title,
+                                          norm=norm, note=note)
         fig.tight_layout()
-        save(fig, f"result_{tag}")
+        save(fig, f"result_{tag}" + ("_sigma" if norm == "sigma" else ""))
+        out[name] = dict(closure=cl, k=k, r=r, scale=s, sigma=sig_trunc,
+                         invI=invI)
+    os.makedirs(DATED, exist_ok=True)
+    np.savez(os.path.join(DATED, f"result_closure_{norm}.npz"),
+             **{f"{n}_{q}": v for n, d in out.items() for q, v in d.items()})
+    return out
 
 
 def fig_ladder(sim, legs):
@@ -210,10 +347,11 @@ def fig_ladder(sim, legs):
     for k in ks:
         avec = FUNCTIONALS["qop"]
         d = sim["qop"][:, k] - legs[k]["refqop"]
+        good = sim["valid"][:, k] & np.isfinite(d)   # NaN under per-plane acceptance
         var, _, _ = model_variance(legs, k, avec)
         s = np.sqrt(var)
-        z = d / s
-        r.append(np.median(sim["globr"][:, k]))
+        z = d[good] / s
+        r.append(np.nanmedian(sim["globr"][:, k]))
         mean.append(z.mean())
         med.append(np.median(z))
     fig, ax = plt.subplots(figsize=(8.4, 5.6))
@@ -230,11 +368,72 @@ def fig_ladder(sim, legs):
     print("ladder median:", np.round(med, 3))
 
 
+def check_identity(sim, legs):
+    """closure_F(u) must equal closure_sigma(u I) IDENTICALLY -- the two differ
+    only by z -> z sqrt(I). Computed by two independent routes (each builds its
+    own scale and its own model CF), so this checks the implementation and,
+    more importantly, shows the renormalization cannot move a data-model
+    difference. Also confirms the cf_ms_exact j0(x)-1 guard is live and
+    measures what it does HERE rather than quoting the toy number.
+    """
+    import cf_ms_exact
+    k = len(legs) - 1
+    print("IDENTITY  closure_F(u) == closure_sigma(u*I)   (plane %d)" % k)
+    for name in ("qop", "locx"):
+        sF, sig, invI = plane_scale(legs, k, name, "fisher")
+        for u in (0.01, 0.1, 1.0):
+            a = closure_at(name, k, sim, legs, sF, (u,))[0]
+            b = closure_at(name, k, sim, legs, sig, (u / invI,))[0]
+            print(f"  {name:5s} u={u:<5g} F={a:+.7f} sigma={b:+.7f} "
+                  f"diff={a - b:+.2e}")
+    print("J0M1 GUARD (cf_ms_exact.set_j0_guard)")
+    g = cf_ms_exact.gshape(np.array([1e-9]), 3.16e4)[0]
+    cf_ms_exact.set_j0_guard(False)
+    g0 = cf_ms_exact.gshape(np.array([1e-9]), 3.16e4)[0]
+    c0 = closure_at("locx", k, sim, legs,
+                    plane_scale(legs, k, "locx", "fisher")[0])[0]
+    cf_ms_exact.set_j0_guard(True)
+    c1 = closure_at("locx", k, sim, legs,
+                    plane_scale(legs, k, "locx", "fisher")[0])[0]
+    print(f"  gshape(1e-9, ymax=3.16e4): on {g:.6e}  off {g0:.6e}  "
+          f"rel {g0 / g - 1:+.3e}   <- knob is live")
+    print(f"  locx closure(u=1): on {c1:+.8f}  off {c0:+.8f}  "
+          f"diff {c1 - c0:+.2e}   <- effect on THIS block")
+
+
 if __name__ == "__main__":
-    fig_schematic()
-    fig_bug()
-    fig_impact()
-    sim = load_sim(SIM)
-    legs = load_model(MODEL)
-    fig_ladder(sim, legs)
-    fig_results(sim, legs)
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--legacy", action="store_true",
+                    help="reproduce the old sigma-normalized result figures")
+    ap.add_argument("--check", action="store_true",
+                    help="identity + j0-guard checks, no figures")
+    ap.add_argument("--results-only", action="store_true")
+    args = ap.parse_args()
+
+    if not (args.check or args.results_only):
+        fig_schematic()
+        fig_bug()
+        fig_impact()
+    # per-plane, NOT the default "modal": the modal-sequence cut drops whole
+    # tracks that miss a plane, which is tail-first selection and was the
+    # entire pT=3 non-closure (NOTES 2026-08-08). These figures were made with
+    # the modal default before that was understood.
+    sim = load_sim(SIM, acceptance="perplane")
+    # via fisher_norm.load, not load_model directly: it is the same call, but it
+    # registers the model file's content hash so the per-plane Fisher scales can
+    # be served from (and written to) the on-disk cache.
+    legs = fn.load(MODEL)
+    # Guard: a sim/model pair built on different rays silently produces a
+    # plausible-looking disagreement (this is how the pt10 mis-targeting was
+    # found). Compare the module sequences before comparing any physics.
+    sd = sim["detid"]
+    ld = np.array([l["detid"] for l in legs])
+    assert len(sd) == len(ld) and np.all(sd == ld), (
+        f"sim/model module sequences differ ({len(sd)} planes vs {len(ld)} legs) "
+        f"-- these are different rays, the comparison would be meaningless")
+    if args.check:
+        check_identity(sim, legs)
+        raise SystemExit(0)
+    if not args.results_only:
+        fig_ladder(sim, legs)
+    fig_results(sim, legs, norm="sigma" if args.legacy else "fisher")
