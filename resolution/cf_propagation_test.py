@@ -91,6 +91,25 @@ TAU = np.concatenate([[0.0], np.geomspace(1e-3, 40.0, 1600)])
 # Fix: export H per leg from G4ePropagationExport.cc and use (H^T a) here.
 KMS_SCALE = 1.0   # set from --kms in main()
 MS_NSUB = 4       # sub-step quadrature of the MS kick; 1 = legacy point-like
+# Radiative (brems + pair) channel of the model CF.  TRUE is the production
+# behaviour and the default; nothing that does not set it explicitly changes.
+# Set False ONLY together with the other two halves of the radiation-off
+# configuration -- brems/pair inactivated in the SIM and a reference propagated
+# with CVH_IONONLY=1 -- because the three are one convention, not three knobs
+# (toy_radoff.py, Documents/Resolution/NOTES_RADOFF.md).
+RAD_CHANNEL = True
+
+# The knob registry (see cf_track_resolution.PHYSICS_GLOBALS for why it
+# exists).  `_NOT_PHYSICS` names the globals that look like knobs and only
+# control chunking or cache capacity.
+PHYSICS_GLOBALS = ("KMS_SCALE", "MS_NSUB", "RAD_CHANNEL")
+_NOT_PHYSICS = ("ECF_CHUNK", "_PHI_CACHE_MAX")
+
+
+def physics_state():
+    g = globals()
+    return tuple((n, repr(g[n])) for n in PHYSICS_GLOBALS)
+
 
 FUNCTIONALS = {
     "qop": np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
@@ -318,6 +337,35 @@ def _reshape_ms(v):
     raise ValueError(f'msmoliv size {v.size} matches neither stride')
 
 
+def _nioni_total(stepnioni):
+    """`stepnioni` is CUMULATIVE (the number of ionization records up to each
+    propagation step), so the leg's total is its last element -- not its sum,
+    which is what a first reading of the name suggests and which would pick
+    the wrong stride."""
+    v = np.asarray(stepnioni, dtype=np.int64)
+    return int(v[-1]) if v.size else 0
+
+
+def _reshape_ioni(v, nstep=None):
+    """ioniurbanv is 11 doubles/step historically; 13 when the export ran with
+    CVH_IONI_EXACTDELTA (regime 2/3), which appends beta2 and etot AFTER cs so
+    that every legacy column index is unchanged.
+
+    The stride is ambiguous from the size alone (a multiple of 143 divides by
+    both), so it is resolved by the per-leg step COUNT when the caller has it
+    (`stepnioni`), and only falls back to the size test otherwise -- a
+    misdetected stride would silently reinterpret every column."""
+    v = np.asarray(v, dtype=np.float64)
+    if nstep is not None and nstep > 0:
+        w, r = divmod(v.size, int(nstep))
+        if w in (11, 13) and r == 0:
+            return v.reshape(-1, w)
+    for w in (11, 13):
+        if v.size % w == 0:
+            return v.reshape(-1, w)
+    raise ValueError(f'ioniurbanv size {v.size} matches neither stride')
+
+
 def load_model(path):
     # TFileService puts the tree in a directory named after the module label
     f = uproot.open(path)
@@ -346,7 +394,7 @@ def load_model(path):
             dQI=np.asarray(a["dQI"][k], dtype=np.float64).reshape(5, 5),
             # stride auto-detect: 8 (legacy) or 10 (with per-element sums)
             ms=_reshape_ms(a["msmoliv"][k]),
-            ioni=np.asarray(a["ioniurbanv"][k], dtype=np.float64).reshape(-1, 11),
+            ioni=_reshape_ioni(a["ioniurbanv"][k], _nioni_total(a["stepnioni"][k])),
             jacc=np.asarray(a["stepjacc"][k], dtype=np.float64).reshape(-1, 5, 5),
             nms=np.asarray(a["stepnms"][k], dtype=np.int64),
             nioni=np.asarray(a["stepnioni"][k], dtype=np.int64),
@@ -428,8 +476,71 @@ def model_variance(legs, k, avec):
     return var, varms, varioni
 
 
+# --------------------------------------------------------------------------
+# model_phi memo.
+#
+# The CF is a pure function of (legs, k, avec, sigma, tau) plus the two module
+# globals below, so repeats can be returned rather than recomputed. There ARE
+# repeats, and they are exact-argument ones: `make_toy_figs.cf_truncation` and
+# `make_slide_figs._panel` both build the CF of the outermost plane at the same
+# Fisher scale on the same TAU, once per panel (measured 0.39 s each).
+#
+# NOT keyed on `id(legs)` alone -- an id is only unique while the object lives,
+# and a freed list can hand its id to the next one. The entry therefore holds a
+# strong reference to `legs` and to `tau`, which pins the ids for as long as the
+# key exists. Bounded and FIFO-evicted so a long campaign cannot grow it without
+# limit. RES_NO_PHI_CACHE=1 disables it (the closure numbers must not depend on
+# whether a cache is on -- that is checked, not assumed).
+# --------------------------------------------------------------------------
+_PHI_CACHE = {}
+_PHI_CACHE_MAX = 64
+PHI_CACHE_STATS = {"hit": 0, "miss": 0}
+
+
+def _phi_key(legs, k, avec, sigma, tau):
+    """Everything that changes `model_phi`'s value.
+
+    HISTORY, because this key has been wrong and it cost time in two studies.
+    It used to list `KMS_SCALE, MS_NSUB, RAD_CHANNEL, IONI_A3_SCALE,
+    IONI_EXC_SCALE, IONI_TMAX_SCALE` by hand and therefore did NOT carry
+    `IONI_KOKOULIN` (nor its TCUT/NBIN), so a phi computed with the Kokoulin
+    correction off was silently returned for a call with it on.  NOTES_RADOFF2
+    and NOTES_HADRONS both had to set `RES_NO_PHI_CACHE=1` and clear the dict
+    by hand to get correct numbers.  The three MS globals of `cf_ms_exact`
+    (`J0M1_GUARD`, `G4_FF_SQUARED`, `G4_SCREEN_F`) were missing too.
+
+    The hand-written list is now gone: the key is built from each contributing
+    module's own `PHYSICS_GLOBALS` registry, so adding a knob without adding
+    it to the key is no longer possible by omission, and
+    `barkas_probe.py guards` fails if a module grows a knob that is in neither
+    `PHYSICS_GLOBALS` nor `_NOT_PHYSICS`."""
+    import cf_track_resolution as _ctr
+    import cf_ms_exact as _ms
+    return (id(legs), int(k), avec.tobytes(), float(sigma),
+            id(tau), len(tau), float(tau[-1]),
+            physics_state(), _ctr.physics_state(), _ms.physics_state())
+
+
 def model_phi(legs, k, avec, sigma, tau):
     """Model CF of the standardized residual z = a.(x - x_ref)/sigma."""
+    use_cache = not os.environ.get("RES_NO_PHI_CACHE")
+    if use_cache:
+        key = _phi_key(legs, k, avec, sigma, tau)
+        hit = _PHI_CACHE.get(key)
+        if hit is not None:
+            PHI_CACHE_STATS["hit"] += 1
+            return hit[0]
+        PHI_CACHE_STATS["miss"] += 1
+    out = _model_phi_uncached(legs, k, avec, sigma, tau)
+    if use_cache:
+        if len(_PHI_CACHE) >= _PHI_CACHE_MAX:
+            _PHI_CACHE.pop(next(iter(_PHI_CACHE)))
+        # keep legs and tau alive so their ids cannot be recycled under the key
+        _PHI_CACHE[key] = (out, legs, tau)
+    return out
+
+
+def _model_phi_uncached(legs, k, avec, sigma, tau):
     A_ms, A_ioni, A_ms_start = step_transports(legs, k)
     S = np.zeros(len(tau), dtype=np.complex128)
     for j in range(k + 1):
@@ -455,7 +566,7 @@ def model_phi(legs, k, avec, sigma, tau):
         # table is built with ionOnly=false and has ALREADY subtracted the
         # radiative mean -- so only the fluctuation is being added here, with
         # no double counting of the mean.
-        if leg.get("rad") is not None and len(leg["rad"]):
+        if RAD_CHANNEL and leg.get("rad") is not None and len(leg["rad"]):
             q = np.sign(leg["refqop"]) or 1.0
             w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
             # rad records are aligned with the MOLIERE log, ioni weights with
@@ -508,9 +619,50 @@ def weier_scalar(phi, u, tau):
     return float(np.clip(np.trapezoid(phi.real * w, tau), 0.0, 1.0))
 
 
-def ecf(z, tau):
-    """Empirical characteristic function of the simulated sample."""
-    return np.exp(1j * np.outer(tau, z)).mean(axis=1)
+ECF_CHUNK = 4096
+
+
+def ecf(z, tau, nthread=None):
+    """Empirical characteristic function of the simulated sample.
+
+    DISPLAY ONLY. Nothing this function returns enters a closure number: the
+    test compares in transform space through `weier_scalar` on the MODEL CF,
+    and `ecf` exists to draw the data curve in the CF panel beside it.
+
+    Chunked and threaded (2026-08-15) because the one-shot form allocated a
+    (len(tau), nevent) complex array -- 5.1 GB at 1601 x 200k -- and spent
+    13.4 s per call on it, which was 22 % of `make_toy_figs`. Chunks of
+    ECF_CHUNK events are accumulated IN ORDER, so the result does not depend on
+    thread scheduling and repeated runs are bit-identical to each other; it
+    differs from the one-shot form by at most 3.3e-16 absolute (one ulp of a
+    quantity bounded by 1) purely because the summation tree is different.
+    numpy releases the GIL inside the ufuncs, so threads -- not processes --
+    are enough, and no array crosses a process boundary. Measured 15x.
+    """
+    z = np.asarray(z, dtype=np.float64)
+    tau = np.asarray(tau, dtype=np.float64)
+    n = len(z)
+    if n <= ECF_CHUNK:
+        return np.exp(1j * np.outer(tau, z)).mean(axis=1)
+    if nthread is None:
+        nthread = min(16, len(os.sched_getaffinity(0)))
+    starts = list(range(0, n, ECF_CHUNK))
+
+    def _part(i):
+        X = np.outer(tau, z[i:i + ECF_CHUNK])
+        c = np.cos(X)
+        s = np.sin(X, out=X)          # X is a private temporary, reuse it
+        return c.sum(axis=1), s.sum(axis=1)
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=min(nthread, len(starts))) as ex:
+        parts = list(ex.map(_part, starts))
+    re = np.zeros(len(tau))
+    im = np.zeros(len(tau))
+    for rc, ic in parts:                  # fixed order -> deterministic
+        re += rc
+        im += ic
+    return (re + 1j * im) / n
 
 
 # --------------------------------------------------------------------------

@@ -162,19 +162,80 @@ _GTAU = np.logspace(-8, 4, 1600)
 # 2D shape table: G(tau; ymax) with the y^2 integral cut at ymax^2
 # (nuclear form-factor cutoff, ymax = theta_FF/chi_a per step).
 _YMAXG = np.logspace(1, 7, 13)
-_G2D = np.empty((len(_YMAXG), len(_GTAU)))
-_k0 = j0(np.outer(_GTAU, np.sqrt(_Y2))) - 1.
-for _iy, _ym in enumerate(_YMAXG):
-    # smooth dipole form factor 1/(1+y^2/ymax^2)^2 (G4 convention), not a
-    # hard cutoff
-    # G4 applies the exponential nuclear form factor SQUARED:
-    # G4WentzelOKandVIxSection.cc:355 fm = 1/(1+formfactA*z1)^2 and the
-    # cross section carries fm*fm (:373), i.e. |F|^2 = (1+q^2R^2/12)^-4.
-    # Ours had the square root of that.
-    _ffpow = 4 if G4_FF_SQUARED else 2
-    _w = _DY2 / (1. + _Y2) ** 2 / (1. + _Y2 / _ym ** 2) ** _ffpow
-    _G2D[_iy] = _k0 @ _w
-_G = _G2D[-1]  # backwards-compatible: effectively uncut
+
+# --------------------------------------------------------------------------
+# j0(x) - 1 CANCELLATION GUARD  (bug found in NOTES_XXII 8.4, fixed 2026-08-14)
+#
+# The table was built as `j0(outer(_GTAU, sqrt(_Y2))) - 1`, unguarded. Both
+# terms are ~1 and the difference is -x^2/4, so below |x| ~ 1e-8 every digit is
+# lost and the entry collapses to 0. `_GTAU` starts at 1e-8 and `_Y2` at 1e-4,
+# so the SMALLEST-TAU ROWS -- exactly the ones `gshape` uses directly and
+# through its row[0]*(tau/_GTAU[0])^2 extrapolation -- were corrupted, measured
+# 1.3-1.7 % LOW.  Negligible for q/p (MS is <= 5e-5 of that variance);
+# ~0.7 % on the predicted width wherever MS dominates (position, angle).
+#
+# `set_j0_guard(False)` restores the exact legacy table so any number recorded
+# before this date can be reproduced bit-for-bit.
+# --------------------------------------------------------------------------
+J0M1_GUARD = True
+
+# The knob registry (see cf_track_resolution.PHYSICS_GLOBALS).  All three of
+# these change the Moliere kernel, and only J0M1_GUARD was in any cache key
+# before 2026-08-16.  `_NOT_PHYSICS` are fixed constants / array shapes.
+PHYSICS_GLOBALS = ("J0M1_GUARD", "G4_FF_SQUARED", "G4_SCREEN_F")
+_NOT_PHYSICS = ("NPARS", "ALPHA_EM")
+
+
+def physics_state():
+    g = globals()
+    return tuple((n, repr(g[n])) for n in PHYSICS_GLOBALS)
+
+
+def _j0m1(x):
+    """J0(x) - 1, evaluated stably at small argument.
+
+    J0(x) - 1 = -x^2/4 (1 - x^2/16 + x^4/576 - ...), truncated at 1e-16
+    relative for |x| < 1e-2, where the direct difference has already lost
+    ~4 significant digits.
+    """
+    x = np.asarray(x, dtype=np.float64)
+    out = np.empty(x.shape, dtype=np.float64)
+    small = np.abs(x) < 1e-2
+    x2 = x[small] ** 2
+    out[small] = -0.25 * x2 * (1. - x2 / 16. + x2 * x2 / 576.)
+    out[~small] = j0(x[~small]) - 1.
+    return out
+
+
+def _build_tables(guard=True):
+    """(Re)build the universal shape table.  Sets the module globals used by
+    `gshape`, so callers that did `from cf_ms_exact import gshape` still see
+    the change."""
+    global _G2D, _G, J0M1_GUARD
+    J0M1_GUARD = bool(guard)
+    k0 = (_j0m1(np.outer(_GTAU, np.sqrt(_Y2))) if guard
+          else j0(np.outer(_GTAU, np.sqrt(_Y2))) - 1.)
+    g2d = np.empty((len(_YMAXG), len(_GTAU)))
+    for iy, ym in enumerate(_YMAXG):
+        # smooth dipole form factor 1/(1+y^2/ymax^2)^2 (G4 convention), not a
+        # hard cutoff
+        # G4 applies the exponential nuclear form factor SQUARED:
+        # G4WentzelOKandVIxSection.cc:355 fm = 1/(1+formfactA*z1)^2 and the
+        # cross section carries fm*fm (:373), i.e. |F|^2 = (1+q^2R^2/12)^-4.
+        # Ours had the square root of that.
+        ffpow = 4 if G4_FF_SQUARED else 2
+        w = _DY2 / (1. + _Y2) ** 2 / (1. + _Y2 / ym ** 2) ** ffpow
+        g2d[iy] = k0 @ w
+    _G2D = g2d
+    _G = _G2D[-1]  # backwards-compatible: effectively uncut
+
+
+def set_j0_guard(flag):
+    """Switch the j0(x)-1 guard on/off and rebuild the table (for A/B tests)."""
+    _build_tables(bool(flag))
+
+
+_build_tables(J0M1_GUARD)
 
 
 def gshape(tau, ymax=None):

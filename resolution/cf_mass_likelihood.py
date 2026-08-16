@@ -32,6 +32,7 @@ import datetime
 import glob
 import os
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import mplhep as hep
 import numpy as np
@@ -80,6 +81,10 @@ def parse_args():
     p.add_argument("--alpha-n", type=int, default=41)
     p.add_argument("--outpath", default=None)
     p.add_argument("--postfix", default="")
+    p.add_argument("--replot", action="store_true",
+                   help="reuse the cached (r, alpha) scan from "
+                        "runs/masslik_demo_scan<postfix>.npz and only redraw. "
+                        "The scan is ~70 min; the plots are seconds.")
     return p.parse_args()
 
 
@@ -465,20 +470,32 @@ def demo(args, outdir):
     rs = np.arange(args.r_min, args.r_max + 1e-9, args.r_step)
     tgi = TG[None, :] / sig[:, None]              # absolute t grid per candidate
     phiK = np.interp(tgi, tabs, phiK_tab.real) + 1j * np.interp(tgi, tabs, phiK_tab.imag)
-    nll = np.zeros((len(rs), len(alphas)))
-    for ir, r in enumerate(rs):
-        S = (-0.5 * r * d["vgf"][:, None] * TG[None, :] ** 2 + r * Sexp)
-        Phi = np.exp(S) * phiK
-        for ia, al in enumerate(alphas):
-            delta = (mobs_minus_M - MJPSI * al)[:, None]
-            integrand = (Phi * np.exp(-1j * tgi * delta)).real
-            Li = np.trapezoid(integrand, TG, axis=1) / (np.pi * sig)
-            # small uniform mixture over the mass window: regularizes the
-            # oscillation-cancelled far-tail likelihoods AND models the
-            # true mispair/combinatoric floor visible at |z| > 5
-            Li = (1. - FBKG) * np.clip(Li, 0., None) + FBKG / 0.7
-            nll[ir, ia] = -np.sum(np.log(Li))
-        logger.info(f"r={r:.2f}: min NLL at alpha={alphas[np.argmin(nll[ir])]*1e3:.3f}e-3")
+    scanfile = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            f"runs/masslik_demo_scan{args.postfix}.npz")
+    if args.replot:
+        # The (r, alpha) scan is the only expensive step -- 18x57 integrations
+        # over every candidate, ~70 min. The spectrum panel below is 120
+        # integrations on a 4000-track subsample. Reload the scan so the figure
+        # can be redrawn in seconds.
+        sc = np.load(scanfile)
+        nll, alphas, rs = sc["nll"], sc["alphas"], sc["rs"]
+        logger.info(f"--replot: loaded cached scan {scanfile} "
+                    f"({nll.shape[0]} r x {nll.shape[1]} alpha)")
+    else:
+        nll = np.zeros((len(rs), len(alphas)))
+        for ir, r in enumerate(rs):
+            S = (-0.5 * r * d["vgf"][:, None] * TG[None, :] ** 2 + r * Sexp)
+            Phi = np.exp(S) * phiK
+            for ia, al in enumerate(alphas):
+                delta = (mobs_minus_M - MJPSI * al)[:, None]
+                integrand = (Phi * np.exp(-1j * tgi * delta)).real
+                Li = np.trapezoid(integrand, TG, axis=1) / (np.pi * sig)
+                # small uniform mixture over the mass window: regularizes the
+                # oscillation-cancelled far-tail likelihoods AND models the
+                # true mispair/combinatoric floor visible at |z| > 5
+                Li = (1. - FBKG) * np.clip(Li, 0., None) + FBKG / 0.7
+                nll[ir, ia] = -np.sum(np.log(Li))
+            logger.info(f"r={r:.2f}: min NLL at alpha={alphas[np.argmin(nll[ir])]*1e3:.3f}e-3")
     irbest, iabest = np.unravel_index(np.argmin(nll), nll.shape)
     if irbest in (0, len(rs) - 1):
         logger.warning(f"r profile RAILED at grid edge r={rs[irbest]:.2f} "
@@ -501,16 +518,44 @@ def demo(args, outdir):
                 f"alpha = {alpha_gauss*1e3:.4f}e-3 "
                 f"(bias {1e3*(alpha_gauss-alpha_hat):+.4f}e-3)")
 
-    fig, axs = plt.subplots(1, 2, figsize=(16, 7))
+    # r profile, parabolic interpolation about the grid minimum
+    prof = nll.min(axis=1) - nll.min()
+    ir = int(np.clip(irbest, 1, len(rs) - 2))
+    hr = rs[1] - rs[0]
+    cr = (prof[ir+1] + prof[ir-1] - 2*prof[ir]) / hr**2
+    r_hat = rs[ir] - (prof[ir+1] - prof[ir-1]) / (2*cr*hr)
+    r_err = 1./np.sqrt(cr)
+    logger.info(f"r profile: grid min {rs[irbest]:.2f}, parabolic "
+                f"r = {r_hat:.4f} +- {r_err:.4f} (stat), "
+                f"dNLL to neighbours {prof[ir-1]:.1f} / {prof[ir+1]:.1f}")
+
+    fig, axs = plt.subplots(1, 3, figsize=(21, 6.4), constrained_layout=True)
     ax = axs[0]
-    for ir, r in enumerate(rs):
-        ax.plot(alphas*1e3, nll[ir]-nll.min(), label=f"r = {r:.2f}")
-    ax.axvline(alpha_gauss*1e3, color="gray", ls="--", label="Gaussian constraint")
+    # Only the best-r curve is on scale: the neighbouring r are already
+    # dNLL ~ 150 away and the far ones ~1e5, so plotting all 18 here would
+    # show one visible curve and a colorbar pointing at nothing. The r
+    # dependence belongs in the profile panel next door.
+    ax.plot(alphas*1e3, nll[irbest]-nll.min(), color="crimson", lw=2.4,
+            label=f"$r = {rs[irbest]:.2f}$ (best)")
+    ax.axvline(alpha_gauss*1e3, color="gray", ls="--",
+               label="naive Gaussian constraint")
     ax.set_xlabel(r"momentum scale $\alpha$ [$10^{-3}$]")
     ax.set_ylabel(r"$\Delta$NLL")
     ax.set_ylim(0, 50)
-    ax.legend(fontsize="x-small")
+    ax.legend(fontsize="small", loc="upper right")
     ax = axs[1]
+    ax.plot(rs, prof, "o-", color="crimson", lw=1.8, ms=6)
+    ax.axvline(1.0, color="gray", ls=":", lw=1.4)
+    ax.set_yscale("symlog", linthresh=1.)
+    # profile is >= 0 by construction; symlog would otherwise draw a decade of
+    # empty negative axis below the minimum
+    ax.set_ylim(-0.3, prof.max()*3)
+    ax.set_xlabel(r"resolution scale $r$")
+    ax.set_ylabel(r"$\Delta$NLL profiled over $\alpha$")
+    ax.set_title(rf"$r = {r_hat:.3f} \pm {r_err:.3f}$ (stat), interior",
+                 fontsize=15)
+    ax.grid(alpha=.25)
+    ax = axs[2]
     # observed spectrum vs best-fit prediction
     mg = np.linspace(-0.25, 0.2, 120)
     S = (-0.5*rs[irbest]*d["vgf"][:, None]*TG[None, :]**2 + rs[irbest]*Sexp)
@@ -527,7 +572,7 @@ def demo(args, outdir):
     ax.set_yscale("log")
     ax.set_xlabel(r"$m - m_{J/\psi}$ [GeV]")
     ax.set_ylabel("density")
-    ax.legend(fontsize="x-small")
+    ax.legend(fontsize="small", loc="upper right")
     name = f"masslik_demo{args.postfix}"
     plot_tools.save_pdf_and_png(outdir, name, fig)
     output_tools.write_logfile(outdir, name, args=args,

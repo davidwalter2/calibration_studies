@@ -52,7 +52,7 @@ run_task() {
   ) && { mv -f "$tmp" "$f"; echo "[done] $idx"; } || { rm -f "$tmp"; echo "[FAIL] $idx"; }
 }
 export -f run_task
-export OUT CFG AREA NEV PT ETA PHI PARTID
+export OUT CFG AREA NEV PT ETA PHI PARTID CLEANPROP_LOOSE_STEPPER
 
 echo "output -> $OUT   ($NTASK tasks x $NEV events = $((NTASK * NEV)))"
 seq 0 $((NTASK - 1)) | xargs -P "$NPAR" -I{} bash -c 'run_task {}'

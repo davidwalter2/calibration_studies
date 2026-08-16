@@ -36,7 +36,14 @@ OUT=/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/model
 # name : pt : eta : phi : pdg   (phi MUST match the corresponding sim sample)
 JOBS=(
   "model_mu_pt3_eta0.30:3:0.30:0.70:13:targets_mu_pt3_eta0.30.txt"
-  "model_pt10_eta0.30_phi0.20:10:0.30:0.20:13:targets_mu_pt3_eta0.30.txt"
+  # BROKEN, DISABLED 2026-08-11. This job is phi=0.20 but was given the
+  # phi=0.70 targets (targets_mu_pt3_eta0.30.txt) -- exactly the confound the
+  # header warns about. The [[ -f ]] guard did not catch it because that file
+  # exists. The 2026-08-08 regeneration therefore built the model on a
+  # DIFFERENT material path than the sim: 20 sim planes vs 19 model legs,
+  # detids disagreeing from index 0. Re-enable only with a real
+  # targets_mu_pt10_eta0.30_phi0.20.txt, which does not exist yet.
+  # "model_pt10_eta0.30_phi0.20:10:0.30:0.20:13:targets_mu_pt10_eta0.30_phi0.20.txt"
   "model_mu_pt40_eta0.30:40:0.30:0.50:13:targets_mu_pt40_eta0.30.txt"
   "model_mu_pt100_eta0.30:100:0.30:0.10:13:targets_mu_pt100_eta0.30.txt"
   "model_mu_pt10_eta1.00:10:1.00:0.10:13:targets_mu_pt10_eta1.00.txt"
