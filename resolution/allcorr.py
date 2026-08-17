@@ -97,6 +97,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("RES_NO_PHI_CACHE", "1")
 
 import cf_propagation_test as cpt                                # noqa: E402
+import cf_ms_exact as mx
 import cf_track_resolution as ctr                                # noqa: E402
 import deltaspec as ds                                           # noqa: E402
 import fisher_norm as fn                                         # noqa: E402
@@ -131,12 +132,24 @@ MS_SEVEN = {"MS_ELEC_TMAX": 1.0, "MS_ELEC_EDGE": 1.0,
 MS_OFF = {"MS_ELEC_TMAX": 0.0, "MS_ELEC_EDGE": 0.0,
           "MS_SNAP_YMAX": 1.0, "MS_WVI_SPLIT": 0.0, "MS_FINE_G": 0.0}
 
+# The harmonisation knobs that live on cf_ms_exact rather than
+# cf_track_resolution. Kept in the SAME place as MS_SEVEN deliberately: the
+# switches are now spread over three modules (ctr, cf_ms_exact, and the C++
+# CVH_* env flags), and a closure run that silently omits one compares a
+# partly-harmonised model against the simulation and reports it as physics.
+# Anything added to the harmonisation list must be added here too.
+MX_HARM = {"MS_CHI0_G4": True, "MS_FF_G4": True}
+MX_OFF = {"MS_CHI0_G4": False, "MS_FF_G4": False}
+
 
 def switch_banner():
     return ("CVH_IONI_EXACTDELTA=1  CVH_IONI_KOKOULIN=1  CVH_REF_CHARGEAWARE=1  "
             "CVH_REF_SPECIESDEDX=1   (ctr.SWITCHES_ON, in the export)\n"
             "MS_ELEC_TMAX=1 MS_ELEC_EDGE=1   MS_SNAP_YMAX=0   "
-            "MS_WVI_SPLIT=1 (+MS_FINE_G=1)   (cf_track_resolution globals)")
+            "MS_WVI_SPLIT=1 (+MS_FINE_G=1)   (cf_track_resolution globals)\n"
+            "MS_CHI0_G4=1  MS_FF_G4=1   (cf_ms_exact globals; ranks 7-8)\n"
+            "NOT enabled here and NOT default-on: CVH_REF_HADRAD (hadron "
+            "radiative), MS_ELEC_EDGE=2 (beyond G4's transport XS)")
 
 
 def _fmt(v, w=9, p=5):
@@ -178,8 +191,11 @@ def cell(pdg, rad, func, ms=True, sim_arm=None, model_rad=None):
     cpt.RAD_CHANNEL = bool(model_rad)
     ctr.IONI_KOKOULIN = 1.0 if kok else 0.0
     ctr.IONI_KOKOULIN_TCUT = 0.0
+    old_mx = {k: getattr(mx, k) for k in MX_HARM}
     for k, v in (MS_SEVEN if ms else MS_OFF).items():
         setattr(ctr, k, v)
+    for k, v in (MX_HARM if ms else MX_OFF).items():
+        setattr(mx, k, v)
     ctr.MS_WVI_NPERX, ctr.MS_WVI_LG = sp_input(lab)
     fn._SCALE_CACHE.clear()
     cpt._PHI_CACHE.clear()
@@ -199,6 +215,8 @@ def cell(pdg, rad, func, ms=True, sim_arm=None, model_rad=None):
         ctr.IONI_KOKOULIN_TCUT = 0.0
         for k, v in old.items():
             setattr(ctr, k, v)
+        for k, v in old_mx.items():
+            setattr(mx, k, v)
         fn._SCALE_CACHE.clear()
         cpt._PHI_CACHE.clear()
     return dict(m=rows.mean(axis=0), err=err, out=rows[-1], outerr=errs[-1],

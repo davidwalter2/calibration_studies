@@ -94,6 +94,36 @@ G4_SCREEN_F = 1.0   # G4's value. NOT tuned -- see NOTES: the 0.7 the data wants
 # a statement about the UNEXPLAINED residual, not about this term.
 G4_FF_SQUARED = True
 
+# ---------------------------------------------------------------------------
+# Two constants where the model and Geant4 disagree. Both are HARMONISATIONS --
+# G4's value is the target, ours is simply a different number for the same
+# quantity -- and both are ~1e-5/3e-5 in the closure, i.e. 10-100x BELOW the
+# residual. They are ranks 7 and 8 of the harmonisation list in
+# NOTES_MOLIEREWRONG s8. Expect no measurable closure change; the argument is
+# correctness, exactly as for the Urban excitation-version harmonisation.
+#
+# Kept as SEPARATE switches so each is attributable. Note the MS channel
+# currently OVER-corrects on the outermost-plane statistic (144/144 probes
+# negative, NOTES_CLOSURE_ALLCORR), so a term that happens to push the same way
+# makes the accumulated number slightly worse; the sign was not recorded when
+# these were ranked, which is why they are measured rather than assumed benign.
+
+# Rank 7. chi_0 = alpha m_e / 0.88534 (Thomas-Fermi screening momentum).
+#   ours     4.214e-6   GeV
+#   Geant4   4.211714e-6 GeV = ALPHA_EM * m_e / 0.88534
+# +0.054 % on chi_0, hence +0.109 % on chi_a^2, which enters the Moliere log.
+MS_CHI0_G4 = False
+_CHI0_OURS = 4.214e-6
+_CHI0_G4 = ALPHA_EM * 0.51099895e-3 / 0.88534
+
+# Rank 8. The nuclear form-factor angle. Ours is built from R = 1.27 A^0.27 fm;
+# G4 uses formfactA with constn = 6.937e-6 MeV^-2 and FormFactor ~ A^0.54, and
+# thff2 = 2/formfactA. The two agree to 1.0045-1.0049 across C/Al/Si/Cu at 3
+# and 40 GeV -- ours is HIGH -- the difference being the nuclear-radius
+# constant, not the form.
+MS_FF_G4 = False
+_FF_CONSTN_MEV2 = 6.937e-6
+
 def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
     """chi_c^2, chi_a^2 and the nuclear form-factor cutoff theta_FF^2
     [rad^2] for one step (WentzelVI-consistent single-scattering inputs).
@@ -121,7 +151,8 @@ def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
     else:
         chic2 = 0.157e-6 * effZ * (effZ + 1.) / effA * xg / (pGeV ** 2 * beta ** 2)
     az = ALPHA_EM * effZ / beta
-    chi0 = 4.214e-6 * effZ ** (1. / 3.) / pGeV
+    _chi0c = _CHI0_G4 if MS_CHI0_G4 else _CHI0_OURS
+    chi0 = _chi0c * effZ ** (1. / 3.) / pGeV
     # G4 SCREENING FACTOR (2026-08-07). G4WentzelOKandVIxSection.cc:154
     #   ScreenRSquare[j]     = afact*(1 + G4Exp(-j*j*0.001))*Z^(2/3)   <- NUCLEUS
     #   ScreenRSquareElec[j] = afact*Z^(2/3)                           <- electrons
@@ -134,7 +165,7 @@ def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
     # Moliere log and over-predicts the scattering.
     if lnScreenW is not None and np.isfinite(lnScreenW) and lnScreenW != 0.:
         # exact: chi_a^2 = (4.214e-6/p)^2 * exp(<ln screening>_weighted)
-        chia2 = (4.214e-6 / pGeV) ** 2 * np.exp(lnScreenW)
+        chia2 = (_chi0c / pGeV) ** 2 * np.exp(lnScreenW)
     else:
         # legacy fallback for stride-8 files: apply the G4 factor at effZ with
         # the empirically calibrated coefficient (mix-dependent, see NOTES).
@@ -145,7 +176,12 @@ def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
     # convention: FF = 1/(1 + q^2 R^2/12)^2, i.e. theta_c^2 = 12 (hbarc/pR)^2
     # -- the earlier hard cutoff at (hbarc/pR)^2 was 12x too tight and the
     # wrong shape)
-    thff2 = 12. * (0.19733 / (pGeV * rn_fm)) ** 2
+    if MS_FF_G4:
+        # G4's own: formfactA = constn * A^0.54 * p^2 (p in MeV), thff2 = 2/formfactA
+        _pmev = pGeV * 1.0e3
+        thff2 = 2. / (_FF_CONSTN_MEV2 * max(effA, 1.) ** 0.54 * _pmev ** 2)
+    else:
+        thff2 = 12. * (0.19733 / (pGeV * rn_fm)) ** 2
     return chic2, chia2, thff2
 
 
@@ -182,7 +218,7 @@ J0M1_GUARD = True
 # The knob registry (see cf_track_resolution.PHYSICS_GLOBALS).  All three of
 # these change the Moliere kernel, and only J0M1_GUARD was in any cache key
 # before 2026-08-16.  `_NOT_PHYSICS` are fixed constants / array shapes.
-PHYSICS_GLOBALS = ("J0M1_GUARD", "G4_FF_SQUARED", "G4_SCREEN_F")
+PHYSICS_GLOBALS = ("J0M1_GUARD", "G4_FF_SQUARED", "G4_SCREEN_F", "MS_CHI0_G4", "MS_FF_G4")
 _NOT_PHYSICS = ("NPARS", "ALPHA_EM")
 
 
