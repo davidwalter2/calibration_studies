@@ -47,7 +47,7 @@ import numpy as np
 import uproot
 
 from wums import logging, output_tools, plot_tools
-from cf_ms_exact import moliere_params, gshape
+from cf_ms_exact import moliere_params, gshape, gshape_elec
 import cf_ioni_exact
 
 hep.style.use(hep.style.ROOT)
@@ -535,9 +535,259 @@ IONI_KOKOULIN_NBIN = 96
 # `_NOT_PHYSICS` is the explicit counterpart: names that look like knobs and
 # are NOT, so the completeness audit (`barkas_probe.py guards`) can tell the
 # two apart and fail on anything in neither list.
+# ------------------------------------------------- the MS electron ceiling
+# DIAGNOSTIC, DEFAULT OFF (0.0 -> `ms_step_exponent` is bit-identical to the
+# production path).
+#
+# The Moliere chi_c^2 carries Z(Z+1): Z^2 for the nucleus and Z for the atomic
+# electrons, with ONE angular range for both.  Geant4 does not.
+# `G4WentzelOKandVIxSection::ComputeMaxElectronScattering` gives the electron
+# term its OWN kinematic ceiling
+#
+#     1 - cos(theta_e,max) = min(cut, Tmax) * m_e / p^2
+#
+# and `ComputeTransportCrossSectionPerAtom` integrates the electron piece only
+# to there (`costm = max(cosTMax, cosTetMaxElec)`) while the nuclear piece runs
+# to cosTetMaxNuc.  Above `cut` the electron scattering is not lost -- it is
+# delivered as EXPLICIT delta rays by muIoni/hIoni, whose recoil turns the
+# primary -- but above the KINEMATIC Tmax it does not exist at all, while the
+# model's Z(Z+1) keeps scattering off electrons all the way to the nuclear
+# form-factor angle.
+#
+# theta(Tmax) is strongly species dependent at fixed momentum (8.5e-3 rad for a
+# 3.1 GeV muon, 1.1e-3 rad for a proton), which is the one term in the whole
+# enumeration that is.  Setting this to 1.0 imposes the ceiling and is the
+# controlled test of that term.
+#
+# CAVEAT: `gshape`'s ymax is the SMOOTH dipole (1 + y^2/ymax^2)^-4, not a hard
+# kinematic edge, so this sizes the LOG-RANGE removal (which dominates) and not
+# the exact edge shape.  The Z^2 : Z split uses effZ, exact for the elementary
+# toy material and approximate for a compound.
+MS_ELEC_TMAX = 0.0
+_ME_GEV = 0.51099895000e-3
+
+# ------------------------------------- the SHAPE of the electron ceiling
+# DIAGNOSTIC, DEFAULT 0.0 = the published `MS_ELEC_TMAX` behaviour, bit-for-bit
+# (the `gshape` dipole at ym_e).  It only does anything when MS_ELEC_TMAX != 0.
+#
+# The caveat above -- "gshape's ymax is the SMOOTH dipole, not a hard kinematic
+# edge" -- was corrected for ANALYTICALLY in NOTES_MSTERMS s8.3 with a factor
+# 1.27-1.68, and that analytic correction is WRONG, because it compared the
+# dipole against a SHARP CUT on the pure Wentzel law.  The exact kinematics of a
+# heavy projectile on a free electron (cf_ms_exact, `_build_elec_tables`) give
+#
+#     theta^2(T) = (2 m_e T/p^2) (1 - T/Tmax)          [G4 keeps the first factor only]
+#     theta_e,max = theta_G4/2                          EXACTLY, at T = Tmax/2
+#     L_e = ln(t_G4/chi_a^2) - 2 - beta^2/2             [G4's f(x_e) gives -1, no beta term]
+#
+# so the correct electron transport log is a full unit of log BELOW the sharp-cut
+# value s8.3 used, and the dipole is only 0.33 units above the truth, not 1.83.
+#
+#   0.0  `gshape` dipole at ym_e            -- the published path
+#   0.5  the SAME dipole on the new, 4.4x finer quadrature -- the NUMERICS
+#        control: 0.5 minus 0.0 is quadrature, not physics
+#   1.0  hard edge at ym_e                  -- G4's own transport-XS range
+#   2.0  exact kinematics, caustic kernel at ym_e/2, with the (1-beta^2 T/Tmax)
+#        of the true spin-0 dsigma/dT       -- THE PHYSICS
+#   3.0  the same with beta^2 = 0           -- isolates that factor
+MS_ELEC_EDGE = 0.0
+
+# ------------------------------------------ the MS kernel's own quadrature
+# DIAGNOSTIC, DEFAULT OFF (0.0 -> `gshape` is called exactly as in production).
+#
+# `cf_ms_exact.gshape`'s table is built on `_Y2 = logspace(-4, 13, 360)` with
+# `_DY2 = np.gradient(_Y2)` -- 21 nodes per decade, i.e. h = 0.109 in ln(y^2).
+# NOTES_XXII s8.4 measured the resulting bias at **+2.03e-3 in |S|** and left it
+# unfixed ("a resolution choice").  It has never been sized in closure units.
+#
+# Setting this to 1.0 evaluates the SAME dipole kernel on the 4.4x-finer grid
+# built for the electron term (`cf_ms_exact._build_elec_tables`), which is
+# validated against the closed-form transport log at 1e-6 where `gshape` is at
+# 2e-3.  It is a PURE NUMERICS change -- identical physics, identical
+# theta_FF -- and it is the model's own +0.2 % over-statement of every MS
+# cumulant, which is exactly the currency the KMS_SCALE gauge is written in.
+MS_FINE_G = 0.0
+
+# ------------------------------------------------------------ the ymax snap
+# DEFAULT 1.0 = the production behaviour: each step's form-factor ceiling
+# ymax = theta_FF/chi_a is ROUNDED to the nearest of `cf_ms_exact._YMAXG`'s 13
+# half-decade rows before `gshape` is called, so gshape's own interpolation
+# never runs.  On the layered toy at pT = 3 the true ymax is 2.026e4 and the
+# nearest row is 10^4.5 = 3.162e4, a factor 1.561 UP, and since G(tau -> 0) ~
+# ln(ymax^2) that inflates the model's MS second moment by 5.2 %.  Setting this
+# to 0.0 passes the step's own ymax and lets gshape interpolate, which is the
+# controlled measurement of that approximation.
+MS_SNAP_YMAX = 1.0
+
+# ------------------------------------------- the WentzelVI INTERNAL split
+# DIAGNOSTIC, DEFAULT OFF (0.0 -> `ms_step_exponent` is bit-identical to the
+# production path: the branch is not entered at all).
+#
+# `G4WentzelVIModel::SampleScattering` does NOT sample the sub-threshold
+# scattering from the single-scattering law.  It draws z ~ Exp(mean z0) with
+# z0 = tPathLength/(2 lambdaeff), i.e. an EXACT Gaussian in the projected
+# angle, and samples only the part above
+#
+#     1 - cos(theta_min) = 1.25 * tPathLength / lambda_transport
+#
+# explicitly.  (`useSecondMoment` is false AND
+# `G4WentzelOKandVIxSection::ComputeSecondTransportMoment` returns 0.0
+# unconditionally, so the Gamma(2,2) branch is dead code.)  The offline
+# transform integrates ONE compound Poisson across that boundary.
+#
+# THE KEY STRUCTURAL FACT: lambdaeff is the RESTRICTED transport mean free
+# path, so <1-cos>_Gaussian = t/lambdaeff is the exact first transport moment
+# of the law it replaces -- and for an isotropic 2D deflection the first
+# transport moment IS the projected variance, while a compound Poisson's
+# second cumulant IS its transport moment.  The split therefore preserves the
+# variance EXACTLY and changes only the fourth and higher cumulants.  With
+# q = sqrt(chi_a^2) w tau the difference is the tail of the J0 series:
+#
+#     dS(q) = (chi_c^2/chi_a^2) sum_{k>=2} (-1)^(k+1) (q^2/4)^k M_k(U) / (k!)^2
+#     M_k(U) = int_0^U u^k/(1+u)^2 du ,   U = 1.25 (chi_c,step^2/chi_a^2) L_g
+#
+# with L_g = [f(x_e) + Z f(x_N)]/(Z+1), G4's own transport log per unit
+# chi_c^2 (15.0 for the toy; `wvisplit.py g4` measures it against G4's
+# lambda).  dS < 0: the split makes the model LESS peaked, i.e. it moves the
+# `locx` closure the WRONG way.
+#
+# `MS_WVI_NPERX` is what sets the SIMULATION's step length: the number of
+# delta rays above the production cut per g/cm^2.  Nothing else limits a step
+# inside a toy layer (msc defines 372 steps in 2e5 events; the range-based
+# limits are metres), so a record of thickness x is crossed in 1 + Poisson(n)
+# steps with n = MS_WVI_NPERX * x, and
+#
+#     sum_s x_s^2 / x^2  =  f(n) = 2/n - 2(1 - e^-n)/n^2
+#
+# exactly, for a Poisson process on [0, x] whose last interval runs to the
+# boundary.  dS is QUADRATIC in the per-step chi_c^2, so f(n) -- not the mean
+# step -- is the right reduction, and it differs from 1/n by a factor 2 at
+# large n because the step lengths are exponential.  f -> 1 as x -> 0, so the
+# exporter's zero-thickness filler records need no special case.
+# MEASURED per species in `wvisplit.py steps` from the archived censuses
+# (ionization secondaries, r < 107 cm gated): 9.49 /(g/cm^2) for the muon to
+# 10.28 for the proton, i.e. 1/beta^2 as it must be.
+MS_WVI_SPLIT = 0.0
+MS_WVI_NPERX = 9.494       # delta rays above the cut per g/cm^2
+MS_WVI_LG = 15.00
+_WVI_SSFACTOR = 1.25       # G4WentzelVIModel::SetSingleScatteringFactor(1.25)
+_WVI_KMAX = 28             # terms of the J0 series; convergence asserted below
+_WVI_ARGMAX = 60.0         # the largest q^2 U/4 the truncated series is trusted at
+_WVI_MAXARG_SEEN = [0.0]   # diagnostic: the largest q^2 U/4 any call has used
+# The MS exponent the ARGMAX clamp is required to sit below.  dS is
+# negative-definite and monotonically steepening in q, so clamping it to zero
+# can only UNDER-state the effect, and only where |phi| < e^{_WVI_SMIN}.
+_WVI_SMIN = -6.0
+# q^2/4 above which the series is clamped REGARDLESS of U: with kmax = 28,
+# q2**kmax overflows double at q2 ~ 5e10, and for a record with a tiny U (the
+# exporter's zero-thickness fillers) `q2 U <= _WVI_ARGMAX` does NOT bound q2.
+# inf * 0 = nan, and the nan would then survive multiplication by the
+# minNCollisions mask.  The real closure reaches q2 = 2.4e7 at most, so this is
+# defensive; the `isfinite` assert below makes it non-silent either way.
+_WVI_Q2MAX = 1.0e10
+_WVI_SMAX_SEEN = [-np.inf]   # diagnostic: the largest MS exponent at the clamp
+# `G4WentzelVIModel`'s own escape hatch, and it is not a detail: BOTH
+# `ComputeGeomPathLength` and `ComputeTrueStepLength` contain
+#     if(G4int(zPathLength*xtsec) < minNCollisions) { singleScatteringMode = true;
+#                                                     lambdaeff = DBL_MAX; }
+# with `minNCollisions = 10` and `xtsec` evaluated at cosThetaMin = 1, i.e. the
+# TOTAL single-scattering rate.  A step with fewer than ten collisions gets NO
+# Gaussian at all -- every scatter is explicit -- so the split does not act
+# there.  chi_c^2/chi_a^2 IS that collision count (it reproduces the driver's
+# `nssFull` to 2e-16, `wvisplit.py g4` V2), so the guard costs one comparison.
+_WVI_MINCOLL = 10.0
+
 PHYSICS_GLOBALS = ("IONI_A3_SCALE", "IONI_EXC_SCALE", "IONI_TMAX_SCALE",
-                   "IONI_KOKOULIN", "IONI_KOKOULIN_TCUT", "IONI_KOKOULIN_NBIN")
-_NOT_PHYSICS = ("COVTOL",)          # a plotting/validation tolerance only
+                   "IONI_KOKOULIN", "IONI_KOKOULIN_TCUT", "IONI_KOKOULIN_NBIN",
+                   "MS_ELEC_TMAX", "MS_ELEC_EDGE", "MS_FINE_G", "MS_SNAP_YMAX",
+                   "MS_WVI_SPLIT", "MS_WVI_NPERX", "MS_WVI_LG")
+_NOT_PHYSICS = ("COVTOL", "_ME_GEV",   # a tolerance and a physical constant
+                # a G4 constant, a series length, and three numerical guards
+                "_WVI_SSFACTOR", "_WVI_KMAX", "_WVI_ARGMAX", "_WVI_MAXARG_SEEN",
+                "_WVI_SMIN", "_WVI_SMAX_SEEN", "_WVI_MINCOLL", "_WVI_Q2MAX")
+
+
+def _wvi_moment(k, U):
+    """M_k(U) = int_0^U u^k/(1+u)^2 du, in closed form (k >= 1).
+
+    u^k/(1+u)^2 = sum_{j=0}^{k-2} C(k,j)... is avoidable: with v = 1+u,
+    u^k = sum_j C(k,j) v^j (-1)^(k-j), so the integrand is a Laurent
+    polynomial in v and every term integrates elementarily.  Written that way
+    it is exact for any k and needs no quadrature."""
+    from math import comb
+    U = np.asarray(U, float)
+    v = 1.0 + U
+    hi = np.zeros_like(v)
+    for j in range(k + 1):
+        c = comb(k, j) * ((-1) ** (k - j))
+        m = j - 2
+        hi = hi + c * (np.log(v) if m == -1 else (v ** (m + 1) - 1.0) / (m + 1))
+    if not np.any(U < 0.5):
+        return hi
+    # 1/(1+u)^2 = sum_j (-1)^j (j+1) u^j, |u| < 1.  The binomial form above
+    # cancels catastrophically at small U (74 % error already at k = 4,
+    # U = 1e-3), and the exporter's zero-thickness filler records land there.
+    Us = np.minimum(U, 0.5)
+    lo = np.zeros_like(v)
+    for j in range(60):
+        lo = lo + ((-1) ** j) * (j + 1) * Us ** (k + j + 1) / (k + j + 1)
+    return np.where(U >= 0.5, hi, lo)
+
+
+def wvi_split_exponent(q, U, kmax=None):
+    """dS(q)/(chi_c^2/chi_a^2) for ONE model record: the difference between
+    what WentzelVI samples and what the compound-Poisson transform has.
+
+    The series is used rather than a quadrature because the closure never
+    leaves the regime q^2 U << 1 (q sqrt(U) <= 0.4 on the layered toy at
+    pT = 3, since |S| ~ 40 already at q ~ 4e-3), and the ratio of successive
+    terms is ~ q^2 U/4.  Convergence is ASSERTED, not assumed."""
+    kmax = _WVI_KMAX if kmax is None else kmax
+    q2 = 0.25 * np.asarray(q, float) ** 2
+    U = np.asarray(U, float)
+    if U.ndim == 1 and q2.ndim == 2:
+        U = U[:, None]
+    from math import factorial
+    # The moments depend on U ONLY.  Computing them on the (nrec, ntau)
+    # broadcast instead of on the (nrec,) U vector costs a factor ntau ~ 400 and
+    # makes a closure run take half an hour instead of two minutes.
+    Mk = [_wvi_moment(k, U) / factorial(k) ** 2 for k in range(2, kmax + 1)]
+    ok = (q2 * U <= _WVI_ARGMAX) & (q2 <= _WVI_Q2MAX)
+    _WVI_MAXARG_SEEN[0] = max(_WVI_MAXARG_SEEN[0],
+                              float(np.max(q2 * U)) if np.size(q2) else 0.0)
+    q2s = np.where(ok, q2, 0.0)
+    tot = np.zeros(np.broadcast(q2, U).shape)
+    last = np.zeros_like(tot)
+    p = q2s * q2s
+    for k in range(2, kmax + 1):
+        t = ((-1) ** (k + 1)) * p * Mk[k - 2]
+        tot = tot + t
+        last = t
+        p = p * q2s
+    m = ok & (np.abs(tot) > 0)
+    if np.any(m):
+        r = float(np.max(np.abs(last[m]) / np.abs(tot[m])))
+        assert r < 1e-6, (
+            f"wvi_split_exponent: the J0 series has not converged ({r:.2e} of "
+            f"the total at k = {kmax}) -- q^2 U is out of the assumed regime")
+    # Beyond q^2 U/4 = _WVI_ARGMAX the truncated series cancels and dS is set to
+    # ZERO.  Two things make that safe, and both are checked rather than
+    # assumed: (i) `ms_step_exponent` asserts that the MODEL's own MS exponent
+    # is already below `_WVI_SMIN` everywhere the clamp fires, so |phi| there is
+    # < e^{_WVI_SMIN}; (ii) moving `_WVI_ARGMAX` by a factor 2 must not move the
+    # closure (`wvisplit.py gauge --argmax`).
+    #
+    # A closed-form asymptote was tried first and is WRONG: dropping the J0
+    # integral as "oscillating away" gives -q^2/4 M_1(U) + M_0(U), which is
+    # POSITIVE at the switch (the J0 integral is NOT small there -- it is
+    # dominated by u < 1/q^2, where J0 ~ 1) and overflows exp().  dS is
+    # negative-definite, so a positive value is a detectable error, and it was
+    # detected this way.
+    out = np.where(ok, tot, 0.0)
+    assert np.all(np.isfinite(out)), (
+        "wvi_split_exponent: non-finite dS -- the series overflowed inside the "
+        "region it claims to be valid in")
+    return out
 
 
 def physics_state():
@@ -701,13 +951,114 @@ def ms_step_exponent(steps, wstd, tau):
     args = np.sqrt(chia2)[:, None] * (wstd * tau)[None, :]
     ym = np.sqrt(thff2 / chia2)
     lg = np.log(np.clip(ym, 1e1, 1e7))
-    rows = np.round((lg - np.log(1e1)) / (np.log(1e7 / 1e1) / 12)).astype(int)
+    if MS_SNAP_YMAX:
+        rows = np.round((lg - np.log(1e1)) / (np.log(1e7 / 1e1) / 12)).astype(int)
+    else:
+        # no snap: group by the step's OWN ymax (to 1e-3 in ln) and let gshape
+        # interpolate between the two bracketing rows
+        rows = np.round(lg, 3)
+
+    # Z^2 : Z split with the electron ceiling (MS_ELEC_TMAX, default off).
+    # The mass is recovered from the record as m = p sqrt(1-beta^2)/beta, the
+    # same trick `_kokoulin_exponent` uses, because msmoliv carries no PDG.
+    fN = fE = None
+    if MS_ELEC_TMAX:
+        effZ = _st[act, 0]
+        pg, bt = _st[act, 3], np.clip(_st[act, 4], 1e-9, 1. - 1e-15)
+        gam = 1. / np.sqrt(1. - bt * bt)
+        mgev = pg / (bt * gam)
+        bg = bt * gam
+        rat = _ME_GEV / mgev
+        tmx = 2. * _ME_GEV * bg * bg / (1. + 2. * gam * rat + rat * rat)
+        # 1 - cos = Tmax m_e / p^2 ;  theta^2 = 2 (1 - cos)
+        te = 2. * tmx * _ME_GEV / (pg * pg)
+        yme = np.minimum(np.sqrt(te / chia2), ym)
+        bt2 = bt * bt
+        fN = effZ / (effZ + 1.)
+        fE = 1. / (effZ + 1.)
+
+    # The WentzelVI internal split (MS_WVI_SPLIT, default off).  ADDITIVE in the
+    # exponent and independent of the ymax snap and of the electron ceiling, so
+    # the three can be combined without interference.
+    wviS = None
+    if MS_WVI_SPLIT:
+        xg = np.clip(_st[act, 2], 0.0, None)
+        Rr = chic2 / chia2                             # per MODEL record
+        nd = np.clip(MS_WVI_NPERX * xg, 1e-12, None)   # delta rays in the record
+        fq = 2.0 / nd - 2.0 * (-np.expm1(-nd)) / (nd * nd)   # sum x_s^2 / x^2
+        Rs = Rr * np.clip(fq, 0.0, 1.0)                # per effective SIM step
+        Umin = _WVI_SSFACTOR * Rs * MS_WVI_LG
+        # G4's minNCollisions escape: a SIM step with fewer than ten collisions
+        # is sampled entirely as single scatters, so the split does not act.
+        # The mean sim step of a record of thickness xg carries Rr/(1 + nd)
+        # collisions.
+        onmsc = (Rr / (1.0 + nd)) >= _WVI_MINCOLL
+        # Only the NUCLEAR share Z/(Z+1) of the model's chi_c^2 is Gaussianized
+        # here.  G4's Gaussian covers the nucleus up to theta_min and the atomic
+        # electrons only up to their own kinematic ceiling, which sits three
+        # decades BELOW theta_min (1-cos = 4.93e-10 against 7.5e-8): between the
+        # two the electron term simply does not scatter, and that is the SEPARATE
+        # `MS_ELEC_TMAX` candidate.  Keeping the two disjoint is what lets them be
+        # combined; without the Z/(Z+1) this term double-counts by 1/(Z+1) = 12 %
+        # (measured in `wvisplit.py g4` V6 before the factor was applied).
+        fNw = _st[act, 0] / (_st[act, 0] + 1.0) * onmsc
+        wviS = np.sum((Rr * fNw)[:, None] * wvi_split_exponent(args, Umin), axis=0)
+        wviAsym = np.any((0.25 * args ** 2 * Umin[:, None] > _WVI_ARGMAX)
+                         & onmsc[:, None], axis=0)
+
     S = np.zeros(len(tau))
     for r in np.unique(rows):
         m = rows == r
-        ymr = float(np.exp(np.log(1e1) + r * (np.log(1e7 / 1e1) / 12)))
-        gsh = gshape(args[m].ravel(), ymax=ymr).reshape(int(m.sum()), len(tau))
-        S += np.sum((chic2[m] / chia2[m])[:, None] * gsh, axis=0)
+        ymr = (float(np.exp(np.log(1e1) + r * (np.log(1e7 / 1e1) / 12)))
+               if MS_SNAP_YMAX else float(np.exp(r)))
+        gsh = (gshape_elec(args[m].ravel(), ymr ** 2, kind="dipole") if MS_FINE_G
+               else gshape(args[m].ravel(), ymax=ymr)
+               ).reshape(int(m.sum()), len(tau))
+        if not MS_ELEC_TMAX:
+            S += np.sum((chic2[m] / chia2[m])[:, None] * gsh, axis=0)
+            continue
+        S += np.sum((chic2[m] * fN[m] / chia2[m])[:, None] * gsh, axis=0)
+        # the electron piece: its own ceiling, interpolated (NOT snapped --
+        # there is no production path to mirror for a term that does not
+        # exist there), grouped so the shape is evaluated once per distinct
+        # (ceiling, beta^2).  MS_ELEC_EDGE selects the kernel; 0.0 is the
+        # published dipole and is what the archived numbers were taken with.
+        lye = np.round(np.log(np.clip(yme[m], 1e1, 1e7)), 3)
+        lb2 = np.round(bt2[m], 6) if MS_ELEC_EDGE >= 2.0 else np.zeros_like(lye)
+        for key in np.unique(np.stack([lye, lb2], axis=1), axis=0):
+            v, b2 = float(key[0]), float(key[1])
+            mm = (lye == v) & (lb2 == b2)
+            idx = np.where(m)[0][mm]
+            ymv = float(np.exp(v))
+            if MS_ELEC_EDGE == 0.0:
+                ge = gshape(args[idx].ravel(), ymax=ymv)
+            elif MS_ELEC_EDGE == 0.5:
+                ge = gshape_elec(args[idx].ravel(), ymv ** 2, kind="dipole")
+            elif MS_ELEC_EDGE == 1.0:
+                ge = gshape_elec(args[idx].ravel(), ymv ** 2, kind="hard")
+            elif MS_ELEC_EDGE in (2.0, 3.0):
+                # the TRUE ceiling is theta_G4/2, EXACTLY (see cf_ms_exact), so
+                # in the y^2 variable the ceiling is ym_e^2/4
+                ge = gshape_elec(args[idx].ravel(), 0.25 * ymv ** 2,
+                                 kind="kine",
+                                 beta2=(b2 if MS_ELEC_EDGE == 2.0 else 0.0))
+            else:
+                raise ValueError(f"MS_ELEC_EDGE = {MS_ELEC_EDGE} is not a kernel")
+            ge = ge.reshape(len(idx), len(tau))
+            S += np.sum((chic2[idx] * fE[idx] / chia2[idx])[:, None] * ge,
+                        axis=0)
+    if wviS is not None:
+        # The asymptotic branch of `wvi_split_exponent` is only legitimate where
+        # the CF is already zero.  CHECKED, not assumed: everywhere it was used,
+        # the model's own MS exponent must be below -700, at which exp()
+        # underflows to 0 in double and no downstream number can depend on it.
+        if np.any(wviAsym):
+            _WVI_SMAX_SEEN[0] = max(_WVI_SMAX_SEEN[0], float(np.max(S[wviAsym])))
+            assert np.max(S[wviAsym]) < _WVI_SMIN, (
+                "ms_step_exponent: the WentzelVI-split dS was clamped to zero "
+                f"at tau where the MS exponent is only {np.max(S[wviAsym]):.4g} "
+                "-- the CF there is NOT negligible")
+        S = S + wviS
     return S
 
 

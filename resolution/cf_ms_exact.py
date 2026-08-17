@@ -257,6 +257,146 @@ def gshape(tau, ymax=None):
     return out
 
 
+# =========================================================================
+# THE ATOMIC-ELECTRON KERNELS  (2026-08-17, NOTES_MOLIEREWRONG)
+#
+# Moliere's `chi_c^2 ~ Z(Z+1)` gives the atomic electrons the NUCLEUS's angular
+# law and the NUCLEUS's angular range.  Both are wrong, and the second one is
+# the only species-dependent term in the whole MS enumeration.  The electron
+# term's single-scattering density is
+#
+#     dn/dt = chi_c,e^2 / (t + chi_a^2)^2 * R_beta(t/t_e) * Theta(t < t_e)
+#
+# with t = theta^2 and, from the EXACT two-body kinematics of a heavy
+# projectile on a free electron at rest,
+#
+#     t(T) = t_G4 * tau (1 - tau),   tau = T/Tmax,   t_G4 = 2 m_e Tmax / p^2
+#
+# -- i.e. G4's own `1 - cos = Tmax m_e/p^2` is the LEADING TERM of a relation
+# that turns over at tau = 1/2.  The projectile's deflection is therefore
+# capped at
+#
+#     t_e = t_G4/4          (theta_e,max = theta_G4/2, EXACTLY)
+#
+# and, since t(T) is two-valued, the density carries the Jacobian of both
+# branches.  With sigma = sqrt(1 - t/t_e):
+#
+#     R_0(x)     = (2 - x) / (2 sqrt(1-x))            [pure 1/T^2]
+#     R_beta(x)  = [ (1 + sigma^2) - beta^2 (1 - sigma^2)/2 ] / (2 sigma)
+#
+# the second form carrying the (1 - beta^2 T/Tmax) of the true spin-0
+# `dsigma/dT` -- the same factor whose omission was the FIRST of the four
+# ionization corrections.  R has an integrable inverse-square-root caustic at
+# the edge and is exactly ZERO above it.
+#
+# THE CHECK THAT DECIDES THE DECOMPOSITION, and it is analytic:
+#
+#     Int_0^{t_e} t dn/dt dt / chi_c,e^2  =  ln(t_G4/chi_a^2) - 1
+#
+# because Int_0^1 [R_0(x) - 1] dx/x = 2 ln 2 - 1 exactly, and ln(t_e) + 2ln2
+# = ln(t_G4).  That is IDENTICALLY `G4WentzelOKandVIxSection`'s own electron
+# transport log `f(x_e) = ln(1+x) - x/(1+x)`.  **G4's ceiling is the right
+# TRANSPORT MOMENT with the wrong SHAPE**: the caustic pile-up at t_G4/4
+# exactly pays for the missing range between t_G4/4 and t_G4.  So `hard` and
+# `kine` below differ only in shape, at identical variance, and `dipole`
+# differs from both by 1.833 units of log (the `(1+t/Y)^-4` starts biting a
+# decade below Y where a kinematic edge does not).
+#
+# Everything here is DEFAULT-INERT: the tables are built at import, nothing
+# reads them unless `cf_track_resolution.MS_ELEC_EDGE` is set.
+# =========================================================================
+
+# 141 rows, 0.1 decade, in Y = ymax^2 (the y^2 scale, NOT the y scale
+# `gshape` takes) -- ten times finer than `_YMAXG`, because the electron
+# ceiling is a per-species number and must not be snapped the way the nuclear
+# form-factor ceiling is.
+_ELEC_Y = np.logspace(2., 16., 141)
+# quadrature in v = -ln(y^2/Y) (below the ceiling) and w = +ln(y^2/Y) (above,
+# for the dipole only).  h = 0.0247 in ln(y^2) against `_Y2`'s 0.1088: 4.4x
+# finer, so the `dipole` row is the NUMERICS CONTROL for `gshape` itself.
+_ELEC_V = np.linspace(0., 50.6, 2048)
+_ELEC_W = np.linspace(0., 30.0, 512)
+_GE = {}
+
+
+def _build_elec_tables():
+    """G_e(tau; Y) for the three electron kernels, on `_GTAU` x `_ELEC_Y`.
+
+    `kine` is stored as TWO tables, the beta^2-independent piece and the
+    coefficient of -beta^2, so one build covers every species exactly:
+        G_kine(tau; Y, beta^2) = GE['kine0'] - beta^2 * GE['kine1'].
+    """
+    global _GE
+    out = {k: np.empty((len(_ELEC_Y), len(_GTAU))) for k in
+           ("dipole", "hard", "kine0", "kine1")}
+    ev, ew = np.exp(-_ELEC_V), np.exp(_ELEC_W)
+    sig = 1. - ev                      # sigma = 1 - e^-v  in [0, 1)
+    for iy, Y in enumerate(_ELEC_Y):
+        # --- below the ceiling: y^2 = Y e^-v, dy^2 = -Y e^-v dv
+        y2 = Y * ev
+        k0 = _j0m1(np.outer(_GTAU, np.sqrt(y2)))
+        base = Y * ev / (1. + y2) ** 2
+        out["hard"][iy] = np.trapezoid(k0 * base[None, :], _ELEC_V, axis=1)
+        # --- the exact kinematic kernel: y^2 = Y (1 - sigma^2), the caustic
+        # removed analytically by the sigma substitution (R dx = -[...] dsigma)
+        y2k = Y * (1. - sig ** 2)
+        kk = _j0m1(np.outer(_GTAU, np.sqrt(y2k)))
+        den = ev / (1. + y2k) ** 2      # the e^-v is dsigma/dv
+        out["kine0"][iy] = Y * np.trapezoid(kk * ((1. + sig ** 2) * den)[None, :],
+                                            _ELEC_V, axis=1)
+        out["kine1"][iy] = Y * np.trapezoid(kk * (0.5 * (1. - sig ** 2) * den)[None, :],
+                                            _ELEC_V, axis=1)
+        # --- the dipole, on the SAME quadrature: below plus above the ceiling
+        ffb = (1. + ev) ** -4
+        lo = np.trapezoid(k0 * (base * ffb)[None, :], _ELEC_V, axis=1)
+        y2a = Y * ew
+        ka = _j0m1(np.outer(_GTAU, np.sqrt(y2a)))
+        hi = np.trapezoid(ka * (Y * ew / (1. + y2a) ** 2 / (1. + ew) ** 4)[None, :],
+                          _ELEC_W, axis=1)
+        out["dipole"][iy] = lo + hi
+    _GE = out
+
+
+_build_elec_tables()
+
+
+def gshape_elec(tau, y2max, kind="hard", beta2=0.0):
+    """Electron-term exponent shape with its own ceiling, `y2max = (theta_e,max
+    /chi_a)^2` -- note this is the SQUARE of what `gshape` takes -- by linear
+    interpolation in log(y2max) between the 141 rows of `_ELEC_Y`."""
+    tau = np.abs(np.asarray(tau, dtype=np.float64))
+    ly = np.clip(np.log(y2max), np.log(_ELEC_Y[0]), np.log(_ELEC_Y[-1]))
+    fi = (ly - np.log(_ELEC_Y[0])) / (np.log(_ELEC_Y[1]) - np.log(_ELEC_Y[0]))
+    i0 = int(np.clip(np.floor(fi), 0, len(_ELEC_Y) - 2))
+    f = fi - i0
+
+    def _row(name):
+        return (1. - f) * _GE[name][i0] + f * _GE[name][i0 + 1]
+
+    if kind == "kine":
+        row = _row("kine0") - float(beta2) * _row("kine1")
+    else:
+        row = _row(kind)
+    out = np.interp(tau, _GTAU, row, left=np.nan, right=row[-1])
+    tiny = tau < _GTAU[0]
+    if np.any(tiny):
+        out[tiny] = row[0] * (tau[tiny] / _GTAU[0]) ** 2
+    return out
+
+
+def elec_logrange(Y, kind, beta2=0.0):
+    """The kernel's own transport log, Int t dn/dt dt / chi_c,e^2, read off the
+    table at small tau (G -> -(tau^2/4) Lm).  Used to validate the tables
+    against the analytic values:
+        hard   : ln(1+Y) - Y/(1+Y)          -> ln Y - 1
+        kine   : ln(4Y) - 1 - beta^2/2      (Y is the TRUE ceiling)
+        dipole : ln Y - 2.833...
+    """
+    t0 = _GTAU[0]
+    g = gshape_elec(np.array([t0]), Y, kind=kind, beta2=beta2)[0]
+    return -4. * g / t0 ** 2
+
+
 def block_exponent(steps, tau):
     """S_b(tau) = sum_s (chic2/chia2) G(tau/sigma_ref * sqrt(chia2)),
     absolute-chic2 normalization: sigma_ref from the exported thp2 (the Q
