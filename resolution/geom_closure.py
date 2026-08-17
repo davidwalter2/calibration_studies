@@ -181,6 +181,9 @@ def closure_rows(legs, sim, func, scale, probes=UCURVE):
     # this is a scheduling change and not a numerical one.
     global _CR_CTX
     _CR_CTX = (legs, func, scale, probes, tau)
+    # kernels built in the parent; the forked workers inherit them
+    import cf_nucel_exact as _cnu
+    _cnu.warm(legs)
     models = dict(zip(keep, fn.pmap(_closure_model_one, keep)))
     for k in keep:
         good = goods[k]

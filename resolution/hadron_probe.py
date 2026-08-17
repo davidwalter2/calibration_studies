@@ -191,6 +191,17 @@ ARMS = {
     "dec": "nuclear OFF, Decay ON",
     "on":  "stock physics: nuclear and Decay ON",
     "norad": "nuclear, Decay AND bremsstrahlung + pair production OFF",
+    # `elonly` and `inelonly` SPLIT the `off` arm's nuclear set, which until now
+    # only ever went off as a unit.  The 0.00035-0.00141 rms figure quoted for
+    # "nuclear" is elastic AND inelastic together; after the MS harmonisation
+    # the locx residual is 0.8-2.9 sigma, so that combined figure is comparable
+    # to what is left and the two halves have to be told apart before a nuclear
+    # elastic channel is designed.  Each arm turns exactly ONE half back on
+    # relative to `off`, so (elonly - off) is the elastic-alone effect and
+    # (inelonly - off) the inelastic-alone one, in the same base-and-difference
+    # form cmd_nuc already uses for (dec - off).
+    "elonly": "inelastic and Decay OFF, hadElastic ON -- elastic alone",
+    "inelonly": "hadElastic and Decay OFF, inelastic ON -- inelastic alone",
 }
 # the radiative process names, per species, as the census PRINTS them
 RADPROC = {13: ["muBrems", "muPairProd"], -13: ["muBrems", "muPairProd"]}
@@ -215,6 +226,17 @@ def inact_of(pdg, arm):
         # arm is deliberately inconsistent and is run only as a gauge of the
         # channel's size, never as a closure.
         return list(sp["nuc"]) + ["Decay"] + RADPROC[pdg]
+    if arm in ("elonly", "inelonly"):
+        # Built by REMOVING one member from the clean arm's nuclear set rather
+        # than by listing what stays off, so a species that does not carry the
+        # removed process degenerates to `off` by construction.  The muon has
+        # no hadElastic and no inelastic entry, so BOTH muon arms come out
+        # identical to `off` -- that is the null this measurement needs.  Note
+        # it is a CONFIG-level identity (same inactivate list, same seeds, so
+        # bit-identical output), which makes it a control on the plumbing, not
+        # evidence that the elastic channel leaves muons alone.
+        drop = "hadElastic" if arm == "elonly" else sp["inel"]
+        return [p for p in sp["nuc"] if p != drop] + ["Decay"]
     raise KeyError(arm)
 
 
@@ -403,12 +425,44 @@ def sim_path(pdg, arm, seed):
     return os.path.join(OUT, f"{tag_of(pdg, arm)}_s{seed}_sim.root")
 
 
+# THE SEED PIN, INSTALLED AT THE DEFINITION.
+#
+# NOTES_BARKAS s3.4 ran a 20 000-event seed-901 mu- job on arm `off` to show
+# the LD_PRELOAD shim is inert inside cmsRun; it wrote `mum_pt3_off_s901_*`
+# into this same directory.  An unpinned `_s*` therefore returns ELEVEN files
+# for the muon `off` arm -- 220 000 events against 200 000 for every other
+# species -- and the muon control stops reproducing the published digits.
+#
+# The pin already existed, but only as an IMPORT SIDE-EFFECT in two downstream
+# modules: chargeodd.py:154 (sim only, not census) and pion_probe.py:128-129
+# (both).  allcorr.py:114-115 asserts it is installed and gets it because it
+# imports pion_probe.  Bare `python hadron_probe.py ...` -- which is the form
+# NOTES_HADRONS s8 documents -- imported neither, so the arm that the whole
+# study takes its differences against was silently running on 11 files.  That
+# is trap #9 (half-pinned globs) in its own home file.
+#
+# Pinning here makes the definition the source of truth.  Both downstream
+# patches stay correct and become no-ops: pion_probe's `.replace("_s*","_s1*")`
+# finds no `_s*` and returns this string unchanged, chargeodd's override
+# produces the identical pattern, and allcorr's `"_s1" in ...` assert passes.
+# `_s1??` (not `_s1*`) so it matches exactly the three-digit 1xx campaign
+# seeds and cannot pick up a future `_s1_` or `_s1000_`.
 def sim_glob(pdg, arm):
-    return os.path.join(OUT, f"{tag_of(pdg, arm)}_s*_sim.root")
+    return os.path.join(OUT, f"{tag_of(pdg, arm)}_s1??_sim.root")
 
 
 def census_glob(pdg, arm):
-    return os.path.join(OUT, f"{tag_of(pdg, arm)}_s*_census.bin")
+    return os.path.join(OUT, f"{tag_of(pdg, arm)}_s1??_census.bin")
+
+
+def log_glob(pdg, arm):
+    """The job logs, pinned to the SAME seeds as sim_glob/census_glob.
+
+    The step census that proves a switch is live is summed over these, so an
+    unpinned log glob would attribute seed-901's steps to a 10-seed sample --
+    the same half-pinning as the sim and census globs, one file further on.
+    """
+    return os.path.join(OUT, f"{tag_of(pdg, arm)}_s1??_sim.log")
 
 
 def _complete(log, nev):
@@ -540,8 +594,7 @@ def cmd_live(args):
         print(f"\n### {sp['label']}  (PDG {pdg:+d}, {sp['g4']}, "
               f"m = {sp['mass']} MeV, geometry {sp['geom']})")
         for arm in args.arms:
-            logs = sorted(glob.glob(sim_path(pdg, arm, 0).replace("_s0_", "_s*_")
-                                    .replace(".root", ".log")))
+            logs = sorted(glob.glob(log_glob(pdg, arm)))
             if not logs:
                 print(f"  [{arm}] no logs")
                 continue
@@ -571,6 +624,41 @@ def cmd_live(args):
                 if got != (0, 0):
                     raise SystemExit(f"{nm} defined {got} steps in "
                                      f"{tag_of(pdg,arm)} -- switch NOT live")
+            # The OTHER direction, asserted rather than eyeballed.  Whatever
+            # this arm RESTORES relative to `off` must actually have fired --
+            # otherwise the arm is inert and its closure difference is a null
+            # for a plumbing reason, not a physical one.  Four inert controls
+            # have already been mistaken for nulls in this study, so the
+            # positive direction gets a hard check too, not just a printout.
+            # `restored` is empty for the muon `elonly`/`inelonly` arms (it has
+            # neither hadElastic nor an inelastic process), which is the
+            # degenerate-by-construction null and correctly asserts nothing.
+            # The criterion is `all`, not `primary`.  A restored process that
+            # fires on NOTHING (all == 0) was not actually reactivated -- that
+            # is broken plumbing and a hard failure.  A process that fires on
+            # secondaries but not on the primary (primary == 0, all > 0) is
+            # reactivated and simply does not apply to this species: `Decay`
+            # for the stable antiproton is exactly that, and NOTES_HADRONS s8
+            # already reports pbar `dec` acceptance as 100.0000, identical to
+            # `off`.  That is a real physical null, so it is reported loudly
+            # and not failed -- failing it would have rejected a correct arm.
+            restored = [p for p in inact_of(pdg, "off")
+                        if p not in set(want)]
+            for nm in restored:
+                got = tot.get(nm, (0, 0))
+                if got[1] == 0:
+                    flag = "*** NOT REACTIVATED ***"
+                elif got[0] == 0:
+                    flag = "inert on PRIMARY (secondaries only)"
+                else:
+                    flag = "OK live"
+                print(f"        restored {nm:<24} primary {got[0]:>9}  "
+                      f"all {got[1]:>9}   {flag}")
+                if got[1] == 0:
+                    raise SystemExit(
+                        f"{nm} was restored in {tag_of(pdg,arm)} but defined "
+                        f"ZERO steps anywhere -- it was not reactivated, so "
+                        f"any closure difference from this arm is not physics")
             # what is still on, for contrast
             live = [(k, v) for k, v in sorted(tot.items()) if v[0] > 0]
             print(f"        primary steps by defining process, still ON: "
@@ -800,8 +888,7 @@ def cmd_rate(args):
         regs = sorted({r["regime"] for r in tl})
         r0 = tl[0]
         # the cuts, from the watcher's own printed G4ProductionCutsTable
-        log = sorted(glob.glob(sim_path(pdg, args.arm, 0)
-                               .replace("_s0_", "_s*_").replace(".root", ".log")))[0]
+        log = sorted(glob.glob(log_glob(pdg, args.arm)))[0]
         cuts = ds.cuts_from_log(log)
         c = census_of(pdg, args.arm)
         # hIoni for hadrons, muIoni for the muon -- both are summed, so the
@@ -907,7 +994,15 @@ def _rows(pdg, arm, corr="on", kok=None, func="qop", tcut=0.0):
         fn._SCALE_CACHE.clear()
         cpt._PHI_CACHE.clear()
     return dict(rows=rows, errs=errs, ks=ks, ns=ns, err=err, sc=sc,
-                m=rows.mean(axis=0))
+                m=rows.mean(axis=0),
+                # The OUTERMOST plane, surfaced alongside the ladder mean.
+                # Every row is cumulative over legs 0..k, so rows[-1] is the
+                # whole-track number the global fit integrates over, and the
+                # 2.8x plane-correlation inflation that `err` carries applies
+                # to the MEAN over planes and to nothing else -- hence the
+                # ordinary per-plane errs[-1] here.  Same convention as
+                # allcorr.cell, so the two drivers can be compared directly.
+                out=rows[-1], outerr=errs[-1])
 
 
 def _fmt(v):
@@ -1158,29 +1253,38 @@ def cmd_nuc(args):
     print("THE UNMODELLED CHANNEL: nuclear (elastic + inelastic) and Decay "
           "switched back ON")
     print("=" * 124)
-    print(f"  {'species':<8}{'arm':<5}{'acc %':>9}" + UROW + "      rms")
+    print(f"  {'species':<8}{'arm':<6}{'stat':<5}{'acc %':>9}" + UROW
+          + "      rms")
     for pdg in args.pdg:
         sp = SPECIES[pdg]
-        base = None
+        base = {}
         for arm in args.arms:
             try:
                 r = _rows(pdg, arm, corr=args.corr, func=args.func)
                 c, acc = _acc(pdg, arm)
             except FileNotFoundError:
                 continue
-            m, e = r["m"], r["err"]
-            print(f"  {sp['label']:<8}{arm:<5}{100*acc:9.4f}" + _fmt(m)
-                  + f" {_rms(m):9.5f}")
-            print(f"  {'':<8}{'+-':<5}{'':>9}" + _fmt(e))
-            if arm == "off":
-                base = (m, e)
-            elif base is not None:
-                d = m - base[0]
-                s = d / np.sqrt(e ** 2 + base[1] ** 2)
-                print(f"  {'':<8}{'d':<5}{'':>9}" + _fmt(d)
-                      + f" {_rms(d):9.5f}   ({arm} - off)")
-                print(f"  {'':<8}{'sig':<5}{'':>9}"
-                      + "".join(f"{x:9.2f}" for x in s))
+            # BOTH statistics, every time.  The ladder alone is what this
+            # driver used to print, and it is the one that improves while the
+            # outermost plane degrades -- quoting it on its own is how the MS
+            # commit came to mis-state its own effect (NOTES_CLOSURE_ALLCORR).
+            for stat, (m, e) in (("lad", (r["m"], r["err"])),
+                                 ("out", (r["out"], r["outerr"]))):
+                head = f"  {sp['label']:<8}{arm:<6}" if stat == "lad" \
+                    else f"  {'':<8}{'':<6}"
+                accs = f"{100*acc:9.4f}" if stat == "lad" else f"{'':>9}"
+                print(head + f"{stat:<5}" + accs + _fmt(m)
+                      + f" {_rms(m):9.5f}")
+                print(f"  {'':<8}{'':<6}{'+-':<5}{'':>9}" + _fmt(e))
+                if arm == "off":
+                    base[stat] = (m, e)
+                elif stat in base:
+                    d = m - base[stat][0]
+                    s = d / np.sqrt(e ** 2 + base[stat][1] ** 2)
+                    print(f"  {'':<8}{'':<6}{'d':<5}{'':>9}" + _fmt(d)
+                          + f" {_rms(d):9.5f}   ({arm} - off, {stat})")
+                    print(f"  {'':<8}{'':<6}{'sig':<5}{'':>9}"
+                          + "".join(f"{x:9.2f}" for x in s))
 
 
 def cmd_corr(args):

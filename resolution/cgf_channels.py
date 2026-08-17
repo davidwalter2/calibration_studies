@@ -105,6 +105,7 @@ from scipy.special import gammaln, logsumexp
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import cf_brems_exact
+import cf_nucel_exact
 import cf_propagation_test as cpt
 from cf_ms_exact import G4_FF_SQUARED, moliere_params
 from cf_propagation_test import FUNCTIONALS, model_variance, step_transports
@@ -872,6 +873,39 @@ def block_cf_exponent(legs, k, avec, sigma, tau, channels=("ioni", "ms", "rad"))
                     w = weff0[s] + f * (weff[s] - weff0[s])
                     if w > 0.0:
                         S += cpt.KMS_SCALE * ms_step_exponent(rec, w, tau)
+        # --- nuclear elastic.  MUST stay in lockstep with the identical block
+        # in cf_propagation_test._model_phi_uncached: this function is what the
+        # FISHER scale 1/I is computed from, and sF is what DEFINES the u axis.
+        # A channel present in one and absent from the other would leave sF
+        # built from a 3-channel CF while the closure compares a 4-channel one
+        # -- not a small error but a silent relabelling of every probe.
+        # It is therefore gated on NUCEL_CHANNEL alone and deliberately NOT on
+        # the `channels` tuple, so the two sites cannot drift apart through a
+        # caller that forgot to add "nucel" to its channel list.
+        if cf_nucel_exact.NUCEL_CHANNEL and len(leg["ms"]):
+            _pdg = cf_nucel_exact.pdg_from_leg(leg)
+            if _pdg is not None:
+                wv = np.einsum("i,sij->sj", avec, A_ms[j])
+                wv0 = np.einsum("i,sij->sj", avec, A_ms_start[j])
+                coslam = leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0
+
+                def _weffn(v):
+                    return np.sqrt(v[:, 1] ** 2
+                                   + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
+                weff, weff0 = _weffn(wv), _weffn(wv0)
+                _r = cf_nucel_exact.leg_rates(
+                    leg, _pdg, cf_nucel_exact.mass_of(_pdg), nsub=cpt.MS_NSUB)
+                if _r is not None:
+                    nrate, ugrid, gtab = _r
+                    for s in range(len(leg["ms"])):
+                        if weff[s] <= 0.0 and weff0[s] <= 0.0:
+                            continue
+                        for i in range(max(cpt.MS_NSUB, 1)):
+                            f = (i + 0.5) / max(cpt.MS_NSUB, 1)
+                            w = weff0[s] + f * (weff[s] - weff0[s])
+                            if w > 0.0:
+                                S += cf_nucel_exact.nucel_step_exponent(
+                                    tau, nrate[s], ugrid, gtab, w)
     return S
 
 

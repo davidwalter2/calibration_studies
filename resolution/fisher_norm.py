@@ -250,6 +250,11 @@ def plane_scales(legs, func, floor=1e-8, nt=1 << 17, npad=32, lncut=-60.0,
                    mass=np.zeros(n), zlo=np.zeros(n), zhi=np.zeros(n))
         global _PS_CTX
         _PS_CTX = (legs, avec, channels, nt, npad, lncut, floor)
+        # Build any nuclear-elastic kernels HERE, in the parent: the children
+        # inherit them through the fork, so the pool never stampedes the
+        # driver (and cannot observe a half-written cache file).
+        import cf_nucel_exact as _cnu
+        _cnu.warm(legs)
         res = pmap(_plane_scale_one, range(n))
         for k, (sig, invI, mass, zlo, zhi) in enumerate(res):
             out["sigma"][k] = sig
@@ -290,7 +295,7 @@ def plane_scales(legs, func, floor=1e-8, nt=1 << 17, npad=32, lncut=-60.0,
 # ==========================================================================
 
 _CACHE_MODULES = ("cf_propagation_test", "cf_brems_exact", "cf_track_resolution",
-                  "cf_ms_exact", "cgf_channels", "fisher_norm")
+                  "cf_ms_exact", "cf_nucel_exact", "cgf_channels", "fisher_norm")
 _CODE_FP = None
 SCALE_CACHE_STATS = {"hit": 0, "miss": 0, "store": 0, "disabled": 0}
 
@@ -314,6 +319,7 @@ def scale_identity(legs, func, floor, nt, npad, lncut, channels, nplane):
     import hashlib
     import cf_propagation_test as _cpt
     import cf_track_resolution as _ctr
+    import cf_nucel_exact as _cnu
     prov = _PROVENANCE.get(id(legs))
     comp = dict(
         model=prov[3] if prov else None,
@@ -333,6 +339,11 @@ def scale_identity(legs, func, floor, nt, npad, lncut, channels, nplane):
         knobs_cpt=repr(_cpt.physics_state()),
         knobs_ctr=repr(_ctr.physics_state()),
         knobs_ms=repr(cf_ms_exact.physics_state()),
+        # The nuclear elastic channel enters block_cf_exponent, so it changes
+        # the CF that 1/I is built from and therefore rescales the u axis --
+        # the same way RAD_CHANNEL does.  It has to be in this hash for the
+        # same reason all the others are.
+        knobs_nucel=repr(_cnu.physics_state()),
         code=_code_fingerprint())
     canon = "\n".join(f"{k}={comp[k]}" for k in sorted(comp))
     comp["_canon"] = canon

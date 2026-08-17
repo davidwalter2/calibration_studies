@@ -60,6 +60,7 @@ from wums import logging  # noqa: E402
 
 from cf_track_resolution import ioni_step_exponent, ms_step_exponent
 import cf_brems_exact
+import cf_nucel_exact
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -557,7 +558,8 @@ def _phi_key(legs, k, avec, sigma, tau):
     import cf_ms_exact as _ms
     return (id(legs), int(k), avec.tobytes(), float(sigma),
             id(tau), len(tau), float(tau[-1]),
-            physics_state(), _ctr.physics_state(), _ms.physics_state())
+            physics_state(), _ctr.physics_state(), _ms.physics_state(),
+            cf_nucel_exact.physics_state())
 
 
 def model_phi(legs, k, avec, sigma, tau):
@@ -650,6 +652,38 @@ def _model_phi_uncached(legs, k, avec, sigma, tau):
                     w = weff0[s] + f * (weff[s] - weff0[s])
                     if w > 0.0:
                         S += KMS_SCALE * ms_step_exponent(rec, w, tau)
+        # --- nuclear elastic (hadElastic): a compound Poisson of RARE, LARGE
+        # isotropic kicks -- 0.026-0.100 expected collisions over the whole
+        # modelled track, but 25-35 mrad each.  It rides on exactly the same
+        # `weff` and the same sub-step quadrature as MS, because it is the same
+        # kind of object (an isotropic 2D angular kick applied at a uniformly
+        # random point inside the step); only the per-kick kernel differs,
+        # Moliere -> the G4 elastic sampler.  Hadrons only: the muon has no
+        # such process and `pdg_from_leg` returns None for it.
+        if cf_nucel_exact.NUCEL_CHANNEL and len(leg["ms"]):
+            _pdg = cf_nucel_exact.pdg_from_leg(leg)
+            if _pdg is not None:
+                wv = np.einsum("i,sij->sj", avec, A_ms[j])
+                wv0 = np.einsum("i,sij->sj", avec, A_ms_start[j])
+                coslam = leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0
+
+                def _weffn(v):
+                    return np.sqrt(v[:, 1] ** 2
+                                   + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
+                weff, weff0 = _weffn(wv), _weffn(wv0)
+                _r = cf_nucel_exact.leg_rates(
+                    leg, _pdg, cf_nucel_exact.mass_of(_pdg), nsub=MS_NSUB)
+                if _r is not None:
+                    nrate, ugrid, gtab = _r
+                    for s in range(len(leg["ms"])):
+                        if weff[s] <= 0.0 and weff0[s] <= 0.0:
+                            continue
+                        for i in range(max(MS_NSUB, 1)):
+                            f = (i + 0.5) / max(MS_NSUB, 1)
+                            w = weff0[s] + f * (weff[s] - weff0[s])
+                            if w > 0.0:
+                                S += cf_nucel_exact.nucel_step_exponent(
+                                    tau, nrate[s], ugrid, gtab, w)
     return np.exp(S)
 
 
