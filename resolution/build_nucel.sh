@@ -17,7 +17,7 @@ OUT="$DEST/nucel_g4driver"
 "$LOCK" run g++ -O2 -std=c++17 -o "$OUT" "$SRCDIR/nucel_g4driver.cc" \
   -I"$CMSSW_BASE/src" -I"$CMSSW_RELEASE_BASE/src" \
   -I"$G4BASE/include/Geant4" -I"$CLHEPBASE/include" -I"$VGBASE/include" \
-  -L"$G4BASE/lib64" -lG4processes -lG4materials -lG4particles -lG4global \
+  -L"$G4BASE/lib64" -lG4physicslists -lG4processes -lG4materials -lG4particles -lG4global \
      -lG4geometry -lG4track -lG4run -lG4event -lG4digits_hits -lG4intercoms \
   -L"$CLHEPBASE/lib" -lCLHEP \
   -Wl,-rpath,"$G4BASE/lib64" -Wl,-rpath,"$CLHEPBASE/lib"

@@ -378,19 +378,54 @@ def mass_of(pdg):
 
 
 def leg_rates(leg, pdg, mass_gev, nsub=1):
-    """Per-MS-step expected collision counts for one leg, plus the kernel.
+    """Per-MS-step expected collision counts for one leg, with a PER-STEP target.
 
-    Returns (nrate[nsteps], ugrid, gtab) or None when the leg has no material.
-    The rate rides on the SAME `xg` column the MS channel uses, so the two
-    channels see identical material by construction -- if the MS step list and
-    the elastic step list ever disagreed, one of them would be wrong.
+    Returns (nrate[nsteps], kidx[nsteps], kernels) where kernels[kidx[s]] is the
+    (ugrid, gtab) pair for step s, or None when the leg has no material.
+
+    THE TARGET VARIES WITHIN A LEG.  The first version read Z, A from ms[0] and
+    applied them to the whole leg.  That is wrong: on the layered toy leg 0
+    contains effZ in {1, 4, 7.37, 8} and even legs that start at Z=8 contain
+    Z=1 steps.  Reading only the first step assigned 8.8 % of the modelled path
+    (legs 0 and 2, whose first step happens to be Z=1) to a HYDROGEN target --
+    and pbar-hydrogen is both the largest per-nucleon elastic cross section of
+    anything here and the one case G4AntiNuclElastic special-cases
+    (theTargetDef == theProton), so it over-injected collisions with the wrong
+    kernel, worst for the antiproton.
+
+    Z and A are rounded to integers for the bucket because the driver builds a
+    real G4Material and the exported effZ can be fractional (7.374 for a
+    mixture); the rounding is an approximation of a mixture by its dominant
+    element, which is what an "effective Z" already is.
     """
     ms = np.asarray(leg["ms"])
     if ms.size == 0:
         return None
-    Z, A = float(ms[0, 0]), float(ms[0, 1])
     xg = ms[:, 2].astype(np.float64)                 # g/cm^2 per step
     p = float(ms[0, 3])                              # GeV
     ekin = (np.sqrt(p * p + mass_gev ** 2) - mass_gev) * 1e3   # MeV
-    mu, ugrid, gtab = species_kernel(pdg, Z, A, ekin)
-    return mu * xg / max(int(nsub), 1), ugrid, gtab
+
+    zs = np.rint(ms[:, 0].astype(np.float64)).astype(int)
+    as_ = np.rint(ms[:, 1].astype(np.float64)).astype(int)
+    nrate = np.zeros(len(xg))
+    kidx = np.zeros(len(xg), dtype=int)
+    kernels = []
+    seen = {}
+    for s in range(len(xg)):
+        key = (int(zs[s]), int(as_[s]))
+        if key[0] < 1 or key[1] < 1:
+            nrate[s] = 0.0
+            kidx[s] = 0
+            if not kernels:
+                kernels.append((np.array([0.0, 1.0]), np.array([1.0, 1.0])))
+            continue
+        if key not in seen:
+            mu, ug, gt = species_kernel(pdg, float(key[0]), float(key[1]), ekin)
+            seen[key] = (len(kernels), mu)
+            kernels.append((ug, gt))
+        i, mu = seen[key]
+        kidx[s] = i
+        nrate[s] = mu * xg[s] / max(int(nsub), 1)
+    if not kernels:
+        return None
+    return nrate, kidx, kernels

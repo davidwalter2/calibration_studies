@@ -674,10 +674,13 @@ def _model_phi_uncached(legs, k, avec, sigma, tau):
                 _r = cf_nucel_exact.leg_rates(
                     leg, _pdg, cf_nucel_exact.mass_of(_pdg), nsub=MS_NSUB)
                 if _r is not None:
-                    nrate, ugrid, gtab = _r
+                    nrate, kidx, kernels = _r
                     for s in range(len(leg["ms"])):
                         if weff[s] <= 0.0 and weff0[s] <= 0.0:
                             continue
+                        if nrate[s] <= 0.0:
+                            continue
+                        ugrid, gtab = kernels[kidx[s]]
                         for i in range(max(MS_NSUB, 1)):
                             f = (i + 0.5) / max(MS_NSUB, 1)
                             w = weff0[s] + f * (weff[s] - weff0[s])

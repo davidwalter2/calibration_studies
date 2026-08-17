@@ -99,6 +99,7 @@
 #include "G4BGGPionElasticXS.hh"
 #include "G4ComponentGGHadronNucleusXsc.hh"
 #include "G4ComponentAntiNuclNuclearXS.hh"
+#include "G4HadProcesses.hh"
 
 #include "G4GenericIon.hh"
 #include "G4IonTable.hh"
@@ -269,13 +270,21 @@ int main(int argc, char** argv) {
     auto* le = new G4HadronElastic();
     le->SetMaxEnergy(100. * TeV);
     model = le;
-    xs = new G4CrossSectionElastic(new G4ComponentGGHadronNucleusXsc());
+    // Use the registry exactly as G4HadronicBuilder::BuildElastic does, so the
+    // model and the cross section share ONE component instance -- see the note
+    // on the antiproton branch below.
+    xs = G4HadProcesses::ElasticXS("Glauber-Gribov");
     modelName = "G4HadronElastic";
     xsName = "G4CrossSectionElastic(G4ComponentGGHadronNucleusXsc)";
   } else if (pdg == -2212) {
     // The physics list registers BOTH, split at 100 MeV.  Pick the one that
     // actually owns this energy rather than assuming the high-energy branch.
-    if (ekin >= elimitAntiNuc) {
+    // `--forcelhep` overrides that choice so the LOW-energy model can be driven
+    // at high energy: the sim shows a 16x excess of sub-2-mrad pbar scatters
+    // that G4AntiNuclElastic does not produce, and the obvious suspect is the
+    // process picking the other registered model.
+    const bool forcelhep = argf(argc, argv, "--forcelhep");
+    if (ekin >= elimitAntiNuc && !forcelhep) {
       auto* an = new G4AntiNuclElastic();
       an->SetMinEnergy(elimitAntiNuc);
       an->SetMaxEnergy(100. * TeV);
@@ -283,11 +292,21 @@ int main(int argc, char** argv) {
       modelName = "G4AntiNuclElastic";
     } else {
       auto* le = new G4HadronElastic();
-      le->SetMaxEnergy(elimitAntiNuc + 0.1 * MeV);
+      le->SetMaxEnergy(forcelhep ? 100. * TeV : elimitAntiNuc + 0.1 * MeV);
       model = le;
-      modelName = "G4HadronElastic(lowE anti-nucleon branch)";
+      modelName = forcelhep ? "G4HadronElastic(FORCED at high energy)"
+                            : "G4HadronElastic(lowE anti-nucleon branch)";
     }
-    xs = new G4CrossSectionElastic(new G4ComponentAntiNuclNuclearXS());
+    // MUST come from the registry, not a fresh instance.  G4AntiNuclElastic's
+    // constructor does reg->GetComponentCrossSection("AntiAGlauber") and keeps
+    // that pointer as its own `cs`; SampleInvariantT then calls
+    // cs->GetAntiHadronNucleonTotCrSc() and drives Ref2/ceff2 -- i.e. the ANGULAR
+    // SHAPE -- from it.  The physics list constructs the model first and then
+    // takes the SAME component back out of the registry via
+    // G4HadProcesses::ElasticXS("AntiAGlauber"), so model and cross section share
+    // one initialised instance.  Building a second instance here gave the model
+    // one component and the rate another.
+    xs = G4HadProcesses::ElasticXS("AntiAGlauber");
     xsName = "G4CrossSectionElastic(G4ComponentAntiNuclNuclearXS)";
   } else {
     fprintf(stderr, "nucel_g4driver: no elastic assignment for pdg %d\n", pdg);
