@@ -111,13 +111,52 @@ def physics_state():
     return tuple((n, repr(g[n])) for n in PHYSICS_GLOBALS)
 
 
+# a-vectors in the CURVILINEAR basis (q/p, lambda, phi, xT, yT), which is what
+# model_phi contracts against. The LOCAL basis is (q/p, dx/dz, dy/dz, x, y) and
+# the two are related by the per-plane Jacobian H (curv2local.py:181):
+#       local dx/dz  <-  curvilinear PHI     (index 2)
+#       local dy/dz  <-  curvilinear LAMBDA  (index 1)
+#
+# BUG FIXED 2026-08-17: "dxdz" was [0,1,0,0,0] = curvilinear LAMBDA, i.e. local
+# dy/dz, and was compared against the SIM's local dx/dz -- two different
+# variables, measured at |corr| <= 0.14 by the directions study. Anything quoted
+# for "dxdz" before this date is really dy/dz.
 FUNCTIONALS = {
     "qop": np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
-    "dxdz": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
+    "dydz": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
+    "dxdz": np.array([0.0, 0.0, 1.0, 0.0, 0.0]),
     "locx": np.array([0.0, 0.0, 0.0, 1.0, 0.0]),
 }
-SIM_BRANCH = {"qop": "qop", "dxdz": "dxdz", "locx": "locx"}
-REF_BRANCH = {"qop": "refqop", "dxdz": "refdxdz", "locx": "reflocx"}
+SIM_BRANCH = {"qop": "qop", "dxdz": "dxdz", "dydz": "dydz", "locx": "locx",
+              "locy": "locy"}
+REF_BRANCH = {"qop": "refqop", "dxdz": "refdxdz", "dydz": "refdydz",
+              "locx": "reflocx", "locy": "reflocy"}
+
+
+def locy_avec(lam):
+    """Curvilinear a-vector for the LOCAL y residual, given the dip angle.
+
+    DELIBERATELY NOT IN `FUNCTIONALS`. The naive yT vector [0,0,0,0,1] is wrong
+    by sec(lambda) and asking for "locy" must fail loudly rather than return it.
+
+    The closure's numerator is the SIM's local-y residual while sigma comes from
+    the a-vector, so a pure scale does NOT cancel the way it does elsewhere: a
+    module-plane displacement is the curvilinear yT one stretched by sec(lambda).
+    Using yT alone under-states sigma by that factor. MEASURED on the layered toy
+    at eta = 0.30 (sec = 1.0453, a 4.5 % width and 9.3 % variance error): a flat
+    -0.015 closure offset at every plane, matching the +0.0158 the 0.17 variance
+    gauge predicts, and reproducing the "uniform 4.5 % (= sec lambda)" that
+    NOTES_DIRECTIONS recorded independently.
+
+    Being flat in plane, it offsets locy uniformly and can neither create nor
+    hide a RADIAL slope -- which is why the locx-arch / locy-flat comparison
+    survives it, while any absolute locy number taken with the naive vector does
+    not.
+
+    On the REAL geometry stereo modules make H mix x and y and this scalar is not
+    enough; use dir_closure.avecs there.
+    """
+    return np.array([0.0, 0.0, 0.0, 0.0, 1.0 / np.cos(lam)])
 
 
 def parse_args():
