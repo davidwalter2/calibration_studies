@@ -735,7 +735,37 @@ MS_SNAP_YMAX = 0.0
 # MEASURED per species in `wvisplit.py steps` from the archived censuses
 # (ionization secondaries, r < 107 cm gated): 9.49 /(g/cm^2) for the muon to
 # 10.28 for the proton, i.e. 1/beta^2 as it must be.
-MS_WVI_SPLIT = 1.0
+# DEFAULT OFF, and NOT for the reason the other six are on.
+#
+# The 2026-08-18 flip put all seven harmonisations default-ON so that the model
+# models the simulation.  This one cannot honour that: `wvi_split_exponent`
+# represents dS by a J0 series truncated at _WVI_KMAX = 28, trusted only to
+# q^2 U/4 = _WVI_ARGMAX = 60, and beyond that dS is CLAMPED TO ZERO -- legitimate
+# only where the CF has already died, which `ms_step_exponent` asserts via
+# _WVI_SMIN.  MEASURED on the real tracker (pT = 3, mu-, per plane):
+#
+#     plane  0   q^2U/4 =      0.3   clamp never fires
+#     plane  5   q^2U/4 =   3266.9   S at clamp -6.093  (passes by 0.09)
+#     plane  9   q^2U/4 =  18959.1   S at clamp -6.246  (passes by 0.25)
+#     plane 14   q^2U/4 =  95365.6   S at clamp -5.209  GUARD FIRES
+#     plane 18   q^2U/4 = 170352.6   S at clamp -5.086  GUARD FIRES
+#
+# i.e. the real geometry sits 3-4 ORDERS OF MAGNITUDE outside the series'
+# validity region, the clamp is doing the work almost everywhere, and at the
+# outer planes it is applied where |phi| ~ e^-5 -- the same size as the closure
+# being measured.  Raising _WVI_ARGMAX/_WVI_KMAX cannot fix this: the terms go
+# as q^{2k} and q2**kmax already overflows double at q2 ~ 5e10.
+#
+# This is a THIN-TARGET construction.  It was developed and gauged on the toy,
+# whose dense 1 mm shells give small q^2 U; the real tracker's long air gaps and
+# thin silicon are a different regime.  Making it universal needs a different
+# representation of dS at large q^2 U (an asymptotic form, or direct quadrature
+# of the J0 integral), not a bigger ceiling.
+#
+# Until then it stays opt-in: a default that hard-fails an entire geometry is
+# worse than one that has to be asked for.  The other six harmonisations are
+# unaffected and remain default-ON.
+MS_WVI_SPLIT = 0.0
 MS_WVI_NPERX = 9.494       # delta rays above the cut per g/cm^2
 MS_WVI_LG = 15.00
 _WVI_SSFACTOR = 1.25       # G4WentzelVIModel::SetSingleScatteringFactor(1.25)
