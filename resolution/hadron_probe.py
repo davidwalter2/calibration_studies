@@ -408,7 +408,20 @@ def _env(pdg, arm, extra=None):
 
 
 def _run(g, script, extra, log, env_extra):
+    """cmsRun, with the CVH switches passed as OPTIONS rather than exported.
+
+    This is the single cmsRun funnel, so it is the one place that has to know
+    the switches moved from the environment onto Geant4ePropagator's
+    ParameterSet (2026-08-18).  Callers keep building `CVH_*` dicts -- those
+    names are the greppable record in ten modules and every NOTES entry -- and
+    `ctr.split_switches` turns the migrated ones into `Name=value` on the
+    command line.  Nothing that has a PSet parameter is exported any more, so a
+    job's physics is recoverable from its provenance instead of from a shell.
+    """
     td = geomdir(g)
+    swopts, env_extra = ctr.split_switches(env_extra)
+    if swopts:
+        extra = f"{extra} {swopts}"
     cmd = ("source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "
            f"cd {CMSSW}/src && eval $(scramv1 runtime -sh) && "
            f"export CMSSW_SEARCH_PATH={td}:$CMSSW_SEARCH_PATH && "

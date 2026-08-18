@@ -107,6 +107,68 @@ SWITCHES_OFF = {n: "0" for n in CVH_DEFAULT_ON}
 SWITCHES_ON = {n: "1" for n in CVH_DEFAULT_ON}
 
 
+# ---------------------------------------------------------------------------
+# env name -> cmsRun option.  THE SWITCHES ARE NO LONGER ENVIRONMENT VARIABLES:
+# they are ParameterSet parameters on Geant4ePropagator (TrackPropagation/
+# Geant4e/python/cvhSwitches.py), so that what ran is recoverable from the
+# output file's provenance instead of from a shell that is gone.
+#
+# The dict vocabulary above is KEPT because ten modules build arms out of it
+# and the names are the greppable record in every NOTES entry.  `hadron_probe.
+# _run` is the single cmsRun funnel and translates these into `Name=value`
+# command-line options there; nothing is exported.  A CVH_* name that is NOT in
+# this table and NOT in `CVH_ENV_ONLY` is an error rather than being quietly
+# exported, so a typo cannot silently become "the default".
+CVH_OPTION = {
+    "CVH_IONI_EXACTDELTA": "IoniExactDelta",
+    "CVH_IONI_KOKOULIN": "IoniKokoulin",
+    "CVH_REF_CHARGEAWARE": "ReferenceChargeAware",
+    "CVH_REF_SPECIESDEDX": "ReferenceSpeciesDedx",
+    "CVH_REF_HADRAD": "ReferenceHadronRadiative",
+    "CVH_IONONLY": "ReferenceIonizationOnly",
+    "CVH_IONI_URBAN2021": "IoniUrban2021",
+    "CVH_REF_SPECIESDEDX_NBIN": "ReferenceSpeciesDedxNbin",
+    "CVH_IONI_KOKOULIN_NBIN": "IoniKokoulinNbin",
+    "CVH_IONI_EXACTDELTA_T0": "IoniExactDeltaT0",
+}
+
+# Still environment, because their C++ readers have NOT been migrated yet:
+# the LD_PRELOAD shim (CVH_SHIM_*, which is not a CMSSW module at all), and the
+# knobs in G4TablesForExtrapolatorForCVH / G4ErrorPhysicsListForCVH /
+# ProcessActivationWatcher / MaterialGroupModel / G4ErrorEnergyLossForCVH.
+CVH_ENV_ONLY = (
+    "CVH_SHIM_BARKAS_OFF", "CVH_SHIM_MOTT_OFF", "CVH_SHIM_BLOCH_OFF",
+    "CVH_ELOSS_CYL_R", "CVH_ELOSS_CYL_Z", "CVH_ELOSS_CYL_EPS",
+    "CVH_MATGROUP_PROBE", "CVH_MATGROUP_MEANONLY", "CVH_MATGROUP_EPS",
+    "CVH_DEDX_SCALE", "CVH_DUMP_EMPARAMS", "CVH_DUMP_HADMODELS",
+    "CVH_EM_HARMONISE", "CVH_MS_SCALE", "CVH_MS_DISP_SCALE",
+    "CVH_DEDX_DEBUG", "CVH_LOCAL_UPDATE",
+    "CVH_CGF_QOP", "CVH_CGF_QOP_DEBUG", "CVH_CGF_QOP_GAUSSPSI",
+    "CVH_CGF_QOP_LNCUT", "CVH_CGF_QOP_NPAD", "CVH_CGF_QOP_NT",
+    "CVH_CGF_QOP_REFRESH", "CVH_CGF_QOP_SIGSCALE",
+)
+
+
+def split_switches(env):
+    """(cmsRun option string, remaining env) for one arm's overlay dict."""
+    opts, rest = [], {}
+    for k, v in (env or {}).items():
+        if k in CVH_OPTION:
+            # the C++ takes 0/1 for the flags and a number for the rest; the
+            # dicts already speak that vocabulary
+            opts.append(f"{CVH_OPTION[k]}={v}")
+        elif k.startswith("CVH_") and k not in CVH_ENV_ONLY:
+            raise KeyError(
+                f"{k} is not a known CVH switch. Add it to CVH_OPTION (if its "
+                f"C++ reader takes a ParameterSet parameter) or to "
+                f"CVH_ENV_ONLY (if it is still a getenv). Exporting an unknown "
+                f"name silently would put the job on the default and look like "
+                f"it had been set.")
+        else:
+            rest[k] = v
+    return " ".join(opts), rest
+
+
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--files",
