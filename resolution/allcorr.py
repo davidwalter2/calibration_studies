@@ -111,6 +111,7 @@ import barkas_probe as bp                                        # noqa: E402
 import speciesdedx as sd                                         # noqa: E402
 import wvisplit as wv                                            # noqa: E402
 import moliere_probe as mo                                       # noqa: E402  (registers MS_ELEC_EDGE / MS_FINE_G in wv._KNOBS)
+import hbasis as hb                                              # noqa: E402
 
 assert "_s1" in hp.sim_glob(13, "off"), "the seed pin is not installed"
 assert "_s1" in hp.census_glob(13, "off"), "the census pin is not installed"
@@ -171,15 +172,24 @@ def sp_input(label):
     return _SPIN.get(label, wv.SP_INPUT[label])
 
 
-def cell(pdg, rad, func, ms=True, sim_arm=None, model_rad=None):
+def cell(pdg, rad, func, ms=True, sim_arm=None, model_rad=None, useh=None):
     """One closure cell with the seven (or, with ms=False, the four).
 
     The three-cache discipline of `radoff_species._rows`, plus the per-species
     Kokoulin state and the two measured MS_WVI inputs, all set explicitly.
     Returns the ladder mean AND the per-plane rows, so the outermost plane is
-    available rather than inferred."""
+    available rather than inferred.
+
+    `useh` picks the a-vector BASIS (default: `hbasis.USE_H`, which is False,
+    i.e. every published number is reproduced).  With it True the
+    model's sigma is the width of the LOCAL component the sim residual reports
+    rather than of its curvilinear partner -- see `hbasis`.  It is restored on
+    the way out like every other switch here, and it is in both scale-cache
+    keys, so the two bases cannot cross-contaminate."""
     assert os.environ.get("RES_NO_PHI_CACHE"), "phi cache is LIVE"
     lab = hp.SPECIES[pdg]["label"]
+    old_h = hb.USE_H
+    hb.USE_H = old_h if useh is None else bool(useh)
     if model_rad is None:
         model_rad = rad
     if sim_arm is None:
@@ -205,10 +215,15 @@ def cell(pdg, rad, func, ms=True, sim_arm=None, model_rad=None):
     try:
         path = rs.mp(pdg, model_rad)
         legs = cpt.load_model(path)
+        # H needs dEdxlast/refglobz/zoff (not read by load_model) and the
+        # SPECIES MASS, and it must be attached here, in the parent, before
+        # any pool forks. Unconditional: binding is inert while USE_H is off.
+        hb.bind(legs, path, pdg=pdg)
         sim = hp.sim_of(pdg, sim_arm)
         sc = rs._scale(legs, func, path, rs.chans(model_rad))
         rows, errs, ks, ns, err = gc.closure_rows(legs, sim, func, sc["sF"])
     finally:
+        hb.USE_H = old_h
         fn._scale_cache_load, fn._scale_cache_store = old_load, old_store
         cpt.RAD_CHANNEL = True
         ctr.IONI_KOKOULIN = 0.0

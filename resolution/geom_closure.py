@@ -51,6 +51,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 import cf_propagation_test as cpt                                # noqa: E402
 import fisher_norm as fn                                         # noqa: E402
+import hbasis                                                    # noqa: E402
 from cf_propagation_test import (FUNCTIONALS, REF_BRANCH,        # noqa: E402
                                  SIM_BRANCH, load_model, model_phi,
                                  model_variance, weier_scalar)
@@ -180,7 +181,10 @@ def closure_rows(legs, sim, func, scale, probes=UCURVE):
     # Order is preserved and each worker runs the identical serial code, so
     # this is a scheduling change and not a numerical one.
     global _CR_CTX
-    _CR_CTX = (legs, func, scale, probes, tau)
+    # per-plane a-vectors, resolved in the PARENT so the workers inherit them
+    # (and hbasis never opens the ROOT file inside a fork). Identical to
+    # FUNCTIONALS[func] on every plane unless hbasis.USE_H is on.
+    _CR_CTX = (legs, func, scale, probes, tau, hbasis.avecs(legs, func))
     # kernels built in the parent; the forked workers inherit them
     import cf_nucel_exact as _cnu
     _cnu.warm(legs)
@@ -206,9 +210,9 @@ _CR_CTX = None
 
 def _closure_model_one(k):
     """<e^{-u z^2}>_model on plane k, for every probe. See `closure_rows`."""
-    legs, func, scale, probes, tau = _CR_CTX
+    legs, func, scale, probes, tau, avecs = _CR_CTX
     s = float(scale[k])
-    phi = model_phi(legs, k, FUNCTIONALS[func], s, tau)
+    phi = model_phi(legs, k, avecs[k], s, tau)
     return np.array([weier_scalar(phi, u, tau) for u in probes])
 
 

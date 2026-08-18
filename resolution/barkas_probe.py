@@ -540,7 +540,7 @@ def cmd_export(args):
 # =========================================================================
 
 _KNOB_MODULES = ("cf_propagation_test", "cf_track_resolution", "cf_ms_exact",
-                 "cf_nucel_exact")
+                 "cf_nucel_exact", "hbasis")
 
 
 def _knob_audit():

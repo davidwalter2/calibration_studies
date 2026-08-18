@@ -56,6 +56,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 import cf_ms_exact                                              # noqa: E402
 import cgf_channels as cc                                       # noqa: E402
+import hbasis                                                   # noqa: E402
 from cf_ms_exact import moliere_params                          # noqa: E402
 from cf_propagation_test import (FUNCTIONALS, REF_BRANCH, SIM_BRANCH,  # noqa: E402
                                  load_model, model_phi, model_variance,
@@ -244,7 +245,11 @@ def plane_scales(legs, func, floor=1e-8, nt=1 << 17, npad=32, lncut=-60.0,
         return _SCALE_CACHE[key]
     out = _scale_cache_load(ident, tag)
     if out is None:
-        avec = FUNCTIONALS[func]
+        # PER-PLANE a-vectors. With hbasis.USE_H off this is the single
+        # FUNCTIONALS[func] object repeated, so the legacy path is unchanged
+        # bit for bit; with it on, plane k gets H_k^T e_i so that sigma is the
+        # width of the LOCAL component the sim residual actually reports.
+        avec = hbasis.avecs(legs, func)
         n = len(legs) if nplane is None else min(nplane, len(legs))
         out = dict(sigma=np.zeros(n), invI=np.zeros(n), sF=np.zeros(n),
                    mass=np.zeros(n), zlo=np.zeros(n), zhi=np.zeros(n))
@@ -295,7 +300,10 @@ def plane_scales(legs, func, floor=1e-8, nt=1 << 17, npad=32, lncut=-60.0,
 # ==========================================================================
 
 _CACHE_MODULES = ("cf_propagation_test", "cf_brems_exact", "cf_track_resolution",
-                  "cf_ms_exact", "cf_nucel_exact", "cgf_channels", "fisher_norm")
+                  "cf_ms_exact", "cf_nucel_exact", "cgf_channels", "fisher_norm",
+                  # hbasis picks the a-vector basis and curv2local builds H;
+                  # both change sigma, so both belong in the code fingerprint
+                  "hbasis", "curv2local")
 _CODE_FP = None
 SCALE_CACHE_STATS = {"hit": 0, "miss": 0, "store": 0, "disabled": 0}
 
@@ -344,6 +352,10 @@ def scale_identity(legs, func, floor, nt, npad, lncut, channels, nplane):
         # the same way RAD_CHANNEL does.  It has to be in this hash for the
         # same reason all the others are.
         knobs_nucel=repr(_cnu.physics_state()),
+        # USE_H switches the a-vector between the curvilinear FUNCTIONALS
+        # vector and H_k^T e_i, i.e. it changes sigma on every plane. Without
+        # it here a legacy-basis s_F would be served to an H-basis call.
+        knobs_h=repr(hbasis.physics_state()),
         code=_code_fingerprint())
     canon = "\n".join(f"{k}={comp[k]}" for k in sorted(comp))
     comp["_canon"] = canon
@@ -452,7 +464,8 @@ def prewarm_scales(jobs, **kw):
         return 0
 
     global _PS_JOBS
-    _PS_JOBS = [(legs, FUNCTIONALS[func], channels, nt, npad, lncut, floor,
+    _PS_JOBS = [(legs, hbasis.avecs(legs, func), channels, nt, npad, lncut,
+                 floor,
                  len(legs) if nplane is None else min(nplane, len(legs)))
                 for legs, func, _ in todo]
     tasks = [(j, k) for j, spec in enumerate(_PS_JOBS) for k in range(spec[7])]
@@ -483,7 +496,8 @@ _PS_JOBS = None
 
 def _plane_scale_job_one(jk):
     j, k = jk
-    legs, avec, channels, nt, npad, lncut, floor, _ = _PS_JOBS[j]
+    legs, avecs, channels, nt, npad, lncut, floor, _ = _PS_JOBS[j]
+    avec = avecs[k]
     sig = float(np.sqrt(model_variance(legs, k, avec)[0]))
     z, p, dp = cc.exact_density(legs, k, avec, sig, channels=channels,
                                 nt=nt, npad=npad, lncut=lncut)
@@ -499,7 +513,8 @@ def _plane_scale_one(k):
     """One plane's (sigma, 1/I, mass, zlo, zhi). Reads `_PS_CTX`, which the
     parent sets before forking -- see `pmap`. Module level so it is picklable
     by reference; the arrays themselves are never pickled."""
-    legs, avec, channels, nt, npad, lncut, floor = _PS_CTX
+    legs, avecs, channels, nt, npad, lncut, floor = _PS_CTX
+    avec = avecs[k]
     sig = float(np.sqrt(model_variance(legs, k, avec)[0]))
     z, p, dp = cc.exact_density(legs, k, avec, sig, channels=channels,
                                 nt=nt, npad=npad, lncut=lncut)
