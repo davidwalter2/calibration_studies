@@ -74,7 +74,35 @@ from scipy.special import j0
 # --------------------------------------------------------------------------
 NUCEL_CHANNEL = bool(int(os.environ.get("NUCEL_CHANNEL", "0")))
 
-PHYSICS_GLOBALS = ("NUCEL_CHANNEL",)
+# The RECOIL term: an elastic collision also transfers energy to the nucleus,
+# and the channel above injects the ANGLE only.  Measured: dE is a DETERMINISTIC
+# function of the deflection, dE = (p*theta)^2 / (2*M_target), holding to 0.06 %
+# with log-correlation 1.00000 -- it is the same momentum transfer seen in the
+# conjugate variable, not an independent random quantity.  Size on the qop
+# width: +0.01 % (pi-), +0.04 % (K-), +0.73 % (p), +3.26 % (pbar).
+# This flag adds it as an INDEPENDENT compound Poisson in dE, which is the
+# leading approximation (for the qop functional the angular part enters only
+# through transport).  DIAGNOSTIC: it tests whether the recoil explains the
+# proton's qop residual (0.00015 clean-arm -> 0.00070 once elastic is on, which
+# the angle-only channel does not touch).  A correct treatment keeps the
+# theta<->dE correlation; see NOTES.
+# DEFAULT ON: this is part of the nuclear-elastic physics, not a separate
+# correction.  VERIFIED IN THE SIMULATION, not assumed:
+#   * G4HadronElastic::ApplyYourself sets the primary's energy to
+#     `nlv1.e() - m1`, i.e. it DOES remove the recoil;
+#   * the sim's recoil is the two-body function of the deflection --
+#     sim/(p*theta)^2/(2M) -> 1.013 once the recoil dominates the ionisation
+#     pedestal;
+#   * the sim loses energy the REFERENCE does not: ref - <pabs> at the
+#     outermost plane is -0.0067 MeV in arm `off` and +0.0394 MeV in `elonly`,
+#     a difference of 0.0461 MeV against the predicted N*<dE> = 0.043 (7 %).
+# It makes the closure WORSE (see NOTES §11).  It is kept ON anyway: the
+# physics is measured, and a correction that is right must not be dropped
+# because it exposes a compensating error elsewhere -- that is how a lucky
+# cancellation gets frozen in.  Set NUCEL_RECOIL=0 to A/B it.
+NUCEL_RECOIL = bool(int(os.environ.get("NUCEL_RECOIL", "1")))
+
+PHYSICS_GLOBALS = ("NUCEL_CHANNEL", "NUCEL_RECOIL")
 _NOT_PHYSICS = ("NUCEL_NSAMP", "NUCEL_SEED", "NUCEL_NU", "NUCEL_UMIN",
                 "NUCEL_UMAX", "NUCEL_NBIN")
 
@@ -288,6 +316,96 @@ def species_kernel(pdg, Z, A, ekin):
     out = (mu, u, g)
     _KERNEL_CACHE[key] = out
     return out
+
+
+def dE_kernel(pdg, Z, A, ekin):
+    """(vgrid, gqtab) with gqtab[i] = < exp(i*vgrid[i]*dE) > over the sampled
+    recoils -- the single-collision CF of the recoil energy loss.
+
+    Complex, unlike the angular kernel: the recoil is one-signed (the primary
+    always LOSES energy), so this term carries skew, exactly as the ionization
+    and radiative channels do.
+    """
+    key = _bucket(pdg, Z, A, ekin) + ("dE",)
+    hit = _DEK_CACHE.get(key)
+    if hit is not None:
+        return hit
+    _, theta = _run_driver(pdg, Z, A, ekin)
+    prefix = None
+    # the driver writes eloss alongside theta; recover it from the same bucket
+    import glob as _g
+    tag = hashlib.sha256(repr((_bucket(pdg, Z, A, ekin), NUCEL_NSAMP,
+                               NUCEL_SEED)).encode()).hexdigest()[:16]
+    cand = sorted(_g.glob(os.path.join(_cachedir(), f"drv_{tag}_*.eloss.bin")))
+    if not cand:
+        raise SystemExit(f"cf_nucel_exact: no eloss for bucket {key}; the "
+                         f"driver scratch files were cleaned -- rerun it")
+    dE = np.fromfile(cand[-1], dtype=np.float64)
+    v = np.concatenate(([0.0], np.geomspace(1e-6, 1e4, NUCEL_NU)))
+    pos = dE[dE > 0.0]
+    nz = dE.size - pos.size
+    edges = np.geomspace(pos.min(), pos.max() * (1 + 1e-12), NUCEL_NBIN + 1)
+    cnt, _ = np.histogram(pos, bins=edges)
+    ctr = np.sqrt(edges[:-1] * edges[1:])
+    wgt = cnt / float(dE.size)
+    g = np.empty(len(v), dtype=np.complex128)
+    CH = 256
+    for i0 in range(0, len(v), CH):
+        vv = v[i0:i0 + CH]
+        g[i0:i0 + CH] = (np.exp(1j * vv[:, None] * ctr[None, :]) * wgt[None, :]).sum(axis=1)
+    g += nz / float(dE.size)
+    out = (v, g)
+    _DEK_CACHE[key] = out
+    return out
+
+
+_DEK_CACHE = {}
+
+
+def dE_kernel_for(leg, pdg):
+    """dE kernel for the leg's DOMINANT target (the one carrying most xg).
+
+    The recoil is a small correction to a small channel, so a per-leg dominant
+    target is enough here; the ANGULAR kernel is per step, where it mattered.
+    """
+    ms = np.asarray(leg["ms"])
+    xg = ms[:, 2].astype(np.float64)
+    zs = np.rint(ms[:, 0].astype(np.float64)).astype(int)
+    as_ = np.rint(ms[:, 1].astype(np.float64)).astype(int)
+    best, bw = None, -1.0
+    for z, a in set(zip(zs.tolist(), as_.tolist())):
+        if z < 1 or a < 1:
+            continue
+        w = float(xg[(zs == z) & (as_ == a)].sum())
+        if w > bw:
+            best, bw = (z, a), w
+    p_ = float(ms[0, 3])
+    m = mass_of(pdg)
+    ekin = (np.sqrt(p_ * p_ + m * m) - m) * 1e3
+    return dE_kernel(pdg, float(best[0]), float(best[1]), ekin)
+
+
+def nucel_qop_exponent(tau, nrate, vgrid, gqtab, wq):
+    """Compound-Poisson exponent of the RECOIL energy loss for one (sub-)step.
+
+        S(t) = nrate * ( < exp(i * t * wq * dE) > - 1 )
+
+    `wq` is the qop weight the ionization channel uses (q * (a^T A)_qop / sigma)
+    times the record's cs = E/p^3, i.e. it already converts MeV to d(q/p).
+    NOT centred: unlike ionization and radiative, the propagator's mean-loss
+    table never subtracted a nuclear-elastic recoil, so the mean belongs here.
+    """
+    if nrate <= 0.0 or wq == 0.0:
+        return np.zeros(len(tau), dtype=np.complex128)
+    x = np.abs(wq) * np.asarray(tau, dtype=np.float64)
+    out = np.ones(len(x), dtype=np.complex128)
+    m = x > vgrid[1]
+    if m.any():
+        xl = np.log(np.clip(x[m], vgrid[1], vgrid[-1]))
+        lv = np.log(vgrid[1:])
+        out[m] = (np.interp(xl, lv, gqtab[1:].real)
+                  + 1j * np.sign(wq) * np.interp(xl, lv, gqtab[1:].imag))
+    return nrate * (out - 1.0)
 
 
 def _g_of(ugrid, gtab, x):

@@ -687,6 +687,31 @@ def _model_phi_uncached(legs, k, avec, sigma, tau):
                             if w > 0.0:
                                 S += cf_nucel_exact.nucel_step_exponent(
                                     tau, nrate[s], ugrid, gtab, w)
+                    # the RECOIL, diagnostic (NUCEL_RECOIL, default off).  Same
+                    # compound Poisson, but in the qop direction and with the
+                    # ionization channel's own weight and cs conversion.
+                    if cf_nucel_exact.NUCEL_RECOIL and len(leg["ioni"]):
+                        # The ionization and Moliere step lists are NOT
+                        # parallel (leg 13: 2 vs 15), so they cannot be paired
+                        # by index -- use the leg-mean weight, exactly as the
+                        # radiative channel falls back to when the counts
+                        # differ.  The 1e-3 is the record's own unit: column 10
+                        # is qop per GeV and ioni_step_exponent converts it
+                        # with `steps[:, 10] * 1e-3  # qop per MeV`; the
+                        # sampled dE is in MeV.
+                        qsgn = np.sign(leg["refqop"]) or 1.0
+                        wq_all = qsgn * np.einsum(
+                            "i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
+                        cs_all = np.asarray(leg["ioni"])[:, 10] * 1e-3
+                        wq_eff = float(np.mean(wq_all * cs_all)) \
+                            if len(wq_all) == len(cs_all) \
+                            else float(np.mean(wq_all) * np.mean(cs_all))
+                        vg, gq = cf_nucel_exact.dE_kernel_for(leg, _pdg)
+                        for s in range(len(nrate)):
+                            if nrate[s] <= 0.0:
+                                continue
+                            S += cf_nucel_exact.nucel_qop_exponent(
+                                tau, nrate[s] * max(MS_NSUB, 1), vg, gq, wq_eff)
     return np.exp(S)
 
 
