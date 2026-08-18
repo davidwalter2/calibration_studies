@@ -679,13 +679,13 @@ CVHENV = {
     # floor-relative statement collapses.
     "nominal2":  {},
     # THE FLOOR.  A physically null perturbation of the SAME rows this change
-    # touches -- the mean-loss table itself.  CVH_DEDX_SCALE multiplies the
+    # touches -- the mean-loss table itself.  `DedxScale` multiplies the
     # muon dE/dx table by a constant; 1 + 1e-9 is ~2e6 times smaller than the
     # charge-odd term it is the floor for (measured in `refdiff`), so anything
     # the fit does in response is the flat-direction reordering NOTES_CGFFIT
     # measured at gain ~1e12, not physics.
     #
-    # It is deliberately a MEAN perturbation, not the `CVH_IONI_KOKOULIN_NBIN`
+    # It is deliberately a MEAN perturbation, not the `IoniKokoulinNbin`
     # variance one NOTES_QVALID used: this change is a mean change and the
     # floor has to be measured on the same code path.
     "dedxfloor": {"CVH_DEDX_SCALE": "1.000000001"},

@@ -593,6 +593,14 @@ def run_model(which, out, log, env_extra=None):
         extra = f"pt={pt} eta=0.30 phi=0.70 output={out}"
         search = f"export CMSSW_SEARCH_PATH={area}:$CMSSW_SEARCH_PATH && "
         env = {"TOY_PLANES_MOD": f"toyPlanes_pt{int(pt)}"}
+    # The CVH switches are ParameterSet parameters, not environment variables
+    # (Geant4e b372e08).  This runner bypasses hadron_probe._run, so it needs
+    # the same translation -- and it has to happen BEFORE `env` is updated, or
+    # the names are exported as well as passed, which is the redundancy the
+    # move off getenv was meant to remove.
+    _swopts, env_extra = ctr.split_switches(env_extra)
+    if _swopts:
+        extra = f"{extra} {_swopts}"
     env.update(env_extra or {})
     cmd = ("source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "
            f"cd {CMSSW}/src && eval $(scramv1 runtime -sh) && {search}"
@@ -862,6 +870,13 @@ def had_setup():
 
 
 def _had_run(td, script, extra, log, env_extra):
+    # The CVH switches are ParameterSet parameters, not environment
+    # variables (Geant4e b372e08). This runner bypasses
+    # hadron_probe._run, so it needs the same translation or anything
+    # it "sets" would be exported where nothing reads it.
+    _swopts, env_extra = ctr.split_switches(env_extra)
+    if _swopts:
+        extra = f"{extra} {_swopts}"
     cmd = ("source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "
            f"cd {CMSSW}/src && eval $(scramv1 runtime -sh) && "
            f"export CMSSW_SEARCH_PATH={HADAREA}:$CMSSW_SEARCH_PATH && "

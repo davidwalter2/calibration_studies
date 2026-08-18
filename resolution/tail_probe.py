@@ -260,9 +260,19 @@ def _cmsrun(a, script, extra, log, env_extra=None):
     # wins.  Same convention as deltaspec._clean_env -- an archived
     # model must stay comparable to a fresh export.
     import cf_track_resolution as _ctr
-    env.update(_ctr.SWITCHES_OFF)
+    # The switches are ParameterSet parameters now (Geant4e b372e08), so BOTH
+    # the historical all-off pin and any explicit overlay have to travel as
+    # cmsRun OPTIONS.  Exporting them would leave the job on the new default-ON
+    # corrections while this arm's bookkeeping said "off" -- silently, and in
+    # the one place that must not happen, since an archived model is only
+    # comparable to a fresh export if the switches really match.
+    _sw = dict(_ctr.SWITCHES_OFF)
+    _sw.update(env_extra or {})          # an explicit overlay still wins
+    _swopts, env_extra = _ctr.split_switches(_sw)
+    if _swopts:
+        extra = f"{extra} {_swopts}"
     env["TOY_PLANES_MOD"] = planes_name(AREA_PT[a])[:-3]
-    env.update(env_extra or {})
+    env.update(env_extra)
     cmd = (f"source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "
            f"cd {CMSSW}/src && eval $(scramv1 runtime -sh) && "
            f"export CMSSW_SEARCH_PATH={area(a)}:$CMSSW_SEARCH_PATH && "

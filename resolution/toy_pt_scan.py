@@ -242,7 +242,11 @@ def _cmsrun(tag, script, extra, log):
     # wins.  Same convention as deltaspec._clean_env -- an archived
     # model must stay comparable to a fresh export.
     import cf_track_resolution as _ctr
-    env.update(_ctr.SWITCHES_OFF)
+    # The switches are ParameterSet parameters now (Geant4e b372e08), so the
+    # historical pin has to travel as cmsRun OPTIONS; putting it in `env` would
+    # export names nothing reads and silently give the archive the new defaults.
+    _swopts, _ = _ctr.split_switches(dict(_ctr.SWITCHES_OFF))
+    extra = f"{extra} {_swopts}"
     env["TOY_PLANES_MOD"] = planes_name(CONFIGS[tag]["pt"])[:-3]
     cmd = (f"source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "
            f"cd {CMSSW}/src && eval $(scramv1 runtime -sh) && "

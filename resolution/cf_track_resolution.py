@@ -130,8 +130,15 @@ CVH_OPTION = {
     "CVH_REF_SPECIESDEDX_NBIN": "ReferenceSpeciesDedxNbin",
     "CVH_IONI_KOKOULIN_NBIN": "IoniKokoulinNbin",
     "CVH_IONI_EXACTDELTA_T0": "IoniExactDeltaT0",
+    "CVH_DEDX_SCALE": "DedxScale",
+    "CVH_EM_HARMONISE": "EmHarmonise",
+    "CVH_DUMP_EMPARAMS": "DumpEmParameters",
 }
 
+# CVH_DUMP_HADMODELS is gone entirely: it is now
+# ProcessActivationWatcher's own `dumpHadronicModels` untracked parameter, set
+# on the watcher PSet in the sim driver, not routed through here at all.
+#
 # Still environment, because their C++ readers have NOT been migrated yet:
 # the LD_PRELOAD shim (CVH_SHIM_*, which is not a CMSSW module at all), and the
 # knobs in G4TablesForExtrapolatorForCVH / G4ErrorPhysicsListForCVH /
@@ -140,8 +147,7 @@ CVH_ENV_ONLY = (
     "CVH_SHIM_BARKAS_OFF", "CVH_SHIM_MOTT_OFF", "CVH_SHIM_BLOCH_OFF",
     "CVH_ELOSS_CYL_R", "CVH_ELOSS_CYL_Z", "CVH_ELOSS_CYL_EPS",
     "CVH_MATGROUP_PROBE", "CVH_MATGROUP_MEANONLY", "CVH_MATGROUP_EPS",
-    "CVH_DEDX_SCALE", "CVH_DUMP_EMPARAMS", "CVH_DUMP_HADMODELS",
-    "CVH_EM_HARMONISE", "CVH_MS_SCALE", "CVH_MS_DISP_SCALE",
+    "CVH_MS_SCALE", "CVH_MS_DISP_SCALE",
     "CVH_DEDX_DEBUG", "CVH_LOCAL_UPDATE",
     "CVH_CGF_QOP", "CVH_CGF_QOP_DEBUG", "CVH_CGF_QOP_GAUSSPSI",
     "CVH_CGF_QOP_LNCUT", "CVH_CGF_QOP_NPAD", "CVH_CGF_QOP_NT",

@@ -506,6 +506,13 @@ def run_cvh(script, inp, workdir, log, env_extra, nev, extra=""):
     launched from the release test/ directory's copy of the script but with cwd
     set to the work directory."""
     os.makedirs(workdir, exist_ok=True)
+    # The CVH switches are ParameterSet parameters, not environment
+    # variables (Geant4e b372e08). This runner bypasses
+    # hadron_probe._run, so it needs the same translation or anything
+    # it "sets" would be exported where nothing reads it.
+    _swopts, env_extra = ctr.split_switches(env_extra)
+    if _swopts:
+        extra = f"{extra} {_swopts}"
     cmd = ("source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "
            f"cd {CMSSW}/src && eval $(scramv1 runtime -sh) && cd {workdir} && "
            f"exec {SRCTEST}/cmsswlock.sh run cmsRun {SRCTEST}/{script} "

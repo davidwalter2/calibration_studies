@@ -160,15 +160,18 @@ def cmd_model(args):
     rad = args.rad == "on"
     out = modelpath(rad)
     log = out[:-5] + ".log"
+    # ReferenceIonizationOnly is a cmsRun OPTION now, not an exported name
+    import cf_track_resolution as _ctr
+    _swopts, _env_rest = _ctr.split_switches({} if rad else {"CVH_IONONLY": "1"})
     cmd = (f"source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "
            f"cd {CMSSW}/src && eval $(scramv1 runtime -sh) && "
            f"cd {AREA} && exec cmsRun runCleanPropModel.py pt={PT} eta={ETA} "
-           f"phi={PHI} partId=13 targets={TARGETS} output={out}")
-    e = _env({} if rad else {"CVH_IONONLY": "1"})
+           f"phi={PHI} partId=13 targets={TARGETS} output={out} {_swopts}")
+    e = _env(_env_rest)
     with open(log, "w") as fh:
         p = subprocess.run(["bash", "-c", cmd], stdout=fh,
                            stderr=subprocess.STDOUT, env=e)
-    io = "CVH_IONONLY set" in open(log, errors="ignore").read()
+    io = "ReferenceIonizationOnly set" in open(log, errors="ignore").read()
     print(f"[real model rad={args.rad}] rc={p.returncode} ionOnlyInLog={io} -> {out}")
     if p.returncode or (io == rad):
         raise SystemExit(f"model failed, see {log}")
