@@ -86,80 +86,6 @@ GEOMLAB = {
 }
 
 
-def save(fig, name):
-    for d in (OUT, DATED):
-        os.makedirs(d, exist_ok=True)
-        for ext in ("png", "pdf"):
-            fig.savefig(os.path.join(d, f"{name}.{ext}"),
-                        bbox_inches="tight", dpi=160)
-    plt.close(fig)
-    print("  wrote", name, "->", OUT, "and", DATED)
-
-
-def _fit_title(fig, a1, a2, sizes=(17, 16, 15, 14, 13, 12, 11), pad=6.0):
-    """Shrink the left title until it clears the right panel's annotation.
-
-    Copied from `make_toy_figs._fit_title` for the reason recorded there: at the
-    published 17 pt the second title line runs UNDER the right panel's closure
-    note, and `bbox_inches='tight'` then WIDENS the saved image rather than
-    clipping, so the overlap is silent in the file and loud on the page.  The
-    two bounding boxes are compared in display coordinates after a draw.
-    """
-    r = fig.canvas.get_renderer()
-    w = fig.get_window_extent(r)
-    fs = sizes[-1]
-    for fs in sizes:
-        a1.title.set_fontsize(fs)
-        fig.canvas.draw()
-        b1 = a1.title.get_window_extent(r)
-        b2 = a2.title.get_window_extent(r)
-        if b1.x1 < b2.x0 - pad and b1.x0 > w.x0 - pad:
-            break
-    return fs
-
-
-def panel(axcf, axls, z, phi, title, note):
-    """The published two-panel layout, for an arbitrary direction.
-
-    Same colours / widths / scales / labels as `make_slide_figs._panel`; the
-    only change is that the projection is handed in rather than looked up by
-    functional name.
-    """
-    e = ecf(z, TAU)
-    axcf.plot(TAU[1:], e.real[1:], color=GREY, lw=4.0, alpha=.75,
-              label="Geant4  Re")
-    axcf.plot(TAU[1:], phi.real[1:], color=RED, lw=1.9, ls="--",
-              label="model  Re")
-    axcf.plot(TAU[1:], e.imag[1:], color="#8fb3e0", lw=4.0, alpha=.95,
-              label="Geant4  Im")
-    axcf.plot(TAU[1:], phi.imag[1:], color=BLUE, lw=1.9, ls="--",
-              label="model  Im")
-    axcf.set_xscale("log")
-    axcf.axhline(0, color="0.75", lw=.9)
-    axcf.set_xlabel("$t$")
-    axcf.set_ylabel(r"$\varphi(t)$")
-    axcf.set_title(title, fontsize=17, color="0.3")
-    axcf.legend(fontsize=13, ncol=2)
-
-    lim = float(np.percentile(np.abs(z), 99.5))
-    zg = np.linspace(-lim, lim, 601)
-    # Invert on a UNIFORM fine grid; phi is smooth so resampling it is safe.
-    # (Display only -- the closure statistic never inverts.)
-    tu = np.linspace(0.0, TAU[-1], 40000)
-    phiu = np.interp(tu, TAU, phi.real) + 1j * np.interp(tu, TAU, phi.imag)
-    pz = np.array([np.trapezoid((phiu * np.exp(-1j * tu * zz)).real, tu) / np.pi
-                   for zz in zg])
-    pz = np.where(pz > 1e-6 * np.nanmax(pz), pz, np.nan)
-    axls.hist(z, bins=np.linspace(-lim, lim, 201), density=True,
-              histtype="step", color="k", lw=1.8, label="Geant4")
-    axls.plot(zg, pz, color=RED, lw=2.0, ls="--", label="model")
-    axls.set_yscale("log")
-    axls.set_xlabel(r"$z$ = residual / $s_F$,   $s_F=\sigma\sqrt{1/I}$ (Fisher)")
-    axls.set_ylabel("density")
-    axls.legend(fontsize=13, loc="upper right")
-    axls.set_title(note, fontsize=15, color="0.2")
-
-
 def project(g, name, k, ms):
     """(z, phi) for one direction on one plane, on the drawing grid TAU."""
     legs, s = dcl.model(g), dcl.sim(g)
@@ -193,11 +119,23 @@ def make(g, name, ms, rows, err, ks, k=None):
              f"{GEOMLAB[g]} · $\\mu$, $p_T=3$ GeV, $\\eta=0.30$ · "
              f"predicted variance of this direction {cond:.3f}")
 
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(13.6, 5.3))
-    panel(a1, a2, z, phi, title, note)
-    fig.tight_layout()
-    fs = _fit_title(fig, a1, a2)
-    save(fig, f"dircl_{DIRS[name][0]}_{g}_pt3_fisher")
+    # Four axes: CF + CF difference, lineshape + lineshape ratio.  The lower
+    # panels are the whole point -- the closure statistic is an integral over
+    # the CF difference, so plotting it is plotting the thing being measured.
+    #
+    # NO tight_layout here: it is incompatible with a height-ratio gridspec and
+    # the failure it produces (ratio y-labels outside the canvas, x-labels
+    # colliding with the panel above) is exactly what make_radsp_figs records.
+    # Explicit margins instead, identical geometry to that set so the two sit
+    # together in a deck.
+    fig, axs = plt.subplots(2, 2, figsize=(14.4, 7.8),
+                            gridspec_kw=dict(height_ratios=[3, 1]))
+    fig.subplots_adjust(left=0.075, right=0.985, top=0.855, bottom=0.095,
+                        hspace=0.08, wspace=0.21)
+    a1, a2 = axs[0, 0], axs[0, 1]
+    msf.panels(a1, axs[1, 0], a2, axs[1, 1], z, phi, title, note)
+    fs = msf._fit_title(fig, a1, a2)
+    msf.save(fig, f"dircl_{DIRS[name][0]}_{g}_pt3_fisher", dated=DATED)
     return dict(plane=cl[kk], mean=float(cl.mean()), err=e, cond=cond,
                 trunc=trunc, fs=fs, nev=int(len(z)))
 

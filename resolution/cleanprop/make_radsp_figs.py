@@ -101,154 +101,6 @@ RADLAB = {True: "radiation ON", False: "radiation OFF"}
 RADTOK = {True: "radon", False: "radoff"}
 
 
-def save(fig, name):
-    for d in (OUT, DATED):
-        os.makedirs(d, exist_ok=True)
-        for ext in ("png", "pdf"):
-            fig.savefig(os.path.join(d, f"{name}.{ext}"),
-                        bbox_inches="tight", dpi=160)
-    plt.close(fig)
-    print("  wrote", name, "->", OUT, "and", DATED)
-
-
-def _fit_title(fig, a1, a2, sizes=(17, 16, 15, 14, 13, 12, 11), pad=6.0):
-    """Shrink the top-left title until it clears the top-right note.
-
-    Copied verbatim from `make_toy_figs._fit_title` (which `make_dir_figs` also
-    copies rather than imports, for the same reason: the three scripts are read
-    side by side and a shared helper that one of them outgrows is worse than
-    three copies).  The failure it guards against is silent: at the published
-    17 pt the second title line runs UNDER the right panel's annotation, and
-    `bbox_inches='tight'` then WIDENS the saved image instead of clipping it,
-    so the overlap never shows up in the file and only shows up on the page.
-    The species labels here are shorter than the toy geometry strings but the
-    right-hand note is longer (it carries the rms and the peak u as well as the
-    u = 1 value), so the collision is live for this set too -- measured, not
-    assumed.
-    """
-    r = fig.canvas.get_renderer()
-    w = fig.get_window_extent(r)
-    fs = sizes[-1]
-    for fs in sizes:
-        a1.title.set_fontsize(fs)
-        fig.canvas.draw()
-        b1 = a1.title.get_window_extent(r)
-        b2 = a2.title.get_window_extent(r)
-        if b1.x1 < b2.x0 - pad and b1.x0 > w.x0 - pad:
-            break
-    return fs
-
-
-# ==========================================================================
-# the panels
-# ==========================================================================
-
-def _shrink(ax, xs=15, ys=13, ts=13):
-    """`hep.style.ROOT` sizes labels for a full-height panel.  A 1/4-height
-    ratio panel inherits them and the y-label then runs off the canvas -- which
-    `bbox_inches='tight'` does not clip but does not fix either: it widens the
-    image and the label ends up outside the plot box in the deck.  Measured on
-    the first attempt at this set, which is why the sizes are set rather than
-    left to the style."""
-    ax.xaxis.label.set_size(xs)
-    ax.yaxis.label.set_size(ys)
-    ax.tick_params(labelsize=ts)
-
-
-def panels(axcf, axcfr, axls, axlsr, z, phi, title, note):
-    """Four axes: CF, CF difference, lineshape, lineshape ratio.
-
-    Colours, line widths, scales, legend sizes and the annotation-as-title
-    convention are `make_slide_figs._panel`'s, verbatim, so that these figures
-    sit beside the published ones without a visible style break.
-    """
-    e = ecf(z, TAU)
-
-    # ---------------------------------------------------------------- CF
-    axcf.plot(TAU[1:], e.real[1:], color=GREY, lw=4.0, alpha=.75,
-              label="Geant4  Re")
-    axcf.plot(TAU[1:], phi.real[1:], color=RED, lw=1.9, ls="--",
-              label="model  Re")
-    axcf.plot(TAU[1:], e.imag[1:], color="#8fb3e0", lw=4.0, alpha=.95,
-              label="Geant4  Im")
-    axcf.plot(TAU[1:], phi.imag[1:], color=BLUE, lw=1.9, ls="--",
-              label="model  Im")
-    axcf.set_xscale("log")
-    axcf.axhline(0, color="0.75", lw=.9)
-    axcf.set_ylabel(r"$\varphi(t)$")
-    axcf.set_title(title, fontsize=17, color="0.3")
-    axcf.legend(fontsize=13, ncol=2)
-    axcf.tick_params(labelbottom=False)
-
-    # ------------------------------------------------- CF: sim MINUS model
-    # A pointwise RATIO diverges: Re(phi) crosses zero near t ~ 3 for every
-    # species here and Im(phi) is zero at t = 0 by construction.  The
-    # DIFFERENCE is bounded, carries the CF's own units, and is exactly the
-    # closure statistic's integrand -- see the module docstring.
-    dre, dim = e.real - phi.real, e.imag - phi.imag
-    axcfr.plot(TAU[1:], dre[1:], color=RED, lw=1.9, label="Re")
-    axcfr.plot(TAU[1:], dim[1:], color=BLUE, lw=1.9, label="Im")
-    axcfr.set_xscale("log")
-    axcfr.axhline(0, color="0.75", lw=.9)
-    axcfr.set_xlabel("$t$")
-    axcfr.set_ylabel("Geant4 $-$ model")
-    axcfr.legend(fontsize=11, ncol=2, loc="upper left")
-    m = float(np.nanmax(np.abs(np.concatenate([dre[1:], dim[1:]]))))
-    axcfr.set_ylim(-1.35 * m, 1.35 * m)
-    _shrink(axcfr)
-
-    # ---------------------------------------------------------- lineshape
-    lim = float(np.percentile(np.abs(z), 99.5))
-    zg = np.linspace(-lim, lim, 601)
-    # Invert on a UNIFORM fine grid: the log grid used for the CF comparison
-    # has spacing ~0.07 at large t, which cannot resolve exp(-itz) for the
-    # |z| ~ 100 the delta-ray tail reaches.  phi is smooth, so resampling it is
-    # safe.  (Display only -- the closure statistic never inverts.)
-    tu = np.linspace(0.0, TAU[-1], 40000)
-    phiu = np.interp(tu, TAU, phi.real) + 1j * np.interp(tu, TAU, phi.imag)
-    pz = np.array([np.trapezoid((phiu * np.exp(-1j * tu * zz)).real, tu) / np.pi
-                   for zz in zg])
-    pz = np.where(pz > 1e-6 * np.nanmax(pz), pz, np.nan)
-
-    bins = np.linspace(-lim, lim, 201)
-    h, _ = np.histogram(z, bins=bins, density=True)
-    ctr_ = 0.5 * (bins[1:] + bins[:-1])
-    n, _ = np.histogram(z, bins=bins)
-    # Poisson error on the density, for the ratio panel only.
-    with np.errstate(divide="ignore", invalid="ignore"):
-        herr = np.where(n > 0, h / np.sqrt(np.maximum(n, 1)), np.nan)
-
-    axls.hist(z, bins=bins, density=True, histtype="step", color="k", lw=1.8,
-              label="Geant4")
-    axls.plot(zg, pz, color=RED, lw=2.0, ls="--", label="model")
-    axls.set_yscale("log")
-    axls.set_ylabel("density")
-    axls.legend(fontsize=13, loc="upper right")
-    axls.set_title(note, fontsize=15, color="0.2")
-    axls.tick_params(labelbottom=False)
-
-    # ------------------------------------------------- lineshape: sim/model
-    pzc = np.interp(ctr_, zg, np.nan_to_num(pz, nan=0.0))
-    with np.errstate(divide="ignore", invalid="ignore"):
-        ratio = np.where(pzc > 0, h / pzc, np.nan)
-        rerr = np.where(pzc > 0, herr / pzc, np.nan)
-    # Only where BOTH are populated: an empty Geant4 bin over a model density
-    # of 1e-30 is a 0/0, not a measurement.
-    ok = np.isfinite(ratio) & (n > 0) & (pzc > 1e-4 * np.nanmax(pzc))
-    axlsr.errorbar(ctr_[ok], ratio[ok], yerr=rerr[ok], fmt="o", ms=2.6,
-                   lw=0, elinewidth=0.9, color="k")
-    axlsr.axhline(1.0, color=RED, lw=1.6, ls="--")
-    axlsr.set_xlabel(r"$z$ = residual / $s_F=\sigma\sqrt{1/I}$")
-    axlsr.set_ylabel("Geant4 / model")
-    axlsr.set_ylim(0.5, 1.5)
-    axlsr.set_xlim(*axls.get_xlim())
-    _shrink(axlsr)
-    return dict(cfmax=m, nratio=int(ok.sum()),
-                ratio_med=float(np.nanmedian(ratio[ok])) if ok.any() else np.nan)
-
-
-# ==========================================================================
-
 def make(pdg, rad, func, r, args):
     """One figure.  `r` is a `radoff_species._rows` result for the same cell,
     so the number ON the figure is the number IN the table -- not a second
@@ -316,10 +168,11 @@ def make(pdg, rad, func, r, args):
                             gridspec_kw=dict(height_ratios=[3, 1]))
     fig.subplots_adjust(left=0.075, right=0.985, top=0.855, bottom=0.095,
                         hspace=0.08, wspace=0.21)
-    info = panels(axs[0, 0], axs[1, 0], axs[0, 1], axs[1, 1],
+    info = msf.panels(axs[0, 0], axs[1, 0], axs[0, 1], axs[1, 1],
                   z, phi, title, note)
-    fs = _fit_title(fig, axs[0, 0], axs[0, 1])
-    save(fig, f"radsp_{TAGS[func]}_{rs_tag(pdg)}_{RADTOK[rad]}_pt3_fisher")
+    fs = msf._fit_title(fig, axs[0, 0], axs[0, 1])
+    msf.save(fig, f"radsp_{TAGS[func]}_{rs_tag(pdg)}_{RADTOK[rad]}_pt3_fisher",
+             dated=DATED)
     return dict(rms=rms, u1=float(m[IU1]), err1=float(err[IU1]),
                 peak_u=float(fn.UCURVE[ipk]), peak=float(m[ipk]),
                 trunc=trunc, fs=fs, nev=int(good.sum()), r=rr, sF=sF, **info)

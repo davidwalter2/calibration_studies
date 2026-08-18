@@ -269,37 +269,9 @@ def fig_for(tag, key, geomlabel, func, res, k=None, suffix=""):
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(13.6, 5.3))
     msf._panel(func, k, sim, legs, a1, a2, title, norm="fisher", note=note)
     fig.tight_layout()
-    fs = _fit_title(fig, a1, a2)
+    fs = msf._fit_title(fig, a1, a2)
     msf.save(fig, f"result_{TAGS[func]}_{tag}_pt3_fisher{suffix}")
     return cl, err, r, k, fs
-
-
-def _fit_title(fig, a1, a2, sizes=(17, 16, 15, 14, 13, 12, 11), pad=6.0):
-    """Shrink the left panel's title until it clears the right panel's note.
-
-    The toy geometry strings are longer than the real geometry's "real tracker
-    geometry", and at the published 17 pt the second title line runs under the
-    right panel's closure annotation -- MEASURED, not assumed: the first attempt
-    at these figures collided visibly.  `bbox_inches='tight'` then widens the
-    saved image instead of clipping, so the overlap is silent in the file size
-    and loud only on the page.
-
-    The two bounding boxes are compared in display coordinates after a draw, so
-    this is a check rather than a font-size guess, and it also keeps the title
-    inside the figure box so the saved PNG keeps the published 13.6 x 5.3
-    aspect.  Returns the size actually used.
-    """
-    r = fig.canvas.get_renderer()
-    w = fig.get_window_extent(r)
-    fs = sizes[-1]
-    for fs in sizes:
-        a1.title.set_fontsize(fs)
-        fig.canvas.draw()
-        b1 = a1.title.get_window_extent(r)
-        b2 = a2.title.get_window_extent(r)
-        if b1.x1 < b2.x0 - pad and b1.x0 > w.x0 - pad:
-            break
-    return fs
 
 
 def copy_real():
