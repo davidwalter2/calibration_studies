@@ -519,7 +519,7 @@ def ioni_step_exponent(steps, wstd, tau):
 # tri-state convention the C++ reader uses -- unset means the default, `=0`
 # means off, `=1` means on -- so the two halves of the shared switch cannot
 # disagree in either direction, at either default.
-IONI_KOKOULIN = 1.0 if env_flag("CVH_IONI_KOKOULIN", False) else 0.0
+IONI_KOKOULIN = 1.0 if env_flag("CVH_IONI_KOKOULIN", True) else 0.0
 IONI_KOKOULIN_TCUT = 0.0
 IONI_KOKOULIN_NBIN = 96
 
@@ -563,7 +563,7 @@ IONI_KOKOULIN_NBIN = 96
 # kinematic edge, so this sizes the LOG-RANGE removal (which dominates) and not
 # the exact edge shape.  The Z^2 : Z split uses effZ, exact for the elementary
 # toy material and approximate for a compound.
-MS_ELEC_TMAX = 0.0
+MS_ELEC_TMAX = 1.0
 _ME_GEV = 0.51099895000e-3
 
 # ------------------------------------- the SHAPE of the electron ceiling
@@ -590,7 +590,7 @@ _ME_GEV = 0.51099895000e-3
 #   2.0  exact kinematics, caustic kernel at ym_e/2, with the (1-beta^2 T/Tmax)
 #        of the true spin-0 dsigma/dT       -- THE PHYSICS
 #   3.0  the same with beta^2 = 0           -- isolates that factor
-MS_ELEC_EDGE = 0.0
+MS_ELEC_EDGE = 1.0
 
 # ------------------------------------------ the MS kernel's own quadrature
 # DIAGNOSTIC, DEFAULT OFF (0.0 -> `gshape` is called exactly as in production).
@@ -606,7 +606,7 @@ MS_ELEC_EDGE = 0.0
 # 2e-3.  It is a PURE NUMERICS change -- identical physics, identical
 # theta_FF -- and it is the model's own +0.2 % over-statement of every MS
 # cumulant, which is exactly the currency the KMS_SCALE gauge is written in.
-MS_FINE_G = 0.0
+MS_FINE_G = 1.0
 
 # ------------------------------------------------------------ the ymax snap
 # DEFAULT 1.0 = the production behaviour: each step's form-factor ceiling
@@ -617,7 +617,7 @@ MS_FINE_G = 0.0
 # ln(ymax^2) that inflates the model's MS second moment by 5.2 %.  Setting this
 # to 0.0 passes the step's own ymax and lets gshape interpolate, which is the
 # controlled measurement of that approximation.
-MS_SNAP_YMAX = 1.0
+MS_SNAP_YMAX = 0.0
 
 # ------------------------------------------- the WentzelVI INTERNAL split
 # DIAGNOSTIC, DEFAULT OFF (0.0 -> `ms_step_exponent` is bit-identical to the
@@ -667,7 +667,7 @@ MS_SNAP_YMAX = 1.0
 # MEASURED per species in `wvisplit.py steps` from the archived censuses
 # (ionization secondaries, r < 107 cm gated): 9.49 /(g/cm^2) for the muon to
 # 10.28 for the proton, i.e. 1/beta^2 as it must be.
-MS_WVI_SPLIT = 0.0
+MS_WVI_SPLIT = 1.0
 MS_WVI_NPERX = 9.494       # delta rays above the cut per g/cm^2
 MS_WVI_LG = 15.00
 _WVI_SSFACTOR = 1.25       # G4WentzelVIModel::SetSingleScatteringFactor(1.25)

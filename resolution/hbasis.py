@@ -98,7 +98,10 @@ USE_H = False
 BFIELD = 3.8
 
 PHYSICS_GLOBALS = ("USE_H", "BFIELD")
-_NOT_PHYSICS = ()
+# a PDG constant re-exported from curv2local for callers' convenience, not a
+# knob -- but it is a module-level uppercase float, so `barkas_probe guards`
+# requires it to be declared one way or the other
+_NOT_PHYSICS = ("MU_MASS",)
 
 
 def physics_state():

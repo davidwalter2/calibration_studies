@@ -112,7 +112,7 @@ G4_FF_SQUARED = True
 #   ours     4.214e-6   GeV
 #   Geant4   4.211714e-6 GeV = ALPHA_EM * m_e / 0.88534
 # +0.054 % on chi_0, hence +0.109 % on chi_a^2, which enters the Moliere log.
-MS_CHI0_G4 = False
+MS_CHI0_G4 = True
 _CHI0_OURS = 4.214e-6
 _CHI0_G4 = ALPHA_EM * 0.51099895e-3 / 0.88534
 
@@ -121,7 +121,7 @@ _CHI0_G4 = ALPHA_EM * 0.51099895e-3 / 0.88534
 # thff2 = 2/formfactA. The two agree to 1.0045-1.0049 across C/Al/Si/Cu at 3
 # and 40 GeV -- ours is HIGH -- the difference being the nuclear-radius
 # constant, not the form.
-MS_FF_G4 = False
+MS_FF_G4 = True
 _FF_CONSTN_MEV2 = 6.937e-6
 
 def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
