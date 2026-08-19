@@ -104,6 +104,27 @@ GEOMS = {
                        label="layered toy T=0.50, 100k events"),
     "H_layT2.00": dict(kind="toy", model="hmT2.00.root", sim="hsT2.00.root",
                        label="layered toy T=2.00, 100k events"),
+    # The REAL-MATERIAL toy: the real radial material sequence along the
+    # reference (Analysis/HitAnalyzer/test/gen_toy_realmat.py) rendered as
+    # coaxial cylinders. Same materials, thicknesses and step structure as the
+    # real tracker; no stereo, no phi gaps, no module edges, no misalignment. It
+    # is the rung between `H_layK1` and `real`, so a closure difference against
+    # the former is material ARRANGEMENT and against the latter is one of the
+    # things it drops. Its planes are the sensor MID-planes (production's own
+    # target surface), so it needs its own plane file -- hence the `planes` key.
+    "realmat": dict(kind="toy", model="model_realmat.root", sim="hsRM_*.root",
+                    planes=("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/"
+                            "src/Analysis/HitAnalyzer/test/toyPlanes_realmat_pt3.py"),
+                    label="real-material toy, 18 mid-planes, 100k events"),
+    # the CONTROL for the one convention that differs from `real`: entry-face
+    # scoring instead of mid-plane, so the arrival medium -- and therefore
+    # dEdxlast, and therefore H's alteloss term -- matches the real geometry.
+    "realmat_entry": dict(kind="toy", model="model_realmat_entry.root",
+                          sim="hsRME_*.root",
+                          planes=("/work/submit/david_w/ZMass/"
+                                  "CMSSW_15_0_19_patch2_dev/src/Analysis/"
+                                  "HitAnalyzer/test/toyPlanes_realmat_entry_pt3.py"),
+                          label="real-material toy, 18 entry faces, 100k events"),
     "real":    dict(kind="real",
                     model=f"{CEPH}/model/model_mu_pt3_eta0.30.root",
                     sim=f"{CEPH}/sim_260808tight_pt3_eta0.30_phi0.70/"
@@ -134,7 +155,10 @@ def geom_sim(g, acceptance="perplane"):
     if key in _SIMC:
         return _SIMC[key]
     if GEOMS[g]["kind"] == "toy":
-        _SIMC[key] = fn.load_sim(GEOMS[g]["sim"])
+        # planes travel with the geometry: the real-material toy scores the
+        # sensor mid-planes, not the layered toy's shell faces.
+        _SIMC[key] = fn.load_sim(GEOMS[g]["sim"],
+                                 GEOMS[g].get("planes", PLANES))
     else:
         _SIMC[key] = cpt.load_sim(GEOMS[g]["sim"], acceptance=acceptance)
     return _SIMC[key]

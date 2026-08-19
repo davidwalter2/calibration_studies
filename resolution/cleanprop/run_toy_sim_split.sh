@@ -47,7 +47,13 @@ TESTDIR=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnal
 LOCK=$TESTDIR/cmsswlock.sh
 
 PER=$(( (NEV + NJOB - 1) / NJOB ))
+# TOYGEOM selects the toy. Default is the generated layered toy, so every
+# existing invocation is unchanged; the real-material toy (gen_toy_realmat.py)
+# carries its own plane file and its own watcher radii, which runToyGeomCheck.py
+# picks up from the geometry path, so nothing else has to be passed.
+TOYGEOM=${TOYGEOM:-Analysis/HitAnalyzer/data/tracker.xml}
 echo "[split] tag=$TAG  $NEV events over $NJOB jobs = $PER each  -> $OUT/hs${TAG}_*.root"
+echo "[split] geometry: $TOYGEOM"
 
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 cd /work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src
@@ -75,6 +81,7 @@ for i in $(seq 1 "$NJOB"); do
     printf -v n "%04d" "$i"
     "$LOCK" run cmsRun runToyGeomCheck.py \
         events="$PER" seed="$i" output="$OUT/hs${TAG}_${n}.root" \
+        toyGeom="$TOYGEOM" \
         > "$OUT/hs${TAG}_${n}.simlog" 2>&1 &
     [[ "$STAGGER" != 0 ]] && sleep "$STAGGER"
 done

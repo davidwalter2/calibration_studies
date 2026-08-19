@@ -115,6 +115,12 @@ GEOMS = {
                  short="lay1", nev="100k"),
     "real": dict(key="real", label="real tracker, 19 barrel modules",
                  short="real", nev="200k"),
+    # the rung between the two: real material sequence, cylindrical symmetry
+    "realmat": dict(key="realmat", label="real-material toy, 18 mid-planes",
+                    short="realmat", nev="100k"),
+    "realmat_entry": dict(key="realmat_entry",
+                          label="real-material toy, 18 entry faces",
+                          short="realmate", nev="100k"),
 }
 
 # Published Fisher/u=1 ladder means, to be reproduced before anything new is
