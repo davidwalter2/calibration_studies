@@ -840,12 +840,37 @@ def cmd_wander(args):
     # data look narrower than the model and the closure is pushed MORE
     # positive.  A SMALLER growth in the low-wander quintile is therefore a
     # robust statement; a larger one is inconclusive.
+    if getattr(args, "useh", False):
+        import hbasis
+        hbasis.set_use_h(True)
     print("### per-plane closure restricted by wander quintile "
-          "(one-sided test, see code comment)")
+          f"(one-sided test, see code comment); H "
+          f"{'ON' if getattr(args, 'useh', False) else 'OFF'}")
     for g in args.geoms:
-        if GEOMS[g]["kind"] != "real":
-            continue
+        # TOYS ARE NOT SKIPPED ANY MORE, and the reason is the whole point of
+        # running this on one. The guard here used to be `kind != "real": skip`,
+        # on the reasoning that a cylindrically symmetric toy has no material
+        # sampling so its split says nothing. That is exactly backwards. The
+        # limitation this test has always had is that selecting on |locy| also
+        # selects on HOW MUCH THE RAY SCATTERED, and scattering in y correlates
+        # with scattering in x and with path length -- so the real geometry's
+        # low/high split mixes genuine material sampling with a plain
+        # more-scattered-rays selection, and section 9.2 could not separate them.
+        #
+        # A toy with the REAL material sequence (gen_toy_realmat.py) has the same
+        # scattering, the same step structure and MEASURED material sampling of
+        # +1.46 % against the detector's +15.21 %. Its split is therefore the
+        # PURE scattering-selection component, and real-minus-toy is material
+        # sampling with the degeneracy broken.
         sim, legs = geom_sim(g, args.acceptance), geom_model(g)
+        if getattr(args, "useh", False):
+            # H needs the extras (dEdxlast/refglobz/zoff) read off the model
+            # FILE, and must be bound in the parent before any scale call --
+            # per-plane a-vectors are not recoverable from `legs` alone.
+            import hbasis
+            mp = GEOMS[g]["model"]
+            hbasis.bind(legs, mp if os.path.sep in mp
+                        else os.path.join(SCRATCH, mp), pdg=13)
         kl = len(legs) - 1
         # WHICH wander variable, and why it matters.  Built from locx, the test
         # is CIRCULAR for the locx functional -- the selection variable IS the
@@ -952,6 +977,10 @@ def main():
     q.add_argument("--closure", action="store_true")
     q.add_argument("--funcs", nargs="+", default=["qop"])
     q.add_argument("--wandervar", default="locy", choices=("locy", "both"))
+    q.add_argument("--useh", action="store_true",
+                   help="per-plane H^T e_i a-vectors (the corrected basis). Off "
+                        "reproduces the published legacy numbers; qop on the REAL "
+                        "geometry is basis-independent, but on a toy it is not.")
     q.set_defaults(fn=cmd_wander)
 
     q = sub.add_parser("diag")
