@@ -535,19 +535,42 @@ what a 5×5 covariance block has to rest on before it can be trusted off-axis.
 
 Same measurement, 19 real barrel modules, $\mu^-$, $p_T=3$ GeV, $\eta=0.30$, outermost plane:
 
-| direction | before the basis fix | after |
-|---|--:|--:|
-| $dx/dz$ | $-0.0439$ | $-0.0021$ |
-| $dy/dz$ | $-0.0515$ | $-0.0047$ |
-| local $x$ | radial swing | flat, on a $+0.005$ plateau ($\sim7\sigma$) |
-| **$q/p$** | $+0.0676$ | **$+0.0676$ — unchanged** |
+| direction | before the basis fix | after | re-exported today |
+|---|--:|--:|--:|
+| $dx/dz$ | $-0.0439$ | $-0.0021$ | $-0.0014$ |
+| $dy/dz$ | $-0.0515$ | $-0.0047$ | $-0.0046$ |
+| local $x$ | radial swing | flat, $+0.005$ plateau | $+0.0058$ |
+| **$q/p$** | $+0.0676$ | $+0.0676$ | **$+0.0726$** |
 
-The four scattering directions behave **exactly as on the toy**, including the same $+0.005$
-positive offset in local $x$ — so the corrected basis carries over to the real geometry unchanged.
+The last column closes an open item: that export was **ten days and twelve
+physics commits old**. Regenerating it moves the predicted width by **23 %** and
+the closure not at all.
 
-**$q/p$ does not.** It is $\sim60\times$ the toy's $-0.0011$, and it grows monotonically from
-$+0.0004$ at the innermost plane to $+0.0676$ at the outermost — i.e. it accumulates with material,
-which is the signature of a per-step term rather than a boundary or reference effect.
+The four scattering directions behave **exactly as on the toy**, same $+0.005$ offset
+in local $x$ — the corrected basis carries over unchanged.
+
+**$q/p$ does not**: it grows $\times100$ with radius, from $+0.0007$ at the
+innermost plane to $+0.0726$ at the outermost.
+
+---
+
+## A third geometry, built today: the real material as cylinders
+
+Walk the reference through the real tracker, record every volume it crosses, and
+re-emit that sequence as **coaxial cylinders** — real materials, real
+thicknesses, real step structure; no stereo, no $\varphi$ gaps, no module edges.
+142 volumes, 29 materials, 12.33 g/cm², reproduced against the real traversal to
+**7×10⁻³** per volume with zero mismatches.
+
+| | layered toy | real-material toy | real tracker |
+|---|--:|--:|--:|
+| ionization steps / leg | 1.79 | **12.83** | 17.26 |
+| material-sampling spread | +1.15 % | **+1.46 %** | **+15.21 %** |
+| $q/p$ closure, outermost | $-0.0011$ | **$-0.0019$** | $+0.0726$ |
+
+**It has the detector's step structure and it closes.** So the step-structure
+explanation for the $q/p$ growth is dead — and because a cylinder cannot have
+material sampling, this toy is also the *control* the earlier study lacked.
 
 ---
 
@@ -579,45 +602,67 @@ Trap recorded for the next person: a uniform-field reference arm sits $0.06\sigm
 
 ---
 
-## Next steps
+## Next steps — five explanations excluded today
 
-**1. Re-measure the real-geometry $q/p$ with the fixed export.** Highest priority. On the toy the
-same pair of fixes took it from $-0.0110$ to $-0.0011$; the argument above says the real geometry
-should *not* move, but that must be confirmed, not assumed.
+$q/p$ on the real tracker is $+0.0726$ and grows $\times100$ with radius. It is **not**:
 
-**2. Read the correlations the right way there.** A $|z|<3\sigma$ core keeps only 46–49 % of the
-real-geometry events (90 % on the toy), because the cut is dominated by the $q/p$ width mismatch
-itself — so a sample covariance cannot be read. Use a **mixed $q/p$–position direction**: the
-near-cancelling combinations are the only probe of the correlations, and there they already fail
-while both marginals pass.
+| excluded | how |
+|---|---|
+| a stale export | regenerated today: width moves 23 %, closure does not |
+| acceptance | modal vs per-plane agree to $\le7.5\times10^{-4}$; $\le0.3$ % at the outermost plane |
+| step structure | the real-material toy has it and closes at $-0.0019$ |
+| **stereo modules** | H's $q/p$ row is **bit-identical** under a 100 mrad rotation about the module normal, while the position rows move by 0.104 |
+| misalignment | the study runs the ideal geometry by necessity |
 
-**3. Audit the step structure, not the physics.** Long air gaps and thin silicon versus dense
-shells is *the same regime difference* that made scattering harmonisation 7 fail by four orders of
-magnitude. $q/p$ growing with accumulated material on the awkward geometry fits that better than a
-missing physics term.
+**Material sampling is now a measurement, not a bound: 40 %.** The real-material
+toy is the control the earlier study lacked — its wander split is the *pure*
+scattering-selection component, $-0.0016$ with no radial growth, against the
+detector's $+0.065$.
 
-**4. Name the $+0.0024$ scattering offset** — same sign in all four directions on both geometries.
-Measure it at $p_T=40$ and separate scale from shape.
+---
 
-**5. Then the deliverables.** Nuclear elastic at $p_T=40$ and on the real geometry; and the next
-global fit run **both ways**, so the calibration parameters stay attributable.
+## What is left, and the new handle
+
+**~60 % is unexplained.** Surviving candidates: $\varphi$ segmentation, module
+edges, and the real-geometry export/analysis chain itself.
+
+**The test is two-sided for the first time.** The tail-truncation inflation that
+made the wander cut only-one-sided measures **0.0003** on the toy, not 0.04.
+
+**And a new observable.** The reference drifts off the simulated mean in $q/p$,
+reaching $-1.07\sigma$ at the outermost plane and growing monotonically — while
+on the real-material toy it is flat at $-0.10$ to $-0.18\sigma$. The median
+offset is $+1.4$ to $+2.9\sigma$ on *both*, so that part is the known
+mean-vs-mode; the detector grows a low-side $q/p$ tail with radius that no toy
+has.
+
+Next: bin the real-geometry residual by energy lost and confirm that tail is
+carried by the same rays as the material-sampling 40 %.
+
+<div class="footnote">
+
+A location shift alone would make the closure negative and it is positive, so the drift and the closure are not yet the same statement.
+
+</div>
 
 ---
 
 ## Summary
 
-- The clean-propagation closure at $p_T=3$ GeV is **resolved on the toy geometry** for
-  **eight species in five directions** — every entry inside $5\times10^{-3}$, against $0.03$–$0.05$
-  in the four scattering directions a week ago.
-- The two largest apparent defects — the plane-to-plane scatter that had been the open item since
-  last Tuesday, and the $q/p$ break it was hiding — were **bugs in the test and in an exported
-  quantity**, not missing physics. Each was found by a tool written to *check* a claim rather than
-  to fit a number, and each fix was verified against an independent closed-form calculation.
-- Real missing physics *was* found: **nuclear elastic scattering**, worth $0.011$–$0.040$ in the
-  hadron position channel and now closing with **nothing fitted** — and the elastic arm has
-  $\sim100\ \%$ acceptance, so hadrons can finally be tested without truncating their tail.
-- A dozen model and reference items were changed, **all** harmonised to Geant4 or to exact
-  kinematics and **none** tuned to the closure. One was reverted this week because it hard-fails
-  the real geometry, and one prediction was falsified and left falsified.
-- **Open:** $q/p$ on the real geometry ($+0.0676$, growing with radius) and a common
-  $+0.0024$ scattering offset on both geometries.
+- The closure at $p_T=3$ GeV is **resolved on the toy geometry** for **eight
+  species in five directions** — every entry inside $5\times10^{-3}$, against
+  $0.03$–$0.05$ in the four scattering directions a week ago.
+- The two largest apparent defects — the plane-to-plane scatter open since last
+  Tuesday, and the $q/p$ break it was hiding — were **bugs in the test and in an
+  exported quantity**, not missing physics. Each fix was verified against an
+  independent closed-form calculation.
+- Real missing physics *was* found: **nuclear elastic scattering**, worth
+  $0.011$–$0.040$ in the hadron position channel, now closing with **nothing
+  fitted**, on an arm with $\sim100\ \%$ acceptance.
+- A dozen items were changed, **all** harmonised to Geant4 or exact kinematics,
+  **none** tuned to the closure. One was reverted, one prediction falsified.
+- A **third geometry**, built today from the real material along the reference,
+  has the detector's step structure and **closes** — killing that explanation
+  and turning material sampling into a **40 % measurement**.
+- **Open:** ~60 % of $q/p$ on the real tracker, and the $+0.0024$ scattering
+  offset now on three geometries.
