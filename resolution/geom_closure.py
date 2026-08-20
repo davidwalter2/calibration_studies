@@ -125,6 +125,15 @@ GEOMS = {
                                   "CMSSW_15_0_19_patch2_dev/src/Analysis/"
                                   "HitAnalyzer/test/toyPlanes_realmat_entry_pt3.py"),
                           label="real-material toy, 18 entry faces, 100k events"),
+    # realmat + a 19th plane at the traversal's outer edge, so the real
+    # geometry's outermost LEG -- the most anomalous one in the per-leg
+    # decomposition, and the only one that had no control -- gets one.
+    "realmat_full": dict(kind="toy", model="model_realmat_full.root",
+                         sim="hsRMF_*.root",
+                         planes=("/work/submit/david_w/ZMass/"
+                                 "CMSSW_15_0_19_patch2_dev/src/Analysis/"
+                                 "HitAnalyzer/test/toyPlanes_realmat_full_pt3.py"),
+                         label="real-material toy, 19 planes (final edge), 100k"),
     "real":    dict(kind="real",
                     model=f"{CEPH}/model/model_mu_pt3_eta0.30.root",
                     sim=f"{CEPH}/sim_260808tight_pt3_eta0.30_phi0.70/"
