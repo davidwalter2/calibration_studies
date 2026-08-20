@@ -892,6 +892,23 @@ def cmd_wander(args):
         if args.wandervar == "locy":
             w = np.abs(sim["locy"][:, kl]
                        - np.nanmedian(sim["locy"][:, kl]))
+        elif args.wandervar == "locx":
+            # AIMED AT THE MATERIAL, which locy is not. s12.3 profiled the
+            # outermost leg's energy loss against both coordinates: it swings by
+            # 3.78x across locx and is FLAT to 2 % across locy over eight
+            # deciles. So the |locy| split of s10 was cutting along the
+            # direction the material is uniform in, and must UNDER-state
+            # material sampling.
+            #
+            # The circularity that made |locx| wrong for the LOCX functional
+            # (s9.2: the selection variable was the residual, and the split
+            # returned +0.32/-0.32) does not apply to qop -- locx is not the qop
+            # residual. What remains is that |locx| also selects
+            # more-scattered rays, and THAT is what the cylindrical control
+            # measures: it has the same scattering and no material structure
+            # (profile swing 1.00x), so real-minus-toy is material sampling.
+            w = np.abs(sim["locx"][:, kl]
+                       - np.nanmedian(sim["locx"][:, kl]))
         else:
             w = np.hypot(sim["locx"][:, kl] - np.nanmedian(sim["locx"][:, kl]),
                          sim["locy"][:, kl] - np.nanmedian(sim["locy"][:, kl]))
@@ -985,7 +1002,8 @@ def main():
     q.add_argument("--acceptance", default="perplane")
     q.add_argument("--closure", action="store_true")
     q.add_argument("--funcs", nargs="+", default=["qop"])
-    q.add_argument("--wandervar", default="locy", choices=("locy", "both"))
+    q.add_argument("--wandervar", default="locy",
+                   choices=("locy", "locx", "both"))
     q.add_argument("--useh", action="store_true",
                    help="per-plane H^T e_i a-vectors (the corrected basis). Off "
                         "reproduces the published legacy numbers; qop on the REAL "
