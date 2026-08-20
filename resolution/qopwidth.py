@@ -62,13 +62,59 @@ def sample_fwhm(x, nb=400):
     return fwhm(c, h.astype(float))
 
 
+def cmd_perleg(args):
+    """WHERE the reference and the bulk come apart, leg by leg.
+
+    Both the closure and the median-of-z of `width` are properties of the
+    ACCUMULATED state, so a defect entering at one leg marks every plane after
+    it. This differences them.
+
+    No CF machinery is involved and none is needed: the quantity that diverged
+    is a LOCATION, and a location decomposes exactly. Per leg,
+
+        dE_ref  = the reference's own loss, 1/|refqop[k-1]| - 1/|refqop[k]|
+        dE_bulk = the MEDIAN over rays of the same difference
+
+    and their gap is the leg's contribution to the mean-vs-mode offset. Summing
+    the gap over legs reproduces the accumulated divergence by construction, so
+    the per-leg column is the decomposition of exactly the thing measured, not a
+    proxy for it. The median is used on the data side because the mean is
+    dragged by the Landau tail, which is not what is being localized.
+    """
+    for g in args.geoms:
+        legs, sim = gc.geom_model(g), gc.geom_sim(g)
+        n = len(legs)
+        print(f"\n=== {g}: per-leg mean-vs-mode gap [MeV]")
+        print(f"{'leg':>3} {'r[cm]':>8} {'dE_ref':>9} {'dE_bulk':>9} "
+              f"{'gap':>9} {'cum gap':>9} {'gap/dE_ref':>11}")
+        cum = 0.0
+        for k in range(1, n):
+            ok = (sim["valid"][:, k] & sim["valid"][:, k - 1]
+                  & np.isfinite(sim["qop"][:, k]) & np.isfinite(sim["qop"][:, k - 1]))
+            pk = 1.0 / np.abs(sim["qop"][ok, k])
+            pj = 1.0 / np.abs(sim["qop"][ok, k - 1])
+            dbulk = 1e3 * float(np.median(pj - pk))
+            dref = 1e3 * (1.0 / abs(legs[k - 1]["refqop"]) - 1.0 / abs(legs[k]["refqop"]))
+            gap = dref - dbulk
+            cum += gap
+            frac = gap / dref if dref else np.nan
+            print(f"{k:3d} {np.nanmedian(sim['globr'][:, k]):8.2f} {dref:9.4f} "
+                  f"{dbulk:9.4f} {gap:+9.4f} {cum:+9.4f} {frac:11.4f}")
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--geoms", nargs="+", default=["real", "realmat"])
     ap.add_argument("--func", default="qop")
     ap.add_argument("--useh", action="store_true", default=True)
+    ap.add_argument("--perleg", action="store_true",
+                    help="the per-LEG decomposition of the location gap")
     args = ap.parse_args()
+
+    if args.perleg:
+        cmd_perleg(args)
+        return
 
     if args.useh:
         hbasis.set_use_h(True)
