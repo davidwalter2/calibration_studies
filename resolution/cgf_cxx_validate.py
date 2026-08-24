@@ -33,6 +33,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import cf_brems_exact  # noqa: E402
 import cf_propagation_test as cpt  # noqa: E402
 import cgf_channels as cgc  # noqa: E402
 import cgf_fisher  # noqa: E402
@@ -79,16 +80,55 @@ def leg_sigma(legs, k, avec):
     return float(np.sqrt(avec @ Q @ avec))
 
 
-def python_ref(steps, tlist):
+def leg_rad(legs, k, avec, sigma, only_last):
+    """Radiative records with their transport weights, mirroring `leg_steps`.
+
+    `cf_brems_exact.rad_exponent` takes the weight separately (it multiplies
+    the record's own `cs`), so this returns (records, shapes, weights) rather
+    than folding the weight into a column."""
+    _, A_ioni, _ = cgc.step_transports(legs, k)
+    recs, spec, wts = [], [], []
+    lo = k if only_last else 0
+    for j in range(lo, k + 1):
+        leg = legs[j]
+        if leg.get("rad") is None or not len(leg["rad"]):
+            continue
+        q = np.sign(leg["refqop"]) or 1.0
+        w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
+        # The radiative log has one entry per STEP and the ionization log one
+        # per step that produced a fluctuation record, so the two need not be
+        # the same length. This is the convention cgf_channels uses, kept
+        # deliberately so the C++ is compared against the SAME object the
+        # offline closure numbers were produced with -- the in-fit path
+        # attaches the exact per-step weight instead, which is strictly better
+        # and would not be a like-for-like test.
+        wr = w if len(w) == len(leg["rad"]) else np.full(len(leg["rad"]), np.mean(w))
+        recs.append(np.asarray(leg["rad"], dtype=float))
+        spec.append(np.asarray(leg["radspec"], dtype=float))
+        wts.append(wr)
+    if not recs:
+        return None
+    return np.concatenate(recs), np.concatenate(spec), np.concatenate(wts)
+
+
+def python_ref(steps, tlist, rad=None, vgrid=None):
     """S(t) on tlist and 1/I by the validated exact-inversion route, for a
     step array whose column 10 already carries the transport weight."""
-    S = ioni_step_exponent(steps, 1.0, np.asarray(tlist, dtype=float))
+    def _S(tau):
+        tau = np.asarray(tau, dtype=float)
+        out = ioni_step_exponent(steps, 1.0, tau)
+        if rad is not None:
+            out = out + cf_brems_exact.rad_exponent(tau, rad[0], rad[1], vgrid,
+                                                    weights=rad[2])
+        return out
+
+    S = _S(tlist)
     # t grid matched to THIS block: bisect Re S = lncut on a coarse log scan,
     # exactly as cgf_channels.tau_reach does, but on the step array directly
     # so no `legs` bookkeeping is involved.
     lo, hi, n, lncut = 1e-3, 1e6, 400, -60.0
     tg = np.geomspace(lo, hi, n)
-    Sg = ioni_step_exponent(steps, 1.0, tg).real
+    Sg = _S(tg).real
     below = np.where(Sg < lncut)[0]
     if not len(below):
         top = hi
@@ -99,14 +139,14 @@ def python_ref(steps, tlist):
         a, b = tg[i - 1], tg[i]
         for _ in range(24):
             m = np.sqrt(a * b)
-            if ioni_step_exponent(steps, 1.0, np.array([m]))[0].real < lncut:
+            if _S(np.array([m]))[0].real < lncut:
                 b = m
             else:
                 a = m
         top = float(np.sqrt(a * b))
     top *= 1.3
     tau = np.concatenate([[0.0], np.geomspace(1e-4, top, 8000)])
-    Sfull = ioni_step_exponent(steps, 1.0, tau)
+    Sfull = _S(tau)
     z, p, dp = cgc.invert_cf(Sfull, tau, npad=32, nt=1 << 17, deriv=True)
     invI, info = cgf_fisher.fisher_exact(z, p, dp)
     # EXACT score psi = -p'/p on the contiguous support, from the same pair of
@@ -138,6 +178,11 @@ def main():
     ap.add_argument("--blocks", choices=["cum", "leg"], default="cum")
     ap.add_argument("--out", default="/tmp/cgf_ref")
     ap.add_argument("--cxx", default=None, help="C++ output file for cmp")
+    ap.add_argument("--rad", action="store_true",
+                    help="include the RADIATIVE (brems + pair) channel, on both "
+                         "sides: the python reference adds "
+                         "cf_brems_exact.rad_exponent and the dump grows a "
+                         "RADGRID/RAD section for the C++ to read")
     args = ap.parse_args()
 
     legs = cpt.load_model(args.model)
@@ -152,9 +197,17 @@ def main():
         if not len(st):
             logger.warning(f"plane {k}: no ionization steps, skipped")
             continue
-        S, invI, top, info, sc = python_ref(st, tlist)
+        rad = leg_rad(legs, k, AVEC, sig, only_last=(args.blocks == "leg")) \
+            if args.rad else None
+        vg = np.asarray(legs[k]["radvgrid"], dtype=float) \
+            if (args.rad and legs[k].get("radvgrid") is not None) else None
+        if args.rad and (rad is None or vg is None):
+            logger.warning(f"plane {k}: --rad asked for but the model carries no "
+                           f"radiative records; the arm is IONIZATION ONLY")
+            rad = None
+        S, invI, top, info, sc = python_ref(st, tlist, rad=rad, vgrid=vg)
         refs[k] = dict(sigma=sig, nstep=len(st), S=S, invI=invI, top=top,
-                       info=info, sc=sc)
+                       info=info, sc=sc, rad=rad, vg=vg)
         logger.info(f"plane {k:2d} [{args.blocks}]  nstep {len(st):4d}  "
                     f"sigma {sig:.6e}  t_max {top:.4f}  "
                     f"1/I(z) {invI:.6f}  1/I(phys) {invI*sig*sig:.6e}  "
@@ -176,6 +229,27 @@ def main():
                 for row in st:
                     # regime gsig2 a1 e1 a2 e2 a3 e0r tmaxr scaling gs
                     f.write(" ".join(f"{float(v)!r}" for v in row) + "\n")
+                rad, vg = r.get("rad"), r.get("vg")
+                if rad is not None and vg is not None:
+                    recs, spec, wts = rad
+                    f.write(f"RADGRID {len(vg)} "
+                            + " ".join(f"{float(x)!r}" for x in vg) + "\n")
+                    f.write(f"RAD {len(recs)}\n")
+                    nv = len(vg)
+                    for rec, sp, w in zip(recs, spec, wts):
+                        # etot [MeV], cs*w, dE_brem [MeV], dE_pair [MeV], then
+                        # the two RAW shapes. Energies go out in MeV because
+                        # that is cvhcgf's convention for every energy in a
+                        # block; the records are natively GeV.
+                        etot = float(rec[cf_brems_exact.R_ETOT]) * 1e3
+                        L = float(rec[cf_brems_exact.R_STEPCM])
+                        deb = float(rec[cf_brems_exact.R_DEDXBREM]) * L * 1e3
+                        dep = float(rec[cf_brems_exact.R_DEDXPAIR]) * L * 1e3
+                        csw = float(rec[cf_brems_exact.R_CS]) * float(w)
+                        vals = [etot, csw, deb, dep]
+                        vals += [float(x) for x in sp[:nv]]
+                        vals += [float(x) for x in sp[nv:2 * nv]]
+                        f.write(" ".join(f"{x!r}" for x in vals) + "\n")
                 f.write("SREF\n")
                 for t, s in zip(tlist, r["S"]):
                     f.write(f"{float(t)!r} {float(s.real)!r} {float(s.imag)!r}\n")

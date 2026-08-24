@@ -510,7 +510,17 @@ def run_cvh(script, inp, workdir, log, env_extra, nev, extra=""):
     # variables (Geant4e b372e08). This runner bypasses
     # hadron_probe._run, so it needs the same translation or anything
     # it "sets" would be exported where nothing reads it.
-    _swopts, env_extra = ctr.split_switches(env_extra)
+    #
+    # AND THE PIN HAS TO GO THROUGH THE SAME TRANSLATION (fixed 2026-08-20).
+    # `ds._clean_env` adds `ctr.SWITCHES_OFF` as an ENVIRONMENT overlay, which
+    # was the pin's whole point while the switches were getenv-read. Applying
+    # it AFTER this translation exported four names that nothing reads any
+    # more, so every arm here silently ran on the C++ DEFAULT -- and that
+    # default flipped to all-on in e232c20. A `nominal` control arm (`{}`)
+    # was therefore not a control at all. Merging the pin in HERE, with the
+    # arm's own overlay winning, restores the documented meaning: what an arm
+    # does not name is pinned to the historical state, not inherited.
+    _swopts, env_extra = ctr.split_switches({**ctr.SWITCHES_OFF, **(env_extra or {})})
     if _swopts:
         extra = f"{extra} {_swopts}"
     cmd = ("source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "

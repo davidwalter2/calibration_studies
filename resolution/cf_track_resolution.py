@@ -129,9 +129,13 @@ CVH_OPTION = {
     "CVH_IONI_URBAN2021": "IoniUrban2021",
     "CVH_REF_SPECIESDEDX_NBIN": "ReferenceSpeciesDedxNbin",
     "CVH_IONI_KOKOULIN_NBIN": "IoniKokoulinNbin",
+    "CVH_IONI_KOKOULIN_CGFNBIN": "IoniKokoulinCgfNbin",
     "CVH_IONI_EXACTDELTA_T0": "IoniExactDeltaT0",
     "CVH_DEDX_SCALE": "DedxScale",
     "CVH_EM_HARMONISE": "EmHarmonise",
+    "CVH_CGF_RADIATIVE": "CgfRadiativeChannel",
+    "CVH_CGF_QOP": "CgfQoPMode",
+    "CVH_CGF_QOP_REFRESH": "CgfQoPRefresh",
     "CVH_DUMP_EMPARAMS": "DumpEmParameters",
 }
 
@@ -149,9 +153,13 @@ CVH_ENV_ONLY = (
     "CVH_MATGROUP_PROBE", "CVH_MATGROUP_MEANONLY", "CVH_MATGROUP_EPS",
     "CVH_MS_SCALE", "CVH_MS_DISP_SCALE",
     "CVH_DEDX_DEBUG", "CVH_LOCAL_UPDATE",
-    "CVH_CGF_QOP", "CVH_CGF_QOP_DEBUG", "CVH_CGF_QOP_GAUSSPSI",
+    # CVH_CGF_QOP and CVH_CGF_QOP_REFRESH are NO LONGER environment variables:
+    # the CGF weight is the production default now, so which estimator produced
+    # a file has to be in its provenance. They are CgfQoPMode / CgfQoPRefresh
+    # in CVH_OPTION above. What remains here is diagnostics only.
+    "CVH_CGF_QOP_DEBUG", "CVH_CGF_QOP_GAUSSPSI",
     "CVH_CGF_QOP_LNCUT", "CVH_CGF_QOP_NPAD", "CVH_CGF_QOP_NT",
-    "CVH_CGF_QOP_REFRESH", "CVH_CGF_QOP_SIGSCALE",
+    "CVH_CGF_QOP_SIGSCALE", "CVH_CGF_QOP_SCALARONLY",
 )
 
 
