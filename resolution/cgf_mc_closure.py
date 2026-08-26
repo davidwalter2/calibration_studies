@@ -77,16 +77,26 @@ def sample_files(sample, n=None):
     return fs if n is None else fs[:n]
 
 
-def outfile(arm, sample="pt8", ms=None, chunk=None):
+def outfile(arm, sample="pt8", ms=None, chunk=None, mode=None, damp=None, tag=""):
     sub = arm if sample == "pt8" else f"{sample}_{arm}"
     if ms is not None:
         sub = f"{sub}_ms{str(ms).replace('.', '')}"
+    if mode is not None:
+        sub = f"{sub}_m{mode}"
+    if damp is not None:
+        sub = f"{sub}_d{str(damp).replace('.', '')}"
+    if tag:
+        # A campaign tag. The directory name does NOT otherwise encode the
+        # event count, so a second campaign at a different --nev would land on
+        # the first one's outputs and be skipped as "already done" -- silently
+        # mixing two samples, or silently reusing the wrong one.
+        sub = f"{sub}_{tag}"
     if chunk is not None:
         sub = f"{sub}_c{chunk:02d}"
     return os.path.join(OUT, sub, "globalcor_singlemc_0.root")
 
 
-def run_one(arm, nev, force=False, sample="pt8", ms=None, chunk=None):
+def run_one(arm, nev, force=False, sample="pt8", ms=None, chunk=None, mode=None, damp=None, tag=""):
     """`ms` scales Q's MS variance through CVH_MS_SCALE.
 
     That knob is weight-ONLY -- multiple scattering is symmetric, so it cannot
@@ -97,7 +107,7 @@ def run_one(arm, nev, force=False, sample="pt8", ms=None, chunk=None):
     directions: Rossi's core width is 14 % below the modelled second moment
     (scale up), while the angular directions' Fisher information is 0.63-0.98
     of the current width (scale down). Only truth can say which helps."""
-    wd = os.path.dirname(outfile(arm, sample, ms, chunk))
+    wd = os.path.dirname(outfile(arm, sample, ms, chunk, mode, damp, tag))
     if os.path.exists(os.path.join(wd, "wall.txt")) and not force:
         logger.info(f"[{arm}] exists, skipping")
         return 0
@@ -138,6 +148,15 @@ def run_one(arm, nev, force=False, sample="pt8", ms=None, chunk=None):
     src = SAMPLES[sample] if chunk is None else sample_files(sample)[chunk]
     extra = (f"input={src} nEvents={nev} scalarPot3DInitFile={FIELD} "
              f"doKinkFinder=False")
+    if mode is not None:
+        # `CgfQoPMode` is a ParameterSet parameter, so it goes on the command
+        # line rather than into the environment. Mode 3 adds the IRLS
+        # re-centring to the weight -- the only piece of this programme that
+        # can move the estimator's CENTRE, which is why it is worth a
+        # truth-based arm of its own.
+        extra = f"{extra} CgfQoPMode={mode}"
+    if damp is not None:
+        extra = f"{extra} CgfRecentreDamping={damp}"
     cmd = ("source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "
            f"cd {area}/src && eval $(scramv1 runtime -sh) && cd {wd} && "
            f"exec {area}/src/Analysis/HitAnalyzer/test/cmsswlock.sh run cmsRun "
@@ -165,21 +184,21 @@ def cmd_run(args):
     for arm in args.arms:
         for ms in (args.ms or [None]):
             for ch in (args.chunks or [None]):
-                if run_one(arm, args.nev, args.force, args.sample, ms, ch):
+                if run_one(arm, args.nev, args.force, args.sample, ms, ch, args.mode, args.damp, args.tag):
                     raise SystemExit(f"{arm} ms={ms} chunk={ch} failed; see {OUT}/")
 
 
 _KEY = ["run", "lumi", "event", "trackPt", "trackEta", "trackPhi", "trackCharge"]
 
 
-def _load(arm, sample="pt8", ms=None, chunks=None):
+def _load(arm, sample="pt8", ms=None, chunks=None, mode=None, damp=None, tag=""):
     """One arm, optionally concatenated over input-file chunks."""
     import uproot
     if chunks:
         import collections
         outs = collections.defaultdict(list)
         for c in chunks:
-            f = outfile(arm, sample, ms, c)
+            f = outfile(arm, sample, ms, c, mode, damp, tag)
             if not os.path.exists(os.path.join(os.path.dirname(f), "wall.txt")):
                 logger.warning(f"chunk {c} of ms={ms} incomplete; skipped")
                 continue
@@ -187,7 +206,7 @@ def _load(arm, sample="pt8", ms=None, chunks=None):
             for k, v in a.items():
                 outs[k].append(v)
         return {k: np.concatenate(v) for k, v in outs.items()}
-    t = uproot.open(outfile(arm, sample, ms))["tree"]
+    t = uproot.open(outfile(arm, sample, ms, None, mode, damp, tag))["tree"]
     return _load_one(t)
 
 
@@ -384,6 +403,79 @@ def cmd_mscan(args):
     print("Negative width/variance change = closer to truth.")
 
 
+def cmd_dampscan(args):
+    """dVar(lambda) for the mode-3 re-centring, and the parabola through it.
+
+    dVar(lambda) = lambda^2 Var(delta_1) + lambda 2Cov_1 IF delta scaled
+    linearly, which it does NOT (measured: both terms come in below the naive
+    scaling, because the fit re-converges). So the curve is FITTED rather than
+    assumed: A lambda^2 + B lambda, with A and B free, minimum at -B/2A.
+
+    Every number is paired and 5-sigma trimmed ON BOTH ARMS. That is not
+    cosmetic: untrimmed, two tracks in 35440 flipped the sign of this
+    measurement (NOTES_CGFFIT s86)."""
+    ch = args.chunks or list(range(75))
+    base = _load(args.arms[0], args.sample, None, ch, None, None, args.tag)
+    kb = list(zip(*[base[k] for k in _KEY]))
+
+    def resid(a, idx):
+        q = np.array([a["refParms"][i][0] for i in idx])
+        g = np.array([a["genParms"][i][0] for i in idx])
+        ok = np.isfinite(q) & np.isfinite(g) & (g != 0)
+        return np.where(ok, (q - g) / np.abs(np.where(g == 0, 1.0, g)), np.nan)
+
+    rng = np.random.default_rng(20260825)
+    print()
+    print("=" * 92)
+    print(f"RE-CENTRING DAMPING vs TRUTH   sample={args.sample}  tag={args.tag or '-'}")
+    print("=" * 92)
+    print(f"{'lambda':>7} {'n':>7} {'dVar/Var':>12} {'sigma':>7} {'Var(d)/V':>11} "
+          f"{'2Cov/V':>11} {'niter':>7}")
+    pts = []
+    for lam in args.damps:
+        try:
+            a = _load(args.arms[0], args.sample, None, ch, 3, lam, args.tag)
+        except Exception as e:
+            logger.warning(f"lambda={lam}: {e}")
+            continue
+        ka = list(zip(*[a[k] for k in _KEY]))
+        ib = {k: i for i, k in enumerate(ka)}
+        pr = [(i, ib[k]) for i, k in enumerate(kb) if k in ib]
+        r0 = resid(base, [i for i, _ in pr])
+        r1 = resid(a, [j for _, j in pr])
+        ni = np.asarray(a["niter"], float)[[j for _, j in pr]]
+        ok = np.isfinite(r0) & np.isfinite(r1)
+        w0, w1 = _robust(r0[ok])[2], _robust(r1[ok])[2]
+        keep = ok & (np.abs(np.nan_to_num(r0)) < 5 * w0) & (np.abs(np.nan_to_num(r1)) < 5 * w1)
+        x, y = r0[keep], r1[keep]
+        d = y - x
+        V = np.var(x)
+        dv = (np.var(y) - np.var(x)) / V
+        bs = [rng.integers(0, len(x), len(x)) for _ in range(400)]
+        bdv = np.array([(np.var(y[i]) - np.var(x[i])) / np.var(x[i]) for i in bs])
+        pts.append((lam, dv, bdv.std()))
+        print(f"{lam:7.2f} {len(x):7d} {dv:12.4e} {dv / max(bdv.std(), 1e-30):7.1f} "
+              f"{np.var(d) / V:11.4e} {2 * np.cov(x, d)[0, 1] / V:11.4e} {ni[keep].mean():7.2f}")
+
+    if len(pts) >= 2:
+        lam = np.array([p[0] for p in pts])
+        dv = np.array([p[1] for p in pts])
+        er = np.array([max(p[2], 1e-12) for p in pts])
+        # weighted least squares for A lambda^2 + B lambda (no constant: dVar(0) = 0
+        # identically, since lambda = 0 IS the baseline arm)
+        M = np.vstack([lam ** 2, lam]).T / er[:, None]
+        coef, *_ = np.linalg.lstsq(M, dv / er, rcond=None)
+        A, B = coef
+        print()
+        if A > 0:
+            lstar = -B / (2 * A)
+            print(f"  parabola fit:  A = {A:+.3e}   B = {B:+.3e}")
+            print(f"  minimum at lambda* = {lstar:.3f}   dVar/Var = {-B * B / (4 * A):+.3e}")
+        else:
+            print(f"  parabola fit has A = {A:+.3e} <= 0: no interior minimum, "
+                  f"the curve is not convex over the scanned range")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -393,6 +485,11 @@ def main():
     r.add_argument("--nev", type=int, default=400)
     r.add_argument("--force", action="store_true")
     r.add_argument("--sample", default="pt8", choices=sorted(SAMPLES))
+    r.add_argument("--tag", default="", help="campaign tag; suffixes the output dir")
+    r.add_argument("--damp", type=float, default=None,
+                   help="CgfRecentreDamping (shrinkage on the mode-3 re-centring)")
+    r.add_argument("--mode", type=int, default=None,
+                   help="CgfQoPMode (1 = weight, 3 = weight + re-centring)")
     r.add_argument("--chunks", nargs="*", type=int, default=None,
                    help="input-file indices; each becomes its own job")
     r.add_argument("--ms", nargs="*", type=float, default=None,
@@ -409,6 +506,14 @@ def main():
     m.add_argument("--ms", nargs="+", type=float, default=[0.87, 1.14, 1.30])
     m.add_argument("--chunks", nargs="*", type=int, default=None)
     m.set_defaults(func=cmd_mscan)
+
+    dsc = sub.add_parser("dampscan")
+    dsc.add_argument("--arms", nargs="+", default=["cgf"])
+    dsc.add_argument("--sample", default="pt0", choices=sorted(SAMPLES))
+    dsc.add_argument("--damps", nargs="+", type=float, default=[0.2, 0.4, 0.7])
+    dsc.add_argument("--chunks", nargs="*", type=int, default=None)
+    dsc.add_argument("--tag", default="conf")
+    dsc.set_defaults(func=cmd_dampscan)
     a = p.parse_args()
     a.func(a)
 
