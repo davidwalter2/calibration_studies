@@ -32,6 +32,7 @@ import argparse
 import os
 import subprocess
 import sys
+import time
 
 import numpy as np
 
@@ -169,9 +170,16 @@ def run_one(arm, nev, force=False, sample="pt8", ms=None, chunk=None, mode=None,
     with open(wd + ".log", "w") as fh:
         fh.write(f"### area: {area}\n### cmd: {cmd}\n\n")
         fh.flush()
+        t0 = time.monotonic()
         p = subprocess.run(["bash", "-c", cmd], stdout=fh, stderr=subprocess.STDOUT, env=env)
+        dt = time.monotonic() - t0
     if p.returncode == 0:
-        open(os.path.join(wd, "wall.txt"), "w").write("done\n")
+        # The elapsed seconds, not just "done".  These logs carry no
+        # TimeReport, so without this the cost of an arm is only recoverable
+        # from directory mtimes -- which is wrong the moment two arms run
+        # concurrently.  `cmd_time` differences two event counts to cancel the
+        # ~2 min of Geant4 initialisation that this number includes.
+        open(os.path.join(wd, "wall.txt"), "w").write(f"done {dt:.1f}\n")
     try:
         os.remove(lock)
     except OSError:
@@ -226,6 +234,80 @@ def _robust(d):
     lo, hi = int(0.1 * n), max(int(0.9 * n), int(0.1 * n) + 1)
     q16, q84 = np.percentile(d, [15.865, 84.135])
     return float(np.median(d)), float(d[lo:hi].mean()), float(0.5 * (q84 - q16)), n
+
+
+def _wall(arm, sample, mode, nev, tag):
+    f = os.path.join(os.path.dirname(outfile(arm, sample, None, None, mode, None, tag)), "wall.txt")
+    parts = open(f).read().split()
+    return float(parts[1]) if len(parts) > 1 else float("nan")
+
+
+def _injob(arm, sample, mode, nev, tag):
+    """Seconds from the first record to the end of the job.
+
+    Total wall is NOT usable for comparing two estimators here: it contains a
+    job-startup cost (framework, conditions, geometry, the 3D field file) that
+    was measured at 145 s for the first pair of jobs in a campaign and 14 s for
+    the second, i.e. it depends on what is warm and not on the physics.  Taking
+    it at face value gave 5.0x for a ratio whose true value is 13.7x.
+
+    `Begin processing the 1st record` is the framework's own marker for the end
+    of startup, so (end - that) is the part that scales with the events.  A
+    per-job remainder survives inside it -- Geant4e initialises lazily on the
+    first propagation, ~10-15 s -- and THAT is what the two-point slope in
+    cmd_time removes.
+    """
+    d = os.path.dirname(outfile(arm, sample, None, None, mode, None, tag))
+    import datetime
+    import re
+    txt = open(d + ".log", errors="ignore").read()
+    m = re.search(r"Begin processing the 1st record.*?at "
+                  r"(\d{2}-\w{3}-\d{4} \d{2}:\d{2}:\d{2}\.\d{3})", txt)
+    if m is None:
+        return float("nan")
+    t_first = datetime.datetime.strptime(m.group(1), "%d-%b-%Y %H:%M:%S.%f")
+    t_end = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(d, "wall.txt")))
+    return (t_end - t_first).total_seconds()
+
+
+def _ntrk(arm, sample, mode, nev, tag):
+    import uproot
+    return uproot.open(outfile(arm, sample, None, None, mode, None, tag))["tree"].num_entries
+
+
+def cmd_time(args):
+    """What does the Fisher weight COST, per fitted track?
+
+    Wall time as measured includes ~2 min of Geant4 initialisation, which is
+    the same for both modes and would flatter whichever arm is slower.  So each
+    mode is run at TWO event counts and the cost is the slope,
+    (t_hi - t_lo) / (n_hi - n_lo) -- the intercept, initialisation and all,
+    cancels identically.  Runs are SEQUENTIAL: two cmsRun jobs on one machine
+    contend for cache and the ratio would be measuring the machine.
+    """
+    modes = args.modes
+    for m in modes:
+        for nev in (args.nlo, args.nhi):
+            if run_one("cgf", nev, args.force, args.sample, None, None, m, None,
+                       f"{args.tag}n{nev}"):
+                raise SystemExit(f"mode {m} nev {nev} failed")
+    logger.info(f"cost per fitted track, {args.sample}, "
+                f"nev {args.nlo} -> {args.nhi} (intercept removed)")
+    ref = None
+    for m in modes:
+        wlo, whi = (_wall("cgf", args.sample, m, n, f"{args.tag}n{n}")
+                    for n in (args.nlo, args.nhi))
+        tlo, thi = (_injob("cgf", args.sample, m, n, f"{args.tag}n{n}")
+                    for n in (args.nlo, args.nhi))
+        nlo, nhi = (_ntrk("cgf", args.sample, m, n, f"{args.tag}n{n}")
+                    for n in (args.nlo, args.nhi))
+        slope = (thi - tlo) / (nhi - nlo)
+        lazy = tlo - slope * nlo          # the per-job remainder (lazy G4 init)
+        ref = slope if ref is None else ref
+        logger.info(f"  mode {m}: {slope*1e3:8.1f} ms/track   "
+                    f"(x{slope/ref:5.2f})   lazy-init {lazy:5.1f} s   "
+                    f"[in-job {tlo:.0f}s/{nlo} trk, {thi:.0f}s/{nhi} trk; "
+                    f"wall {wlo:.0f}/{whi:.0f} s]")
 
 
 def cmd_cmp(args):
@@ -495,6 +577,15 @@ def main():
     r.add_argument("--ms", nargs="*", type=float, default=None,
                    help="CVH_MS_SCALE values; each becomes its own arm")
     r.set_defaults(func=cmd_run)
+    t = sub.add_parser("time")
+    t.add_argument("--modes", nargs="+", type=int, default=[0, 1])
+    t.add_argument("--sample", default="pt0", choices=sorted(SAMPLES))
+    t.add_argument("--nlo", type=int, default=100)
+    t.add_argument("--nhi", type=int, default=400)
+    t.add_argument("--force", action="store_true")
+    t.add_argument("--tag", default="tim")
+    t.set_defaults(func=cmd_time)
+
     c = sub.add_parser("cmp")
     c.add_argument("--arms", nargs="+", default=["vanilla", "cgf"])
     c.add_argument("--sample", default="pt8", choices=sorted(SAMPLES))
