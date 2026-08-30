@@ -1,3 +1,12 @@
+> **DONE 2026-08-29.** Everything below was carried out; the results are in
+> `Documents/Resolution/NOTES_HITRES.md` and
+> `~/public_html/calibration_studies/260829_hitres/`. Headline: hit resolution
+> is EXCLUDED as a source of the -1.6e-4 momentum-scale bias. The CPE's
+> variance is right to a few percent; its core is 8 % too wide in the strips
+> and 7 % too narrow in the pixels, and correcting toward the core moves the
+> fit AWAY from truth by +0.120 +- 0.020 % of the q/p variance at 5.9 sigma.
+> This file is kept as the brief that was worked from, not as an open task.
+
 # Handoff: hit-resolution studies for the CVH fit
 
 Written 2026-08-29. Everything below was read out of

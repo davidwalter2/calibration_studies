@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """Schematic of the LAYERED TOY geometry used by the clean-propagation closure.
 
-The numbers are not retyped: the shell radii, the layer thickness / density
-relation and the scoring radii are read from the two generators that build the
-geometry and the sim driver together,
+The numbers are not retyped: the shell radii, the scoring radii and RMIN/RMAX/DZ
+are all read from the generator that builds the geometry and the sim driver
+together,
 
-    Analysis/HitAnalyzer/data/gen_toy_layers.py   material shells (15)
-    Analysis/HitAnalyzer/test/gen_toy_config.py   scoring radii (14)
+    Analysis/HitAnalyzer/test/gen_toy_config.py   RADII (14)
 
-so a change there shows up here instead of the slide going stale.  RMIN/RMAX/DZ
-and the T -> rho rule come from the same file.
+so a change there shows up here instead of the slide going stale.
+
+There is ONE list, not two.  gen_toy_config.py places exactly one material shell
+per entry of RADII and scores at the same radii, so shells and scoring planes
+coincide.  This script previously read the shells from the superseded
+data/gen_toy_layers.py, which still carries the 15-entry list including 26.9's
+stereo partner at 27.1; gen_toy_config.py dropped 27.1 (it sits 0.2 cm away and
+would overlap for any layer thicker than that).  The figure therefore used to
+show a 15th material shell that the geometry does not build.
 
 usage (from calibration_studies/resolution):
     python cleanprop/make_toygeom_fig.py
@@ -62,10 +68,12 @@ def _scalars(path, names):
     return out
 
 
-shells = _listlit(f"{CMSSW}/data/gen_toy_layers.py", "radii")
-score = _listlit(f"{CMSSW}/test/gen_toy_config.py", "RADII")
-geo = _scalars(f"{CMSSW}/data/gen_toy_layers.py", ["RMIN", "RMAX", "DZ"])
-rho = 9.0 * 0.10 / T                                   # the file's own rule
+CFG = f"{CMSSW}/test/gen_toy_config.py"
+shells = score = _listlit(CFG, "RADII")
+geo = _scalars(CFG, ["RMIN", "RMAX", "DZ"])
+# gen_toy_config.py PINS rho at 9.0 for the layered geometries (only NSUB varies
+# the boundary count); it is not a literal there, so it is restated here.
+rho = 9.0
 
 print(f"{len(shells)} material shells: {shells}")
 print(f"{len(score)} scoring radii : {score}")
@@ -130,9 +138,9 @@ fig.text(0.5, 0.995,
          rf"$\rho = {rho:.0f}$ g/cm$^3$, $Z=8$, $A=16$ — vacuum in between",
          ha="center", va="top", fontsize=17)
 fig.text(0.5, 0.938,
-         f"solid red = the {len(score)} scoring planes (r = {min(score)}–"
-         f"{max(score)} cm)   ·   dashed grey = the double-sided partner at "
-         f"{[r for r in shells if r not in score][0]} cm, not scored",
+         f"solid red = the {len(score)} shells, each scored on its own surface "
+         f"(r = {min(score)}–{max(score)} cm)   ·   "
+         f"radial budget {len(shells) * T * rho:.1f} g/cm$^2$",
          ha="center", va="top", fontsize=14, color=GREY)
 fig.subplots_adjust(left=0.065, right=0.985, top=0.80, bottom=0.11, wspace=0.24)
 

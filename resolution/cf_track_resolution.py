@@ -1332,6 +1332,13 @@ def extract(args):
             Sio_re_l.append(Sio.real.astype(np.float32))
             Sio_im_l.append(Sio.imag.astype(np.float32))
             nsel += 1
+            # --max-tracks used to break only at a FILE boundary, so with one
+            # file per shard (extract_parallel) it did nothing at all and every
+            # shard ground through its whole file. The per-track cost here is
+            # ~2.4 s, dominated by the exact-delta ionization exponent, so that
+            # is 2-3 h per shard rather than the intended cap.
+            if nsel >= args.max_tracks:
+                break
         logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} tracks "
                     f"(drop gen {ndropgen}, cov {ndropcov})")
         if nsel >= args.max_tracks:
