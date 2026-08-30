@@ -57,6 +57,53 @@ def branch_census(steps):
     return steps
 
 
+def synthetic(kok):
+    """Cover the regimes the production file does not contain.
+
+    The mugun records are ALL regime 2, so a real-data pass says nothing about
+    the Gaussian branch (regime 0), the 1/E^2 collision-count branch (regime 1,
+    `deltaTerm`, which has its OWN series/closed-form split) or the spin-0
+    exact branch (regime 3). Deleting the python path on regime-2 evidence
+    alone would leave three unvalidated transcriptions in the tree.
+
+    Records are built in the exporter's own 13-column layout and fed to BOTH
+    implementations, so this compares the same entry point as the real-data
+    arm rather than a lower-level kernel.
+    """
+    tau = np.asarray(cft.TG, dtype=np.float64)
+    cases = []
+    # (label, regime, a1, e1, a2, e2, a3, e0r, tmaxr, scaling, g, beta2, etot)
+    # e0/tmax chosen so a*w = gs*tmax*tau straddles the |a*w| = 2 split at both
+    # ends of the tau grid.
+    for lbl, reg, a3, e0, tmax, b2, et in (
+            ("reg1 small a*w", 1, 3.0, 5.0e-2, 1.0e-1, 0., 0.),
+            ("reg1 large a*w", 1, 3.0, 5.0e-2, 5.0e+2, 0., 0.),
+            ("reg2 small a*w", 2, 2.0e-2, 5.0e-2, 1.0e-1, 0.99, 2.0e4),
+            ("reg2 large a*w", 2, 2.0e-2, 5.0e-2, 5.0e+2, 0.99, 2.0e4),
+            ("reg3 small a*w", 3, 2.0e-2, 5.0e-2, 1.0e-1, 0.99, 2.0e4),
+            ("reg3 large a*w", 3, 2.0e-2, 5.0e-2, 5.0e+2, 0.99, 2.0e4)):
+        cases.append((lbl, [reg, 0., 0.3, 1.0e-3, 0.7, 2.0e-3,
+                            a3, e0, tmax, 1.0, 1.0, b2, et]))
+    cases.append(("reg0 gaussian",
+                  [0, 4.0e-6, 0., 0., 0., 0., 0., 0., 0., 1.0, 1.0, 0., 0.]))
+    cases.append(("excitations only",
+                  [1, 0., 0.9, 1.0e-3, 1.3, 3.0e-3, 0., 0., 0., 1.0, 1.0, 0., 0.]))
+
+    print("\n--- synthetic regime coverage "
+          "(the production file is all regime 2) ---")
+    worst = 0.0
+    for lbl, row in cases:
+        steps = np.array([row], dtype=np.float64)
+        bad = 0.0
+        for wstd in (1.0, 37.0, 500.0):
+            py = cft.ioni_step_exponent(steps, wstd, tau)
+            cx = cgfshim.ioni_step_exponent(steps, wstd, tau, kok_nbin=kok)
+            bad = max(bad, float(np.abs(np.exp(cx) - np.exp(py)).max()))
+        worst = max(worst, bad)
+        print(f"  {lbl:20} max |dexp| {bad:.3e}")
+    return worst
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--file", default=DEFAULT_FILE)
@@ -133,7 +180,12 @@ def main():
         print(f"median                        {np.median(errs):.3e}")
         print(f"99th pct                      {np.percentile(errs, 99):.3e}")
 
+    wsyn = synthetic(kok)
+
     ok = True
+    if wsyn > 1e-12:
+        print(f"\nFAIL: synthetic regimes disagree at {wsyn:.3e}")
+        ok = False
     if nblk == 0:
         print("\nFAIL: no blocks compared")
         ok = False
