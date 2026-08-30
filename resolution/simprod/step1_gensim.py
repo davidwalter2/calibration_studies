@@ -142,6 +142,30 @@ _sp.DeltaIntersectionTracker = 1e-6
 _sp.DeltaOneStep = 1e-5
 _sp.DeltaIntersection = 1e-6
 
+# RADIATION OFF (opt-in: SIMPROD_RADOFF=1). This is half-switch R1 of the
+# three that must move TOGETHER -- the other two are `ReferenceIonizationOnly`
+# on the propagator and the model CF's rad channel. NOTES_RADOFF s1 established
+# at real cost that any ONE of them alone gives a large spurious answer (the CF
+# half alone moved the pT=40 closure by 68 % of the whole non-closure), so a
+# sample produced with this flag is only interpretable together with the other
+# two.
+#
+# It MUST be a SimWatcher inside the Simulation biglib.
+# `process.g4SimHits.G4Commands` is a silent no-op for this, and a watcher
+# registered outside the biglib talks to a second, uninitialised Geant4 -- both
+# leave the processes fully active while looking configured.
+#
+# The proof is the step census the watcher prints at end of job: muBrems and
+# muPairProd must show EXACTLY 0 steps. Anything else means the deactivation
+# did not take, and the sample is silently radiation-ON.
+if os.environ.get('SIMPROD_RADOFF', '0') not in ('0', '', 'false', 'False'):
+    process.g4SimHits.Watchers = cms.VPSet(cms.PSet(
+        type=cms.string('ProcessActivationWatcher'),
+        inactivate=cms.untracked.vstring('muBrems', 'muPairProd'),
+    ))
+    print('[simprod] RADIATION OFF: muBrems + muPairProd deactivated; '
+          'check the [procact] step census for EXACTLY 0')
+
 process.generator = cms.EDFilter("Pythia8PtGun",
     PGunParameters = cms.PSet(
         AddAntiParticle = cms.bool(False),
