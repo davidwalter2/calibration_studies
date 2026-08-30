@@ -51,10 +51,14 @@ PROBES = (0.05, 0.2, 1.0, 2.0)
 KHITS = (0.0, 0.0563, 0.0821, 0.15)
 
 SAMPLES = (
-    ("mugun_ul16_260830", "mu pT 20-60", 0.0563),
-    ("mugun_lowpt_260830", "mu pT 2-20", 0.0821),
+    ("mugun_ul16_260830", "mu pT 20-60  [C: CGF Fisher weight]", 0.0563),
+    ("mugun_ul16_260830_m0", "mu pT 20-60  [B: legacy truncated Q]", 0.0563),
+    ("mugun_lowpt_260830", "mu pT 2-20   [C: CGF Fisher weight]", 0.0821),
+    ("mugun_lowpt_260830_m0", "mu pT 2-20   [B: legacy truncated Q]", 0.0821),
 )
-# The August caches, for the before/after column.
+# A: the August caches (old model AND old fit), for the published column.
+# Attached to the CGF rows only -- printing it four times would suggest four
+# independent comparisons where there is one.
 OLD = {"mugun_ul16_260830": "runs/cf_trackres_mugun_ul16_fix.npz",
        "mugun_lowpt_260830": "runs/cf_trackres_mugun_lowpt_fix.npz"}
 
@@ -103,7 +107,7 @@ def solve_kioni(d, u, lo=-2.0, hi=2.0, niter=24):
 def report(tag, label, khit_meas):
     f = f"runs/cf_trackres_{tag}.npz"
     if not os.path.exists(f):
-        print(f"{label:14} (missing {f})")
+        print(f"{label:38} (missing {f})")
         return
     d = np.load(f)
     n = len(d["z"])

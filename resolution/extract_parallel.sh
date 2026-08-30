@@ -12,6 +12,23 @@ INDIR=$1
 OUT=$2
 NSHARD=${3:-20}
 
+# ONE BLAS/OpenMP THREAD PER SHARD. numpy's backends default to one thread
+# per core, so NSHARD=160 on a 192-core box asks for ~21 600 threads from ONE
+# python3 process group -- and two samples extracting at once put this user at
+# 32 373 threads against a `ulimit -u` of 32 768. At that point NOTHING can
+# create a thread any more: every cmsRun launched afterwards died with an
+# immediate segmentation violation before its first log line, including a
+# trivial EmptySource job, while the machine still had 1.2 TB of free memory.
+# (Measured 2026-08-30: it killed 40 CGF refit tasks and 69 more in the next
+# sample, and looked exactly like a physics crash.)
+#
+# The shard work is per-track and serial; the threads buy nothing here.
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+
 SELF=$(cd "$(dirname "$0")" && pwd)
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/extract_shards.XXXXXX")
 trap 'rm -rf "$TMP"' EXIT
