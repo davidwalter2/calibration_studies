@@ -12,6 +12,8 @@ standardized momentum error z = (qop_reco - qop_gen)/sigma, sigma^2 =
 refCov(0,0):
 
   log phi_z(t) = -(Vg/sigma^2) t^2/2                        [hits, Gaussian]
+      -- or, with --hitmode class, the MEASURED per-hit densities:
+         sum_b log phi_c(b)( t sqrt(v_b)/sigma )              [hits, measured]
     + sum_MS  e^{k_ms}  sum_steps (chic2/chia2) G(t w_std sqrt(chia2); FF)
     + sum_ion e^{k_ion} sum_steps S_urban(t w_std g_s ...)  [centered]
 
@@ -49,6 +51,7 @@ import uproot
 from wums import logging, output_tools, plot_tools
 from cf_ms_exact import moliere_params, gshape, gshape_elec
 import cf_ioni_exact
+import hitres_classes
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -202,6 +205,14 @@ def parse_args():
                    help="log-scale applied to the MS exponent (collision counts)")
     p.add_argument("--kioni", type=float, default=0.0,
                    help="log-scale applied to the ionization exponent")
+    p.add_argument("--hitmode", choices=["gauss", "class"], default="gauss",
+                   help="hit term: one Gaussian of the summed block variance "
+                        "(the historical treatment, and the only block family "
+                        "in the CF that was still Gaussian), or the MEASURED "
+                        "per-class densities summed block by block")
+    p.add_argument("--bank-subdir", default="hitres3")
+    p.add_argument("--bank-tag", default="mugun_lowpt")
+    p.add_argument("--bank-nfiles", type=int, default=25)
     p.add_argument("--nsigma-bins", type=int, default=4)
     p.add_argument("--outpath", default=None)
     p.add_argument("--postfix", default="")
@@ -1176,6 +1187,8 @@ def extract(args):
     files = sorted(glob.glob(args.files))[:args.ntasks]
     logger.info(f"{len(files)} files")
     zs, sigs, etas, phis, chgs, vgf = [], [], [], [], [], []
+    # ragged per-block store: class index, v_b/refCov00, and the count per track
+    hcls, hamp, hcnt = [], [], []
     # Track-quality and kinematics, stored so the closure can be scanned
     # AGAINST THE SELECTION rather than reported at one arbitrary cut. The
     # historical trimming-dependence (MS +0.007 at chi2/hit < 10 against
@@ -1185,6 +1198,8 @@ def extract(args):
     Sms_l, Sio_re_l, Sio_im_l = [], [], []
     nsel = ndropcov = ndropgen = 0
     pt = None
+    _warned_noclass = False
+    want_hitclass = False
     for fn in files:
         try:
             f = uproot.open(fn)
@@ -1196,12 +1211,22 @@ def extract(args):
         except Exception as e:
             logger.warning(f"skipping {fn}: {type(e).__name__}")
             continue
-        a = t.arrays(["refParms", "refCov", "genParms", "resinfcov",
-                      "resinfvarv", "reseigidx", "msmoliidx", "msmoliv",
-                      "ioniurbanidx", "ioniurbanv",
-                      "normalizedChi2", "nValidHits", "trackPt", "genPt",
-                      "chisqval", "ndof"],
-                     library="np")
+        # The per-hit CLASS variables are present only on productions made
+        # after the export was ungated (commits e81ef11 / 138169a); older
+        # caches still work and simply fall back to the Gaussian hit term.
+        _need = ["refParms", "refCov", "genParms", "resinfcov",
+                 "resinfvarv", "reseigidx", "msmoliidx", "msmoliv",
+                 "ioniurbanidx", "ioniurbanv",
+                 "normalizedChi2", "nValidHits", "trackPt", "genPt",
+                 "chisqval", "ndof"]
+        _cls = ["reshitidx", "hitDetId", "hitUProj", "clusterSizeX",
+                "clusterChargeBin"]
+        want_hitclass = all(b in t.keys() for b in _cls)
+        if not want_hitclass and not _warned_noclass:
+            logger.warning("input has no per-hit class variables; only the "
+                           "Gaussian hit term will be available")
+            _warned_noclass = True
+        a = t.arrays(_need + (_cls if want_hitclass else []), library="np")
         for ic in range(len(a["resinfcov"])):
             qg = a["genParms"][ic][0]
             if qg == 0.:
@@ -1217,6 +1242,28 @@ def extract(args):
             vb = np.asarray(a["resinfvarv"][ic], dtype=np.float64)
             fam = pt[gi]
             vgauss = vb[(fam == 8) | (fam == 9)].sum()
+            # Per-BLOCK hit weights and classes, not just their sum. The sum
+            # is enough only while the hit term is Gaussian; for a measured
+            # per-class density log phi_hit = sum_b log phi_c(a_b t) is not a
+            # function of sum_b v_b. It is also the spread of the a_b that
+            # produces most of the hit term's non-Gaussianity at track level
+            # (NOTES_HITRES section 13), so it must be kept.
+            hcls_i, hamp_i = [], []
+            if want_hitclass:
+                hidx = np.asarray(a["reshitidx"][ic])
+                hdet = np.asarray(a["hitDetId"][ic]).astype(np.uint32)
+                hsd = (hdet >> 25) & 0x7
+                hN = np.asarray(a["clusterSizeX"][ic])
+                hU = np.asarray(a["hitUProj"][ic])
+                hQ = np.asarray(a["clusterChargeBin"][ic])
+                for j in np.where((fam == 8) | (fam == 9))[0]:
+                    hh = hidx[j]
+                    if hh < 0 or hh >= len(hsd) or vb[j] <= 0.:
+                        continue
+                    cl = hitres_classes.class_of(hsd[hh], hN[hh], hU[hh],
+                                                 hQ[hh], fam[j] == 9)
+                    hcls_i.append(hitres_classes.class_index(cl))
+                    hamp_i.append(vb[j] / c00)
 
             uvm = np.asarray(a["msmoliv"][ic], dtype=np.float64)
             uim = np.asarray(a["msmoliidx"][ic])
@@ -1270,6 +1317,7 @@ def extract(args):
             # essential on the both-charge one (2026-08-07).
             chgs.append(np.sign(qg))
             vgf.append(vgauss / c00)
+            hcls.extend(hcls_i); hamp.extend(hamp_i); hcnt.append(len(hcls_i))
             chi2n.append(float(a["normalizedChi2"][ic]))
             nvhit.append(float(a["nValidHits"][ic]))
             ptrk.append(float(a["trackPt"][ic]))
@@ -1296,18 +1344,75 @@ def extract(args):
                         trackpt=np.array(ptrk), genpt=np.array(ptgen),
                         chisqval=np.array(chisq), ndof=np.array(ndofs),
                         Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
-                        Sio_im=np.array(Sio_im_l), tgrid=TG)
+                        Sio_im=np.array(Sio_im_l), tgrid=TG,
+                        hitcls=np.array(hcls, dtype=np.int16),
+                        hitamp2=np.array(hamp, dtype=np.float32),
+                        hitcnt=np.array(hcnt, dtype=np.int32),
+                        hitclsnames=np.array(hitres_classes.CLASSES))
     logger.info(f"wrote {args.cache} ({nsel} tracks)")
 
 
-def model_phi(d, args):
+def hit_exponent(d, args, bank):
+    """log phi_hit(t) per track from the MEASURED per-class densities.
+
+    The CVH solve is linear least squares given the reference trajectory, so
+    delta(q/p) = sum_b w_b n_b exactly and
+
+        log phi_hit(t) = sum_b log phi_c(b)( t sqrt(v_b) / sigma )
+
+    is exact too -- no linearisation. phi_c is the CF of the RAW per-hit pull,
+    so it carries the class's variance ratio AND its shape in one object; a
+    class missing from the bank falls back to a Gaussian of its own v_b, which
+    is what the old term did for every class.
+
+    Chunked over tracks: the intermediate is (nblocks x len(TG)) and the full
+    sample would be ~10^9 numbers.
+    """
+    names = list(d["hitclsnames"])
+    cnt = d["hitcnt"].astype(np.int64)
+    off = np.concatenate(([0], np.cumsum(cnt)))
+    cls = d["hitcls"].astype(np.int64)
+    amp = np.sqrt(np.maximum(d["hitamp2"].astype(np.float64), 0.))
+    n = len(cnt)
+    S = np.zeros((n, len(TG)), dtype=np.complex128)
+    have = np.array([names[i] in bank for i in range(len(names))])
+    CHUNK = 2000
+    for lo in range(0, n, CHUNK):
+        hi = min(lo + CHUNK, n)
+        b0, b1 = off[lo], off[hi]
+        if b1 == b0:
+            continue
+        cb, ab = cls[b0:b1], amp[b0:b1]
+        trk = np.repeat(np.arange(lo, hi) - lo, cnt[lo:hi])
+        arg = ab[:, None] * TG[None, :]
+        val = np.zeros_like(arg, dtype=np.complex128)
+        for ci in np.unique(cb):
+            m = cb == ci
+            if have[ci]:
+                val[m] = hitres_classes.logphi(bank[names[ci]], arg[m])
+            else:
+                # unknown class -> Gaussian of the same variance
+                val[m] = -0.5 * arg[m] ** 2
+        acc = np.zeros((hi - lo, len(TG)), dtype=np.complex128)
+        np.add.at(acc, trk, val)
+        S[lo:hi] = acc
+    return S
+
+
+def model_phi(d, args, bank=None):
     """Complex phi_z(t) per track on TG with the per-family k applied.
     Total variance is renormalized so z stays standardized to the
     *scaled* model: sigma_model^2/sigma^2 = e^khit*vgf + scaled tails --
     handled by evaluating phi of the scaled physics and letting closure
     compare against z_obs built with the unscaled sigma."""
-    vg = np.exp(args.khit) * d["vgf"][:, None]
-    S = (-0.5 * vg * TG[None, :] ** 2
+    if args.hitmode == "class":
+        if bank is None:
+            raise SystemExit("--hitmode class needs the measured CF bank")
+        Shit = np.exp(args.khit) * hit_exponent(d, args, bank)
+    else:
+        vg = np.exp(args.khit) * d["vgf"][:, None]
+        Shit = -0.5 * vg * TG[None, :] ** 2
+    S = (Shit
          + np.exp(args.kms) * d["Sms"]
          + np.exp(args.kioni) * (d["Sio_re"] + 1j * d["Sio_im"]))
     return np.exp(S)
@@ -1323,7 +1428,16 @@ def closure(args, outdir):
     d = np.load(args.cache)
     n = len(d["z"])
     logger.info(f"{n} tracks from {args.cache}")
-    phi = model_phi(d, args)
+    bank = None
+    if args.hitmode == "class":
+        if "hitcnt" not in d:
+            raise SystemExit(f"{args.cache} predates the per-block hit store; "
+                             f"re-run --extract on a production with the class "
+                             f"variables")
+        logger.info(f"measured hit CF bank from {args.bank_subdir}_{args.bank_tag}:")
+        bank, _ = hitres_classes.build_cf_bank(
+            args.bank_subdir, args.bank_tag, args.bank_nfiles, logger=logger)
+    phi = model_phi(d, args, bank)
     z = d["z"]
 
     # per-probe closure, inclusive and in predicted-sigma quartiles

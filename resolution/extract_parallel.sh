@@ -11,6 +11,7 @@ set -euo pipefail
 INDIR=$1
 OUT=$2
 NSHARD=${3:-20}
+EXTRA_ARGS=${EXTRA_ARGS:-}
 
 # ONE BLAS/OpenMP THREAD PER SHARD. numpy's backends default to one thread
 # per core, so NSHARD=160 on a 192-core box asks for ~21 600 threads from ONE
@@ -53,13 +54,19 @@ run_shard() {
     ln -sf "$f" "$sd/task_$(printf '%04d' $k)/globalcor_resclosure_0.root"
     k=$((k + 1))
   done < "$list"
+  # EXTRA_ARGS is how a run caps the work per shard. Wall time here is set by
+  # ONE file -- each shard gets one -- and the per-track cost is dominated by
+  # the exact-delta ionization exponent (_kokoulin_exponent), measured at over
+  # an hour per file on the doRes productions. So `--max-tracks N` is the only
+  # knob that shortens the run; reducing the FILE count does not.
+  # shellcheck disable=SC2086
   python3 "$SELF/cf_track_resolution.py" --extract \
       --files "$sd/task_*/globalcor_resclosure_0.root" \
-      --ntasks 10000 --cache "$TMP/out_$i.npz" > "$TMP/log_$i.txt" 2>&1 \
+      --ntasks 10000 --cache "$TMP/out_$i.npz" ${EXTRA_ARGS:-} > "$TMP/log_$i.txt" 2>&1 \
     || { echo "[FAIL] shard $i"; tail -3 "$TMP/log_$i.txt"; return 1; }
 }
 export -f run_shard
-export TMP N NSHARD SELF
+export TMP N NSHARD SELF EXTRA_ARGS
 # FILES is an array; re-export via a serialized form the subshells can read
 printf '%s\n' "${FILES[@]}" > "$TMP/all_files.txt"
 run_shard_wrap() { mapfile -t FILES < "$TMP/all_files.txt"; export FILES; run_shard "$1"; }
@@ -85,10 +92,13 @@ keys = list(parts[0].files)
 merged = {}
 for k in keys:
     a = [p[k] for p in parts]
-    # tgrid is the shared tau grid, identical in every shard: keep one copy
-    if k == "tgrid":
+    # tgrid is the shared tau grid and hitclsnames the canonical class list;
+    # both are identical in every shard, so keep one copy instead of
+    # concatenating (concatenating hitclsnames would also make its length
+    # depend on the shard count)
+    if k in ("tgrid", "hitclsnames"):
         for x in a[1:]:
-            assert np.allclose(x, a[0]), "tgrid differs between shards"
+            assert np.array_equal(x, a[0]), f"{k} differs between shards"
         merged[k] = a[0]
     else:
         merged[k] = np.concatenate(a, axis=0)
