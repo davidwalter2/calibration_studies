@@ -67,6 +67,13 @@ class A:
     khit = 0.0
     kms = 0.0
     kioni = 0.0
+    # `hitmode` appeared in model_phi on 2026-08-30 (0535602, "put the measured
+    # per-hit densities into the offline CF"). "gauss" is the historical
+    # treatment -- one Gaussian of the summed block variance -- and it is what
+    # the published slide-4 numbers were produced with, so it is the setting
+    # that makes this comparison a comparison. "class" is the new per-class
+    # density sum and is a DIFFERENT model, to be compared separately.
+    hitmode = "gauss"
 
 
 def solve_kms(d, u, khit, lo=-0.60, hi=0.60, niter=24):
