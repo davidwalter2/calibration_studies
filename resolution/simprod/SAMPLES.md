@@ -9,13 +9,12 @@ sample                           files  evt/f  pdg         pT      GT           
 jpsigun_smoke                    1/1       40  443         5-30    150X_mcRun2_asymptotic_v1 1e-5     none                                          
 jpsigun_ul16                   160/160   2000  443         5-30    150X_mcRun2_asymptotic_v1 1e-5     none                                          
 kaongun_ul16                   160/160   1000  321, -321   2-20    150X_mcRun2_asymptotic_v1 1e-5     none                                          
-msoff_smoke                      0/1       60  13, -13     2-20    150X_mcRun2_asymptotic_v1 1e-5     msc [mu-,mu+]  census=OK                      
 mugun260807                     40/40    2500  13          20-60   -                         -        none                                          
 mugun260807p                    40/40    2500  13          20-60   -                         1e-5     none                                          
 mugun2q260807                   40/40    4000  13, -13     20-60   -                         1e-5     none                                          
 mugun_lowpt                    160/160   1000  13, -13     2-20    150X_mcRun2_asymptotic_v1 1e-5     none                                          
-mugun_lowpt_noms                 0/80    1000  13, -13     2-20    150X_mcRun2_asymptotic_v1 1e-5     msc,CoulombScat [mu-,mu+]  census=NO CENSUS   
-mugun_lowpt_nomsrad              0/80    1000  13, -13     2-20    150X_mcRun2_asymptotic_v1 1e-5     msc,CoulombScat,muBrems,muPairProd [mu-,mu+]  census=NO CENSUS
+mugun_lowpt_noms                80/80    1000  13, -13     2-20    150X_mcRun2_asymptotic_v1 1e-5     msc,CoulombScat [mu-,mu+]  census=OK          
+mugun_lowpt_nomsrad             80/80    1000  13, -13     2-20    150X_mcRun2_asymptotic_v1 1e-5     msc,CoulombScat,muBrems,muPairProd [mu-,mu+]  census=OK
 mugun_ul16                     160/160   1000  13, -13     20-60   150X_mcRun2_asymptotic_v1 1e-5     none                                          
 piongun_ul16                   160/160   1000  211, -211   2-20    150X_mcRun2_asymptotic_v1 1e-5     none                                          
 protongun_ul16                 160/160   1000  2212, -2212 2-20    150X_mcRun2_asymptotic_v1 1e-5     none                                          
