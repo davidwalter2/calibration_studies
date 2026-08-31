@@ -52,6 +52,16 @@ from wums import logging, output_tools, plot_tools
 from cf_ms_exact import moliere_params, gshape, gshape_elec
 import cf_ioni_exact
 import hitres_classes
+import cf_delta_ray
+
+# Discrete delta-ray (knock-on) transverse recoil, see cf_delta_ray.  Stored as
+# the NET change to the MS block: S_delta - carve*S_ms, so it is exactly zero
+# when switched off and needs no second copy of Sms.  DELTA_TMAXCAP truncates
+# the spectrum where the recoil stops being resolution and becomes a visible
+# kink the selection removes (default 50 MeV ~ 30x the per-layer MS angle).
+DELTA_ON = os.environ.get("CF_DELTA", "1") not in ("0", "", "false", "False")
+DELTA_TCUT = float(os.environ.get("CF_DELTA_TCUT", "0.35e-3"))     # GeV
+DELTA_TMAXCAP = float(os.environ.get("CF_DELTA_TMAXCAP", "0.05"))  # GeV
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -205,6 +215,9 @@ def parse_args():
                    help="log-scale applied to the MS exponent (collision counts)")
     p.add_argument("--kioni", type=float, default=0.0,
                    help="log-scale applied to the ionization exponent")
+    p.add_argument("--kdel", type=float, default=None,
+                   help="log-scale on the discrete delta-ray recoil block "
+                        "(net of the Moliere carve); omit to leave it off")
     p.add_argument("--hitmode", choices=["gauss", "class"], default="gauss",
                    help="hit term: one Gaussian of the summed block variance "
                         "(the historical treatment, and the only block family "
@@ -1195,7 +1208,7 @@ def extract(args):
     # -0.073 at < 3) was never separable from model error without these
     # (2026-08-08).
     chi2n, nvhit, ptrk, ptgen, chisq, ndofs = [], [], [], [], [], []
-    Sms_l, Sio_re_l, Sio_im_l = [], [], []
+    Sms_l, Sio_re_l, Sio_im_l, Sdel_l = [], [], [], []
     nsel = ndropcov = ndropgen = 0
     pt = None
     _warned_noclass = False
@@ -1273,6 +1286,7 @@ def extract(args):
             uvi = uvi.reshape(-1, len(uvi) // max(len(uii), 1)) if len(uii) else uvi.reshape(0, 11)
 
             Sms = np.zeros(len(TG))
+            Sdel = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
             ok = True
             for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
@@ -1290,7 +1304,16 @@ def extract(args):
                         if sq2 <= 0.:
                             continue
                         wstd = np.sqrt(vpool / sq2) / sig
-                        Sms += ms_step_exponent(steps, wstd, TG)
+                        _sms = ms_step_exponent(steps, wstd, TG)
+                        Sms += _sms
+                        if DELTA_ON:
+                            # carve, do NOT add: Moliere's Z(Z+1) already
+                            # carries this electron scattering continuously.
+                            _cf = cf_delta_ray.carve_factor(
+                                steps, DELTA_TCUT, DELTA_TMAXCAP)
+                            Sdel += (cf_delta_ray.delta_step_exponent(
+                                steps, wstd, TG, DELTA_TCUT,
+                                tmax_cap=DELTA_TMAXCAP) - _cf * _sms)
                     else:
                         gq = steps[:, 10] * 1e-3
                         sq2 = float(np.sum(steps[:, 1] * gq * gq))
@@ -1329,6 +1352,7 @@ def extract(args):
             chisq.append(float(a["chisqval"][ic]))
             ndofs.append(float(a["ndof"][ic]))
             Sms_l.append(Sms.astype(np.float32))
+            Sdel_l.append(Sdel.astype(np.float32))
             Sio_re_l.append(Sio.real.astype(np.float32))
             Sio_im_l.append(Sio.imag.astype(np.float32))
             nsel += 1
@@ -1350,7 +1374,7 @@ def extract(args):
                         normchi2=np.array(chi2n), nvalidhits=np.array(nvhit),
                         trackpt=np.array(ptrk), genpt=np.array(ptgen),
                         chisqval=np.array(chisq), ndof=np.array(ndofs),
-                        Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
+                        Sms=np.array(Sms_l), Sdel=np.array(Sdel_l), Sio_re=np.array(Sio_re_l),
                         Sio_im=np.array(Sio_im_l), tgrid=TG,
                         hitcls=np.array(hcls, dtype=np.int16),
                         hitamp2=np.array(hamp, dtype=np.float32),
@@ -1422,6 +1446,11 @@ def model_phi(d, args, bank=None):
     S = (Shit
          + np.exp(args.kms) * d["Sms"]
          + np.exp(args.kioni) * (d["Sio_re"] + 1j * d["Sio_im"]))
+    kd = getattr(args, "kdel", None)
+    if kd is not None:
+        keys = d.files if hasattr(d, "files") else d
+        if "Sdel" in keys:
+            S = S + np.exp(kd) * d["Sdel"]
     return np.exp(S)
 
 
