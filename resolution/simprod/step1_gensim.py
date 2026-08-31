@@ -158,13 +158,31 @@ _sp.DeltaIntersection = 1e-6
 # The proof is the step census the watcher prints at end of job: muBrems and
 # muPairProd must show EXACTLY 0 steps. Anything else means the deactivation
 # did not take, and the sample is silently radiation-ON.
+# The two ablation knobs share ONE Watchers assignment, because a second
+# `process.g4SimHits.Watchers = ...` silently replaces the first -- which is
+# how a job asking for both would have got only the last one.
+#   SIMPROD_RADOFF=1            muBrems + muPairProd, all particles (as before)
+#   SIMPROD_INACTIVATE=msc,...  an explicit list
+#   SIMPROD_INACT_PARTICLES=mu-,mu+   restrict the list to those particles
+#
+# For `msc` the particle restriction is NOT optional. The name belongs to e-,
+# e+, mu+/- and the charged hadrons alike, so deactivating it globally also
+# straightens the delta-ray electrons -- and their transport sets cluster
+# shapes, i.e. it would change the hit resolution, which is exactly what an MS
+# ablation is meant to isolate.
+_inact = [x for x in os.environ.get('SIMPROD_INACTIVATE', '').split(',') if x]
 if os.environ.get('SIMPROD_RADOFF', '0') not in ('0', '', 'false', 'False'):
+    _inact += [p for p in ('muBrems', 'muPairProd') if p not in _inact]
+_inact_parts = [x for x in os.environ.get('SIMPROD_INACT_PARTICLES', '').split(',') if x]
+if _inact:
     process.g4SimHits.Watchers = cms.VPSet(cms.PSet(
         type=cms.string('ProcessActivationWatcher'),
-        inactivate=cms.untracked.vstring('muBrems', 'muPairProd'),
+        inactivate=cms.untracked.vstring(*_inact),
+        particles=cms.untracked.vstring(*_inact_parts),
     ))
-    print('[simprod] RADIATION OFF: muBrems + muPairProd deactivated; '
-          'check the [procact] step census for EXACTLY 0')
+    print('[simprod] PROCESSES OFF: %s%s; check the [procact] step census '
+          'for EXACTLY 0' % (', '.join(_inact),
+                             (' for ' + ','.join(_inact_parts)) if _inact_parts else ''))
 
 process.generator = cms.EDFilter("Pythia8PtGun",
     PGunParameters = cms.PSet(

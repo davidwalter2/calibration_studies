@@ -42,6 +42,25 @@ def grab(txt, pat, default="-"):
     return m[-1].strip() if m else default
 
 
+def census_verdict(tl):
+    """Did the deactivation actually take?
+
+    The watcher prints, at EndOfRun, the number of steps each process DEFINED,
+    split into the primary and all tracks. A process that was switched off for
+    the primary must be ABSENT from the primary column; anything else means
+    the sample is silently un-ablated.
+    """
+    req = re.findall(r"requested INACTIVE '([^']+)'", tl)
+    if not req:
+        return "-"
+    seen = dict((m[0], int(m[1]))
+                for m in re.findall(r"\[procact\]\s+(\S+)\s+primary (\d+)\s+all \d+", tl))
+    if not seen:
+        return "NO CENSUS"
+    bad = [r for r in req if seen.get(r, 0) > 0]
+    return "OK" if not bad else "FAILED:" + ",".join(bad)
+
+
 def read_sample(d):
     tasks = sorted(glob.glob(os.path.join(d, "task_*")))
     if not tasks:
@@ -51,6 +70,14 @@ def read_sample(d):
     if not os.path.exists(s1):
         return None
     t1 = open(s1).read()
+    # The ablation is read from step1.log, not from the config. The config
+    # only carries `cms.untracked.vstring(*_inact)` -- the list is built from
+    # the environment at cmsRun time, so the file does not record what was
+    # actually switched off. The log carries both the resolved request and,
+    # better, the [procact] STEP CENSUS: what Geant4 actually ran. That is the
+    # evidence, the flag is not.
+    lg = os.path.join(tasks[0], "step1.log")
+    tl = open(lg, errors="ignore").read() if os.path.exists(lg) else ""
     t2 = open(s2).read() if os.path.exists(s2) else ""
     nstep2 = sum(1 for t in tasks if os.path.exists(os.path.join(t, "step2.root")))
     info = dict(
@@ -67,7 +94,16 @@ def read_sample(d):
         geom=("Ideal" if "XMLFromDBSource.label=\"Ideal\"" in t1
               or 'XMLFromDBSource.label="Ideal"' in t1 else "Extended?"),
         step=grab(t1, r"DeltaOneStepTracker\s*=\s*([\w.e-]+)"),
+        # The ABLATION is carried by process.g4SimHits.Watchers, NOT by
+        # G4Commands. G4Commands is applied while Geant4 is still PreInit and
+        # is a silent no-op (measured: two runs with and without came out
+        # bit-identical). An inventory keyed on G4Commands therefore reports
+        # every sample as unablated, including ones that are not -- which is
+        # what the first version of this file did.
         g4cmd=grab(t1, r"G4Commands\s*=\s*cms\.vstring\(([^)]*)\)", ""),
+        inact=",".join(re.findall(r"requested INACTIVE '([^']+)'", tl)),
+        inactfor=",".join(re.findall(r"restricted to particle '([^']+)'", tl)),
+        census=census_verdict(tl),
         psim="TrackerHits" in t2 or "RAWSIM" in t1,
     )
     return info
@@ -84,16 +120,22 @@ def main():
         r = read_sample(d)
         if r:
             rows.append(r)
-    hdr = (f"{'sample':<34}{'files':>7}{'evt/f':>7}  {'pdg':<12}{'pT':<10}"
-           f"{'|eta|':<6}{'GT':<26}{'geom':<7}{'dOneStepTrk':<12}{'G4Commands':<12}")
+    hdr = (f"{'sample':<30}{'files':>8}{'evt/f':>7}  {'pdg':<12}{'pT':<8}"
+           f"{'GT':<26}{'stepTrk':<9}{'ABLATION (inactivated, for)':<46}")
     print(hdr); print("-" * len(hdr))
     lines = [hdr, "-" * len(hdr)]
     for r in rows:
         gt = r["gt2"] if r["gt2"] != "-" else r["gt"]
-        s = (f"{r['name'].replace('resolution_simprod_',''):<34}"
-             f"{r['nstep2']:>3}/{r['ntask']:<3}{r['nev']:>7}  "
-             f"{r['pdg']:<12}{r['ptmin']+'-'+r['ptmax']:<10}{r['etamax']:<6}"
-             f"{gt:<26}{r['geom']:<7}{r['step']:<12}{(r['g4cmd'] or 'none'):<12}")
+        ab = (r["inact"].replace("'", "").replace('"', "") or "").strip()
+        pa = (r["inactfor"].replace("'", "").replace('"', "") or "").strip()
+        abl = "none" if not ab else (
+            ab + (f" [{pa}]" if pa else " [all]") + f"  census={r['census']}")
+        if r["g4cmd"]:
+            abl += "  +G4Commands(INERT)"
+        s = (f"{r['name'].replace('resolution_simprod_',''):<30}"
+             f"{r['nstep2']:>4}/{r['ntask']:<3}{r['nev']:>7}  "
+             f"{r['pdg']:<12}{r['ptmin']+'-'+r['ptmax']:<8}"
+             f"{gt:<26}{r['step']:<9}{abl:<46}")
         print(s); lines.append(s)
     if args.write:
         out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "SAMPLES.md")
