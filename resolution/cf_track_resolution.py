@@ -1239,7 +1239,15 @@ def extract(args):
             logger.warning("input has no per-hit class variables; only the "
                            "Gaussian hit term will be available")
             _warned_noclass = True
-        a = t.arrays(_need + (_cls if want_hitclass else []), library="np")
+        # --max-tracks could not shortcut anything before: t.arrays() reads
+        # EVERY branch for EVERY entry up front (msmoliv/ioniurbanv are large
+        # jagged arrays), so a 180 MB file cost minutes before the track loop
+        # even started. Bound the read too, with headroom for the gen/cov drops.
+        _stop = None
+        if args.max_tracks:
+            _stop = min(t.num_entries, 3 * int(args.max_tracks) + 100)
+        a = t.arrays(_need + (_cls if want_hitclass else []), library="np",
+                     entry_stop=_stop)
         for ic in range(len(a["resinfcov"])):
             qg = a["genParms"][ic][0]
             if qg == 0.:
