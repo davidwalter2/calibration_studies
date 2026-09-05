@@ -303,10 +303,27 @@ is better than the toy's.
 Modelling shifts measured on this sample (each is the change in the fitted
 `m_Z`; at 3.9 M candidates 1 σ = 1.45 MeV):
 
-| choice | Δ`m_Z` | note |
-|---|---|---|
-| no τ upsampling (64 points) | **+29.3 MeV** | 20 σ. 4x and 16x agree exactly. |
-| no window normalisation | +12.7 MeV | 8.7 σ |
+| choice | Δ`m_Z` | σ(`m_Z`)/σ(`Γ_Z`) at 3.9 M | note |
+|---|---|---|---|
+| **baseline** | — | 1.450 / 2.763 | reco-like kernel, Born 50–130, upsample 4 |
+| no τ upsampling (64 points) | **+29.3** | 1.463 / 2.770 | 20 σ. 4x and 16x agree exactly. |
+| no window normalisation | **+12.7** | 1.462 / 2.771 | 8.7 σ |
+| no FSR kernel at all | **−313.7** | 1.397 / 2.054 | the effect the kernel exists to describe |
+| FSR kernel from pT > 26 GeV | **−25.7** | 1.447 / 2.622 | a *wrong* acceptance for this sample |
+| FSR kernel, multiplicative form | **−25.3** | 1.447 / 2.623 | the additive-vs-multiplicative ambiguity |
+| FSR kernel, no acceptance at all | −2.0 | 1.450 / 2.759 | vs the loose reco-like cut |
+| Born support 50–200 instead of 50–130 | +0.1 | 1.450 / 2.763 | |
+| Born support = the selection window | −0.1 | 1.450 / 2.766 | |
+| σ < 5 GeV (drops 5 of 449) | −3.6 | 1.443 / 2.748 | |
+
+Read off that table: **the Born-window choice does not matter at all** once the
+*observed*-mass truncation is normalised — ±0.1 MeV between 50–130, 50–200 and
+60–120. What matters is the quadrature (29 MeV), the truncation (13 MeV), and
+the FSR kernel: getting its acceptance grossly wrong, or treating the
+multiplicative kernel as additive, each cost ~25 MeV — 17 σ at full statistics.
+That 25 MeV is the quantified price of `MassCFTerm` convolving a kernel that is
+really a rescaling, and it is the strongest argument for folding FSR into the
+lineshape provider.
 
 Caveats on the central value: the fixed-vs-running width convention is itself
 a 34 MeV shift on `m_Z` (23 σ at full statistics) and has not been matched
