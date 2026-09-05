@@ -187,7 +187,15 @@ def read_files(args, mass):
             sig = np.asarray(a["Jpsi_sigmamass"], dtype=np.float64)
             mg = np.asarray(a["Jpsigen_mass"], dtype=np.float64)
             mrec = np.asarray(a["Jpsi_mass"], dtype=np.float64)
-            keep = ok & np.isfinite(sig) & (sig > 0.) & (np.abs(mg - 3.0969) <= 0.35)
+            # Gen-mass acceptance. The branch names say Jpsi because the
+            # two-track maker is resonance-agnostic and names its candidate
+            # block after the channel it was written for; the WINDOW is not.
+            # Default (3.0969, 0.35) = the J/psi, i.e. every existing cache is
+            # unchanged; --mass-window is what lets a Z (or Upsilon)
+            # production through. Unmatched candidates carry -99 and are
+            # rejected by any window.
+            mref, mhw = getattr(args, "mass_window", None) or (3.0969, 0.35)
+            keep = ok & np.isfinite(sig) & (sig > 0.) & (np.abs(mg - mref) <= mhw)
             idx = np.where(keep)[0]
             ndrop += int((~keep).sum())
             for i in idx:
@@ -424,6 +432,13 @@ def main():
     p.add_argument("--max-tracks", type=int, default=0,
                    help="0 = no limit")
     p.add_argument("--cache", required=True)
+    p.add_argument("--mass-window", nargs=2, type=float, default=None,
+                   metavar=("M", "HALFWIDTH"),
+                   help="gen-mass acceptance for `pairs`: |m_gen - M| <= "
+                        "HALFWIDTH [GeV]. Default 3.0969 0.35 (the J/psi). "
+                        "A Z production needs e.g. `--mass-window 91.1876 30`, "
+                        "otherwise every candidate is dropped on a window it "
+                        "was never in.")
     p.add_argument("--mass-del", action="store_true",
                    help="keep the delta-ray family in the MASS cache (the "
                         "reference `build_pairs_tt` model does not have it)")
