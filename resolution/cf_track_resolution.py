@@ -15,13 +15,84 @@ refCov(0,0):
       -- or, with --hitmode class, the MEASURED per-hit densities:
          sum_b log phi_c(b)( t sqrt(v_b)/sigma )              [hits, measured]
     + sum_MS  e^{k_ms}  sum_steps (chic2/chia2) G(t w_std sqrt(chia2); FF)
-    + sum_ion e^{k_ion} sum_steps S_urban(t w_std g_s ...)  [centered]
+    + sum_ion e^{k_ion} sum_steps S_urban(t q w_std g_s ...)  [centered]
+    + k_rad    sum_rad  sum_steps S_rad(t q w_std cs E ...)    [centered]
 
 where per pooled block w_std = sqrt(v_pool / sigma_Q^2) / sigma is the
 effective scalar weight (exact under per-collision azimuthal isotropy:
 any linear functional of the two projected angles is again projected-
 Moliere with |weight|), and sigma_Q^2 is the fit-assumed block variance
-(sum thp2 for MS, sum gsig2 g^2 for ionization). Blocks are pooled by
+(sum thp2 for MS, sum gsig2 g^2 for ionization).
+
+THE RADIATIVE BLOCK (bremsstrahlung + pair production), added 2026-09-03.
+The offline CF had no radiative term at all while the in-fit CGF has had one
+since 2026-08 (`CgfRadiativeChannel`, `cvhcgf::makeRadSpectrum`), and the
+mismatch is one-sided: the reference trajectory SUBTRACTS the radiative mean
+(`ComputeMuonDEDX` is built with ionOnly = false) while the fluctuation model
+carried none, so the typical non-radiating muon had a mean removed that it
+never lost.  The term is the compound Poisson of the two processes,
+
+    S_rad(t) = sum_steps sum_{proc in brems,pair}
+                 INT dv (dN/dv)_proc (e^{i a v E} - 1 - i a v E),
+    a = t * q * w_std * cs ,
+
+with (dN/dv)_proc the propagator's own tabulated Geant4 shape RENORMALIZED to
+that process's own mean loss dedx_proc * step (so the mixture is right and the
+centring subtracts exactly what the reference subtracted -- S'(0) = 0 by
+construction).  The step records are the `radstepv`/`radstepspecv` export
+(2026-09-03), one row per Geant4 step, tagged with the leg's PARMTYPE-11
+global index -- the same index the ionization block is pooled by, because the
+radiative loss enters the same q/p dof through the same transport.  So the
+weight is the ionization block's weight, charge included: the fit's Q has no
+radiative variance (deliberately -- for dsigma/dv ~ 1/v the second moment is
+the catastrophic radiator, not the block), so there is nothing to recover a
+radiative weight FROM, and nothing to recover: it is the same dof.
+
+`--krad` scales it.  It is a LINEAR scale with default 1, unlike the log
+scales `--khit/--kms/--kioni`, precisely so that `--krad 0` expresses "the
+model as it was before this term existed" -- which is the control arm of
+every closure below.  `--no-rad` is the EXTRACTION-side switch (for the
+`nomsrad` sample, whose simulation has no brems/pair at all): it writes zero
+arrays and the provenance key `rad_model = 0`.
+
+THE IONIZATION WEIGHT CARRIES THE TRACK CHARGE q (fixed 2026-09-03,
+Documents/Resolution/NOTES.md "2026-09-02/03 ... s3"). The exported
+per-step factor `ioniurbanv[:,10] = us.cs = E/p^3` is POSITIVE for every
+track; the physical map is delta(q/p) = q cs delta(E), and the in-fit CGF
+block applies the `qsign` accordingly. This module did not until
+2026-09-03, so every cached exponent was the mu+ exponent and the model
+carried the mu+ skew for BOTH charges while a charge-symmetric sample
+cancels it in the data. Only the ODD part is affected: Re S is even and
+Im S odd in the weight (exactly -- see the comment at the call site), so
+Sio_re and the whole even closure are unchanged and pre-fix caches differ
+only by the sign of Sio_im on their mu- half. Caches written with the fix
+carry the key `ioni_charge_signed`; consumers use its presence to decide
+whether they still have to apply q themselves. VERIFIED 2026-09-02/03:
+on a 50/50 mu+/mu- gun the DATA's odd moment cancels between the charges
+while the unsigned MODEL's does not, which is what the earlier "model
+over-predicts the skew 10x at low pT / zero mode shift" readings were.
+
+THAT IONIZATION NORMALISATION USED TO BE AN IDENTITY ONLY FOR CgfQoPMode=0,
+where the record's gsig2 IS the variance the fit put into dV_b. Under
+CgfQoPMode>=1 (the cfi default since 2026-08-24) the fit substitutes the
+block's Fisher weight while the record carries the untruncated second
+cumulant, and the recovered weight came out ~20x too small (~400x in the
+exponent). FIXED 2026-09-03 by exporting the substitution factor itself:
+`ioniqscalev` carries, per leg, [sc, nstep] with
+
+    sc = Q_ioni_applied(0,0) / dQ2_record(0,0)
+
+(Geant4ePropagator::cgfQScale), and `ioni_sq2` multiplies each leg's step
+sum by its own sc, which makes sqrt(v_b / sq2) exact for BOTH estimators.
+sc is exactly 1.0 for CgfQoPMode=0 and for every two-track fit, and the
+branch is auto-detected, so files written before the export -- and every
+cache made from them -- are unchanged bit-for-bit.
+
+`--ioni-norm raw` remains available and takes the ionization weight straight
+from the exported per-dof influence weights, w_std = |w_b[0]| / sigma
+(resinfv), which references neither gsig2 nor dV_b; it is independent of the
+estimator but neglects the intra-leg transport (a one-sided ~2%/long-leg
+deficit against `var`, measured 2026-09-02). Blocks are pooled by
 global parameter index (steps are matched the same way as in cf_ms_exact /
 cf_ioni_exact); pooling merges same-family crossings with a shared w --
 exact for the common one-crossing case.
@@ -53,6 +124,9 @@ from cf_ms_exact import moliere_params, gshape, gshape_elec
 import cf_ioni_exact
 import hitres_classes
 import cf_delta_ray
+import cf_brems_exact
+import pubhtml
+import ratiopanel
 
 # Discrete delta-ray (knock-on) transverse recoil, see cf_delta_ray.  Stored as
 # the NET change to the MS block: S_delta - carve*S_ms, so it is exactly zero
@@ -215,9 +289,30 @@ def parse_args():
                    help="log-scale applied to the MS exponent (collision counts)")
     p.add_argument("--kioni", type=float, default=0.0,
                    help="log-scale applied to the ionization exponent")
+    p.add_argument("--krad", type=float, default=1.0,
+                   help="LINEAR scale on the radiative (brems+pair) exponent. "
+                        "Linear, not a log scale, so that 0 is expressible: "
+                        "--krad 0 is the pre-2026-09-03 model exactly")
+    p.add_argument("--no-rad", action="store_true",
+                   help="do not build the radiative term at extraction time "
+                        "(writes zeros and rad_model=0). For the `nomsrad` "
+                        "sample, whose SIM has no brems/pair")
     p.add_argument("--kdel", type=float, default=None,
                    help="log-scale on the discrete delta-ray recoil block "
                         "(net of the Moliere carve); omit to leave it off")
+    p.add_argument("--ioni-norm", choices=["var", "raw"], default="var",
+                   help="normalisation of the pooled ionization scalar weight. "
+                        "'var' (default) = sqrt(v_pool/sq2)/sigma with "
+                        "sq2 = sum_legs sc_leg * sum_steps gsig2*g^2, where "
+                        "sc_leg is the exported ioniqscalev factor -- exact "
+                        "for BOTH estimators since 2026-09-03 (sc == 1 for "
+                        "CgfQoPMode=0; on files written before the export the "
+                        "scale defaults to 1 and `var` is valid only for "
+                        "mode 0, as before). 'raw' = |w_b[0]|/sigma from the "
+                        "exported per-dof influence weights (resinfv), "
+                        "independent of gsig2 and of the scale of dV_b but "
+                        "neglecting the intra-leg transport (one-sided ~10% "
+                        "low in the exponent, growing with leg length)")
     p.add_argument("--hitmode", choices=["gauss", "class"], default="gauss",
                    help="hit term: one Gaussian of the summed block variance "
                         "(the historical treatment, and the only block family "
@@ -503,6 +598,55 @@ def a3_gauge_exc_scale(steps, f_a3):
     if Ee <= 0.0:
         return 1.0
     return max((Ee + Ed * (1.0 - f_a3)) / Ee, 0.0)
+
+
+_QSC_WARNED = [False]
+
+
+def ioni_sq2(steps, qsc=None):
+    """The block variance the FIT used, sum_steps sc_leg * gsig2 * (cs*1e-3)^2.
+
+    `steps` are the `ioniurbanv` rows pooled under one global parameter index
+    and `qsc` the matching `ioniqscalev` rows RESHAPED TO (-1, 2), i.e. one
+    [sc, nstep] pair per leg sharing that index, in drain order.
+
+    WHY THE SCALE IS NEEDED (2026-09-03). `--ioni-norm var` recovers the
+    block's scalar weight as sqrt(v_b / sq2), which is an identity only while
+    the record's gsig2 IS the variance that went into dV_b. Under
+    CgfQoPMode >= 1 the propagator substitutes the block's Fisher weight,
+    dV_b -> sc * dV_b, while the record keeps the untruncated second cumulant
+    (Geant4ePropagator::cgfQScale documents both sides), so `var` came out
+    ~20x small in the weight and ~400x in the exponent. `sc` is exactly 1.0
+    on every CgfQoPMode=0 file and on every two-track fit, so old caches and
+    the legacy arm are unchanged bit-for-bit.
+
+    WHY PER LEG AND NOT PER BLOCK. Several legs can share one global index
+    (a track crossing the same module twice, ~1/3 of blocks) and each carries
+    its own sc, so the pooled sum is sum_l sc_l * (step sum of leg l). The
+    legs' rows are contiguous and in drain order, so the exported step counts
+    split them exactly; if they do not add up (a file written by a mismatched
+    build) this falls back to the mean sc and warns once, rather than
+    silently mixing the two conventions.
+    """
+    # `steps[:,1] * gq * gq`, left to right, is the expression this replaced;
+    # float multiplication is not associative, so keeping the order makes the
+    # no-scale path BIT-identical to the pre-2026-09-03 caches.
+    gq = steps[:, 10] * 1e-3
+    w2 = steps[:, 1] * gq * gq
+    if qsc is None or not len(qsc):
+        return float(np.sum(w2))
+    ns = qsc[:, 1].astype(np.int64)
+    if ns.sum() != len(steps):
+        if not _QSC_WARNED[0]:
+            logger.warning(
+                "ioniqscalev step counts (%d) do not match the pooled "
+                "ioniurbanv rows (%d); falling back to the mean scale"
+                % (int(ns.sum()), len(steps)))
+            _QSC_WARNED[0] = True
+        return float(np.sum(w2) * np.mean(qsc[:, 0]))
+    off = np.concatenate(([0], np.cumsum(ns)))
+    return float(sum(sc * w2[off[i]:off[i + 1]].sum()
+                     for i, sc in enumerate(qsc[:, 0])))
 
 
 def ioni_step_exponent(steps, wstd, tau):
@@ -1209,10 +1353,18 @@ def extract(args):
     # (2026-08-08).
     chi2n, nvhit, ptrk, ptgen, chisq, ndofs = [], [], [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l, Sdel_l = [], [], [], []
+    Srad_re_l, Srad_im_l = [], []
     nsel = ndropcov = ndropgen = 0
     pt = None
     _warned_noclass = False
+    _warned_noqscale = [False]
+    _warned_norad = [False]
     want_hitclass = False
+    # provenance: 1 iff the radiative block was actually built. Set on the
+    # first file and asserted on every later one, so a shard cannot silently
+    # mix a production that has the export with one that does not.
+    rad_model = None
+    _RADB = ("radstepidx", "radstepv", "radstepspecv", "radvgrid")
     for fn in files:
         try:
             f = uproot.open(fn)
@@ -1232,6 +1384,41 @@ def extract(args):
                  "ioniurbanidx", "ioniurbanv",
                  "normalizedChi2", "nValidHits", "trackPt", "genPt",
                  "chisqval", "ndof"]
+        if args.ioni_norm == "raw":
+            if "resinfv" not in t.keys():
+                raise ValueError(
+                    f"--ioni-norm raw needs the per-dof influence weights, and "
+                    f"{fn} has no `resinfv` branch")
+            _need = _need + ["resinfv"]
+        # The applied ionization-block scale (2026-09-03). AUTO-DETECTED:
+        # productions from before the export simply have no such branch and
+        # get scale 1.0, which is what they ran with (CgfQoPMode=0) or, for a
+        # pre-export mode-1 file, all `--ioni-norm var` could ever do.
+        want_qscale = ("ioniqscalev" in t.keys() and "ioniqscaleidx" in t.keys())
+        if want_qscale:
+            _need = _need + ["ioniqscaleidx", "ioniqscalev"]
+        elif args.ioni_norm == "var" and not _warned_noqscale[0]:
+            logger.warning("input has no `ioniqscalev`; the `var` ionization "
+                           "normalisation assumes CgfQoPMode=0 (scale 1.0)")
+            _warned_noqscale[0] = True
+        # The RADIATIVE step export (2026-09-03). Absent on every production
+        # made before it; `--no-rad` switches it off explicitly (the `nomsrad`
+        # sample, whose simulation has no brems/pair, so a model term for it
+        # would be a model of physics that is not in the data).
+        want_rad = (not args.no_rad) and all(b in t.keys() for b in _RADB)
+        if want_rad:
+            _need = _need + list(_RADB)
+        elif not args.no_rad and not _warned_norad[0]:
+            logger.warning("input has no `radstepv`; the radiative CF term "
+                           "will be absent (rad_model=0)")
+            _warned_norad[0] = True
+        if rad_model is None:
+            rad_model = int(want_rad)
+        elif rad_model != int(want_rad):
+            raise ValueError(
+                "the radiative export is present in some input files and not "
+                "in others; a cache mixing the two would carry the term for "
+                "part of the sample only")
         _cls = ["reshitidx", "hitDetId", "hitUProj", "clusterSizeX",
                 "clusterChargeBin"]
         want_hitclass = all(b in t.keys() for b in _cls)
@@ -1259,8 +1446,16 @@ def extract(args):
                 ndropcov += 1
                 continue
             sig = np.sqrt(c00)
+            # THE CHARGE OF THE TRACK, needed BEFORE the ionization exponent
+            # (it is the sign of the ionization q/p map, see below) as well as
+            # after it, where it is stored for the charge-odd/even split.
+            chg = np.sign(qg)
             gi = np.asarray(a["reseigidx"][ic])
             vb = np.asarray(a["resinfvarv"][ic], dtype=np.float64)
+            # raw per-dof influence weights w_b (5 per entry, zero-padded,
+            # aligned with reseigidx). Only --ioni-norm raw needs them.
+            wraw = (np.asarray(a["resinfv"][ic], dtype=np.float64).reshape(-1, 5)
+                    if args.ioni_norm == "raw" else None)
             fam = pt[gi]
             vgauss = vb[(fam == 8) | (fam == 9)].sum()
             # Per-BLOCK hit weights and classes, not just their sum. The sum
@@ -1292,10 +1487,32 @@ def extract(args):
             uvi = np.asarray(a["ioniurbanv"][ic], dtype=np.float64)
             uii = np.asarray(a["ioniurbanidx"][ic])
             uvi = uvi.reshape(-1, len(uvi) // max(len(uii), 1)) if len(uii) else uvi.reshape(0, 11)
+            # per-leg [sc, nstep] pairs; absent -> scale 1.0 everywhere
+            if want_qscale:
+                qsi = np.asarray(a["ioniqscaleidx"][ic])
+                qsv = np.asarray(a["ioniqscalev"][ic],
+                                 dtype=np.float64).reshape(-1, 2)
+            else:
+                qsi, qsv = None, None
+            # RADIATIVE step records, pooled by the SAME global index as the
+            # ionization block. One row per Geant4 step (so 1:1 with msmoliv,
+            # NOT with ioniurbanv -- the index VALUE is the join, never the row
+            # position).
+            if want_rad:
+                ridx = np.asarray(a["radstepidx"][ic])
+                rrec = np.asarray(a["radstepv"][ic], dtype=np.float64).reshape(
+                    -1, cf_brems_exact.RADV_STRIDE)
+                rspc = np.asarray(a["radstepspecv"][ic],
+                                  dtype=np.float64).reshape(
+                    -1, 2 * cf_brems_exact.NRADV)
+                rvg = np.asarray(a["radvgrid"][ic], dtype=np.float64)
+            else:
+                ridx = rrec = rspc = rvg = None
 
             Sms = np.zeros(len(TG))
             Sdel = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
+            Srad = np.zeros(len(TG), dtype=np.complex128)
             ok = True
             for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
                 sel = fam == famcode
@@ -1323,12 +1540,109 @@ def extract(args):
                                 steps, wstd, TG, DELTA_TCUT,
                                 tmax_cap=DELTA_TMAXCAP) - _cf * _sms)
                     else:
-                        gq = steps[:, 10] * 1e-3
-                        sq2 = float(np.sum(steps[:, 1] * gq * gq))
-                        if sq2 <= 0.:
-                            continue
-                        wstd = np.sqrt(vpool / sq2) / sig
-                        Sio += ioni_step_exponent(steps, wstd, TG)
+                        if args.ioni_norm == "raw":
+                            # THE gsig2-FREE NORMALISATION. The step's noise is
+                            # injected into the block's q/p dof alone (errI has
+                            # only (0,0)) and the fit's response to a unit
+                            # residual in that dof is w_b[0] = resinfv[b][0], so
+                            # to first order in the intra-leg transport
+                            #     delta(q/p_ref) = w_b[0] * (q * cs * dE)
+                            # per step -- no gsig2 and no dV_b anywhere. `var`
+                            # below instead recovers |w_b| by dividing the
+                            # fit's v_b = w_b^T dV_b w_b by the RECORD's
+                            # variance sum, which is an identity only when the
+                            # two are the same variance (CgfQoPMode=0). Under
+                            # CgfQoPMode>=1 the fit substitutes the block's
+                            # Fisher weight (dV_b -> (qcgf/dQ2(0,0)) dV_b) while
+                            # the record's gsig2 is the UNTRUNCATED second
+                            # cumulant, and `var` comes out ~300x too small in
+                            # the weight (~500x in the exponent).
+                            #
+                            # Pooled blocks (2 legs sharing one global param,
+                            # ~1/3 of them) cannot have their steps split
+                            # between the entries, so the pooled scalar is the
+                            # plain rms of the entries' |w_b[0]| -- the exact
+                            # step-noise-weighted rms with an equal-share prior
+                            # (a v_b-share weighting instead moves the pooled
+                            # blocks by +0.2% in the median, +0.9% at 84%,
+                            # measured on 3137 pooled blocks).
+                            #
+                            # NEGLECTED: the intra-leg transport mixing. The
+                            # exact per-step weight is w_b^T A_s e_0 with A_s
+                            # the transport from the injection point to the END
+                            # of the leg (dQ2 = sum_s q_s (A_s e0)(A_s e0)^T);
+                            # A_s is NOT exported (StepTransport is a
+                            # cleanprop-only log), so this uses A_s = I. It is
+                            # not suppressed by small weights -- the block's
+                            # other dofs carry median 2x the q/p weight -- only
+                            # by the smallness of A_s(k,0), so it grows with the
+                            # leg length. Measured against `var` on the legacy
+                            # arm, where `var` IS the exact step-weighted rms:
+                            # raw/var = 0.98 for legs of <=10 steps, 0.90 in the
+                            # median over all blocks (16-84%: 0.55-0.99), 0.84
+                            # for 31-45-step legs (2026-09-02). It is a
+                            # one-sided DEFICIT, so k_ioni absorbs the median
+                            # and only the spread is left.
+                            #
+                            # CHARGE-BLIND, exactly like `var`: the sign of
+                            # w_b[0] is dropped. The charge of the ionization
+                            # q/p map is applied separately, below, so that
+                            # both normalisations get it identically.
+                            w0 = np.abs(wraw[sel & (gi == g), 0])
+                            w0 = w0[w0 > 0.]
+                            if not len(w0):
+                                continue
+                            wstd = np.sqrt(float(np.mean(w0 ** 2))) / sig
+                        else:
+                            # sq2 must be the variance the FIT used, i.e. the
+                            # record sum TIMES the scale the CGF substitution
+                            # applied to the block (1.0 on mode-0 files and on
+                            # every file written before the export). See
+                            # ioni_sq2 for why it is per leg, not per block.
+                            sq2 = ioni_sq2(
+                                steps,
+                                qsv[qsi == g] if qsv is not None else None)
+                            if sq2 <= 0.:
+                                continue
+                            wstd = np.sqrt(vpool / sq2) / sig
+                        # THE CHARGE FACTOR (2026-09-02/03, NOTES.md s3).
+                        # `ioniurbanv` column 10 is `us.cs = E/p^3`
+                        # (Geant4ePropagator.cc:2360, "q/p per MeV"), POSITIVE
+                        # for every track; the physical map is
+                        #     delta(q/p) = q * cs * delta(E),
+                        # so the exponent's step weight carries the charge.
+                        # The in-fit CGF block applies it (`const double qsign
+                        # = (charge >= 0. ? 1. : -1.); s.gs = qsign * wtr * cs
+                        # * 1e-3;`, Geant4ePropagator.cc ~1524, "The CHARGE
+                        # factor is not cosmetic"); the offline CF did not, so
+                        # every cached exponent was the mu+ one and the model
+                        # carried the mu+ skew for BOTH charges while a
+                        # charge-symmetric sample cancels it in the data.
+                        #
+                        # Applied to the WEIGHT rather than to Im S because the
+                        # weight is where the physics is. It is the same thing
+                        # to the last bit: every channel enters as
+                        # a(e^{i gs E t} - 1 - i gs E t) or an integral of that
+                        # form, so w -> -w is t -> -t and phi(-t) = phi(t)*,
+                        #     Re S(-w) = Re S(+w),  Im S(-w) = -Im S(+w),
+                        # verified at 0.000e+00 in Urban regimes 0/1/2 with and
+                        # without the Kokoulin term.  Hence Sio_re, and with it
+                        # the EVEN closure (k_ms, k_hit, <e^{-u z^2}>), is
+                        # bit-identical to the pre-fix caches and only Sio_im
+                        # flips on the mu- half of the sample.
+                        Sio += ioni_step_exponent(steps, chg * wstd, TG)
+                        # THE RADIATIVE TERM, same block, same weight, same
+                        # charge. `rad_exponent` takes cs from the record and
+                        # the energies in GeV, so the weight passed here is
+                        # the q/p -> z scalar itself (no 1e-3: the ionization
+                        # records store MeV, the radiative ones GeV).
+                        if want_rad:
+                            rm = ridx == g
+                            nrs = int(rm.sum())
+                            if nrs:
+                                Srad += cf_brems_exact.rad_exponent(
+                                    TG, rrec[rm], rspc[rm], rvg,
+                                    weights=np.full(nrs, chg * wstd))
                 if not ok:
                     break
             if not ok:
@@ -1345,8 +1659,10 @@ def extract(args):
             # charge from sign(gen q/p): the discriminator between a
             # curvature-like (charge-ODD) and a material/eloss-like
             # (charge-EVEN) bias. Useless on the mu- only gun sample,
-            # essential on the both-charge one (2026-08-07).
-            chgs.append(np.sign(qg))
+            # essential on the both-charge one (2026-08-07). It is ALSO the
+            # sign applied to the ionization step weight above, so `charge`
+            # and `Sio_im` are guaranteed consistent by construction.
+            chgs.append(chg)
             vgf.append(vgauss / c00)
             hcls.extend(hcls_i); hamp.extend(hamp_i); hcnt.append(len(hcls_i))
             chi2n.append(float(a["normalizedChi2"][ic]))
@@ -1363,6 +1679,8 @@ def extract(args):
             Sdel_l.append(Sdel.astype(np.float32))
             Sio_re_l.append(Sio.real.astype(np.float32))
             Sio_im_l.append(Sio.imag.astype(np.float32))
+            Srad_re_l.append(Srad.real.astype(np.float32))
+            Srad_im_l.append(Srad.imag.astype(np.float32))
             nsel += 1
             # --max-tracks used to break only at a FILE boundary, so with one
             # file per shard (extract_parallel) it did nothing at all and every
@@ -1383,12 +1701,32 @@ def extract(args):
                         trackpt=np.array(ptrk), genpt=np.array(ptgen),
                         chisqval=np.array(chisq), ndof=np.array(ndofs),
                         Sms=np.array(Sms_l), Sdel=np.array(Sdel_l), Sio_re=np.array(Sio_re_l),
-                        Sio_im=np.array(Sio_im_l), tgrid=TG,
+                        Sio_im=np.array(Sio_im_l),
+                        Srad_re=np.array(Srad_re_l), Srad_im=np.array(Srad_im_l),
+                        tgrid=TG,
                         hitcls=np.array(hcls, dtype=np.int16),
                         hitamp2=np.array(hamp, dtype=np.float32),
                         hitcnt=np.array(hcnt, dtype=np.int32),
-                        hitclsnames=np.array(hitres_classes.CLASSES))
-    logger.info(f"wrote {args.cache} ({nsel} tracks)")
+                        hitclsnames=np.array(hitres_classes.CLASSES),
+                        # PROVENANCE FLAG, not a switch. Its presence says the
+                        # cached `Sio_im` already carries the charge of the
+                        # ionization q/p map (see the `chg * wstd` above);
+                        # caches written before 2026-09-03 do not have it and
+                        # consumers (cf_skew_closure.load) apply the factor
+                        # themselves. Never read as a value, only as a key.
+                        ioni_charge_signed=np.array(1),
+                        # PROVENANCE VALUE (unlike the flag above, this one IS
+                        # read): 1 = the radiative block was built from the
+                        # `radstepv` export; 0 = it was not, either because
+                        # the production predates the export or because
+                        # --no-rad was given (the `nomsrad` sample). The
+                        # Srad_* arrays are zero in the second case, so a
+                        # consumer that ignores this key still gets the right
+                        # model -- but a closure that does not KNOW which arm
+                        # it is on cannot be interpreted.
+                        rad_model=np.array(int(rad_model or 0)))
+    logger.info(f"wrote {args.cache} ({nsel} tracks, rad_model="
+                f"{int(rad_model or 0)})")
 
 
 def hit_exponent(d, args, bank):
@@ -1454,6 +1792,15 @@ def model_phi(d, args, bank=None):
     S = (Shit
          + np.exp(args.kms) * d["Sms"]
          + np.exp(args.kioni) * (d["Sio_re"] + 1j * d["Sio_im"]))
+    # The radiative block. LINEAR scale, default 1; `krad = 0` is the model
+    # exactly as it was before the term existed, which is the control arm of
+    # every closure. Absent from pre-2026-09-03 caches (and zero in a
+    # `--no-rad` one), so `getattr`/key guard both matter.
+    kr = getattr(args, "krad", 1.0)
+    if kr:
+        keys0 = d.files if hasattr(d, "files") else d
+        if "Srad_re" in keys0:
+            S = S + kr * (d["Srad_re"] + 1j * d["Srad_im"])
     kd = getattr(args, "kdel", None)
     if kd is not None:
         keys = d.files if hasattr(d, "files") else d
@@ -1495,24 +1842,42 @@ def closure(args, outdir):
                      f"(<model> = {Em.mean():.4f})")
     logger.info("inclusive closure:\n" + "\n".join("  " + s for s in lines))
 
-    fig, axs = plt.subplots(1, 2, figsize=(16, 7))
-    # left: pull histogram vs averaged predicted lineshape
-    ax = axs[0]
+    # FIGURE 1: pull histogram vs averaged predicted lineshape, + data/model
+    fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(10., 7.6))
     zg = np.linspace(-8., 8., 161)
-    # p(z) = 1/pi Int_0^inf Re[phi(t) e^{-itz}] dt, averaged over tracks
+    # p(z) = 1/pi Int_0^inf Re[phi(t) e^{-itz}] dt, averaged over tracks.
+    # Evaluated on the bin edges AND the bin centres: the edges draw the
+    # curve, the Simpson combination of the three gives the bin integral
+    # the ratio panel needs (the cusp at z = 0 is not linear across a bin).
+    zc = 0.5 * (zg[1:] + zg[:-1])
     ph = phi.mean(axis=0)
-    pz = np.array([np.trapezoid((ph * np.exp(-1j * TG * zz)).real, TG) / np.pi
-                   for zz in zg])
-    ax.hist(np.clip(z, zg[0], zg[-1]), bins=zg, density=True,
-            histtype="step", color="black", label="pulls (gen-matched MC)")
+    pofz = lambda zz: np.trapezoid((ph * np.exp(-1j * TG * zz)).real, TG) / np.pi
+    pz = np.array([pofz(zz) for zz in zg])
+    pzc = np.array([pofz(zz) for zz in zc])
+    zcl = np.clip(z, zg[0], zg[-1])
+    cnt, _ = np.histogram(zcl, bins=zg)
+    ax.hist(zcl, bins=zg, density=True, histtype="step", color="black",
+            label="pulls (gen-matched MC)")
     ax.plot(zg, pz, color="crimson", label="CF-product prediction")
     ax.set_yscale("log")
     ax.set_ylim(1e-6, 2.)
-    ax.set_xlabel(r"$z = \Delta(q/p)/\sigma_{\mathrm{pred}}$")
     ax.set_ylabel("density")
     ax.legend()
-    # right: data-model difference of the bounded statistic vs u, by sigma bin
-    ax = axs[1]
+    pbin = ratiopanel.bin_average(pz[:-1], pzc, pz[1:])
+    _, rat, _, n_out = ratiopanel.draw_ratio(
+        rax, zg, cnt, pbin, cnt.sum(),
+        xlabel=r"$z = \Delta(q/p)/\sigma_{\mathrm{pred}}$")
+    if n_out:
+        logger.info(f"pull ratio: {n_out} bin(s) outside the clamped y range")
+    name_p = f"trackres_pulls{args.postfix}"
+    plot_tools.save_pdf_and_png(outdir, name_p, fig)
+    output_tools.write_logfile(outdir, name_p, args=args,
+                               wd=os.path.dirname(os.path.abspath(__file__)))
+    plt.close(fig)
+    logger.info(f"wrote {outdir}/{name_p}")
+
+    # FIGURE 2: data-model difference of the bounded statistic vs u, by sigma bin
+    fig, ax = plt.subplots(figsize=(10., 7.))
     uu = np.geomspace(0.02, 4., 25)
     for ib in range(args.nsigma_bins):
         m = (d["sigma"] >= qs[ib]) & (d["sigma"] <= qs[ib + 1])
@@ -1532,6 +1897,7 @@ def closure(args, outdir):
                                wd=os.path.dirname(os.path.abspath(__file__)))
     with open(os.path.join(outdir, f"{name}.txt"), "w") as fh:
         fh.write("\n".join(lines) + "\n")
+    plt.close(fig)
     logger.info(f"wrote {outdir}/{name}")
 
 
@@ -1542,6 +1908,7 @@ def main():
     outdir = args.outpath or os.path.expanduser(
         f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_trackres/")
     os.makedirs(outdir, exist_ok=True)
+    pubhtml.ensure_index(outdir, logger=logger)
     if args.extract:
         extract(args)
     if args.closure:

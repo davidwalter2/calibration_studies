@@ -89,14 +89,28 @@ if not fs:
     raise SystemExit("no shard outputs -- see logs in " + tmp)
 parts = [np.load(f) for f in fs]
 keys = list(parts[0].files)
+# A shard set with different key sets can only come from mixing code versions
+# in one run (the `ioni_charge_signed` provenance flag is the case that
+# introduced this), and silently merging it would produce a cache whose sign
+# convention differs between its halves. Fail instead.
+for f, p in zip(fs[1:], parts[1:]):
+    assert set(p.files) == set(keys), (
+        f"{f} has key set {sorted(set(p.files) ^ set(keys))} different from "
+        f"{fs[0]} -- shards were written by different code versions")
 merged = {}
 for k in keys:
     a = [p[k] for p in parts]
-    # tgrid is the shared tau grid and hitclsnames the canonical class list;
-    # both are identical in every shard, so keep one copy instead of
-    # concatenating (concatenating hitclsnames would also make its length
-    # depend on the shard count)
-    if k in ("tgrid", "hitclsnames"):
+    # tgrid is the shared tau grid, hitclsnames the canonical class list and
+    # ioni_charge_signed the scalar provenance flag saying the shard's Sio_im
+    # already carries the charge of the ionization q/p map; all three are
+    # identical in every shard, so keep one copy instead of concatenating
+    # (concatenating hitclsnames would also make its length depend on the
+    # shard count, and concatenating the flag would turn a 0-d marker into an
+    # array whose length is the shard count).  `rad_model` joins them: the 0/1
+    # provenance value saying whether the radiative block was built, identical
+    # across shards by construction (extract() refuses an input set that mixes
+    # productions with and without the `radstepv` export).
+    if k in ("tgrid", "hitclsnames", "ioni_charge_signed", "rad_model"):
         for x in a[1:]:
             assert np.array_equal(x, a[0]), f"{k} differs between shards"
         merged[k] = a[0]

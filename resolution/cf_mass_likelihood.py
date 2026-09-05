@@ -24,6 +24,24 @@ Stages:
   --demo     unbinned scale fit: NLL(alpha) with m_obs -> m_obs(1+alpha)
              on MC, demonstrating the chi2-constraint replacement
 
+THE IONIZATION SKEW IS SIGN-FIXED (since 2026-09-03, see IONI_SGN): for the
+MASS functional an energy loss on either muon can only LOWER the mass, so
+every ionization block enters with weight -1 x |w| and the two legs' skews
+ADD. The old `sign(sum resinfv)` heuristic followed a noise-eigenvector
+convention, came out +1 half the time and cancelled them. There is no longer
+an option for it; caches carry the key `ioni_sign_fixed` as provenance.
+
+THE RADIATIVE (brems + pair) BLOCK is in the candidate CF since 2026-09-03,
+with the SAME sign and the SAME weight as the ionization block of the leg it
+belongs to (RAD_SGN = IONI_SGN = -1): a radiated photon takes energy off one
+muon, which can only LOWER the pair mass, for both charges.  It rides the
+q/p dof of the parmtype-11 block -- the fit's Q has no radiative variance
+(deliberately; see cf_brems_exact) -- so its weight is that block's weight
+and there is nothing separate to recover.  Caches carry `rad_model` (1 = the
+term was built from the `radstepv` export, 0 = the production predates it and
+the Srad arrays are zero), and `cf_masslik_fit.py` gives it its own scale
+k_rad.
+
 usage: python cf_mass_likelihood.py --kernel [--files GLOB]
 """
 
@@ -39,7 +57,10 @@ import numpy as np
 import uproot
 
 from wums import logging, output_tools, plot_tools
-from cf_track_resolution import ms_step_exponent, ioni_step_exponent, TG
+from cf_track_resolution import ms_step_exponent, ioni_step_exponent, ioni_sq2, TG
+import cf_brems_exact
+import pubhtml
+import ratiopanel
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -47,6 +68,45 @@ logger = logging.child_logger(__name__)
 MMU = 0.1056584
 MJPSI = 3.0969
 FBKG = 0.005
+
+# THE SIGN OF AN IONIZATION BLOCK IN THE CANDIDATE MASS CF.
+# Fixed to -1 on 2026-09-03 (Documents/Resolution/NOTES.md "2026-09-02/03 ...
+# s3"); it used to be `sign(sum_j u_bj)` (`sign(sum resinfv)` in the TwoTrack
+# branch), a heuristic that follows an arbitrary noise-eigenvector sign
+# convention, measured +1 on 50.5 % of candidates, and therefore CANCELLED the
+# two legs' skews within a candidate and averaged the sample's ionization skew
+# to zero.  MEASURED 2026-09-02 on the August J/psi-gun pairs cache: Sio_im
+# positive on 50.5 % of candidates, net +1.4e-4 at tau = 1; with the sign
+# fixed, positive on 100 % of candidates, net +0.0166.  The unbinned scale
+# then moved alpha = +0.316 -> +0.216e-3 on the gun and +0.069 -> -0.050e-3 on
+# B->J/psi+X v3.
+#
+# DERIVATION.  Per leg the mass Jacobian w.r.t. the leg's curvature is
+#
+#     dm/d(q/p) = (dm/dp) (dp/d(q/p)) = (dm/dp) (-q p^2),
+#
+# so it has the sign -q (dm/dp > 0: a harder muon makes a heavier pair).  The
+# exported ionization map is d(q/p) = q cs dE with cs = E/p^3 > 0.  Hence
+#
+#     dm = (dm/d(q/p)) d(q/p) = -q p^2 (dm/dp) . q cs dE
+#        = -p^2 cs (dm/dp) dE  <  0     for BOTH charges,
+#
+# i.e. q^2 = 1 removes the charge: an energy loss on EITHER muon can only
+# LOWER the mass.  The Landau tail of dE > 0 therefore skews the candidate
+# mass DOWNWARD, always, and the two legs' skews ADD.
+#
+# MS blocks (famcode 10) are left alone: they are symmetric (Re S even, Im S
+# odd in the weight) so their sign is irrelevant.
+IONI_SGN = -1.0
+# The radiative block rides the SAME q/p dof of the SAME parmtype-11 block, so
+# it takes the same sign for exactly the same reason: dm = (dm/d(q/p)) q cs dE
+# = -p^2 cs (dm/dp) dE < 0 whatever the charge and whatever took the energy.
+RAD_SGN = IONI_SGN
+# family code of the radiative group in `leg_exponents`; 10 = MS, 11 =
+# ionization (both parmtype codes), 12 is NOT a parmtype -- it is the second
+# channel of the parmtype-11 block, and is numbered here only so that one
+# list can carry all three.
+FAM_RAD = 12
 
 
 def parse_args():
@@ -127,8 +187,16 @@ def collect_pairs(files, want=("genParms",), vtxtol=None):
             logger.warning(f"skipping {fn}: {type(e).__name__}")
             continue
         vtxb = ("genX", "genY", "genZ") if vtxtol is not None else ()
+        # the applied ionization scale is read when present; files from before
+        # the 2026-09-03 export simply do not have it and get scale 1.0
+        qsb = tuple(b for b in ("ioniqscaleidx", "ioniqscalev") if b in t.keys())
+        # the radiative step export (2026-09-03), likewise auto-detected
+        radb = tuple(b for b in ("radstepidx", "radstepv", "radstepspecv",
+                                 "radvgrid") if b in t.keys())
+        if len(radb) not in (0, 4):
+            raise ValueError(f"{fn}: partial radiative export {radb}")
         branches = sorted(set(("run", "lumi", "event", "genParms", "genCharge")
-                              + want + vtxb))
+                              + want + vtxb + qsb + radb))
         a = t.arrays(branches, library="np")
         gp = np.stack(a["genParms"]) if len(a["genParms"]) else np.zeros((0, 5))
         ok = np.abs(gp[:, 0]) > 0.
@@ -180,7 +248,7 @@ def mass_jacobian(parms1, parms2):
 def leg_exponents(av, ic, a, pt):
     """One leg's contribution to the candidate mass CF, in ABSOLUTE mass
     units (standardization to sigma_pred happens at candidate level).
-    Returns (vgauss, Sms_unnorm, Sio_unnorm, vtot) where the S arrays are
+    Returns (vgauss, groups, vtot, vgrid) where the S arrays are
     evaluated on TG/sigma later -- to keep one shared grid we instead
     return the per-group (weff, steps) lists; simpler: evaluate on a
     provisional unit grid and rescale afterwards is wrong for nonlinear
@@ -198,6 +266,27 @@ def leg_exponents(av, ic, a, pt):
     uvi = np.asarray(a["ioniurbanv"][ic], dtype=np.float64)
     uii = np.asarray(a["ioniurbanidx"][ic])
     uvi = uvi.reshape(-1, len(uvi) // max(len(uii), 1)) if len(uii) else uvi.reshape(0, 11)
+    # Applied ionization-block scale (2026-09-03; see cf_track_resolution.
+    # ioni_sq2). It is 1.0 on every two-track file produced so far -- the
+    # driver pins CgfQoPMode=0 -- but the propagator DOES substitute in its
+    # uncached branch under mode 1 even without the maker's override hooks,
+    # so the code reads the factor rather than assuming it.
+    qsi = np.asarray(a["ioniqscaleidx"][ic]) if "ioniqscaleidx" in a else None
+    qsv = (np.asarray(a["ioniqscalev"][ic], dtype=np.float64).reshape(-1, 2)
+           if "ioniqscalev" in a else None)
+    # radiative steps of this leg, pooled by the SAME parmtype-11 index as the
+    # ionization block (one row per Geant4 step: join on the index VALUE, never
+    # on the row position -- the row count matches msmoliv, not ioniurbanv)
+    have_rad = "radstepidx" in a
+    if have_rad:
+        ridx = np.asarray(a["radstepidx"][ic])
+        rrec = np.asarray(a["radstepv"][ic], dtype=np.float64).reshape(
+            -1, cf_brems_exact.RADV_STRIDE)
+        rspc = np.asarray(a["radstepspecv"][ic], dtype=np.float64).reshape(
+            -1, 2 * cf_brems_exact.NRADV)
+        rvg = np.asarray(a["radvgrid"][ic], dtype=np.float64)
+    else:
+        ridx = rrec = rspc = rvg = None
     groups = []
     for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
         sel = fam == famcode
@@ -212,14 +301,22 @@ def leg_exponents(av, ic, a, pt):
             if famcode == 10:
                 sq2 = steps[:, 5].sum()
             else:
-                gq = steps[:, 10] * 1e-3
-                sq2 = float(np.sum(steps[:, 1] * gq * gq))
+                sq2 = ioni_sq2(steps, qsv[qsi == g] if qsv is not None else None)
             if sq2 <= 0.:
                 continue
-            # signed effective weight (sign only matters for ioni skew)
-            sgn = np.sign(u[m].sum()) or 1.
-            groups.append((famcode, sgn * np.sqrt(vpool / sq2), steps))
-    return vgauss, groups, v.sum()
+            # SIGNED effective weight; the sign only matters for the ioni
+            # skew, and for the MASS functional it is -1 for every ionization
+            # block and both charges (see IONI_SGN).
+            sgn = IONI_SGN if famcode == 11 else (np.sign(u[m].sum()) or 1.)
+            weff = sgn * np.sqrt(vpool / sq2)
+            groups.append((famcode, weff, steps))
+            # the radiative channel of the same block, same weight, same sign
+            if famcode == 11 and have_rad:
+                rm = ridx == g
+                if rm.any():
+                    groups.append((FAM_RAD, RAD_SGN * abs(weff),
+                                   (rrec[rm], rspc[rm])))
+    return vgauss, groups, v.sum(), rvg
 
 
 def build_pairs(args, outdir):
@@ -230,6 +327,8 @@ def build_pairs(args, outdir):
     logger.info(f"{len(files)} files")
     zs, sigs, mgen, vgf = [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l = [], [], []
+    Srad_re_l, Srad_im_l = [], []
+    rad_model = None
     nsel = ndropid = 0
     pt = None
     want = ("refParms", "refCov", "reseigidx", "resinfbv",
@@ -257,6 +356,8 @@ def build_pairs(args, outdir):
                 legs.append(out)
             if not okleg:
                 continue
+            if rad_model is None:
+                rad_model = int("radstepidx" in a)
             var = sum(l[2] for l in legs)
             # identity guard: sum over blocks vs a^T C a from refCov
             exact = 0.
@@ -270,14 +371,20 @@ def build_pairs(args, outdir):
             sig = np.sqrt(var)
             Sms = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
+            Srad = np.zeros(len(TG), dtype=np.complex128)
             vg = 0.
-            for vgauss, groups, _ in legs:
+            for vgauss, groups, _, rvg in legs:
                 vg += vgauss
                 for famcode, weff, steps in groups:
                     if famcode == 10:
                         Sms += ms_step_exponent(steps, abs(weff) / sig, TG)
-                    else:
+                    elif famcode == 11:
                         Sio += ioni_step_exponent(steps, weff / sig, TG)
+                    else:
+                        rr, rp = steps
+                        Srad += cf_brems_exact.rad_exponent(
+                            TG, rr, rp, rvg,
+                            weights=np.full(len(rr), weff / sig))
             zs.append((mr - mg) / sig)
             sigs.append(sig)
             mgen.append(mg)
@@ -285,6 +392,8 @@ def build_pairs(args, outdir):
             Sms_l.append(Sms.astype(np.float32))
             Sio_re_l.append(Sio.real.astype(np.float32))
             Sio_im_l.append(Sio.imag.astype(np.float32))
+            Srad_re_l.append(Srad.real.astype(np.float32))
+            Srad_im_l.append(Srad.imag.astype(np.float32))
             nsel += 1
         logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} candidates "
                     f"(drop identity {ndropid})")
@@ -292,9 +401,23 @@ def build_pairs(args, outdir):
     np.savez_compressed(args.pairs_cache, z=np.array(zs), sigma=np.array(sigs),
                         eta=np.array(mgen), vgf=np.array(vgf),
                         Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
-                        Sio_im=np.array(Sio_im_l), tgrid=TG)
+                        Sio_im=np.array(Sio_im_l),
+                        Srad_re=np.array(Srad_re_l),
+                        Srad_im=np.array(Srad_im_l), tgrid=TG,
+                        # PROVENANCE FLAG, not a switch. Its presence says
+                        # every ionization block in this cache was given the
+                        # physical mass-functional sign IONI_SGN = -1; caches
+                        # built before 2026-09-03 used sign(sum u_b) and
+                        # cancelled the two legs. Never read as a value.
+                        ioni_sign_fixed=np.array(1),
+                        # PROVENANCE VALUE (this one IS read): 1 = the
+                        # radiative block was built from the `radstepv`
+                        # export, 0 = the production predates it and the
+                        # Srad arrays are identically zero.
+                        rad_model=np.array(int(rad_model or 0)))
     logger.info(f"wrote {args.pairs_cache} ({nsel} candidates, "
-                f"{ndropid} dropped by identity guard)")
+                f"{ndropid} dropped by identity guard, "
+                f"rad_model={int(rad_model or 0)})")
 
 
 def build_pairs_tt(args, outdir):
@@ -308,6 +431,8 @@ def build_pairs_tt(args, outdir):
     logger.info(f"{len(files)} files (TwoTrack per-candidate trees)")
     zs, sigs, mgen, vgf = [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l = [], [], []
+    Srad_re_l, Srad_im_l = [], []
+    rad_model = None
     nsel = ndrop = 0
     pt = None
     for fn in files:
@@ -321,10 +446,27 @@ def build_pairs_tt(args, outdir):
         except Exception as e:
             logger.warning(f"skipping {fn}: {type(e).__name__}")
             continue
-        a = t.arrays(["Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass",
-                      "resinfv", "resinfvarv", "resinfcov", "reseigidx",
-                      "msmoliidx", "msmoliv", "ioniurbanidx", "ioniurbanv"],
-                     library="np")
+        _b = ["Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass",
+              "resinfv", "resinfvarv", "resinfcov", "reseigidx",
+              "msmoliidx", "msmoliv", "ioniurbanidx", "ioniurbanv"]
+        # see leg_exponents: read the applied ionization-block scale when the
+        # production has it (1.0 on every two-track file so far)
+        _b += [b for b in ("ioniqscaleidx", "ioniqscalev") if b in t.keys()]
+        # the radiative step export (2026-09-03); absent on older productions
+        _rb = [b for b in ("radstepidx", "radstepv", "radstepspecv",
+                           "radvgrid") if b in t.keys()]
+        if len(_rb) not in (0, 4):
+            raise ValueError(f"{fn}: partial radiative export {_rb}")
+        want_rad = len(_rb) == 4
+        _b += _rb
+        if rad_model is None:
+            rad_model = int(want_rad)
+        elif rad_model != int(want_rad):
+            raise ValueError(
+                "the radiative export is present in some input files and not "
+                "in others; a cache mixing the two would carry the term for "
+                "part of the sample only")
+        a = t.arrays(_b, library="np")
         for ic in range(len(a["Jpsi_mass"])):
             sig = float(a["Jpsi_sigmamass"][ic])
             mg = float(a["Jpsigen_mass"][ic])
@@ -346,8 +488,20 @@ def build_pairs_tt(args, outdir):
             uvi = np.asarray(a["ioniurbanv"][ic], dtype=np.float64)
             uii = np.asarray(a["ioniurbanidx"][ic])
             uvi = uvi.reshape(-1, len(uvi) // max(len(uii), 1)) if len(uii) else uvi.reshape(0, 11)
+            qsi = np.asarray(a["ioniqscaleidx"][ic]) if "ioniqscaleidx" in a else None
+            qsv = (np.asarray(a["ioniqscalev"][ic], dtype=np.float64).reshape(-1, 2)
+                   if "ioniqscalev" in a else None)
+            if want_rad:
+                ridx = np.asarray(a["radstepidx"][ic])
+                rrec = np.asarray(a["radstepv"][ic], dtype=np.float64).reshape(
+                    -1, cf_brems_exact.RADV_STRIDE)
+                rspc = np.asarray(a["radstepspecv"][ic],
+                                  dtype=np.float64).reshape(
+                    -1, 2 * cf_brems_exact.NRADV)
+                rvg = np.asarray(a["radvgrid"][ic], dtype=np.float64)
             Sms = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
+            Srad = np.zeros(len(TG), dtype=np.complex128)
             ok = True
             for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
                 sel = fam == famcode
@@ -363,15 +517,29 @@ def build_pairs_tt(args, outdir):
                     if famcode == 10:
                         sq2 = steps[:, 5].sum()
                     else:
-                        gq = steps[:, 10] * 1e-3
-                        sq2 = float(np.sum(steps[:, 1] * gq * gq))
+                        sq2 = ioni_sq2(
+                            steps, qsv[qsi == g] if qsv is not None else None)
                     if sq2 <= 0.:
                         continue
-                    sgn = np.sign(uw[m].sum()) or 1.
+                    # -1 for every ionization block and both charges; see
+                    # IONI_SGN for the derivation.
+                    sgn = (IONI_SGN if famcode == 11
+                           else (np.sign(uw[m].sum()) or 1.))
                     if famcode == 10:
                         Sms += ms_step_exponent(steps, np.sqrt(vpool / sq2) / sig, TG)
                     else:
-                        Sio += ioni_step_exponent(steps, sgn * np.sqrt(vpool / sq2) / sig, TG)
+                        wsc = np.sqrt(vpool / sq2) / sig
+                        Sio += ioni_step_exponent(steps, sgn * wsc, TG)
+                        # the radiative channel of the SAME block: same
+                        # weight, same sign (RAD_SGN); the join is on the
+                        # global index VALUE
+                        if want_rad:
+                            rm = ridx == g
+                            nrs = int(rm.sum())
+                            if nrs:
+                                Srad += cf_brems_exact.rad_exponent(
+                                    TG, rrec[rm], rspc[rm], rvg,
+                                    weights=np.full(nrs, RAD_SGN * wsc))
                 if not ok:
                     break
             if not ok:
@@ -384,14 +552,30 @@ def build_pairs_tt(args, outdir):
             Sms_l.append(Sms.astype(np.float32))
             Sio_re_l.append(Sio.real.astype(np.float32))
             Sio_im_l.append(Sio.imag.astype(np.float32))
+            Srad_re_l.append(Srad.real.astype(np.float32))
+            Srad_im_l.append(Srad.imag.astype(np.float32))
             nsel += 1
         logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} candidates (drop {ndrop})")
     os.makedirs(os.path.dirname(args.pairs_cache), exist_ok=True)
     np.savez_compressed(args.pairs_cache, z=np.array(zs), sigma=np.array(sigs),
                         eta=np.array(mgen), vgf=np.array(vgf),
                         Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
-                        Sio_im=np.array(Sio_im_l), tgrid=TG)
-    logger.info(f"wrote {args.pairs_cache} ({nsel} candidates, {ndrop} dropped)")
+                        Sio_im=np.array(Sio_im_l),
+                        Srad_re=np.array(Srad_re_l),
+                        Srad_im=np.array(Srad_im_l), tgrid=TG,
+                        # PROVENANCE FLAG, not a switch. Its presence says
+                        # every ionization block in this cache was given the
+                        # physical mass-functional sign IONI_SGN = -1; caches
+                        # built before 2026-09-03 used sign(sum u_b) and
+                        # cancelled the two legs. Never read as a value.
+                        ioni_sign_fixed=np.array(1),
+                        # PROVENANCE VALUE (this one IS read): 1 = the
+                        # radiative block was built from the `radstepv`
+                        # export, 0 = the production predates it and the
+                        # Srad arrays are identically zero.
+                        rad_model=np.array(int(rad_model or 0)))
+    logger.info(f"wrote {args.pairs_cache} ({nsel} candidates, {ndrop} dropped, "
+                f"rad_model={int(rad_model or 0)})")
 
 
 def build_kernel(args, outdir):
@@ -529,12 +713,19 @@ def demo(args, outdir):
                 f"r = {r_hat:.4f} +- {r_err:.4f} (stat), "
                 f"dNLL to neighbours {prof[ir-1]:.1f} / {prof[ir+1]:.1f}")
 
-    fig, axs = plt.subplots(1, 3, figsize=(21, 6.4), constrained_layout=True)
-    ax = axs[0]
+    def _save(fig, nm):
+        plot_tools.save_pdf_and_png(outdir, nm, fig)
+        output_tools.write_logfile(outdir, nm, args=args,
+                                   wd=os.path.dirname(os.path.abspath(__file__)))
+        plt.close(fig)
+        logger.info(f"wrote {outdir}/{nm}")
+
+    # FIGURE 1: DNLL(alpha) at the best r
+    fig, ax = plt.subplots(figsize=(9.5, 6.4), constrained_layout=True)
     # Only the best-r curve is on scale: the neighbouring r are already
     # dNLL ~ 150 away and the far ones ~1e5, so plotting all 18 here would
     # show one visible curve and a colorbar pointing at nothing. The r
-    # dependence belongs in the profile panel next door.
+    # dependence belongs in the profile figure.
     ax.plot(alphas*1e3, nll[irbest]-nll.min(), color="crimson", lw=2.4,
             label=f"$r = {rs[irbest]:.2f}$ (best)")
     ax.axvline(alpha_gauss*1e3, color="gray", ls="--",
@@ -543,7 +734,10 @@ def demo(args, outdir):
     ax.set_ylabel(r"$\Delta$NLL")
     ax.set_ylim(0, 50)
     ax.legend(fontsize="small", loc="upper right")
-    ax = axs[1]
+    _save(fig, f"masslik_nll_alpha{args.postfix}")
+
+    # FIGURE 2: DNLL profiled over alpha, vs r
+    fig, ax = plt.subplots(figsize=(9.5, 6.4), constrained_layout=True)
     ax.plot(rs, prof, "o-", color="crimson", lw=1.8, ms=6)
     ax.axvline(1.0, color="gray", ls=":", lw=1.4)
     ax.set_yscale("symlog", linthresh=1.)
@@ -555,33 +749,46 @@ def demo(args, outdir):
     ax.set_title(rf"$r = {r_hat:.3f} \pm {r_err:.3f}$ (stat), interior",
                  fontsize=15)
     ax.grid(alpha=.25)
-    ax = axs[2]
-    # observed spectrum vs best-fit prediction
+    _save(fig, f"masslik_nll_r{args.postfix}")
+
+    # FIGURE 3: observed spectrum vs best-fit prediction, + data/model
+    fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(10., 7.6))
     mg = np.linspace(-0.25, 0.2, 120)
+    mc = 0.5*(mg[1:] + mg[:-1])
     S = (-0.5*rs[irbest]*d["vgf"][:, None]*TG[None, :]**2 + rs[irbest]*Sexp)
     Phi = np.exp(S) * phiK
     sub = np.random.default_rng(3).choice(n, size=min(n, 4000), replace=False)
-    pm = np.zeros(len(mg))
-    for im, m in enumerate(mg):
+    # edges AND centres: the edges draw the curve, the Simpson combination of
+    # the three gives the per-bin integral the ratio panel needs (the peak has
+    # real curvature across a 3.8 MeV bin)
+    meval = np.concatenate([mg, mc])
+    pe = np.zeros(len(meval))
+    for im, m in enumerate(meval):
         integrand = (Phi[sub]*np.exp(-1j*tgi[sub]*(m - MJPSI*alpha_hat))).real
-        pm[im] = np.mean(np.trapezoid(integrand, TG, axis=1)/(np.pi*sig[sub]))
-    ax.hist(np.clip(mobs_minus_M, mg[0], mg[-1]), bins=mg, density=True,
+        pe[im] = np.mean(np.trapezoid(integrand, TG, axis=1)/(np.pi*sig[sub]))
+    pm, pmc = pe[:len(mg)], pe[len(mg):]
+    mcl = np.clip(mobs_minus_M, mg[0], mg[-1])
+    cnt, _ = np.histogram(mcl, bins=mg)
+    ax.hist(mcl, bins=mg, density=True,
             histtype="step", color="black", label=r"$m_{\mu\mu}^{\rm reco} - m_{J/\psi}$")
     ax.plot(0.5*(mg[1:]+mg[:-1]), 0.5*(pm[1:]+pm[:-1]), color="crimson",
             label="resonance $\\otimes$ FSR $\\otimes$ resolution")
     ax.set_yscale("log")
-    ax.set_xlabel(r"$m - m_{J/\psi}$ [GeV]")
     ax.set_ylabel("density")
     ax.legend(fontsize="small", loc="upper right")
-    name = f"masslik_demo{args.postfix}"
-    plot_tools.save_pdf_and_png(outdir, name, fig)
-    output_tools.write_logfile(outdir, name, args=args,
-                               wd=os.path.dirname(os.path.abspath(__file__)))
+    pbin = ratiopanel.bin_average(pm[:-1], pmc, pm[1:])
+    _, _, _, n_out = ratiopanel.draw_ratio(
+        rax, mg, cnt, pbin, cnt.sum(),
+        xlabel=r"$m - m_{J/\psi}$ [GeV]")
+    if n_out:
+        logger.info(f"lineshape ratio: {n_out} bin(s) outside the clamped "
+                    f"y range")
+    _save(fig, f"masslik_lineshape{args.postfix}")
+
     np.savez(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           f"runs/masslik_demo_scan{args.postfix}.npz"),
              alphas=alphas, rs=rs, nll=nll, alpha_hat=alpha_hat, err=err,
              alpha_gauss=alpha_gauss)
-    logger.info(f"wrote {outdir}/{name}")
 
 
 def main():
@@ -591,6 +798,7 @@ def main():
     outdir = args.outpath or os.path.expanduser(
         f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_masslik/")
     os.makedirs(outdir, exist_ok=True)
+    pubhtml.ensure_index(outdir, logger=logger)
     if args.kernel:
         build_kernel(args, outdir)
     if args.pairs:

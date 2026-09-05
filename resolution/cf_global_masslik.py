@@ -81,6 +81,7 @@ def collect(args):
 
     m0s, mgens, sigs, vgf = [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l, D_l = [], [], [], []
+    Srad_re_l, Srad_im_l = [], []
     nsel = ndrop = 0
     want = ("refParms", "refCov", "reseigidx", "resinfbv", "msmoliidx",
             "msmoliv", "ioniurbanidx", "ioniurbanv", "jacrefv", "globalidxv")
@@ -122,16 +123,25 @@ def collect(args):
                     if c is not None:
                         D[c] += dm[j]
             from cf_mass_likelihood import ms_step_exponent, ioni_step_exponent
+            import cf_brems_exact
             Sms = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
+            # the radiative (brems + pair) channel of the parmtype-11 blocks,
+            # returned by leg_exponents as family 12 since 2026-09-03
+            Srad = np.zeros(len(TG), dtype=np.complex128)
             vg = 0.
-            for vgauss, groups, _ in legs:
+            for vgauss, groups, _, rvg in legs:
                 vg += vgauss
                 for famcode, weff, steps in groups:
                     if famcode == 10:
                         Sms += ms_step_exponent(steps, abs(weff) / sig, TG)
-                    else:
+                    elif famcode == 11:
                         Sio += ioni_step_exponent(steps, weff / sig, TG)
+                    else:
+                        rr, rp = steps
+                        Srad += cf_brems_exact.rad_exponent(
+                            TG, rr, rp, rvg,
+                            weights=np.full(len(rr), weff / sig))
             m0s.append(mr)
             mgens.append(mg)
             sigs.append(sig)
@@ -139,6 +149,8 @@ def collect(args):
             Sms_l.append(Sms.astype(np.float32))
             Sio_re_l.append(Sio.real.astype(np.float32))
             Sio_im_l.append(Sio.imag.astype(np.float32))
+            Srad_re_l.append(Srad.real.astype(np.float32))
+            Srad_im_l.append(Srad.imag.astype(np.float32))
             D_l.append(D.astype(np.float32))
             nsel += 1
         logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} candidates (drop {ndrop})")
@@ -146,8 +158,15 @@ def collect(args):
     np.savez_compressed(args.cache, m0=np.array(m0s), mgen=np.array(mgens),
                         sigma=np.array(sigs), vgf=np.array(vgf),
                         Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
-                        Sio_im=np.array(Sio_im_l), D=np.array(D_l),
-                        regidx=sel_reg, tgrid=TG)
+                        Sio_im=np.array(Sio_im_l),
+                        Srad_re=np.array(Srad_re_l),
+                        Srad_im=np.array(Srad_im_l), D=np.array(D_l),
+                        regidx=sel_reg, tgrid=TG,
+                        # provenance: the ionization blocks came out of
+                        # cf_mass_likelihood.leg_exponents, whose sign is
+                        # IONI_SGN = -1 since 2026-09-03 (was sign(sum u_b),
+                        # which cancelled the two legs)
+                        ioni_sign_fixed=np.array(1))
     logger.info(f"wrote {args.cache} ({nsel} candidates, {npar} params)")
 
 
