@@ -235,7 +235,12 @@ def read_files(args, mass):
         if args.max_tracks and nsel >= args.max_tracks:
             break
     if not nsel:
-        raise SystemExit("no entries selected")
+        raise SystemExit(
+            f"no entries selected out of {ndrop} read. If they were all "
+            f"dropped on `{prefix}_ok`, the likeliest cause is a maker that "
+            f"books the cf branches but does not fill them -- the THREE-TRACK "
+            f"maker (ResidualGlobalCorrectionMakerNTrackG4e) has not been "
+            f"given the export and writes them empty with ok = false.")
     return tgrid, tag, cols, nsel, ndrop, bool(want_hitclass)
 
 
