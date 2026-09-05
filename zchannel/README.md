@@ -268,6 +268,54 @@ Born edge; the upper edge only has to sit far enough above the window.
 
 ---
 
+## Numbers from the 459-candidate smoke
+
+Fit with the resolution scales held at 1, τ upsampling 4x, truncated on
+60–120 GeV, FSR kernel from 126 k gen events in the reconstruction acceptance:
+
+| | value | truth |
+|---|---|---|
+| `m_Z` | **−137.1 ± 140.0 MeV** | 0 (i.e. 91.15351 GeV, the fixed-width scheme) |
+| `Γ_Z` | **+293.2 ± 288.4 MeV** | ~+1 MeV |
+
+Projected to 3.9 M candidates by scaling the reference-point information:
+
+| resolution scales | σ(`m_Z`) | σ(`Γ_Z`) | ρ(`m_Z`,`Γ_Z`) |
+|---|---|---|---|
+| free | *information indefinite* | — | — |
+| constrained to ±1e-2 | 1.450 MeV | 2.764 MeV | −0.010 |
+| constrained to ±1e-3 | 1.450 MeV | 2.763 MeV | −0.010 |
+| fixed | 1.450 MeV | 2.763 MeV | −0.010 |
+
+The Z alone does not determine the four resolution scales — at 449 candidates
+the 6-parameter information is not even positive definite. Given the external
+constraint the J/ψ channel supplies, profiling them costs the Z **nothing**.
+That is the opposite of the branch's no-FSR toy, where `ρ(Γ_Z, k_res) = −0.68`
+inflated `σ(Γ_Z)` by 1.36×; here the FSR kernel and the lineshape carry the
+shape information that `k_res` was competing for.
+
+For scale, the branch's 200 k toy (no FSR, no window, σ ∈ [1,2] GeV, one
+resolution scale) gives 6.28 / 14.70 MeV profiled, i.e. **1.42 / 3.33 MeV**
+scaled by √N. So `m_Z` lands where the toy predicted and `Γ_Z` comes out
+**1.2× better**, because the real per-candidate resolution (median σ = 1.06 GeV)
+is better than the toy's.
+
+Modelling shifts measured on this sample (each is the change in the fitted
+`m_Z`; at 3.9 M candidates 1 σ = 1.45 MeV):
+
+| choice | Δ`m_Z` | note |
+|---|---|---|
+| no τ upsampling (64 points) | **+29.3 MeV** | 20 σ. 4x and 16x agree exactly. |
+| no window normalisation | +12.7 MeV | 8.7 σ |
+
+Caveats on the central value: the fixed-vs-running width convention is itself
+a 34 MeV shift on `m_Z` (23 σ at full statistics) and has not been matched
+against what POWHEG MiNNLO + Pythia actually generated; and the provider is LO
+in the parton luminosity while the sample is NNLO. Neither matters at
+140 MeV; both must be settled before 1.5 MeV.
+
+---
+
 ## What is still missing for a *data* Z channel
 
 * **Acceptance `A(m)`.** The likelihood has no acceptance at all. The muon
