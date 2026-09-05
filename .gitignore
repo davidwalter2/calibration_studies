@@ -43,3 +43,7 @@ pixelhits/filelist_jpsimc*.txt
 slurm/filelists/*retry*.txt
 slurm/filelists/*redo*.txt
 slurm/filelists/*resubmit*.txt
+
+# Grid->ceph transfer runtime state (regenerable; status log grows per file)
+transfer/logs/
+transfer/transfer_status.tsv*
