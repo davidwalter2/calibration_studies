@@ -278,8 +278,22 @@ def load_inputs(pairs_cache, kernel_cache, dtype_scan=False, maxn=0, log=print,
     k = np.load(kernel_cache)
     dm = k["dm"]
     TG = np.asarray(d["tgrid"], dtype=np.float64)
+    # THE GRID GUARD, widened 2026-09-05.  It used to require the offline
+    # 448-point `linspace(0, 14, 448)` exactly.  The in-maker exponents
+    # (`cf_inmaker.py`, cvhcf) are exported on the 64-point stride-4 subset of
+    # that grid -- measured in `cfcompress/gridtest.py` to move alpha by
+    # -1.6e-8, 1/1000 of the full-sample statistical error -- and everything
+    # below already works on an arbitrary grid (the quadrature weights are
+    # `np.diff(TG)`).  Only the guard did not.  It now checks the PROPERTIES
+    # the code relies on, so a 448-point cache behaves exactly as before and a
+    # decimated one is accepted rather than rejected on its length.
+    assert TG.ndim == 1 and len(TG) >= 8, "t grid must be a 1-D array"
+    assert TG[0] == 0.0 and np.all(np.diff(TG) > 0.), \
+        "t grid must start at 0 and increase"
     ref = np.linspace(0.0, 14.0, 448)
-    assert TG.shape == ref.shape and np.allclose(TG, ref), "unexpected t grid"
+    if not (TG.shape == ref.shape and np.allclose(TG, ref)):
+        log(f"t grid: {len(TG)} points, max {TG[-1]:.6f} "
+            f"(the reference is 448 points to 14.0)")
 
     z, sig = d["z"].astype(np.float64), d["sigma"].astype(np.float64)
     eta = d["eta"].astype(np.float64)

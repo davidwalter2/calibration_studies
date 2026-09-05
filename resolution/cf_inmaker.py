@@ -1,0 +1,420 @@
+#!/usr/bin/env python3
+"""Read the IN-MAKER resolution-CF exponents into the existing cache format.
+
+WHAT CHANGED AND WHY. `cf_track_resolution.extract` and
+`cf_mass_likelihood.build_pairs_tt` built the per-candidate CF exponents
+OFFLINE, from a raw export of every Geant4 step record -- 430 kB and 2.2 s per
+candidate, i.e. 16 TB and 24k core-hours at the 40M candidates the full
+calibration needs. The CVH makers now compute the same exponents at fit time
+(TrackPropagation/Geant4e/src/CvhCfExponents.cc, `cvhcf`) and write 6 x 64
+floats per candidate. This module turns those branches into the SAME cache the
+two extractors produced, so every consumer downstream -- `cf_skew_closure.py`,
+`cf_track_resolution.py --closure`, `cf_masslik_fit.py` -- runs on it unchanged.
+
+IT IS A READER, NOT A MODEL. Nothing here computes an exponent. The physics
+lives in `cvhcf` (validated against the offline reference by
+`cvhcf_validate.py`, worst |dS| ~ 1e-11 against a 1e-6 requirement) and the
+offline modules remain the reference definition.
+
+THE GRID. The maker exports 64 tau, the stride-4 subset of the offline
+`linspace(0, 14, 448)` truncated at 8, and writes it into the runtree as
+`cftau`. The cache's `tgrid` is that array. Two consumers need help with it:
+
+  * `cf_track_resolution.py --closure` reads the MODULE GLOBAL `TG`, not
+    `d["tgrid"]`, so it would broadcast a 448-point weight against a 64-point
+    cache. `cf_inmaker.py closure ...` runs it with `TG` rebound to the
+    cache's own grid -- the reference module is not edited.
+  * `cf_masslik_fit.load_inputs` asserted the grid was exactly the 448-point
+    one. That assert (and only that assert) was relaxed to accept any
+    increasing grid starting at 0; a 448-point cache is unaffected.
+
+usage:
+  source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
+
+  # single-track (q/p functional) -> the cf_track_resolution --extract cache
+  python3 cf_inmaker.py extract --files '<glob>/globalcor_resclosure_0.root' \
+      --cache runs/cf_trackres_<tag>.npz
+
+  # two-track (mass functional) -> the cf_mass_likelihood --pairs-tt cache
+  python3 cf_inmaker.py pairs --files '<glob>/globalcor_0.root' \
+      --cache runs/cf_masspairs_<tag>.npz
+
+  # run the reference closure on a 64-point cache
+  python3 cf_inmaker.py closure --cache runs/cf_trackres_<tag>.npz [--kms ...]
+
+  # put a 448-point OFFLINE cache on the maker's 64-point grid, so that the
+  # two can be compared without the grid change standing in between
+  python3 cf_inmaker.py decimate --cache in448.npz --out in64.npz
+
+  # max |dS| per family between two aligned caches
+  python3 cf_inmaker.py compare --cache a.npz --other b.npz
+"""
+import argparse
+import glob as globmod
+import os
+import sys
+
+import numpy as np
+import uproot
+from wums import logging
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+logger = logging.child_logger(__name__)
+
+# The offline `extract` drop: the per-block variance shares must add up to the
+# fit's own refCov(0,0), or the CF product is not describing the same track.
+COVTOL = 5e-3
+
+
+# --------------------------------------------------------------------------
+def _runtree_grid(f):
+    """(tgrid, model tag) from the runtree, or (None, '') on an old file."""
+    if "runtree" not in f:
+        return None, ""
+    rt = f["runtree"]
+    if "cftau" not in rt:
+        return None, ""
+    tg = np.asarray(rt["cftau"].array(library="np", entry_stop=1)[0], dtype=np.float64)
+    tag = ""
+    if "cfmodel" in rt:
+        tag = str(rt["cfmodel"].array(library="np", entry_stop=1)[0])
+    return tg, tag
+
+
+def _fam_arrays(t, prefix):
+    """The six family branch names for `prefix`, or None if absent."""
+    names = [f"{prefix}_{s}" for s in
+             ("ms", "del", "ioni_re", "ioni_im", "rad_re", "rad_im")]
+    return names if all(n in t.keys() for n in names) else None
+
+
+def _stack(a, key, n):
+    """A jagged (n, 64) float branch -> a dense float32 array."""
+    v = a[key]
+    out = np.empty((len(v), n), dtype=np.float32)
+    for i, r in enumerate(v):
+        out[i] = r
+    return out
+
+
+# --------------------------------------------------------------------------
+def read_files(args, mass):
+    files = sorted(globmod.glob(args.files))[:args.ntasks]
+    if not files:
+        raise SystemExit(f"no files match {args.files}")
+    logger.info(f"{len(files)} files ({'two-track/mass' if mass else 'single-track/qop'})")
+    prefix = "cfmass" if mass else "cfqop"
+
+    tgrid = None
+    tag = ""
+    cols = {}
+
+    def push(k, v):
+        cols.setdefault(k, []).append(v)
+
+    nsel = ndrop = 0
+    want_hitclass = None
+    for fn in files:
+        try:
+            f = uproot.open(fn)
+            if "tree" not in f:
+                continue
+            t = f["tree"]
+        except Exception as e:
+            logger.warning(f"skipping {fn}: {type(e).__name__}")
+            continue
+        tg, tg_tag = _runtree_grid(f)
+        if tg is None:
+            raise SystemExit(f"{fn} has no `cftau` in its runtree -- it was not "
+                             f"produced with exportCfExponents")
+        if tgrid is None:
+            tgrid, tag = tg, tg_tag
+            logger.info(f"tau grid {len(tgrid)} points [{tgrid[0]:.4f}, {tgrid[-1]:.4f}]")
+            logger.info(f"model: {tag}")
+        elif not np.array_equal(tgrid, tg) or tag != tg_tag:
+            raise SystemExit(
+                f"{fn} was exported on a different grid or model than the first "
+                f"file; a cache mixing the two would carry two models")
+        fams = _fam_arrays(t, prefix)
+        if fams is None:
+            raise SystemExit(f"{fn} has no {prefix}_* branches")
+        nt = len(tgrid)
+
+        need = list(fams) + [f"{prefix}_vgf", f"{prefix}_ok"]
+        if mass:
+            need += ["Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass"]
+        else:
+            need += ["refParms", "refCov", "genParms", "resinfcov",
+                     "normalizedChi2", "nValidHits", "trackPt", "genPt",
+                     "chisqval", "ndof"]
+            # the per-hit class store, for `--hitmode class`; it survives the
+            # slimming (reshitidx / resinfvarv / reseigidx are all kept)
+            cls = ["reseigidx", "resinfvarv", "reshitidx", "hitDetId",
+                   "hitUProj", "clusterSizeX", "clusterChargeBin"]
+            hc = all(b in t.keys() for b in cls)
+            if want_hitclass is None:
+                want_hitclass = hc
+                if not hc:
+                    logger.warning("input has no per-hit class variables; only "
+                                   "the Gaussian hit term will be available")
+            if hc:
+                need += cls
+        stop = None
+        if args.max_tracks:
+            stop = min(t.num_entries, 3 * int(args.max_tracks) + 100)
+        a = t.arrays(need, library="np", entry_stop=stop)
+
+        S = {k: _stack(a, n, nt) for k, n in
+             zip(("Sms", "Sdel", "Sio_re", "Sio_im", "Srad_re", "Srad_im"), fams)}
+        ok = np.asarray(a[f"{prefix}_ok"]).astype(bool)
+        vgf = np.asarray(a[f"{prefix}_vgf"], dtype=np.float64)
+
+        if mass:
+            sig = np.asarray(a["Jpsi_sigmamass"], dtype=np.float64)
+            mg = np.asarray(a["Jpsigen_mass"], dtype=np.float64)
+            mrec = np.asarray(a["Jpsi_mass"], dtype=np.float64)
+            keep = ok & np.isfinite(sig) & (sig > 0.) & (np.abs(mg - 3.0969) <= 0.35)
+            idx = np.where(keep)[0]
+            ndrop += int((~keep).sum())
+            for i in idx:
+                push("z", (mrec[i] - mg[i]) / sig[i])
+                push("sigma", sig[i])
+                push("eta", mg[i])         # `eta` is the gen mass in this cache
+                push("vgf", vgf[i])
+                for k in S:
+                    push(k, S[k][i])
+            nsel += len(idx)
+        else:
+            pt = f["runtree"]["parmtype"].array(library="np")
+            qg = np.array([r[0] for r in a["genParms"]], dtype=np.float64)
+            c00 = np.array([r[0] for r in a["refCov"]], dtype=np.float64)
+            cov = np.asarray(a["resinfcov"], dtype=np.float64)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                keep = (ok & (qg != 0.) & (c00 > 0.)
+                        & (np.abs(cov / c00 - 1.) <= COVTOL))
+            idx = np.where(keep)[0]
+            ndrop += int((~keep).sum())
+            for i in idx:
+                sig = np.sqrt(c00[i])
+                rp = a["refParms"][i]
+                push("z", (rp[0] - qg[i]) / sig)
+                push("sigma", sig)
+                push("eta", -np.log(np.tan((np.pi / 2. - rp[1]) / 2.)))
+                push("phi", rp[2])
+                push("charge", np.sign(qg[i]))
+                push("vgf", vgf[i])
+                push("normchi2", float(a["normalizedChi2"][i]))
+                push("nvalidhits", float(a["nValidHits"][i]))
+                push("trackpt", float(a["trackPt"][i]))
+                push("genpt", float(a["genPt"][i]))
+                push("chisqval", float(a["chisqval"][i]))
+                push("ndof", float(a["ndof"][i]))
+                for k in S:
+                    push(k, S[k][i])
+                if want_hitclass:
+                    _hitclass(a, i, pt, cols)
+                else:
+                    cols.setdefault("hitcnt", []).append(0)
+            nsel += len(idx)
+        logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} "
+                    f"({'candidates' if mass else 'tracks'}), drop {ndrop}")
+        if args.max_tracks and nsel >= args.max_tracks:
+            break
+    if not nsel:
+        raise SystemExit("no entries selected")
+    return tgrid, tag, cols, nsel, ndrop, bool(want_hitclass)
+
+
+def _hitclass(a, ic, pt, cols):
+    """Per-block hit class + amplitude, exactly as `extract` stores them."""
+    import hitres_classes
+    gi = np.asarray(a["reseigidx"][ic])
+    vb = np.asarray(a["resinfvarv"][ic], dtype=np.float64)
+    fam = pt[gi]
+    hidx = np.asarray(a["reshitidx"][ic])
+    hdet = np.asarray(a["hitDetId"][ic]).astype(np.uint32)
+    hsd = (hdet >> 25) & 0x7
+    hN = np.asarray(a["clusterSizeX"][ic])
+    hU = np.asarray(a["hitUProj"][ic])
+    hQ = np.asarray(a["clusterChargeBin"][ic])
+    c00 = float(a["refCov"][ic][0])
+    n = 0
+    for j in np.where((fam == 8) | (fam == 9))[0]:
+        hh = hidx[j]
+        if hh < 0 or hh >= len(hsd) or vb[j] <= 0.:
+            continue
+        cl = hitres_classes.class_of(hsd[hh], hN[hh], hU[hh], hQ[hh], fam[j] == 9)
+        cols.setdefault("hitcls", []).append(hitres_classes.class_index(cl))
+        cols.setdefault("hitamp2", []).append(vb[j] / c00)
+        n += 1
+    cols.setdefault("hitcnt", []).append(n)
+
+
+# --------------------------------------------------------------------------
+def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del):
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    out = {}
+    for k, v in cols.items():
+        if k in ("hitcls",):
+            out[k] = np.asarray(v, dtype=np.int16)
+        elif k in ("hitamp2",):
+            out[k] = np.asarray(v, dtype=np.float32)
+        elif k in ("hitcnt",):
+            out[k] = np.asarray(v, dtype=np.int32)
+        elif k.startswith("S"):
+            out[k] = np.asarray(v, dtype=np.float32)
+        else:
+            out[k] = np.asarray(v, dtype=np.float64)
+    out["tgrid"] = np.asarray(tgrid, dtype=np.float64)
+    # PROVENANCE. `cf_source` and `cf_model` are new and are read by nothing
+    # downstream -- they are there so that a cache says which evaluator and
+    # which switch configuration produced it, which the offline caches could
+    # only say by their date.
+    out["cf_source"] = np.array("cvhcf-inmaker")
+    out["cf_model"] = np.array(tag)
+    # `rad_model` IS read (cf_skew_closure, cf_masslik_fit): 1 = the radiative
+    # family is in the model. `cvhcf` always builds it, so it is 1 whenever the
+    # model tag says the term is present.
+    out["rad_model"] = np.array(int("rad:" in tag))
+    if mass:
+        # The sign of an ionization block in the candidate mass CF is -1 for
+        # both legs and both charges, hard-wired in the maker.
+        out["ioni_sign_fixed"] = np.array(1)
+        if not keep_del:
+            # `build_pairs_tt` has no `Sdel`: the discrete delta-ray recoil was
+            # never part of the published mass model. The maker computes it
+            # anyway (it is free), and `--mass-del` keeps it so the two can be
+            # compared -- but the default cache is the reference model.
+            out.pop("Sdel", None)
+    else:
+        # The cached Sio_im already carries the charge of the ionization q/p
+        # map. Never read as a value, only as a key.
+        out["ioni_charge_signed"] = np.array(1)
+        if hitclass:
+            import hitres_classes
+            out["hitclsnames"] = np.array(hitres_classes.CLASSES)
+    np.savez_compressed(path, **out)
+    logger.info(f"wrote {path} ({nsel} entries, {ndrop} dropped, "
+                f"rad_model={int(out['rad_model'])})")
+
+
+# --------------------------------------------------------------------------
+def do_closure(argv):
+    """`cf_track_resolution.closure` on a 64-point cache.
+
+    The reference module reads its module-global `TG` rather than the cache's
+    own `tgrid`, so it is rebound here for the duration of the call. That is a
+    reader-side adaptation: `cf_track_resolution.py` itself is untouched, which
+    is what keeps it the definition of the model.
+    """
+    import datetime
+    import cf_track_resolution as ctr
+    import pubhtml
+    sys.argv = [os.path.join(HERE, "cf_track_resolution.py"), "--closure"] + argv
+    args = ctr.parse_args()
+    d = np.load(args.cache)
+    tg = np.asarray(d["tgrid"], dtype=np.float64)
+    if len(tg) != len(ctr.TG) or not np.allclose(tg, ctr.TG):
+        logger.info(f"rebinding cf_track_resolution.TG to the cache grid "
+                    f"({len(tg)} points, max {tg[-1]:.4f})")
+        ctr.TG = tg
+    outdir = args.outpath or os.path.expanduser(
+        f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_trackres/")
+    os.makedirs(outdir, exist_ok=True)
+    pubhtml.ensure_index(outdir, logger=logger)
+    ctr.closure(args, outdir)
+
+
+# --------------------------------------------------------------------------
+def do_decimate(argv):
+    """Restrict an offline 448-point cache to the maker's 64-point grid.
+
+    The maker's grid IS a subset of the offline one (stride 4, truncated at 8),
+    which is the whole reason for choosing it: no interpolation is involved, so
+    an evaluator comparison on the decimated cache measures the EVALUATOR and
+    not the grid. Every non-exponent column is copied through untouched.
+    """
+    p = argparse.ArgumentParser(prog="cf_inmaker.py decimate")
+    p.add_argument("--cache", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--ntau", type=int, default=64)
+    p.add_argument("--stride", type=int, default=4)
+    a = p.parse_args(argv)
+    d = np.load(a.cache, allow_pickle=True)
+    tg = np.asarray(d["tgrid"], dtype=np.float64)
+    idx = np.arange(0, a.ntau * a.stride, a.stride)
+    if idx[-1] >= len(tg):
+        raise SystemExit(f"{a.cache} has only {len(tg)} tau points")
+    out = {}
+    for k in d.files:
+        v = d[k]
+        if k == "tgrid":
+            out[k] = tg[idx]
+        elif isinstance(v, np.ndarray) and v.ndim == 2 and v.shape[1] == len(tg):
+            out[k] = np.ascontiguousarray(v[:, idx])
+        else:
+            out[k] = v
+    np.savez_compressed(a.out, **out)
+    logger.info(f"wrote {a.out} ({len(idx)} tau, max {out['tgrid'][-1]:.6f})")
+
+
+def do_compare(argv):
+    """max |difference| per exponent family between two aligned caches."""
+    p = argparse.ArgumentParser(prog="cf_inmaker.py compare")
+    p.add_argument("--cache", required=True)
+    p.add_argument("--other", required=True)
+    a = p.parse_args(argv)
+    d1 = np.load(a.cache, allow_pickle=True)
+    d2 = np.load(a.other, allow_pickle=True)
+    n1, n2 = len(d1["z"]), len(d2["z"])
+    print(f"A {a.cache}: {n1} entries, {len(d1['tgrid'])} tau")
+    print(f"B {a.other}: {n2} entries, {len(d2['tgrid'])} tau")
+    if not np.array_equal(np.asarray(d1["tgrid"]), np.asarray(d2["tgrid"])):
+        print("  tau grids DIFFER -- run `decimate` first")
+    n = min(n1, n2)
+    # The two caches are only row-aligned if they were built from the same
+    # files in the same order with the same drops; `z` is the cheapest proof.
+    dz = np.max(np.abs(np.asarray(d1["z"])[:n] - np.asarray(d2["z"])[:n]))
+    print(f"  rows aligned: max |dz| = {dz:.3e} over {n} entries"
+          + ("" if dz < 1e-12 else "   <-- NOT ALIGNED, the rest is meaningless"))
+    print(f"  {'key':<10} {'max |d|':>12} {'max |A|':>12}")
+    for k in ("Sms", "Sdel", "Sio_re", "Sio_im", "Srad_re", "Srad_im",
+              "sigma", "vgf", "z"):
+        if k not in d1.files or k not in d2.files:
+            continue
+        A = np.asarray(d1[k], dtype=np.float64)[:n]
+        B = np.asarray(d2[k], dtype=np.float64)[:n]
+        print(f"  {k:<10} {np.max(np.abs(A - B)):>12.4e} {np.max(np.abs(A)):>12.4e}")
+
+
+# --------------------------------------------------------------------------
+def main():
+    global logger
+    logger = logging.setup_logger(__file__, 3, False)
+    if len(sys.argv) > 1 and sys.argv[1] == "closure":
+        return do_closure(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == "decimate":
+        return do_decimate(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == "compare":
+        return do_compare(sys.argv[2:])
+    p = argparse.ArgumentParser()
+    p.add_argument("mode", choices=["extract", "pairs"],
+                   help="extract = single-track q/p cache; pairs = two-track mass cache")
+    p.add_argument("--files", required=True)
+    p.add_argument("--ntasks", type=int, default=1000)
+    p.add_argument("--max-tracks", type=int, default=0,
+                   help="0 = no limit")
+    p.add_argument("--cache", required=True)
+    p.add_argument("--mass-del", action="store_true",
+                   help="keep the delta-ray family in the MASS cache (the "
+                        "reference `build_pairs_tt` model does not have it)")
+    a = p.parse_args()
+    mass = a.mode == "pairs"
+    tgrid, tag, cols, nsel, ndrop, hitclass = read_files(a, mass)
+    write_cache(a.cache, tgrid, tag, cols, mass, nsel, ndrop, hitclass, a.mass_del)
+
+
+if __name__ == "__main__":
+    main()
