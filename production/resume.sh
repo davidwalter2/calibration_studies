@@ -35,13 +35,14 @@ done
 NTASK=$(grep -cvE '^\s*(#|$)' "$CHUNKLIST")
 # Never resubmit something that is still queued or running: a second task
 # writing the same directory would race the first one's output file.
-mapfile -t INQ < <(squeue -u "$USER" -h -o "%j %K" 2>/dev/null | awk '$1 ~ /^jpsimc20M_a/ {
-    split($1, p, "_a"); off = p[2] * 1000;
+mapfile -t INQ < <(squeue -u "$USER" -h -r -o "%j %K" 2>/dev/null | awk '$1 ~ /^jpsimc20M_a/ {
+    split($1, p, "_a"); off = (p[2] + 0) * 1000;
     n = split($2, ids, ",");
     for (i = 1; i <= n; i++) {
-      if (ids[i] ~ /-/) { split(ids[i], r, "-"); sub(/%.*/, "", r[2]);
-                          for (j = r[1]; j <= r[2]; j++) print j + off }
-      else { sub(/%.*/, "", ids[i]); if (ids[i] != "") print ids[i] + off }
+      spec = ids[i]; sub(/%.*/, "", spec);
+      if (spec ~ /-/) { split(spec, r, "-"); lo = r[1] + 0; hi = r[2] + 0;
+                        for (j = lo; j <= hi; j++) print j + off }
+      else if (spec ~ /^[0-9]+$/) { print (spec + 0) + off }
     }
   }')
 declare -A BUSY=(); for i in "${INQ[@]:-}"; do [[ -n "$i" ]] && BUSY[$i]=1; done

@@ -99,6 +99,24 @@ additionally fails on `attempted=0` in the fit summary.
 **File size does not predict corruption** — zombies were found up to 2.76 GB,
 and valid files go down to 959 events / 38 MB. Only the ROOT open is decisive.
 
+## Scale, as submitted
+
+| | |
+|---|---|
+| files | 410 good (of 620 scanned; **43 unreadable, dropped**) |
+| events | **21 719 059** (mean 52 973/file) |
+| tasks | **1642** (mean 13 227 events; range 959…20 168) |
+| chunks/file | 4 for 328 files; 1:8, 2:3, 3:22, 5:45, 6:3, 7:1 |
+| slurm | arrays `6406885` (idx 0-999) and `6406886` (idx 0-641, offset 1000), `%200` each |
+| candidates | ~1.0/event ⇒ **~21.7M** |
+| output | ~21.7M × 80.7 kB ≈ **1.75 TB** (quota headroom was 35 TB of 50) |
+| CPU | ~21.7M × 0.75 s ≈ **4 500 CPU-h** |
+| wall/task | ~2.8 h typical, ~5 h for the largest chunk (12 h limit) |
+| wall total | 1642 × 2.8 h / N_concurrent — **~12 h at 400 slots, ~23 h at 200** |
+
+The chunk list was validated to tile every file exactly: no gaps, no overlaps,
+Σ chunk events == Σ file events, 410 distinct basenames.
+
 ## Chunking
 
 One 53k-event file is 10+ h of Geant4e, too long for one task. Each file is
@@ -146,8 +164,24 @@ counts the skip across the whole concatenated `fileNames` list.
   positive-definite, 0/298 negative L_i). Values are meaningless at 298
   candidates — this is a plumbing check.
 
-Timing (steady state, two smokes contending on one node):
-~**0.79–0.91 s/candidate** plus ~3 min startup.
+Timing: ~**0.79–0.91 s/candidate** plus ~3 min startup when two smokes
+contend on one node; a clean single task on a compute node did 40 candidates
+plus startup in 66 s, i.e. ~0.65 s/candidate and ~40 s startup. Budget
+0.65–0.9 s/candidate.
+
+### Slurm path validated before the real submission
+
+A 2-task array was run first: one 40-event chunk (40/40 candidates succeeded,
+`.complete` written, `[done]` in the .out) and one deliberately non-existent
+input, which failed as intended with `[FATAL] input not readable on submit05`
+and left no sentinel and no task directory.
+
+`skipEvents` was checked against a known event sequence rather than assumed:
+`skipEvents=100` starts on `Event 3242205836`, the 101st record of the same
+file read from 0.
+
+`resume.sh`'s queue-exclusion mapping was checked to expand the live queue to
+exactly the index set {0…1641}.
 
 ## Commands
 

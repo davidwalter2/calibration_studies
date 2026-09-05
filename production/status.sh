@@ -28,8 +28,9 @@ NEVTOT=$(awk '{s+=$3} END{print s+0}' "$CHUNKS" 2>/dev/null)
 
 DONE=$(ls -d "$OUTBASE"/task_*/.complete 2>/dev/null | wc -l)
 STARTED=$(ls -d "$OUTBASE"/task_*/ 2>/dev/null | wc -l)
-RUN=$(squeue -u "$USER" -h -n jpsimc20M_a0,jpsimc20M_a1,jpsimc20M_a2 -t R 2>/dev/null | wc -l)
-PEND=$(squeue -u "$USER" -h -n jpsimc20M_a0,jpsimc20M_a1,jpsimc20M_a2 -t PD 2>/dev/null | wc -l)
+NAMES=jpsimc20M_a0,jpsimc20M_a1,jpsimc20M_a2
+RUN=$(squeue -u "$USER" -h -r -n "$NAMES" -t R 2>/dev/null | wc -l)
+PEND=$(squeue -u "$USER" -h -r -n "$NAMES" -t PD 2>/dev/null | wc -l)
 # A task dir with no sentinel and no queue entry is a failure that already
 # finished; that is the number resume.sh will pick up.
 STALE=$(( STARTED - DONE - RUN ))
