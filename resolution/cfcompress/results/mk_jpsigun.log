@@ -1,0 +1,8 @@
+jpsigun: 299712 candidates -> 60000 (seed 1234)
+  Sms      (60000, 448) float32  4.3 s
+  Sio_re   (60000, 448) float32  4.5 s
+  Sio_im   (60000, 448) float32  3.6 s
+  Srad_re  (60000, 448) float32  3.6 s
+  Srad_im  (60000, 448) float32  3.6 s
+  kernel dm (300243,)
+wrote /tmp/claude-125124/-work-submit-david-w-ZMass/9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress/sub_jpsigun_n60000_s1234.npz  (0.54 GB)

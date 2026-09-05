@@ -1,0 +1,387 @@
+== FULL-SAMPLE SHIFT [jpsigun] ==
+  loaded 60000 candidates in 6.4 s
+  loaded 299712 candidates in 52.5 s
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+full (uncompressed)    NLL=-588375.472993  alpha[1e-3]=+0.244676+-0.017656  k_hit=+0.942554+-0.035350  k_ms=+1.010752+-0.006066  k_ioni=+0.670982+-0.054485
+  nit=7 |g|inf=1.49e-05
+pca_all r=8            bytes=   32 max|dS|=1.25e-02 dNLL(th*)=-2.8355e+00  dalpha[1e-3]=+2.830e-04(+0.016s)  dk_hit=-2.743e-04(-0.008s)  dk_ms=+9.599e-05(+0.016s)  dk_ioni=-1.545e-03(-0.028s)
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+pca_all r=16           bytes=   64 max|dS|=4.03e-03 dNLL(th*)=-1.5866e+00  dalpha[1e-3]=-9.386e-05(-0.005s)  dk_hit=-2.896e-05(-0.001s)  dk_ms=-3.214e-05(-0.005s)  dk_ioni=+8.797e-04(+0.016s)
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+pca_all r=32           bytes=  128 max|dS|=6.09e-04 dNLL(th*)=-5.2007e-02  dalpha[1e-3]=-8.646e-05(-0.005s)  dk_hit=+1.043e-04(+0.003s)  dk_ms=-4.585e-05(-0.008s)  dk_ioni=+8.137e-04(+0.015s)
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+pca_all r=48           bytes=  192 max|dS|=2.42e-04 dNLL(th*)=+7.5026e-02  dalpha[1e-3]=-1.158e-05(-0.001s)  dk_hit=+1.252e-05(+0.000s)  dk_ms=-4.598e-06(-0.001s)  dk_ioni=+9.851e-05(+0.002s)
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+/work/submit/david_w/ZMass/calibration_studies/resolution/cfcompress/massnll_np.py:36: RuntimeWarning: overflow encountered in exp
+  return s * out, 1.0 / (1.0 + np.exp(-z))     # value, d/dx
+pca_all r=64           bytes=  256 max|dS|=1.53e-04 dNLL(th*)=-5.7893e-03  dalpha[1e-3]=-8.802e-07(-0.000s)  dk_hit=+3.935e-07(+0.000s)  dk_ms=+9.030e-08(+0.000s)  dk_ioni=+2.073e-06(+0.000s)
+wrote /tmp/claude-125124/-work-submit-david-w-ZMass/9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress/nllfullshift_jpsigun.json

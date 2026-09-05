@@ -1,0 +1,21 @@
+[btojpsix] n=40000 families=['Sms', 'Sio_re', 'Sio_im', 'Srad_re', 'Srad_im']
+  weight W: median over candidates at t=14 -> 2.395e-30; t where median W = 1e-3 -> 4.04
+  float32 cache ulp at max|S|: 7.629e-06   (max|S| = 66.0)
+  block Sms (1 fam)
+    gram+eigh 448x448 in 0.9 s; sv[0:4]=[9.32304189e+03 1.38271092e+02 2.16959584e+00 4.43846039e-01]
+  block Sio_re (1 fam)
+    gram+eigh 448x448 in 0.4 s; sv[0:4]=[2.76458253e+02 1.37108487e+00 4.70859959e-02 1.33084520e-02]
+  block Sio_im (1 fam)
+    gram+eigh 448x448 in 1.0 s; sv[0:4]=[6.95385202e+02 7.25709351e+00 8.32895818e-02 1.52164615e-02]
+  block Srad_re (1 fam)
+    gram+eigh 448x448 in 2.0 s; sv[0:4]=[6.80983784 0.23511913 0.04105419 0.03801336]
+  block Srad_im (1 fam)
+    gram+eigh 448x448 in 0.4 s; sv[0:4]=[24.92899457  0.28991076  0.04041809  0.03845702]
+  block IO (2 fam)
+    gram+eigh 896x896 in 0.9 s; sv[0:4]=[7.47706996e+02 3.12803574e+01 2.90715436e-01 3.90238366e-02]
+  block RAD (2 fam)
+    gram+eigh 896x896 in 1.1 s; sv[0:4]=[25.80094328  1.50927503  0.057287    0.05587706]
+  block ALL (5 fam)
+    gram+eigh 2240x2240 in 8.7 s; sv[0:4]=[9323.07487727  750.06102135  124.53845145   31.74998088]
+    gram+eigh 2240x2240 in 4.1 s; sv[0:4]=[1.4263463  0.29681604 0.08583019 0.02865781]
+wrote /tmp/claude-125124/-work-submit-david-w-ZMass/9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress/spec_btojpsix.npz

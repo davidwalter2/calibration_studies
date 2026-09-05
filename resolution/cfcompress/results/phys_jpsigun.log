@@ -1,0 +1,42 @@
+building the fine physics dictionaries ...
+  levy fine (896, 192)  moliere fine (448, 128)
+== block IO (fine dict K=192) ==
+  FULL fine dictionary K=192: ewgt max=3.23e-05 q999=1.62e-05 eabs max=2.89e-04
+  k=  2  ewgt q999  phys=3.61e-02  poly=5.15e-02  pca=1.04e-02
+  k=  3  ewgt q999  phys=3.53e-02  poly=4.52e-02  pca=4.26e-03
+  k=  4  ewgt q999  phys=3.41e-02  poly=4.43e-02  pca=2.24e-03
+  k=  5  ewgt q999  phys=1.48e-02  poly=4.16e-02  pca=1.45e-03
+  k=  6  ewgt q999  phys=1.98e-02  poly=4.03e-02  pca=1.18e-03
+  k=  8  ewgt q999  phys=1.29e-02  poly=3.69e-02  pca=4.68e-04
+  k= 10  ewgt q999  phys=8.24e-03  poly=3.49e-02  pca=2.76e-04
+  k= 12  ewgt q999  phys=6.73e-03  poly=6.27e-02  pca=1.50e-04
+  k= 16  ewgt q999  phys=2.72e-03  poly=6.27e-02  pca=5.98e-05
+  k= 24  ewgt q999  phys=7.37e-04  poly=6.27e-02  pca=1.69e-05
+  k= 32  ewgt q999  phys=1.07e-04  poly=6.27e-02  pca=7.55e-06
+== block RAD (fine dict K=192) ==
+  FULL fine dictionary K=192: ewgt max=1.21e-05 q999=9.59e-06 eabs max=9.12e-05
+  k=  2  ewgt q999  phys=1.39e-03  poly=1.58e-03  pca=2.95e-05
+  k=  3  ewgt q999  phys=1.10e-03  poly=1.58e-03  pca=2.81e-05
+  k=  4  ewgt q999  phys=9.91e-04  poly=1.55e-03  pca=2.80e-05
+  k=  5  ewgt q999  phys=3.99e-04  poly=1.55e-03  pca=2.39e-05
+  k=  6  ewgt q999  phys=4.59e-04  poly=1.51e-03  pca=2.39e-05
+  k=  8  ewgt q999  phys=2.38e-04  poly=1.47e-03  pca=1.69e-05
+  k= 10  ewgt q999  phys=2.17e-04  poly=1.42e-03  pca=1.70e-05
+  k= 12  ewgt q999  phys=1.76e-04  poly=1.60e-03  pca=1.68e-05
+  k= 16  ewgt q999  phys=1.32e-04  poly=1.61e-03  pca=9.72e-06
+  k= 24  ewgt q999  phys=6.46e-05  poly=1.61e-03  pca=9.70e-06
+  k= 32  ewgt q999  phys=3.50e-05  poly=1.61e-03  pca=9.38e-06
+== block MS (fine dict K=128) ==
+  FULL fine dictionary K=128: ewgt max=7.22e-05 q999=6.54e-05 eabs max=3.35e-04
+  k=  2  ewgt q999  phys=1.99e-01  poly=7.51e-02  pca=5.06e-03
+  k=  3  ewgt q999  phys=4.76e-02  poly=5.72e-02  pca=2.44e-03
+  k=  4  ewgt q999  phys=9.30e-03  poly=4.54e-02  pca=1.05e-03
+  k=  5  ewgt q999  phys=1.22e-02  poly=3.70e-02  pca=6.21e-04
+  k=  6  ewgt q999  phys=7.70e-03  poly=3.17e-01  pca=5.63e-04
+  k=  8  ewgt q999  phys=1.13e-03  poly=3.56e-01  pca=3.55e-04
+  k= 10  ewgt q999  phys=1.37e-03  poly=3.56e-01  pca=1.50e-04
+  k= 12  ewgt q999  phys=2.04e-03  poly=3.56e-01  pca=1.50e-04
+  k= 16  ewgt q999  phys=7.93e-04  poly=3.56e-01  pca=7.45e-05
+  k= 24  ewgt q999  phys=1.28e-04  poly=3.56e-01  pca=3.54e-05
+  k= 32  ewgt q999  phys=1.80e-04  poly=3.56e-01  pca=1.52e-05
+wrote /tmp/claude-125124/-work-submit-david-w-ZMass/9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress/phys_jpsigun.npz

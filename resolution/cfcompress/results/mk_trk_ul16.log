@@ -1,0 +1,8 @@
+trk_ul16: 319854 candidates -> 60000 (seed 1234)
+  Sms      (60000, 448) float32  8.5 s
+  Sdel     (60000, 448) float32  8.3 s
+  Sio_re   (60000, 448) float32  6.4 s
+  Sio_im   (60000, 448) float32  7.7 s
+  Srad_re  (60000, 448) float32  9.4 s
+  Srad_im  (60000, 448) float32  7.1 s
+wrote /tmp/claude-125124/-work-submit-david-w-ZMass/9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress/sub_trk_ul16_n60000_s1234.npz  (0.65 GB)

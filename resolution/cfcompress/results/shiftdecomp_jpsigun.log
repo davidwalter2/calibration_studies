@@ -1,0 +1,11 @@
+  loaded 40000 candidates in 9.4 s
+  loaded 20000 candidates in 7.4 s
+reference: alpha[1e-3]=+0.252623+-0.067930  k_hit=+0.853485+-0.131937  k_ms=+1.037669+-0.023173  k_ioni=+0.347451+-0.205940
+basis           B/cand   dalpha(20k)  +-stat(20k)       predicted at 1e7
+  dalpha(20k) is the best estimate of the n-INDEPENDENT systematic;
+  +-stat is its uncertainty from the finite sample, which falls as 1/sqrt(n).
+pca_all r=4         16    -1.688e-06    2.142e-06  -1.688e-06 +-   9.6e-08
+pca_all r=8         32    +1.181e-07    1.064e-06  +1.181e-07 +-   4.8e-08
+pca_all r=16        64    -1.693e-07    3.987e-07  -1.693e-07 +-   1.8e-08
+pca_all r=32       128    -3.919e-08    8.974e-08  -3.919e-08 +-   4.0e-09
+pca_all r=48       192    -2.447e-08    3.277e-08  -2.447e-08 +-   1.5e-09

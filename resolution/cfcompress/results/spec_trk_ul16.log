@@ -1,0 +1,23 @@
+[trk_ul16] n=40000 families=['Sms', 'Sdel', 'Sio_re', 'Sio_im', 'Srad_re', 'Srad_im']
+  weight W: median over candidates at t=14 -> 1.912e-30; t where median W = 1e-3 -> 4.10
+  float32 cache quantisation: max |dS| = 0.000e+00
+  block Sms (1 fam)
+    gram+eigh 448x448 in 0.2 s; sv[0:4]=[1.71288346e+04 1.81615912e+02 1.43990588e+00 2.54783802e-01]
+  block Sdel (1 fam)
+    gram+eigh 448x448 in 0.1 s; sv[0:4]=[180.11850501  19.49515074   2.26330131   0.77431572]
+  block Sio_re (1 fam)
+    gram+eigh 448x448 in 0.1 s; sv[0:4]=[3.24075285e+01 7.37233867e-02 2.07614080e-03 4.36720056e-04]
+  block Sio_im (1 fam)
+    gram+eigh 448x448 in 0.2 s; sv[0:4]=[1.91324545e+02 6.90197129e-01 4.39613051e-03 5.02856531e-04]
+  block Srad_re (1 fam)
+    gram+eigh 448x448 in 0.2 s; sv[0:4]=[5.85875751 0.2482282  0.04346358 0.04064727]
+  block Srad_im (1 fam)
+    gram+eigh 448x448 in 0.2 s; sv[0:4]=[5.77820719e+01 2.73645615e-01 4.35232332e-02 4.05981456e-02]
+  block IO (2 fam)
+    gram+eigh 896x896 in 0.8 s; sv[0:4]=[1.91325281e+02 3.24031905e+01 6.89940647e-01 7.36438998e-02]
+  block RAD (2 fam)
+    gram+eigh 896x896 in 0.9 s; sv[0:4]=[57.78207305  5.85874696  0.27412578  0.247687  ]
+  block ALL (6 fam)
+    gram+eigh 2688x2688 in 20.2 s; sv[0:4]=[17128.86692007   251.91426584   197.2595385     40.06320814]
+    gram+eigh 2688x2688 in 6.1 s; sv[0:4]=[0.60710785 0.42428125 0.10598708 0.07490783]
+wrote /tmp/claude-125124/-work-submit-david-w-ZMass/9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress/spec_trk_ul16.npz

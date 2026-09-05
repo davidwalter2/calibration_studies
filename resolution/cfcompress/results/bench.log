@@ -1,0 +1,8 @@
+n=20000  1 core: NLL 0.46 s (23.11 us/cand), NLL+grad 0.73 s (36.45 us/cand)
+  -> 1e7 candidates, 1 core: NLL 231 s, NLL+grad 364 s;  16 cores: 14 / 23 s
+  storage full: 8960 B/cand -> 89.6 GB for 1e7
+  r=  8:   32 B/cand (280.0x, 0.32 GB for 1e7); reconstruction 0.12 s (5.75 us/cand, 25 % of the NLL) -> 1e7 on 16 cores 4 s
+  r= 16:   64 B/cand (140.0x, 0.64 GB for 1e7); reconstruction 0.12 s (5.92 us/cand, 26 % of the NLL) -> 1e7 on 16 cores 4 s
+  r= 32:  128 B/cand ( 70.0x, 1.28 GB for 1e7); reconstruction 0.13 s (6.71 us/cand, 29 % of the NLL) -> 1e7 on 16 cores 4 s
+  r= 48:  192 B/cand ( 46.7x, 1.92 GB for 1e7); reconstruction 0.17 s (8.29 us/cand, 36 % of the NLL) -> 1e7 on 16 cores 5 s
+  r= 64:  256 B/cand ( 35.0x, 2.56 GB for 1e7); reconstruction 0.25 s (12.45 us/cand, 54 % of the NLL) -> 1e7 on 16 cores 8 s

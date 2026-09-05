@@ -1,0 +1,13 @@
+== mass ==
+train      test       r=8   r=16  r=32  r=48  r=64 
+jpsigun    jpsigun    2.67e-03 7.52e-04 1.01e-04 5.82e-05 3.59e-05  (same)
+jpsigun    btojpsix   1.04e-03 4.88e-04 8.22e-05 4.19e-05 2.61e-05
+btojpsix   jpsigun    5.28e-02 2.63e-02 5.73e-03 2.76e-03 9.35e-04
+btojpsix   btojpsix   3.69e-04 1.07e-04 5.51e-05 3.01e-05 1.82e-05  (same)
+== track ==
+train      test       r=8   r=16  r=32  r=48  r=64 
+trk_lowpt  trk_lowpt  2.43e-03 6.65e-04 2.46e-04 1.34e-04 9.35e-05  (same)
+trk_lowpt  trk_ul16   6.75e-04 2.25e-04 6.42e-05 4.27e-05 3.39e-05
+trk_ul16   trk_lowpt  1.43e-02 4.51e-03 1.30e-03 1.10e-03 1.13e-03
+trk_ul16   trk_ul16   5.33e-04 1.55e-04 4.01e-05 3.08e-05 1.59e-05  (same)
+wrote /tmp/claude-125124/-work-submit-david-w-ZMass/9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress/transfer.npz

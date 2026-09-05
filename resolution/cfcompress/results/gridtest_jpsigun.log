@@ -1,0 +1,13 @@
+full grid 448 pts (t<=14): NLL=-39399.814558  alpha[1e-3]=+0.252623+-0.067930  k_hit=+0.853485+-0.131937  k_ms=+1.037669+-0.023173  k_ioni=+0.347451+-0.205940
+stride  2 t<=14.0:  224 pts (  4480 B/cand, x  2.0)  dNLL(th*)=-4.113e-04  dalpha[1e-3]=+9.520e-07(+0.000s)  dk_hit=-6.080e-07(-0.000s)  dk_ms=+3.567e-07(+0.000s)  dk_ioni=-5.180e-06(-0.000s)
+stride  4 t<=14.0:  112 pts (  2240 B/cand, x  4.0)  dNLL(th*)=-1.049e-02  dalpha[1e-3]=-1.609e-05(-0.000s)  dk_hit=+1.665e-05(+0.000s)  dk_ms=-9.012e-06(-0.000s)  dk_ioni=+1.549e-04(+0.001s)
+stride  8 t<=14.0:   56 pts (  1120 B/cand, x  8.0)  dNLL(th*)=-7.342e-01  dalpha[1e-3]=-2.261e-03(-0.033s)  dk_hit=+1.452e-03(+0.011s)  dk_ms=-1.038e-03(-0.045s)  dk_ioni=+2.115e-02(+0.103s)
+stride 16 t<=14.0:   28 pts (   560 B/cand, x 16.0)  dNLL(th*)=-6.325e+01  dalpha[1e-3]=-1.354e-02(-0.199s)  dk_hit=+3.736e-03(+0.028s)  dk_ms=-5.157e-03(-0.223s)  dk_ioni=+1.514e-01(+0.735s)
+stride  1 t<= 8.0:  256 pts (  5120 B/cand, x  1.8)  dNLL(th*)=-3.323e-07  dalpha[1e-3]=+1.432e-10(+0.000s)  dk_hit=-1.035e-10(-0.000s)  dk_ms=-9.179e-10(-0.000s)  dk_ioni=-1.246e-11(-0.000s)
+stride  2 t<= 8.0:  128 pts (  2560 B/cand, x  3.5)  dNLL(th*)=-4.115e-04  dalpha[1e-3]=+9.526e-07(+0.000s)  dk_hit=-6.102e-07(-0.000s)  dk_ms=+3.562e-07(+0.000s)  dk_ioni=-5.175e-06(-0.000s)
+stride  4 t<= 8.0:   64 pts (  1280 B/cand, x  7.0)  dNLL(th*)=-1.049e-02  dalpha[1e-3]=-1.609e-05(-0.000s)  dk_hit=+1.665e-05(+0.000s)  dk_ms=-9.012e-06(-0.000s)  dk_ioni=+1.549e-04(+0.001s)
+stride  1 t<= 6.0:  192 pts (  3840 B/cand, x  2.3)  dNLL(th*)=+3.522e-04  dalpha[1e-3]=-4.555e-06(-0.000s)  dk_hit=+5.943e-07(+0.000s)  dk_ms=+1.332e-06(+0.000s)  dk_ioni=-1.607e-05(-0.000s)
+stride  2 t<= 6.0:   96 pts (  1920 B/cand, x  4.7)  dNLL(th*)=+1.360e-04  dalpha[1e-3]=-3.776e-06(-0.000s)  dk_hit=-5.128e-06(-0.000s)  dk_ms=+2.888e-06(+0.000s)  dk_ioni=-2.604e-05(-0.000s)
+stride  4 t<= 6.0:   48 pts (   960 B/cand, x  9.3)  dNLL(th*)=-9.989e-03  dalpha[1e-3]=-1.857e-05(-0.000s)  dk_hit=+5.983e-06(+0.000s)  dk_ms=-5.835e-06(-0.000s)  dk_ioni=+1.361e-04(+0.001s)
+stride  1 t<= 5.0:  160 pts (  3200 B/cand, x  2.8)  dNLL(th*)=+1.107e-01  dalpha[1e-3]=+7.202e-05(+0.001s)  dk_hit=+9.889e-04(+0.007s)  dk_ms=+1.593e-05(+0.001s)  dk_ioni=+4.836e-05(+0.000s)
+stride  2 t<= 5.0:   80 pts (  1600 B/cand, x  5.6)  dNLL(th*)=+1.120e-01  dalpha[1e-3]=+7.804e-05(+0.001s)  dk_hit=+1.116e-03(+0.008s)  dk_ms=+4.971e-06(+0.000s)  dk_ioni=-2.690e-06(-0.000s)
