@@ -88,10 +88,10 @@ over the same 104 MiniAOD files (~25 k events per file, ~35 s each):
 Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
 FL=/work/submit/david_w/ZMass/calibration_studies/production/filelist_dymc_8p5M_260905.txt
 sed 's|^file:||' $FL > $Z/data/paths_dymc.txt
-for i in $(seq 0 103); do
-  ssh submit51 "$Z/fwlite.sh $Z/dump_gen_fsr.py --filelist $Z/data/paths_dymc.txt \
-      --skip-files $i --nfiles 1 -o $Z/data/genparts/gen_$i.npz" &
-done; wait          # keep the fan-out to ~12 at a time
+mkdir -p $Z/data/genparts
+seq 0 103 | xargs -P 12 -I{} ssh submit51 \
+  "$Z/fwlite.sh $Z/dump_gen_fsr.py --filelist $Z/data/paths_dymc.txt \
+   --skip-files {} --nfiles 1 -o $Z/data/genparts/gen_{}.npz"
 
 python zfsr_kernel.py -i data/genparts/gen_*.npz -o data/zfsr_kernel_reco.npz \
     --acc-pt 5 --acc-eta 2.4 --tmax 20 --npoints 16385 --report
@@ -103,6 +103,12 @@ cut (`TrackProducerFromPatMuons ptMin=-1`; the smoke's sub-leading muon goes dow
 to 4.7 GeV, only 72 % are above 26 GeV), so `--acc-pt 5 --acc-eta 2.4` is the
 right proxy. Do **not** pass `--mass-window`: the mass selection is applied once,
 by the likelihood's `norm_window`, and applying it here as well double-counts it.
+
+The empirical `phi_K` carries the gen sample's statistical error: a half-sample
+split gives 1.0×10⁻³ (mean over `t`) at 126 k events, so 1×10⁻⁴ needs ~13 M gen
+events. The FSR kernel is generator-level, so the whole 1731-file dataset is
+usable, not just the 104-file production head — 35 s per file, embarrassingly
+parallel.
 
 `--tmax` must exceed `max(tgrid)/min(sigma)` = `7.8926 / σ_min`; the smoke's
 `σ_min = 0.494 GeV` needs 16 GeV⁻¹, so 20 is the working default. `make_z_card.py`
@@ -138,8 +144,12 @@ M| ≤ HW`. Two consequences:
 cd $Z
 python make_z_card.py --pairs ../resolution/runs/zpairs_dymc8p5M.npz \
     --kernel data/zfsr_kernel_reco.npz -o cards/zcard_dymc8p5M.hdf5 \
-    --norm-classes 32 --gz-prior 2.3
+    --norm-classes 64 --gz-prior 2.3
 ```
+
+Leave `--upsample` at 1 and set the term's `upsample` at *fit* time instead
+(see "The 64-point tau grid" below) -- resampling at build time multiplies the
+card size.
 
 Expect ≈ 5 GB (the five `(n, 64)` float32 family blocks dominate; the truncation
 block adds 32 × 257 rows, i.e. nothing). Run it in the rabbit TF environment:
@@ -185,6 +195,53 @@ which ends in `rabbit_fit.py <card> -t 0 --unblind --paramModel UnbinnedParams`.
 python z_variants.py --pairs ../resolution/runs/zpairs_dymc8p5M.npz \
     --kdir data --project 3.9e6
 ```
+
+---
+
+## The 64-point tau grid is not enough (read this one too)
+
+The in-maker exports the CF exponents on 64 points of `[0, 7.8926]`
+(`tau=stride4of448<=8`; it computes 448 internally and strides by 4). The
+density is an inverse Fourier transform whose integrand oscillates
+`|m_obs - m_pred| / sigma` times across that grid. For a J/psi in a +-0.35 GeV
+window that is a handful of periods. For a Z in a 60-120 GeV window it is up to
+**61** -- 0.8 samples per period:
+
+| pull = \|m_obs - m_ref\|/sigma | candidates (smoke) | periods | points/period | median rel. error on `L_i` |
+|---|---|---|---|---|
+| 0-1   | 158 |  0.6 | 100 | 1.4e-3 |
+| 1-2   |  87 |  1.8 |  35 | 2.7e-3 |
+| 2-3   |  50 |  3.0 |  21 | 4.6e-3 |
+| 3-5   |  51 |  5.0 |  13 | 8.5e-3 |
+| 5-8   |  34 |  8.2 | 7.8 | 3.7e-2 |
+| 8-12  |  25 | 12.4 | 5.2 | 6.8e-2 |
+| 12-30 |  31 | 23.4 | 2.7 | 2.1e-1 (max 2.7) |
+
+The whole NLL moves by **-33.7** over 449 candidates when the same term is
+rebuilt on a 16x finer grid (converged: the 16x -> 64x change is 3e-4). The
+candidates near the peak are fine; it is the FSR tail -- where the width
+information lives -- that is misrepresented.
+
+The exponents are *smooth* in tau (largest second difference below 2 % of the
+range; a cubic spline through every other in-maker point reproduces them to
+~1e-4 absolute), so resampling is faithful, not a guess. `MassCFTerm` does it
+in the graph (`upsample=N`), which keeps the datacard at 64 points and only
+grows the per-chunk intermediates -- at 3.9 M candidates a 16x-finer *stored*
+array would be a 79 GB card. `make_z_card.py --upsample N` also exists and
+resamples at build time; use it only for small samples.
+
+The same arithmetic is why the truncation normalisation integrates in Fourier
+space (`_norm_z`, Gil-Pelaez) rather than by sampling the density on a mass
+grid: both need a fine tau grid, but Fourier needs a `(K, nt)` tensor where the
+mass grid needs `(K, n_mass, nt)`. The mass-grid version produced `Z > 1`
+(up to 2.8) on this sample -- an integral of a density over a sub-interval,
+larger than one, which is how the problem was found.
+
+**C++ to-do (cheap):** export more of the 448 points the maker already
+computes. The six `cfmass_*` branches are 1.4 % of the 34.7 kB event; all 448
+points would make them 9.7 %, i.e. +28 % on the output -- affordable, and it
+removes the resampling step (though not the memory cost of integrating on a
+fine grid).
 
 ---
 
@@ -237,6 +294,11 @@ Born edge; the upper edge only has to sit far enough above the window.
 * **`m_Z` and `alpha` are exactly degenerate** in a single-resonance fit. The Z
   channel measures `m_Z` only jointly with a channel that pins the momentum
   scale — which is the whole point of the unified likelihood.
+* **The `t`-grid cost at scale.** Integrating on a 16x grid multiplies the
+  per-chunk graph tensors by 16. The Hessian tape already peaks at ~88 GB for
+  200 k candidates at `nt = 256`; `rabbit_fit` on an H200 will need `--chunk`
+  tuning, or `trust-krylov` with Hessian-vector products instead of a
+  materialised Hessian.
 * **The selection variable is not the fitted observable.** The maker cuts on
   `Jpsitrk_mass` (the input-track dimuon mass), not on the CVH-refit
   `Jpsi_mass`; 459/459 smoke candidates pass on the former, 458/459 on the

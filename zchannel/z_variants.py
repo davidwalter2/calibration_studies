@@ -24,6 +24,10 @@ Variants:
 ``born-60-120``   Born support equal to the selection window (wrong on purpose:
                   it forbids the Born masses that FSR moves into the window)
 ``sigma-max-5``   drop the tail of very poorly measured pairs
+``upsample-4/16`` resample the family exponents onto a 4x / 16x finer tau grid.
+                  The in-maker exports 64 points; the density's integrand
+                  oscillates |m_obs - m_pred|/sigma times, up to 60 across a
+                  60-120 GeV window, which 64 points do not resolve.
 
 Usage::
 
@@ -59,7 +63,7 @@ def parse_args():
 def variants(args):
     K = args.kdir
     base = ["--pairs", args.pairs, "--kernel", f"{K}/zfsr_kernel_reco.npz",
-            "--norm-classes", "32"]
+            "--norm-classes", "64"]
 
     def alt(*extra):
         return base + list(extra)
@@ -75,6 +79,8 @@ def variants(args):
         "born-200": alt("--born-window", "50", "200"),
         "born-60-120": alt("--born-window", "60", "120"),
         "sigma-max-5": alt("--sigma-max", "5"),
+        "upsample-4": alt("--upsample", "4"),
+        "upsample-16": alt("--upsample", "16"),
     }
 
 

@@ -78,17 +78,32 @@ def parse_args(argv=None):
     p.add_argument("--no-window-norm", action="store_true",
                    help="do NOT renormalise over the window (diagnostic only: "
                         "this is the biased likelihood)")
-    p.add_argument("--norm-classes", type=int, default=32,
+    p.add_argument("--norm-classes", type=int, default=64,
                    help="resolution classes for the truncation normalisation; "
                         "0 = one per candidate (exact, only affordable at "
                         "small n)")
-    p.add_argument("--norm-nodes", type=int, default=257,
-                   help="mass-grid nodes for the truncation integral")
+    p.add_argument("--norm-tpoints", type=int, default=8192,
+                   help="points of the (midpoint) t grid the truncation "
+                        "integral uses. It must resolve oscillations at the "
+                        "window half-width -- |m_edge - m_Z| / sigma_min ~ 60 "
+                        "for a Z -- so it is far finer than the in-maker's "
+                        "64-point grid, onto which the family exponents are "
+                        "resampled by cubic spline. The cost is a (K, tpoints) "
+                        "tensor, so this is cheap.")
     p.add_argument("--sigma-max", type=float, default=0.0,
                    help="drop candidates with sigma above this [GeV] (0 = keep "
                         "all); the tail of very poorly measured pairs sets the "
                         "tau range the lineshape CF must cover")
     p.add_argument("--maxn", type=int, default=0, help="use only the first N")
+    p.add_argument("--upsample", type=int, default=1,
+                   help="resample the family exponents onto a tau grid this "
+                        "many times finer than the in-maker's 64 points. The "
+                        "density is an inverse Fourier transform whose "
+                        "integrand oscillates |m_obs - m_pred|/sigma times per "
+                        "2*pi/tmax; over a 60 GeV window with sigma ~ 1 GeV "
+                        "that is up to 60 periods, which 64 points do not "
+                        "resolve. The exponents are smooth in tau, so a cubic "
+                        "spline recovers them; the cost is nt x memory.")
     p.add_argument("--del-family", action="store_true",
                    help="include the 'del' family (not part of the reference "
                         "resolution model)")
@@ -119,6 +134,19 @@ def parse_args(argv=None):
                    help="lineshape CF tabulation range [1/GeV]")
     p.add_argument("--chunk", type=int, default=32768)
     return p.parse_args(argv)
+
+
+def _resample(a, tsrc, tdst, factor):
+    """Cubic-spline the (n, nt) exponents onto a finer tau grid."""
+    if factor <= 1:
+        return a
+    from scipy.interpolate import CubicSpline
+    out = np.empty((a.shape[0], len(tdst)), np.float32)
+    for lo in range(0, a.shape[0], 20000):
+        hi = min(a.shape[0], lo + 20000)
+        out[lo:hi] = CubicSpline(tsrc, a[lo:hi].astype(np.float64),
+                                 axis=1)(tdst).astype(np.float32)
+    return out
 
 
 def discover_families(keys, want_del=False):
@@ -163,6 +191,13 @@ def build(args, log=print):
     mobs = mreco - args.mref
 
     fams = discover_families(set(d.files), args.del_family)
+    tsrc = tgrid
+    if args.upsample > 1:
+        from scipy.interpolate import CubicSpline
+        tgrid = np.linspace(tsrc[0], tsrc[-1], (len(tsrc) - 1) * args.upsample + 1)
+        nt = len(tgrid)
+        log(f"  upsampling the exponents {args.upsample}x: {len(tsrc)} -> {nt} "
+            f"tau points")
     log(f"  {n} candidates, nt = {nt}, tau grid [0, {tgrid[-1]:.4f}], "
         f"families {[f[0] for f in fams]} + hit")
     log(f"  sigma: min {sigma.min():.4f} med {np.median(sigma):.4f} "
@@ -174,10 +209,12 @@ def build(args, log=print):
     arrays = {}
     for name, re_k, im_k in fams:
         families.append({"name": name, "param": f"k_{name}", "kind": "tab"})
-        arrays[name] = {"re": np.asarray(d[re_k])[idx]}
+        arrays[name] = {"re": _resample(np.asarray(d[re_k])[idx], tsrc, tgrid,
+                                        args.upsample)}
         datasets[f"S_re_{name}"] = arrays[name]["re"]
         if im_k:
-            arrays[name]["im"] = np.asarray(d[im_k])[idx]
+            arrays[name]["im"] = _resample(np.asarray(d[im_k])[idx], tsrc, tgrid,
+                                           args.upsample)
             datasets[f"S_im_{name}"] = arrays[name]["im"]
 
     phik = (np.asarray(k["phik_t"]), np.asarray(k["phik_re"]),
@@ -225,7 +262,7 @@ def build(args, log=print):
             for comp, a in arr.items():
                 datasets[f"S_{comp}_{nm}_norm"] = a.astype(np.float32)
         log(f"  truncation normalisation on [{lo}, {hi}] with {K} resolution "
-            f"class(es), {args.norm_nodes} mass nodes")
+            f"class(es), {args.norm_tpoints} t points")
     else:
         log("  NO window normalisation (biased likelihood; diagnostic only)")
 
@@ -259,7 +296,7 @@ def build(args, log=print):
         bkg_frac_param="f_bkg" if args.float_bkg else None,
         bkg_frac=args.fbkg,
         norm_window=None if args.no_window_norm else (lo, hi),
-        norm_nodes=args.norm_nodes, norm=norm,
+        norm_tpoints=args.norm_tpoints, norm=norm,
         chunk=args.chunk, channel=args.channel,
     )
 

@@ -143,7 +143,8 @@ def main():
              f"{cfg['kernel']['provider']['window']})"
              if "provider" in cfg["kernel"] else ""))
     print(f"        norm_window {cfg['norm_window']}, "
-          f"{cfg['norm_nodes']} nodes, background {cfg['background']['type']}")
+          f"{cfg['norm_tpoints']} t points, "
+          f"background {cfg['background']['type']}")
 
     names = list(term.param_names)
     fixed = set(args.fix)
