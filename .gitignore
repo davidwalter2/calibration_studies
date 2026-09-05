@@ -47,3 +47,6 @@ slurm/filelists/*resubmit*.txt
 # Grid->ceph transfer runtime state (regenerable; status log grows per file)
 transfer/logs/
 transfer/transfer_status.tsv*
+
+# Z channel: gen dumps, FSR kernels, pairs caches, datacards (all regenerable)
+zchannel/data/
