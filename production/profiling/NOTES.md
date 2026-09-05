@@ -13,7 +13,11 @@ configurational?  It decides whether the 8M-event Z leg is 2k or 20k core-hours.
 q/p weight).  Every J/psi production driver *pins it to 0*
 (`runCvhJpsiGenMC.py` forces `CgfQoPMode=0` when unset;
 `run_ditrack_jpsigun_260902.sh` passes it explicitly).  The dimuon/MiniAOD
-driver never touches it, so the Z leg silently inherits mode 1.
+driver never touches it, so the Z leg silently inherits mode 1.  Neither does
+the custom NanoAOD path: `PhysicsTools/NanoAOD/python/muons_cff.py:346` clones
+the same cfi (`trackrefitdimuon = ResidualGlobalCorrectionMakerDiMuonG4e.clone()`)
+without pinning the switch, so a NanoAOD Z production would inherit mode 1 too.
+`runCvhJpsiGenMC.py` is the ONLY config in the tree that sets it.
 
 Under mode 1 the propagator runs `cvhcgf::inverseFisher` on **every** propagate
 call -- two 262144-point FFTs plus an O(nt x nsteps) `blockExponent` sweep --
