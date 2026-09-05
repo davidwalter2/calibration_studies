@@ -24,6 +24,7 @@ likelihood (`norm_window`) this channel needs.
 | `make_z_card.py` | pairs cache + kernel → a rabbit datacard with one `MassCFTerm` |
 | `fit_z.py` | read the card back, fit, and project the covariance to full statistics |
 | `z_variants.py` | rebuild the term under each modelling choice and report the bias |
+| `check_tgrid.py` | is the in-maker's 64-point τ grid fine enough? (no — see below) |
 | `data/` | gen dumps, kernels, caches, cards — all regenerable, git-ignored |
 
 The rabbit side:
@@ -33,7 +34,7 @@ The rabbit side:
 | `rabbit/lineshapes/zgamma.py` | Born Z/γ\* lineshape, POIs `m_Z`, `Γ_Z`; its CF |
 | `rabbit/unbinned.py` | `MassCFTerm` + `TabulatedLineshapeKernel` + `norm_window` |
 | `tests/test_zgamma_kernel.py` | the provider's six tests |
-| `tests/test_unbinned_norm.py` | the truncated likelihood's five tests |
+| `tests/test_unbinned_norm.py` | the truncated likelihood + upsampling: six tests |
 
 ---
 
@@ -147,9 +148,10 @@ python make_z_card.py --pairs ../resolution/runs/zpairs_dymc8p5M.npz \
     --norm-classes 64 --gz-prior 2.3
 ```
 
-Leave `--upsample` at 1 and set the term's `upsample` at *fit* time instead
-(see "The 64-point tau grid" below) -- resampling at build time multiplies the
-card size.
+`--fit-upsample` (default 4) is the τ upsampling; it is stored in the card's
+config and applied in the graph at fit time, so the card stays at 64 points.
+Leave the build-time `--upsample` at 1 — resampling there multiplies the card
+size. See "The 64-point tau grid" below for why either is needed.
 
 Expect ≈ 5 GB (the five `(n, 64)` float32 family blocks dominate; the truncation
 block adds 32 × 257 rows, i.e. nothing). Run it in the rabbit TF environment:
@@ -238,10 +240,11 @@ mass grid needs `(K, n_mass, nt)`. The mass-grid version produced `Z > 1`
 larger than one, which is how the problem was found.
 
 **C++ to-do (cheap):** export more of the 448 points the maker already
-computes. The six `cfmass_*` branches are 1.4 % of the 34.7 kB event; all 448
-points would make them 9.7 %, i.e. +28 % on the output -- affordable, and it
-removes the resampling step (though not the memory cost of integrating on a
-fine grid).
+computes. The six `cfmass_*` branches are 64 float32 each, ~1.4 kB of the
+34.7 kB event; all 448 points would take them to ~9.9 kB, i.e. **+25 %** on the
+output (140 GB -> ~175 GB for the full production) -- affordable, and it removes
+the resampling step (though not the memory cost of integrating on a fine grid).
+Halfway, `stride2of448` = 224 points, costs +12 %.
 
 ---
 

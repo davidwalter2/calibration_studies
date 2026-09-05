@@ -95,6 +95,13 @@ def parse_args(argv=None):
                         "all); the tail of very poorly measured pairs sets the "
                         "tau range the lineshape CF must cover")
     p.add_argument("--maxn", type=int, default=0, help="use only the first N")
+    p.add_argument("--fit-upsample", type=int, default=4,
+                   help="the term's own in-graph tau upsampling, stored in the "
+                        "datacard config and applied at fit time. This is the "
+                        "one to use: it leaves the stored arrays at 64 points "
+                        "and only grows the per-chunk intermediates. Default 4 "
+                        "-- 4x and 16x agree to 0.4 MeV on m_Z, while 1x is "
+                        "29 MeV away.")
     p.add_argument("--upsample", type=int, default=1,
                    help="resample the family exponents onto a tau grid this "
                         "many times finer than the in-maker's 64 points. The "
@@ -297,6 +304,7 @@ def build(args, log=print):
         bkg_frac=args.fbkg,
         norm_window=None if args.no_window_norm else (lo, hi),
         norm_tpoints=args.norm_tpoints, norm=norm,
+        upsample=args.fit_upsample,
         chunk=args.chunk, channel=args.channel,
     )
 
