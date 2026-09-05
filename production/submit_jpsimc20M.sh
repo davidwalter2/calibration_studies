@@ -3,7 +3,13 @@
 #
 # WHAT THIS RUNS -- the "rung-B" real-geometry configuration:
 #   * two-track J/psi fit, NO vertex constraint, NO mass constraint
-#   * aligned MC geometry from the GT + the full 3D TOSCA grid field (160812)
+#   * aligned MC geometry from the GT + THE FIELD THE SIM PROPAGATED THROUGH,
+#     i.e. the unlabelled VolumeBasedMagneticField 160812 with
+#     useParametrizedTrackerField=True -> OAE_1103l_071212 in the tracker.
+#     This is a closure test, so the fit's field has to be the simulation's
+#     field: refitting UL16 MC with the full 3D TOSCA grid instead leaves an
+#     eta/phi-coherent ~8e-4 dp/p pattern in the pull width. The Opera3D
+#     variant is reserved as a later injected-field test on a subset.
 #   * global-correction gradients with the LOW-RANK FACTORED Hessian
 #     (H = B^T B) rather than the packed one -- ~9x smaller at this mode count
 #   * doRes: the resolution families are registered and the in-maker mass-CF
@@ -22,14 +28,9 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-TAG=jpsimc_20M_260905
+# shared with resume.sh so the two can never drift apart
+source "$HERE/config_jpsimc20M.sh"
 CHUNKLIST=$HERE/chunks_${TAG}.txt
-OUTBASE=/ceph/submit/data/user/d/david_w/ZMass/cvh/$TAG
-CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
-INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
-MAXARRAY=1000          # tasks per array job (MaxArraySize is 1001 -> 0..1000)
-MAXRUNNING=200         # concurrent tasks PER ARRAY
-NAME=jpsimc20M
 DRY=0
 ONLY=""
 
@@ -49,19 +50,6 @@ done
 [[ -d "$CMSSW_AREA/src" ]] || { echo "CMSSW area invalid: $CMSSW_AREA" >&2; exit 1; }
 [[ -r "$INIT" ]] || { echo "scalar-potential init file missing: $INIT" >&2; exit 1; }
 
-# The physics configuration. Every option is deliberate; see STATE.md for the
-# table of what each one is and why.
-EXTRA="numberOfThreads=1 \
- doRes=True exportCfExponents=True exportStepRecords=False \
- fillJac=True fillGrads=False fillGradsFactored=True \
- fitFromGenParms=False \
- trackSrc=ALCARECOTkAlJpsiMuMu useLegacyPairLoop=True \
- doTrigger=True applyHltFilter=False doSimHits=False \
- useIdealGeometry=False useOpera3D=True globalTag=106X_mcRun2_asymptotic_v17 \
- doVtxConstraint=False doMassConstraint=False \
- CgfQoPMode=0 \
- propagationPtotLimit=0.2 maxMomentumStepFactor=2.0 stepBacktracking=True \
- scalarPot3DInitFile=$INIT"
 
 NTASK=$(grep -cvE '^\s*(#|$)' "$CHUNKLIST")
 NARRAY=$(( (NTASK + MAXARRAY - 1) / MAXARRAY ))

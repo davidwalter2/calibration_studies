@@ -1,0 +1,59 @@
+# The 43 TRUNCATED files found in the first 620 sorted files of the UL16
+# JPsiToMuMu_Pt8toInf TkAlJpsiMuMu ALCARECO repack (2026-09-05 scan).
+#
+# ROOT reports them as zombies: "probably not closed, trying to recover"
+# then "no keys recovered". cmsRun runs with skipBadFiles=True, so each one
+# is SILENTLY SKIPPED and the task writes a valid but EMPTY output.
+#
+# SIZE DOES NOT IDENTIFY THEM: the largest zombie here is 2.76 GB, and
+# perfectly good files in the same sample go down to 959 events / 38 MB.
+# Only opening the file and reading Events->GetEntries() is decisive.
+#
+# Rate: 43/620 = 6.9 %. If the rest of the 2031-file repack is similar,
+# ~140 of them are bad. Re-scan (scan_events.py) before using any of it.
+#
+# format: <path> <size bytes>
+# NOSTAT
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/2830000/BD29131A-527C-5942-B306-F6816A57E23F.root 256176561
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/2830000/C25299C2-F6E4-6A46-8F7B-15D72D14EA52.root 1797746159
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/2830000/DD6F356C-D7D3-4248-874D-EB3296E3417E.root 158133312
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/2830000/E67A55D3-2B0E-AA42-B46A-CFBB988BE330.root 2157419063
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/2830000/E94BF67E-1A63-B44B-92CD-5FCA9191B7EB.root 1648384290
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/0724A2BD-E3A2-BD42-9CDD-391EF336F5F2.root 1169996675
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/0EF3EE73-96A1-6146-817E-69383DC6B6B9.root 1677673646
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/116DE613-491C-B543-A5D6-57D6D0DE852E.root 533350911
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/1E15437C-9AB0-E548-B8E7-139D02076E0B.root 1720546739
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/2CAF26D7-F7C0-3645-B386-3777FF086C4E.root 1095700915
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/3A63E861-C605-4A4A-9499-0087C0A970CD.root 239241603
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/3CE2B282-B450-DF43-8754-BEB736243A41.root 1685547043
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/3F36783C-678C-304A-86DC-87D2B2915478.root 303125063
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/40FF6239-0652-054C-A00C-F1D150366F37.root 637991995
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/43B1DAE4-596E-574B-8081-216BF8CCEE0F.root 2024345151
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/462C369D-4E43-8949-BD12-C35684E4CDE2.root 287704311
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/489D3AD1-D7DA-114F-8838-7B1BE34B8E48.root 1819149791
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/4DA2E9D1-DEBF-3D41-9794-EA674972AA4F.root 1229347301
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/5458A55E-D096-6E46-9ECB-CF66BD4BC5F0.root 1173169430
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/592ED415-7FB5-6A47-B0AF-7D74784B7535.root 1783705623
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/65A21C05-0C70-4345-AFD1-DC5ABF86240A.root 711418353
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/6DE9CF05-5DC5-7F4C-A8C3-77A0340CAD4D.root 520235927
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/78F705FC-76A3-7C4E-AA3D-162E058E0A57.root 146477343
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/7F2D62AD-E0CD-EC43-A7B7-CD655BC3B7D9.root 1140530796
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/843DB248-313D-8547-BE12-F477020DCD00.root 1231205517
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/97AE29B5-E12A-AB47-8BDC-9981C70E072C.root 830861898
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/99E11AA4-569B-A14C-94C6-946027AEFDD3.root 1133561247
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/9E203703-AA31-C74C-8D06-A1DC7130708E.root 18842250
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/AEA77704-8C65-2A47-A478-991432220CAD.root 463595970
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/BEE41320-E4DA-AE4A-A0A4-4230DB084399.root 706377894
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/D0E63993-2357-3241-BD7E-01995B8CC34F.root 2080430688
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/70000/090BDC3F-6598-854E-ADE1-9D01088D55DF.root 1782402052
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/70000/27B4D064-0717-0741-8036-90F1B0595552.root 2110736656
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/70000/67783566-0498-304C-ACE1-57E7AA2CC90C.root 40190706
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/70000/9B4D5356-D61C-0545-8B57-C6B9BB3CB772.root 21065065
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/70000/F3EEA73A-8E10-004D-A871-984786DE8031.root 1591715257
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13_ext1-v3/30000/022CAB22-9F67-B841-A798-AB6BBE59289F.root 2764544876
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13_ext1-v3/30000/03C62D59-8B29-C94A-882D-D3B1EB39B598.root 881558321
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13_ext1-v3/30000/0A236182-FAA7-2543-AEEB-65C7DA20F845.root 539927059
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13_ext1-v3/30000/0CCF4FA0-CFF7-DC46-8BBB-72A8EA151363.root 1232787563
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13_ext1-v3/30000/0DF7CF11-5472-BF48-B4EE-9B2404EBC413.root 124074254
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13_ext1-v3/30000/0E9C69E4-37B2-1B42-8F98-FC2282DE9743.root 630
+/ceph/submit/data/group/cms/store/mc/RunIISummer20UL16RECO/JPsiToMuMu_Pt8toInf-pythia8/ALCARECO/TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13_ext1-v3/30000/0F69D670-1F03-BD47-A95D-686168BAA8A2.root 20625165

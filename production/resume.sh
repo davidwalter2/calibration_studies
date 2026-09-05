@@ -16,12 +16,9 @@
 # usage: ./resume.sh [--dry-run] [--max-running N] [--list-only]
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-TAG=jpsimc_20M_260905
-OUTBASE=/ceph/submit/data/user/d/david_w/ZMass/cvh/$TAG
+# shared with submit_jpsimc20M.sh so the two can never drift apart
+source "$HERE/config_jpsimc20M.sh"
 CHUNKLIST=$HERE/chunks_${TAG}.txt
-CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
-INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
-MAXRUNNING=200
 DRY=0; LISTONLY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -61,17 +58,6 @@ printf '  indices: %s%s\n' "$(printf '%s ' "${MISSING[@]:0:20}")" \
        "$( (( ${#MISSING[@]} > 20 )) && echo "... (+$(( ${#MISSING[@]} - 20 )) more)")"
 (( LISTONLY )) && exit 0
 
-EXTRA="numberOfThreads=1 \
- doRes=True exportCfExponents=True exportStepRecords=False \
- fillJac=True fillGrads=False fillGradsFactored=True \
- fitFromGenParms=False \
- trackSrc=ALCARECOTkAlJpsiMuMu useLegacyPairLoop=True \
- doTrigger=True applyHltFilter=False doSimHits=False \
- useIdealGeometry=False useOpera3D=True globalTag=106X_mcRun2_asymptotic_v17 \
- doVtxConstraint=False doMassConstraint=False \
- CgfQoPMode=0 \
- propagationPtotLimit=0.2 maxMomentumStepFactor=2.0 stepBacktracking=True \
- scalarPot3DInitFile=$INIT"
 
 # One array per contiguous run is overkill; a comma list of explicit indices is
 # what sbatch --array takes, and MaxArraySize bounds the largest INDEX, so the

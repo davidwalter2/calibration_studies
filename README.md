@@ -38,5 +38,28 @@ CMS Preliminary figures as PDF and PNG.
 Data paths at the top of each plotting script point to the smoke-test extraction in
 `/tmp/`; update them to point to your ALCARECO output files.
 
+### `production/`
+
+Large CVH refit productions on submit slurm. Each production is a filelist, a
+chunk list, a submit/status/resume trio and a `STATE.md` recording the exact
+configuration and why each option is what it is.
+
+- `jpsimc_20M_260905` — 21.7M events of UL16 `JPsiToMuMu_Pt8toInf` MC ALCARECO
+  through the two-track J/ψ CVH fit, with the global-correction gradients
+  (factored Hessian) and the in-maker resolution-CF exponents on at once.
+  **Read `production/STATE.md` before using the output**: `doRes` shifts the
+  global parameter indices relative to the 2016 data productions, and the fit
+  runs with the SIM's own field (`useDefaultField`), not the 3D TOSCA grid.
+- `truncated_inputs_260905.txt` — the 43 zombie files found in this sample's
+  repack. Size does not identify them; re-scan with `scan_events.py` before
+  using any other slice.
+
+```bash
+cd production
+./status.sh              # complete/running/pending, events, projected finish
+./resume.sh --list-only  # which chunks are missing
+./resume.sh              # resubmit only those
+```
+
 ## License
 MIT License.

@@ -28,7 +28,7 @@ at what output volume.
 | `applyHltFilter` | `False` | do not pre-filter; the ALCARECO selection already ran |
 | `doSimHits` | `False` | **required**: the input has no `SimTrack`s, and `doSimHits=True` with `fitSimHitPositions=False` disables the genParticle ΔR matching *before* the hard-coded `requireGen=True` cut, which would reject every candidate |
 | `useIdealGeometry` | `False` | aligned MC geometry from the GT — the "rung-B" real-geometry configuration |
-| `useOpera3D` | `True` | full 3D TOSCA volumetric grid (`grid_160812_3_8t`, `useParametrizedTrackerField=False`). Matches the `btojpsix_v3` UL16-ALCARECO runs. **See the caveat below.** |
+| `useDefaultField` | `True` | **the field the SIM propagated through** — the unlabelled `VolumeBasedMagneticField` 160812 with `useParametrizedTrackerField=True`, i.e. `OAE_1103l_071212` in the tracker. See "Field model" below |
 | `globalTag` | `106X_mcRun2_asymptotic_v17` | UL16 MC conditions |
 | `scalarPot3DInitFile` | `mfs/…/polyfit3d_full_coeffs_lmax18_custom50.txt` | always required — it defines the 50 parmtype-14 modes and their Jacobian columns even when another model supplies the field |
 | `materialGroupsFile` | driver default `materialGroups50.txt` | 42 groups; what the reference calibration production and every recent run used. `materialGroupsV2.txt` exists but **no driver or production references it** |
@@ -77,12 +77,27 @@ CF options and therefore ran at the old 2.0 GeV clamp against a 1.0 GeV limit).
 > differently. **These outputs must not be pooled with the 260715/260717 data
 > productions in one global fit** without re-mapping through `runtree`.
 
-> ⚠️ **Field-model caveat for the resolution arm.** `useOpera3D=True` follows
-> the instruction and the `btojpsix_v3` precedent, but the driver documents
-> `useDefaultField=True` (OAE) as *required* for a gen-matched resolution
-> closure on standard MC, because the SIM propagated through OAE and refitting
-> with the 3D grid leaks an η/φ-coherent dp/p ~ 8e-4 into the pull width. That
-> is a bias on the CF/resolution use of this sample, not on the gradients.
+## Field model — why `useDefaultField`, not `useOpera3D`
+
+**This is a feasibility/closure test, so the fit's field must be the
+simulation's field.** The UL16 SIM propagated through the default
+OAE-parametrised tracker field (`useParametrizedTrackerField=True` on the 160812
+volume-based map). Refitting the same events with the full 3D TOSCA grid
+instead does not cancel: it leaves an **η/φ-coherent ~8e-4 dp/p pattern** in the
+pull width (measured 2026-08-07 — 0.155 % of unit variance, and φ is where OAE
+is structurally blind). On a closure test that pattern is indistinguishable
+from the thing being measured.
+
+The first submission (arrays 6406885/6406886) went out with `useOpera3D=True`,
+following the `btojpsix_v3` precedent, and was cancelled ~7 min in with **0
+tasks completed**. Its output directory is kept, minus the 8 truncated
+mid-write `.root` files, as
+`/ceph/…/cvh/jpsimc_20M_260905_opera3d` — see its `PROVENANCE.txt`.
+
+**The Opera3D variant is reserved as a later injected-field test on a subset**:
+refitting a slice of this sample with the 3D grid and comparing to the
+default-field result measures that η/φ pattern directly, which is a useful
+systematic — but as a deliberate injection, not as the baseline.
 
 ## Input selection
 
@@ -99,6 +114,12 @@ additionally fails on `attempted=0` in the fit summary.
 **File size does not predict corruption** — zombies were found up to 2.76 GB,
 and valid files go down to 959 events / 38 MB. Only the ROOT open is decisive.
 
+**The 43 truncated files are listed in
+`production/truncated_inputs_260905.txt`** (path + size, with the diagnosis in
+its header). That is 43 of the 620 files scanned = **6.9 %**; if the rest of the
+2031-file repack is similar, ~140 of them are bad, so **re-scan with
+`scan_events.py` before using any other slice of this sample**.
+
 ## Scale, as submitted
 
 | | |
@@ -107,7 +128,7 @@ and valid files go down to 959 events / 38 MB. Only the ROOT open is decisive.
 | events | **21 719 059** (mean 52 973/file) |
 | tasks | **1642** (mean 13 227 events; range 959…20 168) |
 | chunks/file | 4 for 328 files; 1:8, 2:3, 3:22, 5:45, 6:3, 7:1 |
-| slurm | arrays `6406885` (idx 0-999) and `6406886` (idx 0-641, offset 1000), `%200` each |
+| slurm | arrays **`6406906`** (idx 0-999) and **`6406907`** (idx 0-641, offset 1000), `%200` each |
 | candidates | ~1.0/event ⇒ **~21.7M** |
 | output | ~21.7M × 80.7 kB ≈ **1.75 TB** (quota headroom was 35 TB of 50) |
 | CPU | ~21.7M × 0.75 s ≈ **4 500 CPU-h** |
@@ -135,6 +156,27 @@ counts the skip across the whole concatenated `fileNames` list.
 > processes the *entire* file. It is not used here.
 
 ## Smoke results (300 events of the first input file)
+
+The production configuration (`useDefaultField=True`), re-run after the field
+switch:
+
+| | value |
+|---|---|
+| candidates | 298 attempted, **298 succeeded, 0 failed (0 %)** |
+| propagator | 31 531 calls, **0 failures**, `exit1[plimit]=0`, all other exits 0 |
+| `[cvh] effective:` | `clampMomentumFloor=0.25 GeV` (derived), `maxMomentumStepFactor=2`, `stepBacktracking=1 (fromIter=2, maxChi2Backtrack=4, armijoC=0.0001, armijoSlack=1)`, `CgfQoPMode=0`, `IoniTruncationAlpha=0.999` |
+| `cfmass_ok` | **298/298** |
+| output | 24 062 184 B = **80.7 kB/candidate** |
+| peak RSS | 1.37 GB |
+| `nglobalparms` | 126 452 (unchanged — the field switch changes the baseline field, not the parameter map) |
+
+Cross-check against the cancelled Opera3D smoke, same 300 events: identical
+branch set (196 in `tree`), identical `nParms` (247.6) and `nRank` (28.5) means,
+298/298 in both, 80.7 kB/candidate in both — and `gradmax` **differs**, which is
+how we know the field switch actually took effect rather than being ignored.
+
+The `exportStepRecords` comparison below was made on the Opera3D pair; it is a
+statement about a storage switch and does not depend on the field model.
 
 | | slim (`exportStepRecords=False`) | full (`=True`) |
 |---|---|---|
