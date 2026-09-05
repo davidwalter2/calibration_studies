@@ -24,12 +24,17 @@ export PYTHONPATH="$RES:${PYTHONPATH:-}"
 TAG=cvhcf_e2e_260905
 OUT=${OUT:-/tmp/claude-125124/-work-submit-david-w-ZMass/9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/inmaker_cf/e2e}
 LOG=$RES/runs/cvhcf260905; mkdir -p "$LOG" "$OUT"
-RUNTF=/work/submit/david_w/ZMass/calibration_studies/env_tf/run_tf.sh
+# The login node's CephFS client intermittently returns EPERM for the whole
+# tree, and singularity then refuses to start at all. Nothing in this chain
+# reads /ceph after the refit, so prefer the wrapper that does not bind it.
+RUNTF=${RUNTF:-/work/submit/david_w/ZMass/calibration_studies/resolution/runs/stepdamp260905/slurm/run_tf_noceph.sh}
+[ -x "$RUNTF" ] || RUNTF=/work/submit/david_w/ZMass/calibration_studies/env_tf/run_tf.sh
 export CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
 RUN_ONE=/work/submit/david_w/ZMass/calibration_studies/slurm/run_one.sh
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
-IN=/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_simprod_jpsigun_ul16/task_0000/step2.root
-NEV=${NEV:-2000}
+SIMDIR=/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_simprod_jpsigun_ul16
+NEV=${NEV:-250}
+NTASK=${NTASK:-8}
 STAGES=${*:-"refit pairs fit compare"}
 
 step() { echo "=== $* ($(date +%H:%M:%S)) ==="; }
@@ -37,28 +42,44 @@ step() { echo "=== $* ($(date +%H:%M:%S)) ==="; }
 for st in $STAGES; do
 case $st in
 
-refit) step "refit: $NEV events, two-track, exportStepRecords=True (both routes need it)"
-  d=$OUT/tt; mkdir -p "$d"; rm -f "$d/globalcor_0.root" "$d/.complete"
-  $RUN_ONE /work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/test/runCvhJpsiGenMC.py \
-      "$IN" "$d" nEvents=$NEV numberOfThreads=1 doRes=True fillGrads=True fitFromGenParms=False \
-      scalarPot3DInitFile=$INIT trackSrc=generalTracks useLegacyPairLoop=True doTrigger=False \
-      applyHltFilter=False useIdealGeometry=True useDefaultField=True \
-      globalTag=150X_mcRun2_asymptotic_v1 CgfQoPMode=0 \
-      > "$d/local.log" 2>&1 && touch "$d/.complete"
-  echo "  rc=$?  $(ls -la $d/globalcor_0.root 2>/dev/null | awk '{print $5}') bytes" ;;
+refit) step "refit: $NTASK x $NEV events, two-track, exportStepRecords=True (both routes need it)"
+  # Several SHORT tasks rather than one long one, on consecutive production
+  # inputs: the refit parallelises, and -- the reason that matters here -- the
+  # OFFLINE extractor shards by file, so the 2.2 s/candidate reference arm goes
+  # from a 75-minute serial run to a few minutes. The candidates are the same
+  # either way; nothing about the comparison depends on how they were split.
+  pids=""
+  for i in $(seq 0 $((NTASK-1))); do
+    t=$(printf "task_%04d" $i)
+    d=$OUT/$t; mkdir -p "$d"; rm -f "$d/globalcor_0.root" "$d/.complete"
+    ( $RUN_ONE /work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/test/runCvhJpsiGenMC.py \
+        "$SIMDIR/$t/step2.root" "$d" nEvents=$NEV numberOfThreads=1 doRes=True fillGrads=True \
+        fitFromGenParms=False scalarPot3DInitFile=$INIT trackSrc=generalTracks useLegacyPairLoop=True \
+        doTrigger=False applyHltFilter=False useIdealGeometry=True useDefaultField=True \
+        globalTag=150X_mcRun2_asymptotic_v1 CgfQoPMode=0 \
+        > "$d/local.log" 2>&1 && touch "$d/.complete" ) &
+    pids="$pids $!"
+    sleep 3
+  done
+  for p in $pids; do wait $p; done
+  echo "  complete: $(ls -d $OUT/task_*/.complete 2>/dev/null | wc -l)/$NTASK"
+  ls -la $OUT/task_*/globalcor_0.root 2>/dev/null | awk '{s+=$5} END {print "  total bytes", s}' ;;
 
 pairs) step "pairs: offline extractor, in-maker reader, and the decimated offline cache"
-  F=$OUT/tt/globalcor_0.root
-  python3 cf_masskernel_tt.py --files "$F" --ntasks 1 \
+  F="$OUT/task_*/globalcor_0.root"
+  python3 cf_masskernel_tt.py --files "$F" --ntasks $NTASK \
       --kernel-cache "$LOG/kernel_$TAG.npz" --postfix "_$TAG" > "$LOG/kernel.log" 2>&1
   echo "  kernel rc=$?"
-  python3 cf_mass_likelihood.py --pairs-tt --files "$F" --ntasks 1 \
-      --pairs-cache "$LOG/pairs_py448_$TAG.npz" > "$LOG/pairs_py.log" 2>&1
+  # SHARDED, one process per task file: `--pairs-tt` is a strictly per-file
+  # loop, so this is byte-equivalent to the serial run and turns the reference
+  # arm's 2.2 s/candidate into the wall time of a single task.
+  PROD=$OUT OUT=$LOG/pairs_py448_$TAG.npz NPAR=$NTASK KOK=0 \
+      ./run_pairs_tt_shards.sh > "$LOG/pairs_py.log" 2>&1
   echo "  python 448 rc=$?"
   python3 cf_inmaker.py decimate --cache "$LOG/pairs_py448_$TAG.npz" \
       --out "$LOG/pairs_py64_$TAG.npz" > "$LOG/decimate.log" 2>&1
   echo "  decimate rc=$?"
-  python3 cf_inmaker.py pairs --files "$F" --ntasks 1 \
+  python3 cf_inmaker.py pairs --files "$F" --ntasks $NTASK \
       --cache "$LOG/pairs_cf64_$TAG.npz" > "$LOG/pairs_cf.log" 2>&1
   echo "  in-maker 64 rc=$?" ;;
 

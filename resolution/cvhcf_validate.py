@@ -431,14 +431,31 @@ def run(args):
                 0 if rvg is None else len(rvg),
                 float(sig), float(chg), 1, out, aux))
         L = lib()
-        t0 = time.perf_counter()
-        for _ in range(args.bench):
-            for p_ in pre:
-                L.cvhcf_track(*p_)
-        dt = time.perf_counter() - t0
         n = args.bench * len(pre)
-        print(f"\nCOST: {n} evaluations of cvhcf::trackExponents in {dt:.3f} s "
-              f"= {1e3 * dt / n:.3f} ms per {'candidate' if mass else 'track'}")
+        unit = 'candidate' if mass else 'track'
+        print("")
+        # The same call with the radiative rows withheld, so the report says
+        # WHERE the time goes rather than only how much there is: the rad
+        # channel is nsteps x nv x ntau trigonometric evaluations and is the
+        # one term whose cost is not bounded by the block count.
+        for label, norad in (("full", False), ("no rad", True)):
+            arg = pre
+            if norad:
+                arg = [list(p_) for p_ in pre]
+                for p_ in arg:
+                    # indices into the cvhcf_track signature: 15 ridx,
+                    # 16 rv, 17 nrad (14 is nqs -- getting this wrong is an
+                    # immediate ctypes ArgumentError, which is how it was found)
+                    p_[15] = empu32
+                    p_[16] = empt32
+                    p_[17] = 0
+            t0 = time.perf_counter()
+            for _ in range(args.bench):
+                for p_ in arg:
+                    L.cvhcf_track(*p_)
+            dt = time.perf_counter() - t0
+            print(f"COST {label:<7}: {n} evaluations of cvhcf::trackExponents "
+                  f"in {dt:.3f} s = {1e3 * dt / n:.3f} ms per {unit}")
     print(f"\nworst |dS| overall: {worst:.4e}   (tolerance {args.tol:g})")
     return 0 if worst <= args.tol else 1
 

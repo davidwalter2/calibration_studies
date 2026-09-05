@@ -69,6 +69,16 @@ COVTOL = 5e-3
 
 
 # --------------------------------------------------------------------------
+# The maker's grid, exactly: the stride-4 subset of the offline
+# `np.linspace(0, 14, 448)` truncated at 8. The file's own `cftau` is a
+# vector<float>, so its values carry a 6e-8 relative rounding -- fine as a
+# PROVENANCE record, not fine as the quadrature abscissae a decimated offline
+# cache has to be compared against. The grid is a definition, so it is
+# regenerated in double here and the file's copy is used to CHECK that this is
+# the grid the maker actually used.
+TAU_REF = np.linspace(0.0, 14.0, 448)[0:256:4]
+
+
 def _runtree_grid(f):
     """(tgrid, model tag) from the runtree, or (None, '') on an old file."""
     if "runtree" not in f:
@@ -77,6 +87,8 @@ def _runtree_grid(f):
     if "cftau" not in rt:
         return None, ""
     tg = np.asarray(rt["cftau"].array(library="np", entry_stop=1)[0], dtype=np.float64)
+    if tg.shape == TAU_REF.shape and np.allclose(tg, TAU_REF, rtol=1e-6, atol=0.):
+        tg = TAU_REF.copy()
     tag = ""
     if "cfmodel" in rt:
         tag = str(rt["cfmodel"].array(library="np", entry_stop=1)[0])

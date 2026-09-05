@@ -468,6 +468,13 @@ class MassNLL:
             return np.concatenate([a, np.zeros((npad, a.shape[1]), a.dtype)])
 
         rdt = self.npdt
+        # THE NUMBER OF t POINTS, from the cache rather than from a literal.
+        # `_raw_li` sliced its per-candidate blocks with a hard-coded 448,
+        # which made a decimated grid impossible even though every formula
+        # below is grid-agnostic (the quadrature weights are `np.diff(TG)`).
+        # It is 448 for every cache written before 2026-09-05 and 64 for the
+        # in-maker `cfmass_*` export.
+        self.nt = int(len(inp["TG"]))
         self.TG = tf.constant(inp["TG"], self.rdt)
         # trapezoid weights: d = diff(TG); trapz = sum(d*(y[1:]+y[:-1])/2)
         self.dTG = tf.constant(np.diff(inp["TG"]).astype(rdt), self.rdt)
@@ -562,22 +569,22 @@ class MassNLL:
         mobs = self._slice(self.mobs, i, False)
         vgf = self._slice(self.vgf, i, False)
         w = self._slice(self.w, i, False)
-        Sms = tf.cast(tf.slice(self.Sms, [i * C, 0], [C, 448]), self.rdt)
-        Sio_im = tf.cast(tf.slice(self.Sio_im, [i * C, 0], [C, 448]), self.rdt)
-        pKre = tf.slice(self.pKre, [i * C, 0], [C, 448])
-        pKim = tf.slice(self.pKim, [i * C, 0], [C, 448])
+        Sms = tf.cast(tf.slice(self.Sms, [i * C, 0], [C, self.nt]), self.rdt)
+        Sio_im = tf.cast(tf.slice(self.Sio_im, [i * C, 0], [C, self.nt]), self.rdt)
+        pKre = tf.slice(self.pKre, [i * C, 0], [C, self.nt])
+        pKim = tf.slice(self.pKim, [i * C, 0], [C, self.nt])
         TG = self.TG
         tgi = TG[None, :] / sig[:, None]
         Sre = khit * (-0.5 * vgf[:, None] * TG[None, :] ** 2) + kms * Sms
         if not self.folded:
-            Sio_re = tf.cast(tf.slice(self.Sio_re, [i * C, 0], [C, 448]), self.rdt)
+            Sio_re = tf.cast(tf.slice(self.Sio_re, [i * C, 0], [C, self.nt]), self.rdt)
             Sre = Sre + kioni * Sio_re
         Sim = kioni * Sio_im
         if self.has_rad:
             Sre = Sre + krad * tf.cast(
-                tf.slice(self.Srad_re, [i * C, 0], [C, 448]), self.rdt)
+                tf.slice(self.Srad_re, [i * C, 0], [C, self.nt]), self.rdt)
             Sim = Sim + krad * tf.cast(
-                tf.slice(self.Srad_im, [i * C, 0], [C, 448]), self.rdt)
+                tf.slice(self.Srad_im, [i * C, 0], [C, self.nt]), self.rdt)
         delta = mobs - self.npdt(MJPSI) * alpha
         psi = Sim - tgi * delta[:, None]
         eS = tf.exp(Sre)
