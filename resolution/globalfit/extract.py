@@ -169,6 +169,19 @@ def parse_args():
         help="drop candidates whose hessmax exceeds this (0 = no cut)",
     )
     p.add_argument(
+        "--max-dEref-p",
+        type=float,
+        default=0.0,
+        help="drop candidates whose WORSE leg has |dE_ref| / p above this "
+        "(0 = no cut). The per-group material model is a MEAN-loss model and "
+        "NOTES sec. 7(a) measures it biased above dE_ref/p ~ 0.03; 0.01 is the "
+        "prescribed working point. `Mu{plus,minus}_dEref` is present in every "
+        "two-track production (unlike `Mu*_maxfracloss`, which only exists "
+        "from the 2026-09-06 build), so this cut is portable across v1 and v2 "
+        "-- and it is the quantity itself, not a daughter-pT proxy for it. It "
+        "costs ~0.1 %% of Z candidates and ~22 %% of J/psi ones.",
+    )
+    p.add_argument(
         "--maxcand",
         type=int,
         default=0,
@@ -232,6 +245,14 @@ def process_file(fname):
     nfit = int((g2f >= 0).sum())
     grad = np.zeros(nfit)
     hess = np.zeros((nfit, nfit))
+    # SANDWICH. `hess` is the model's own curvature K, and the covariance it
+    # implies, 2 K^-1, is the truth only when the per-candidate model is
+    # correct. The robust covariance is K^-1 J K^-1 with J = sum_i G_i G_i^T,
+    # and J/(2K) is the factor by which a mis-specified model inflates the
+    # error -- the one diagnostic that flags a parameter whose gradient is
+    # carried by a handful of candidates. It is a 92x92 outer product per
+    # candidate: free at this size, and impossible to recover afterwards.
+    jout = np.zeros((nfit, nfit))
     # chi2ndof is stored per selected candidate so a trimming can also be
     # applied later, at card-writing time, without re-extracting.
     out = {k: [] for k in ("m0", "mgen", "sigma", "vgf", "D", "chi2ndof")}
@@ -255,6 +276,18 @@ def process_file(fname):
         want.append("gradmax")
     if args.max_hess > 0.0 and "hessmax" in keys:
         want.append("hessmax")
+    want_deref = (args.max_dEref_p > 0.0
+                  and all(f"Mu{q}_{b}" in keys
+                          for q in ("plus", "minus")
+                          for b in ("dEref", "pt", "eta")))
+    if args.max_dEref_p > 0.0 and not want_deref:
+        raise ValueError(
+            f"{fname}: --max-dEref-p was asked for but the file has no "
+            f"Mu*_dEref / Mu*_pt / Mu*_eta; a silently unapplied quality cut "
+            f"is worse than no cut")
+    if want_deref:
+        want += [f"Mu{q}_{b}" for q in ("plus", "minus")
+                 for b in ("dEref", "pt", "eta")]
     fmt = None
     if not args.no_grads:
         want.append("gradv")
@@ -333,6 +366,17 @@ def process_file(fname):
         if cut > 0.0 and br in a:
             ok = np.abs(np.asarray(a[br], dtype=np.float64)) < cut
             chi2ok = ok if chi2ok is None else (chi2ok & ok)
+    if want_deref:
+        # dE_ref / p on the WORSE leg; p = pT cosh(eta) at the reference
+        fr = None
+        for q in ("plus", "minus"):
+            pmag = (np.asarray(a[f"Mu{q}_pt"], dtype=np.float64)
+                    * np.cosh(np.asarray(a[f"Mu{q}_eta"], dtype=np.float64)))
+            r = np.abs(np.asarray(a[f"Mu{q}_dEref"], dtype=np.float64)) \
+                / np.maximum(pmag, 1e-9)
+            fr = r if fr is None else np.maximum(fr, r)
+        ok = fr < args.max_dEref_p
+        chi2ok = ok if chi2ok is None else (chi2ok & ok)
     for ic in range(nent):
         if chi2ok is not None and not chi2ok[ic]:
             nchi2cut += 1
@@ -350,6 +394,9 @@ def process_file(fname):
             # fancy-index += is exact (and ~10x faster than np.add.at, which
             # is only needed when indices can repeat).
             grad[fi[keep]] += g[keep]
+            gc = np.zeros(nfit)
+            gc[fi[keep]] = g[keep]
+            jout += np.outer(gc, gc)
             n = len(gi)
             if fmt == "packed":
                 h = np.asarray(a["hesspackedv"][ic], dtype=np.float64)
@@ -507,7 +554,7 @@ def process_file(fname):
 
     res = {k: (np.array(v) if len(v) else None) for k, v in out.items()}
     return (fname, res, grad, hess, nsel, ndrop, nquad, (fmt or "none"),
-            int(want_rad), nchi2cut)
+            int(want_rad), nchi2cut, jout)
 
 
 def main():
@@ -533,6 +580,7 @@ def main():
     log(f"catalog: {cat['nglobal']} global params, floating {nfit} {counts}")
 
     grad = np.zeros(nfit)
+    jsand = np.zeros((nfit, nfit))
     hess = np.zeros((nfit, nfit))
     chunks = {}
     nsel = ndrop = nquad = nchi2cut = 0
@@ -547,9 +595,10 @@ def main():
         for i, r in enumerate(pool.imap(process_file, files)):
             if r is None:
                 continue
-            fname, res, g, h, ns, nd, nq, fmt, wr, ncut = r
+            fname, res, g, h, ns, nd, nq, fmt, wr, ncut, jj = r
             grad += g
             hess += h
+            jsand += jj
             chunks[fname] = res
             nsel += ns
             ndrop += nd
@@ -593,6 +642,10 @@ def main():
         "max_chi2_ndof": np.array(args.max_chi2_ndof),
         "max_grad": np.array(args.max_grad),
         "max_hess": np.array(args.max_hess),
+        "max_dEref_p": np.array(args.max_dEref_p),
+        # J = sum_i G_i G_i^T; the sandwich covariance is K^-1 J K^-1, which
+        # equals the model covariance 2 K^-1 exactly when J = 2 K.
+        "jsand": jsand,
         "nfiles": np.array(len(chunks)),
         "tgrid": TG if TG is not None else np.zeros(0),
         "mref": np.array(MJPSI),

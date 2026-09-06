@@ -96,6 +96,55 @@ def _runtree_grid(f):
     return tg, tag
 
 
+# --------------------------------------------------------------------------
+# EXTRA PER-CANDIDATE COLUMNS OF THE MASS CACHE (2026-09-06).
+#
+# The reference `pairs` cache holds only what the J/psi alpha fit needed:
+# the standardized residual, sigma, the gen mass and `vgf`. Three later
+# consumers need more, and none of it can be recovered after the pass:
+#
+#   * the Z channel is a WEIGHTED sample (MiNNLO `genweight`, 7.7 % negative);
+#   * the Jensen second-order correction (MASSCFTERM_SPEC 4b) needs the two
+#     legs' relative resolutions, their correlation and the angular share --
+#     `Jpsi_covrefmom` is exported from 2026-09-06 and the maker already
+#     reduces it to `Jpsi_sigmarelplus/minus`, `Jpsi_rhomom`, `Jpsi_fang`;
+#   * a quality cut needs `chisqval`/`ndof` and the per-leg `maxfracloss`.
+#
+# Every one of these is OPTIONAL: a branch that is not in the file is not
+# read and its column is simply absent from the cache, so a v1 production
+# (no `Jpsi_covrefmom`, no `maxfracloss`) still produces the reference cache
+# and every existing consumer is unaffected.
+#
+#            cache key : branch name
+_MASS_AUX = {
+    "w":            "genweight",
+    "mpre":         "Jpsigenpre_mass",
+    # the SELECTION variable. DiMuonTrackVertexCandidateProducer cuts on the
+    # PRE-REFIT track-level dimuon mass, not on the refit `Jpsi_mass` the
+    # likelihood models, so the truncation normalisation's assumption "the cut
+    # is on the observable" is only approximately true. Keeping it makes the
+    # size of that approximation measurable instead of assumed.
+    "mtrk":         "Jpsitrk_mass",
+    "sigrelp":      "Jpsi_sigmarelplus",
+    "sigrelm":      "Jpsi_sigmarelminus",
+    "rhomom":       "Jpsi_rhomom",
+    "fang":         "Jpsi_fang",
+    "chisqval":     "chisqval",
+    "ndof":         "ndof",
+    "maxfraclossp": "Muplus_maxfracloss",
+    "maxfraclossm": "Muminus_maxfracloss",
+    "pt":           "Jpsi_pt",
+    "etapair":      "Jpsi_eta",
+    "ptp":          "Muplus_pt",
+    "ptm":          "Muminus_pt",
+    "etap":         "Muplus_eta",
+    "etam":         "Muminus_eta",
+}
+# integer provenance columns, kept so a cache row can be joined against the
+# quadratic term's own extraction of the same production
+_MASS_AUX_INT = {"run": "run", "lumi": "lumi", "event": "event"}
+
+
 def _fam_arrays(t, prefix):
     """The six family branch names for `prefix`, or None if absent."""
     names = [f"{prefix}_{s}" for s in
@@ -158,8 +207,18 @@ def read_files(args, mass):
         nt = len(tgrid)
 
         need = list(fams) + [f"{prefix}_vgf", f"{prefix}_ok"]
+        aux = auxi = {}
         if mass:
             need += ["Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass"]
+            have = set(t.keys())
+            aux = {k: b for k, b in _MASS_AUX.items() if b in have}
+            auxi = {k: b for k, b in _MASS_AUX_INT.items() if b in have}
+            if want_hitclass is None:
+                want_hitclass = False
+                miss = sorted(set(_MASS_AUX) - set(aux))
+                logger.info(f"aux columns: {len(aux) + len(auxi)} present"
+                            + (f"; absent {miss}" if miss else ""))
+            need += list(aux.values()) + list(auxi.values())
         else:
             need += ["refParms", "refCov", "genParms", "resinfcov",
                      "normalizedChi2", "nValidHits", "trackPt", "genPt",
@@ -201,13 +260,21 @@ def read_files(args, mass):
             keep = ok & np.isfinite(sig) & (sig > 0.) & (np.abs(mg - mref) <= mhw)
             idx = np.where(keep)[0]
             ndrop += int((~keep).sum())
-            for i in idx:
-                push("z", (mrec[i] - mg[i]) / sig[i])
-                push("sigma", sig[i])
-                push("eta", mg[i])         # `eta` is the gen mass in this cache
-                push("vgf", vgf[i])
-                for k in S:
-                    push(k, S[k][i])
+            # VECTORIZED. The per-candidate `push` loop this replaces cost
+            # ~0.1 ms/candidate, i.e. hours over a 3.9M-candidate production,
+            # for arrays that are already dense and contiguous. The cache
+            # content is unchanged: the columns are the same values in the
+            # same order.
+            push("z", ((mrec - mg) / sig)[idx])
+            push("sigma", sig[idx])
+            push("eta", mg[idx])           # `eta` is the gen mass in this cache
+            push("vgf", vgf[idx])
+            for k in S:
+                push(k, S[k][idx])
+            for k, b in aux.items():
+                push(k, np.asarray(a[b], dtype=np.float64)[idx])
+            for k, b in auxi.items():
+                push(k, np.asarray(a[b], dtype=np.int64)[idx])
             nsel += len(idx)
         else:
             pt = f["runtree"]["parmtype"].array(library="np")
@@ -285,7 +352,16 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del):
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
     out = {}
     for k, v in cols.items():
-        if k in ("hitcls",):
+        # The MASS path appends one array per input FILE (`read_files` is
+        # vectorized there); the single-track path still appends one row per
+        # track. Only the first needs concatenating, and `mass` -- not a
+        # shape guess -- says which it is: a single-track `Sms` row is also a
+        # 1-D ndarray.
+        if mass:
+            v = np.concatenate(v, axis=0)
+        if k in _MASS_AUX_INT:
+            out[k] = np.asarray(v, dtype=np.int64)
+        elif k in ("hitcls",):
             out[k] = np.asarray(v, dtype=np.int16)
         elif k in ("hitamp2",):
             out[k] = np.asarray(v, dtype=np.float32)
