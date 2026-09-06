@@ -412,6 +412,61 @@ def fig_sandwich(D, outdir, npzdir):
     save(fig, outdir, "sandwich_factor")
 
 
+def fig_frcut(D, outdir, tmp):
+    """The exact 92-parameter quadratic fit, restricted to candidates whose
+    reference energy loss is a small fraction of the momentum.  This is the
+    resolution of the tension: at dE_ref/p < 0.01 the hit-chi2 term and the
+    mass CF term give the same number for every material group."""
+    f = os.path.join(tmp, "gun_quadgrad_frcut.npz")
+    if not os.path.exists(f):
+        logger.warning("no gun_quadgrad_frcut.npz -- skipping fig_frcut")
+        return
+    z = np.load(f)
+    names, priors = G.read_groups(GROUPFILE)
+    pt, sub = z["parmtype"], z["subidx"]
+    mat = np.where(pt == 15)[0]
+    lab = [names.get(int(sub[i]), "?") for i in mat]
+    pri = np.array([priors.get(int(sub[i]), 0.2) for i in mat])
+    P = np.zeros(len(z["G"]))
+    P[mat] = 1.0 / pri ** 2
+
+    def solve(Gv, K):
+        A = K + 2.0 * np.diag(P)
+        return np.linalg.solve(A, -Gv), np.sqrt(np.diag(2.0 * np.linalg.inv(A)))
+
+    sets = [("no cut", z["G"], z["K"])]
+    for j, cut in enumerate(z["fr_cuts"]):
+        sets.append((rf"$\Delta E_{{\rm ref}}/p<{cut:g}$", z["Gf"][j], z["Kf"][j]))
+    res = [solve(g, k) for _, g, k in sets]
+    order = [i for i in np.argsort([res[0][0][mat[i]] / res[0][1][mat[i]]
+                                    for i in range(len(mat))])
+             if any(abs(r[0][mat[i]] / r[1][mat[i]]) > 0.4 for r in res)]
+    x = np.arange(len(order))
+    fig, ax, rax = two_panel(figsize=(11.0, 8.0), hr=(2.6, 1.2))
+    cols = ("k", "tab:orange", "tab:blue")
+    for isx, ((nm, _, _), r) in enumerate(zip(sets, res)):
+        ax.errorbar(x + 0.22 * (isx - 1), [r[0][mat[i]] for i in order],
+                    yerr=[r[1][mat[i]] for i in order], fmt="o", ms=7,
+                    color=cols[isx], capsize=3, lw=2, label=nm)
+    ax.errorbar([x[[lab[i] for i in order].index("tec_services")] + 0.66],
+                [-0.0087], yerr=[0.095], fmt="s", ms=9, color="tab:green",
+                capsize=4, lw=2, label="mass CF term (24k cand)")
+    ax.axhline(0.0, color="0.4", ls=":")
+    ax.set_ylabel(r"$k_g$   (MC truth 0)", fontsize=15)
+    ax.legend(fontsize=12, ncol=2)
+    for isx, ((nm, _, _), r) in enumerate(zip(sets, res)):
+        rax.plot(x + 0.22 * (isx - 1), [r[0][mat[i]] / r[1][mat[i]]
+                                        for i in order], "o", ms=7,
+                 color=cols[isx])
+    rax.axhline(0.0, color="0.4", ls=":")
+    for y in (-1, 1):
+        rax.axhline(y, color="0.75", ls="--", lw=1)
+    rax.set_ylabel("pull", fontsize=13)
+    rax.set_xticks(x)
+    rax.set_xticklabels([lab[i] for i in order], rotation=90, fontsize=10)
+    save(fig, outdir, "frcut_material_fit")
+
+
 def fig_toy(outdir):
     """The two mechanisms, one file each, in the toy of qms_toy.py."""
     import qms_toy as TOY
@@ -493,6 +548,7 @@ def main():
     fig_bias_vs_x(D, outdir, args.tmp)
     fig_sandwich(D, outdir, args.tmp)
     fig_toy(outdir)
+    fig_frcut(D, outdir, args.tmp)
     logger.info(f"figures in {outdir}")
 
 
