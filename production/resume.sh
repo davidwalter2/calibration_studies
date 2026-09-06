@@ -64,20 +64,25 @@ printf '  indices: %s%s\n' "$(printf '%s ' "${MISSING[@]:0:20}")" \
 # list is chopped into groups whose max index is < 1000 by re-basing with the
 # same IDXOFFSET mechanism the first submission uses.
 mkdir -p "$OUTBASE/logs"
-declare -A GROUPS=()
+# NOT `GROUPS`: that is a bash BUILT-IN array (the caller's group ids).
+# `declare -A GROUPS` fails with "cannot convert indexed to associative
+# array" and the writes then land in the builtin, so `--array` came out as
+# the user's gids (100999, 169571, 1000000...). Found 2026-09-06 -- this
+# path had never actually been exercised.
+declare -A CHUNKGRP=()
 for i in "${MISSING[@]}"; do
   g=$(( i / 1000 ))
-  GROUPS[$g]="${GROUPS[$g]:-}${GROUPS[$g]:+,}$(( i % 1000 ))"
+  CHUNKGRP[$g]="${CHUNKGRP[$g]:-}${CHUNKGRP[$g]:+,}$(( i % 1000 ))"
 done
-for g in "${!GROUPS[@]}"; do
+for g in "${!CHUNKGRP[@]}"; do
   OFF=$(( g * 1000 ))
   cmd=( sbatch --job-name="jpsimc20M_a${g}" --partition=submit
-        --array="${GROUPS[$g]}%${MAXRUNNING}" --time=12:00:00 --mem=6G --cpus-per-task=1
+        --array="${CHUNKGRP[$g]}%${MAXRUNNING}" --time=12:00:00 --mem=6G --cpus-per-task=1
         --output="$OUTBASE/logs/jpsimc20M_a${g}_%A_%a.out"
         --error="$OUTBASE/logs/jpsimc20M_a${g}_%A_%a.err"
         --export="ALL,CHUNKLIST=$CHUNKLIST,OUTBASE=$OUTBASE,IDXOFFSET=$OFF,EXTRA=$EXTRA,CMSSW_AREA=$CMSSW_AREA"
         "$HERE/array_jpsimc.sbatch" )
-  n=$(awk -F, '{print NF}' <<< "${GROUPS[$g]}")
+  n=$(awk -F, '{print NF}' <<< "${CHUNKGRP[$g]}")
   echo "  resume array $g: $n tasks, offset=$OFF"
   if (( DRY )); then printf '    '; printf '%q ' "${cmd[@]}"; echo; else "${cmd[@]}"; fi
 done

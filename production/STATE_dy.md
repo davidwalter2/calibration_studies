@@ -269,6 +269,71 @@ creates its output at *start*, so a killed task leaves a non-empty but
 truncated file. The task index is the chunk-list line number, so a resumed task
 reads exactly the same events as the one it replaces.
 
+## 2026-09-06 — 28 % of the chunks died of an `ndof == 0` abort, and the recovery
+
+**Symptom.** Tasks exiting `134` (SIGABRT) after anything from 7 minutes to
+3 hours, with one Eigen bounds assert in `local.log`:
+
+```
+DenseCoeffsBase.h:183: ... [Derived = Matrix<double,-1,1>]: Assertion `index >= 0 && index < size()' failed.
+#11 ResidualGlobalCorrectionMakerTwoTrackG4e::produce ... :4272
+```
+
+37 of the first 133 finished tasks. **The whole task is lost, not the one
+candidate**: a crashed `cmsRun` output has no keys at all (`uproot.open` reports
+`Available keys: (none!)`), so nothing of the ~2 h of fitting survives.
+
+**The line number is a lie.** LTO folds `DenseCoeffsBase<VectorXd,0>::
+operator()` into one `.part.0 .lto_priv.0` clone shared by every const
+`VectorXd(i)` in `produce`, so the frame lands on whichever call site the
+linker kept — the influence-export block. The real site is
+`eigvals(nparsfinal - nrank)` in the factored-Hessian rank report, ~1700 lines
+further down; the dev2 build's own trace names it (`:5937`). The propagation
+failures printed just before the abort in some logs are a coincidence too:
+three of the crashing tasks (0029, 0035, 0048) have none.
+
+**Mechanism.** `ndof` is an **unsigned** member and `nstateparms` is
+`10 + 5*nhits`, so
+
+```
+ndof = 5*nhits + nvalid + nvalidpixel - nstateparms  ==  nvalid + nvalidpixel - 10
+```
+
+summed over BOTH legs. A pair whose two MiniAOD legs carry exactly ten
+valid-hit-equivalents lands on `ndof == 0`; then `nrank = min(ndof, nParms) = 0`
+and `eigvals(nparsfinal - 0)` reads one past the end of the length-`nParms`
+eigenvalue vector. Both reproducers are real Z candidates with a stunted leg:
+chunk 42 `nhits=(8,1)` — **a leg with a single stored hit** — and chunk 39
+`nhits=(2,4)`. `slimmedMuons` inner tracks in MiniAOD do not always carry the
+full hit list; ALCARECO does, which is why the J/psi leg has **zero** exit-134
+failures.
+
+**Rate.** 0.033 aborts per 1000 Z candidates (from 37/133 tasks at ~9850
+candidates a chunk). Independently: over 197 417 candidates of 20 *completed*
+tasks the formula above reproduces the stored `ndof` exactly (0 mismatches),
+`ndof == 1` holds 4 and `ndof == 2` holds 5 — and **`ndof == 0` holds exactly
+zero**. The bin is empty because landing in it kills the job.
+
+**Fix.** `cvh-exports-260906` @ `fab515e` in `CMSSW_15_0_19_patch2_dev2`: `ndof`
+computed signed and clamped at 0 (below ten the unsigned subtraction UNDERFLOWED
+to ~4e9, which `min` read as full rank — a degenerate candidate silently written
+with a full-rank factorization), `ndof <= 0` counted as `fail[ndof]` in the
+per-job summary and dropped through the existing `valid` path before any export
+runs, and the rank report guarded. **Bit-identical** on all three smokes of
+`resolution/smoke_exports_260906.sh` (gun_tt 246/246 branches, gun_st 157/157,
+data_tt 264/264, none added or removed) and on 833 candidates of chunk 42's
+pre-crash window against the production build. Must be cherry-picked onto
+`WmassNanoProd_15_0_19_patch2_dev` when the productions drain.
+
+**Recovery.** `./resume_dy_dev2.sh` — same sentinel logic as `resume_dy.sh`, but
+it runs from the fixed area and adds `exportHitResBlocks=False` (the branch
+default is True and would change `resinfv`/`reseigidx`/`resinfvarv`). It parks
+the crashed remains in `task_XXXX/failed_260906/` before resubmitting. The
+recovered tasks carry three extra always-on branches the rest of the set does
+not (`Jpsi_covrefmom`, `Jpsigenpre_*`, `Mu*_maxfracloss`); nothing pools on
+them. Keep running it until the original array drains — new 134s appear until
+then.
+
 ## Notes
 
 * **submit82's ceph client is evicted** (`stat /ceph/submit/data` → EPERM).

@@ -13,6 +13,35 @@ decision, not a revalidation.
 
 ---
 
+## 0. PREREQUISITE: the `ndof == 0` abort must be in the area that runs it
+
+**A re-production from `157775e` would lose ~13 % of its DY chunks outright.**
+The two-track maker's factored-Hessian rank report reads
+`eigvals(nparsfinal - nrank)` with `nrank = min(ndof, nParms)`, and `ndof` is
+an **unsigned** member equal to `nvalid + nvalidpixel - 10` summed over both
+legs. A Z pair whose two MiniAOD legs carry exactly ten valid-hit-equivalents
+lands on `ndof == 0`, the index goes one past the end of the eigenvalue vector,
+and Eigen's bounds assert **aborts the process**. A crashed `cmsRun` output has
+NO KEYS, so the whole task is lost, not the one candidate.
+
+* measured rate **0.033 aborts per 1000 Z candidates**; `ndof == 0` is EXACTLY
+  EMPTY across 197 417 candidates of 20 *completed* `dymc_8p5M_260905` tasks
+  while `ndof == 1` and `2` hold 4 and 5 (0.020 and 0.025 per 1000) — the bin
+  is empty because landing in it kills the job
+* it cost **37 of the first 133 finished tasks (28 %)** of `dymc_8p5M_260905`
+* the J/psi leg is untouched: ALCARECO carries the full RECO hit list, so
+  `ndof == 0` does not occur there (0 exit-134 failures in `jpsimc_20M_260905`)
+
+Fixed on `cvh-exports-260906` at **`fab515e`** ("A two-track fit with
+ndof == 0 must fail, not index past the eigenvalues"): `ndof` is computed
+signed and clamped, `ndof <= 0` is a counted fit failure (`fail[ndof]` in the
+per-job summary) dropped through the existing `valid` path, and the rank report
+is guarded. Bit-identical on all three smokes. **This commit must be
+cherry-picked onto `WmassNanoProd_15_0_19_patch2_dev` before any re-production
+is submitted from the production area.**
+
+---
+
 ## 1. What is new, and what it is for
 
 | export | branches | why the next production wants it |
@@ -271,9 +300,10 @@ and what every cache built before the hit blocks existed assumes.
    jobs and they segfault in the same second. The work is on a branch in a
    second area precisely so that this decision can be taken later.
 2. When the productions finish: merge `cvh-exports-260906` into
-   `WmassNanoProd_15_0_19_patch2_dev`, build the production area, and re-run the
-   smoke (`resolution/smoke_exports_260906.sh <area> <outdir>`) there — it must
-   reproduce `scratch_smoke_260906/v2_*` bit for bit.
+   `WmassNanoProd_15_0_19_patch2_dev` — **`fab515e` (the `ndof == 0` abort) is
+   the one commit that is not optional; see §0** — build the production area,
+   and re-run the smoke (`resolution/smoke_exports_260906.sh <area> <outdir>`)
+   there — it must reproduce `scratch_smoke_260906/v6_default` bit for bit.
 3. Add `exportCfGroupExponents=True` to `config_jpsimc20M.sh` and
    `config_dymc8p5M.sh`, bump the tags, and resubmit with the existing
    `submit_*.sh` / `resume.sh` machinery unchanged.

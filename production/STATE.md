@@ -240,6 +240,69 @@ creates its output at *start*, so a killed task leaves a non-empty but
 truncated file. The task index is the chunk-list line number, so a resumed task
 reads exactly the same events as the one it replaces.
 
+## 2026-09-06 — the 13 failed tasks: three corrupt inputs and one full GPU
+
+Neither is a code failure. `jpsimc_20M_260905` has **zero** exit-134
+(SIGABRT) failures — the `ndof == 0` abort that cost the DY leg 28 % of its
+chunks (`STATE_dy.md`, NOTES 2026-09-06 (III)) cannot reach it, because
+ALCARECO carries the full RECO hit list and a J/psi pair never lands on
+`nvalid + nvalidpixel == 10`.
+
+**12 tasks, exit 91 — three corrupt input files.** Tasks 1219-1222, 1334-1337,
+1409-1412: four consecutive chunks each of
+
+```
+.../TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/2830000/BDA060EF-B8F8-7349-9277-363C3AB7EA76.root
+.../TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/0909778B-8728-764F-B41B-1C9DCE5C849E.root
+.../TkAlJpsiMuMu-106X_mcRun2_asymptotic_v13-v2/60000/4B9D2D77-92ED-8440-8697-DD4AC560E61C.root
+```
+
+cmsRun dies while *constructing the input source*:
+
+```
+An exception of category 'FormatIncompatibility' occurred while
+   [2] Creating ParameterSets from file
+EntryError can not convert representation of SelectEvents: <blanks> to value of type vector<string_hex>
+```
+
+**This is a new corruption class the 2026-09-05 zombie scan cannot see.** That
+scan reads `Events->GetEntries()`; all three files have a perfectly good Events
+tree (51 231 / 56 267 / 48 621 entries) and are *not* in
+`truncated_inputs_260905.txt`. What is damaged is the **provenance blob**, and
+`skipBadFiles=True` does not help because the failure happens before any
+per-file skip logic.
+
+It is **local**: `edmProvDump` throws on all three /ceph copies and **succeeds
+on all three over `root://cms-xrd-global.cern.ch`**. So the MIT copies rotted,
+the dataset did not. Recovered by re-fetching to a user area (the group store
+is managed data and is not ours to overwrite):
+
+```
+/ceph/submit/data/user/d/david_w/ZMass/restaged/jpsimc_20M_260905/
+```
+
+`scratch_bugfix_260906/restage.sh` does the xrdcp into a `.part` and promotes it
+only if `edmProvDump` reads it — an xrdcp that reports rc=0 on a truncated file
+is a documented failure mode here. The twelve chunk lines of
+`chunks_jpsimc_20M_260905.txt` were then repointed at the staged copies (path
+field only, line numbers untouched, so the task index is still the chunk-list
+line) and resubmitted with `resume.sh`.
+
+**1 task, exit 66 — a full GPU.** Task 0254 died in 15 s constructing services:
+`CUDAService ... cudaErrorMemoryAllocation: out of memory` on a node whose GPU
+was already full. Purely environmental; `resume.sh` re-drives it onto another
+node. (The job needs no GPU at all — `CUDAService` is only being constructed
+because the standard service set includes it.)
+
+**A latent bug in `resume.sh` itself, found while doing this.** The script built
+its `--array` spec in a variable called `GROUPS`, which is a **bash built-in
+array** holding the caller's group ids. `declare -A GROUPS` fails with "cannot
+convert indexed to associative array" and the writes land in the builtin, so
+the spec came out as `--array=100999%200`, `--array=169571%200`,
+`--array=1000000%200` — the user's gids. Renamed to `CHUNKGRP` in `resume.sh`,
+`resume_dy.sh` and `resume_dy_dev2.sh`. The resume path had never been
+exercised before today.
+
 ## Notes
 
 * **submit82's ceph client is evicted** (`cephx … failed: -13`); `/ceph/submit`
