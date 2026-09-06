@@ -388,6 +388,57 @@ threads and +13.4 % at 8; the candidate tree itself is flat at ~70 kB/candidate.
 concatenation. **Done on 2026-09-06** -- see sec. 10, which is now a record of
 the change rather than a to-do list.
 
+### 8.1 The 4-thread SIGSEGVs were NOT threading (resolved 2026-09-06)
+
+`dymc_8p5M_260906_v2` lost 6 of 380 tasks and `jpsimc_20M_260906_v2` 5 more to
+`ExitCode 139`. The `.err` files ended inside
+`fillRadiativeSpectrum -> G4MuPairProductionModel::ComputeDMicroscopicCrossSection`
+with a second thread in `G4ErrorFreeTrajState::PropagateError`, which reads as a
+Geant4 model shared between streams. **It is not.**
+
+* the wrapper dumps `tail -60 local.log`; CMSSW prints the gdb dump in
+  DESCENDING thread order, so those 58 lines are the LAST threads, never the
+  faulting one. Every other thread also carries a `<signal handler called>`
+  frame, because CMSSW's handler sends PAUSE_SIGNAL to all of them
+  (`InitRootHandlers.cc:445-505`) -- the paused handler is
+  `sig_pause_for_stacktrace`, the crashing one `sig_dostack_then_abort`, and the
+  name is what the truncation cut off. **Dump 400 lines and grep for
+  `sig_dostack_then_abort`.**
+* the crash is a null dereference in the RELEASE's
+  `Utilities/XrdAdaptor/src/XrdRequestManager.cc:124-131`: `getQueryTransport`
+  leaves its `std::string*` uninitialised and `AnyObject::Get` sets it to 0 when
+  the transport query fails, which is exactly what happens for a redirect hop
+  with no live connection (`Unable to initiate the connection ... network is
+  unreachable`, `Redirect limit has been reached`). `tracerouteRedirections`
+  then formats `*hostname_method` and friends unconditionally. It runs on the
+  XrdCl JobManager thread -- the framework's own report says
+  `Module: non-CMSSW (crashed)`.
+* **it is an XROOTD-path bug, so only the grid legs can see it.** The same chunk
+  that failed 4/4 on the grid runs 22120/22120 events clean at 4 AND 8 threads
+  from POSIX `/ceph`, and SIGSEGVs at event 4401 when the only change is
+  streaming the input through `cms-xrd-global`. The 260905 slurm productions
+  read `/ceph` directly and never saw it.
+* the 5.5-6.1 GB `MemoryUsage` condor logged just before each crash is **the
+  crash handler forking gdb**, not a leak: exactly the 7 procs that ever
+  exceeded 5120 MB are the 7 that ever returned 139, no other proc exceeded
+  2.73 GB, and the instrumented re-runs peak at 2.39 / 2.55 GB.
+  `request_memory = 5000` stands; §8's sizing was never the problem.
+
+Fixed in `cvh-exports-260906`: `c2d74e3e647` (null guards in XrdAdaptor -- this
+should also go upstream to CMSSW) and `ca6058d96fc` (the audit's one real race:
+the reference and ionization-only `G4TablesForExtrapolatorForCVH` builds were
+guarded by two DIFFERENT mutexes although both `Initialise()` the same Geant4 EM
+models, which write process-wide non-const statics -- a job-startup race whose
+failure mode is a silently wrong dE/dx table for a whole job, now one shared
+mutex + atomic pointers). Both are I/O-only or locking-only and the three
+smokes are bit-identical to `scratch_smoke_260906/v6_default`.
+
+Recovery: `condor_dymc_v2/recover_xrdfix.sh` -- a SECOND pinned payload
+(`overlay_<tag>_xrdfix.tgz`) for the named tasks only, because the ~1000 jobs
+still queued re-fetch the original pinned tarball on every restart and
+overwriting it would mix two binaries into one sample. Same recipe applies to
+the J/psi leg once its queue drains.
+
 ## 9. HTCondor is a grid submission, not a second cluster
 
 Measured 2026-09-06 (details and probe evidence in

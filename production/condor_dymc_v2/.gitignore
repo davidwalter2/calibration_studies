@@ -1,3 +1,5 @@
 # runtime index lists rendered by submit/resume; not inputs
 .submit_idx.txt
 .resume_idx.txt
+.diag_idx.txt
+.recover_idx.txt

@@ -380,6 +380,37 @@ the global redirector being momentarily unhappy about a file that certainly
 exists — the wrapper's `xrdfs stat` is stricter than cmsRun's own open, which
 retries across the redirector. It costs a retry and self-heals.
 
+### The SIGSEGVs, resolved 2026-09-06 — XrdAdaptor, not Geant4, not threading
+
+Six tasks (0, 1, 2, 3, 260, 293, 294 — 1 succeeded on retry) exhausted their
+attempts with rc=139. The `.err` stacks end inside
+`fillRadiativeSpectrum -> G4MuPairProductionModel::ComputeDMicroscopicCrossSection`,
+which is **not** where the crash is: `tail -60 local.log` keeps only the LAST
+threads of a gdb dump printed in descending order, and every non-faulting thread
+carries a `<signal handler called>` frame too, because CMSSW pauses them all
+before forking gdb. The faulting thread is above the cut.
+
+The real crash is a null dereference in the RELEASE's
+`Utilities/XrdAdaptor/src/XrdRequestManager.cc` (`getQueryTransport` leaves its
+`std::string*` uninitialised; `AnyObject::Get` sets it to 0 when the transport
+query fails, which is exactly what happens for a redirect hop with no live
+connection), reached from `tracerouteRedirections` on the **XrdCl JobManager
+thread**. The framework says so itself: `Module: non-CMSSW (crashed)`.
+
+It is an XROOTD-path bug, which is why the slurm 260905 production (POSIX
+`/ceph`) never saw it: the chunk of task_0000 runs 22120/22120 events clean at
+4 AND 8 threads from `/ceph` and SIGSEGVs at event 4401 when the only change is
+streaming the input through `cms-xrd-global`.
+
+The 5.5-6.1 GB MemoryUsage before each crash is the crash handler forking gdb,
+not a leak — the instrumented re-runs peak at 2.39/2.43 GB. `request_memory =
+5000` stands.
+
+Fixed on `cvh-exports-260906` (`c2d74e3e647`); recover with
+`condor_dymc_v2/recover_xrdfix.sh`, which uses a SECOND pinned payload so the
+jobs still in the queue keep the binary they were submitted with. Full account:
+`Documents/Resolution/NOTES.md`, 2026-09-06 (V).
+
 ---
 
 ## 5. Operating it

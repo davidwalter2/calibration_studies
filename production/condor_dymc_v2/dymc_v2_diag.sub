@@ -1,0 +1,62 @@
+# HTCondor submit description for the DY CVH two-track re-production.
+# The inventory (index list, sizes, paths) comes from submit_dymc_v2.sh via
+# -append; this file is the POLICY.
+#
+# It is a GRID submission, not a cluster one: there is no ceph-mounted condor
+# capacity reachable from submit (see job_dymc_v2.sh for the measurement), so
+# the job carries its CMSSW area, streams its input through the CMS global
+# redirector and stages its output back over xrootd.
+
+universe                = vanilla
+executable              = $(JOBSH)
+arguments               = $(IDX)
+
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+# Nothing comes back through condor: the output is several hundred MB and goes
+# to ceph over xrootd. An empty list is what stops the shadow from dragging the
+# whole scratch dir home.
+transfer_output_files   = ""
+transfer_input_files    = $(CHUNKSFILE),$(PAYLOADFILE),$(INITFILE)
+getenv                  = False
+
+environment = "OUTBASE=$(OUTBASE) OUTROOT=$(OUTROOT) OUTHOST=$(OUTHOST) REDIR=$(REDIR) CHUNKS=$(CHUNKSBASE) PAYLOAD=$(PAYLOADBASE) INITBASE=$(INITBASE) NTHREADS=$(NTHREADS) RELEASE=$(RELEASE) SCRAM_ARCH_USE=$(SCRAMARCH) CFGREL=$(CFGREL) EXTRA='$(EXTRA)'"
+
+request_cpus            = $(NTHREADS)
+request_memory          = $(REQMEM)
+request_disk            = $(REQDISK)
+
+output                  = $(LOGDIR)/task_$INT(IDX,%04d).out
+error                   = $(LOGDIR)/task_$INT(IDX,%04d).err
+log                     = $(LOGDIR)/cluster.log
+
+# Advertised so resume_dymc_v2.sh can see which chunks are already queued
+# without parsing the argument string.
++CvhTaskIdx             = $(IDX)
+# The OUTPUT tree, not the tag string: two submissions of the same tag to
+# different output bases (a validation run, say) must not make resume think a
+# production index is already queued.
++CvhOutBase             = "$(OUTBASE)"
+
+# --- global-pool routing ---------------------------------------------------
+# WITHOUT +DESIRED_Sites the job is never sent to any factory site and sits
+# idle forever. Learned the hard way on the BtoJpsiX production; it is the
+# single most common reason a submit-side condor job "never starts".
+use_x509userproxy       = true
+x509userproxy           = $(PROXY)
++AccountingGroup        = "analysis.$(OWNER)"
++ProjectName            = "CpuTestingProject"
+# CMSSW_15_0 is el9_amd64_gcc12: the job MUST land in an el9 container. This
+# excludes the native-el7 mit_tier3 pilots, which is correct -- they cannot run
+# this release at all.
++SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/cmssw/cms:rhel9-x86_64"
++DESIRED_Sites          = "$(DESIRED_SITES)"
+Requirements            = $(REQUIREMENTS)
+
+# A job killed by an evicted slot or a transient xrootd failure should come
+# back; one that dies on a bad configuration should not loop.
+max_retries             = 0
+on_exit_remove          = (ExitBySignal == False) && (ExitCode == 0)
+periodic_release        = (NumJobStarts < 4) && (HoldReasonCode =!= 1)
+
+queue IDX from $(IDXFILE)
