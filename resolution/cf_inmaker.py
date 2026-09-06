@@ -152,6 +152,36 @@ def _fam_arrays(t, prefix):
     return names if all(n in t.keys() for n in names) else None
 
 
+def _jac_block(t, stop, idx, jaccat, fn):
+    """Dense ``(len(idx), nfit)`` mass Jacobian, VECTORIZED.
+
+    ``globalidxv`` and ``Jpsi_jacMass`` are jagged and a per-candidate python
+    loop costs ~0.5 ms each -- five hours over a 16 M-candidate production.
+    Read as awkward arrays instead and scatter once: flatten, map the global
+    index through ``g2f``, and assign. ``globalidxv`` is deduped per candidate,
+    so a plain fancy-index assignment is exact (no ``np.add.at`` needed).
+    """
+    import awkward as ak
+    aj = t.arrays(["globalidxv", "Jpsi_jacMass"], library="ak", entry_stop=stop)
+    gi, jm = aj["globalidxv"], aj["Jpsi_jacMass"]
+    ng, nj = ak.to_numpy(ak.num(gi)), ak.to_numpy(ak.num(jm))
+    if not np.array_equal(ng, nj):
+        bad = int(np.argmax(ng != nj))
+        raise SystemExit(
+            f"{fn}: candidate {bad} has {nj[bad]} Jpsi_jacMass entries but "
+            f"{ng[bad]} globalidxv entries")
+    g2f, fidx = jaccat[0], jaccat[1]
+    # candidate index -> output row, -1 for the ones the selection dropped
+    row_of = np.full(len(ng), -1, dtype=np.int64)
+    row_of[idx] = np.arange(len(idx))
+    rows = np.repeat(row_of, ng)
+    fi = g2f[ak.to_numpy(ak.flatten(gi))]
+    keep = (rows >= 0) & (fi >= 0)
+    D = np.zeros((len(idx), len(fidx)), dtype=np.float32)
+    D[rows[keep], fi[keep]] = ak.to_numpy(ak.flatten(jm))[keep]
+    return D
+
+
 def _stack(a, key, n):
     """A jagged (n, 64) float branch -> a dense float32 array."""
     v = a[key]
@@ -180,6 +210,8 @@ def read_files(args, mass):
 
     nsel = ndrop = 0
     want_hitclass = None
+    jacpt = getattr(args, "jac_parmtypes", None) or None
+    jaccat = None
     for fn in files:
         try:
             f = uproot.open(fn)
@@ -189,6 +221,16 @@ def read_files(args, mass):
         except Exception as e:
             logger.warning(f"skipping {fn}: {type(e).__name__}")
             continue
+        if jacpt is not None and jaccat is None:
+            rt = f["runtree"]
+            pt = rt["parmtype"].array(library="np")
+            rid = rt["rawdetid"].array(library="np")
+            fidx = np.where(np.isin(pt, jacpt))[0]
+            g2f = -np.ones(len(pt), dtype=np.int64)
+            g2f[fidx] = np.arange(len(fidx))
+            jaccat = (g2f, fidx, pt[fidx], rid[fidx])
+            logger.info(f"jacobian: {len(fidx)} global parameters of type "
+                        f"{sorted(set(pt[fidx].tolist()))} out of {len(pt)}")
         tg, tg_tag = _runtree_grid(f)
         if tg is None:
             raise SystemExit(f"{fn} has no `cftau` in its runtree -- it was not "
@@ -219,6 +261,12 @@ def read_files(args, mass):
                 logger.info(f"aux columns: {len(aux) + len(auxi)} present"
                             + (f"; absent {miss}" if miss else ""))
             need += list(aux.values()) + list(auxi.values())
+            if jacpt is not None:
+                for b in ("Jpsi_jacMass", "globalidxv"):
+                    if b not in have:
+                        raise SystemExit(
+                            f"{fn} has no `{b}`; --jac-parmtypes needs the "
+                            f"two-track maker's mass Jacobian")
         else:
             need += ["refParms", "refCov", "genParms", "resinfcov",
                      "normalizedChi2", "nValidHits", "trackPt", "genPt",
@@ -275,6 +323,8 @@ def read_files(args, mass):
                 push(k, np.asarray(a[b], dtype=np.float64)[idx])
             for k, b in auxi.items():
                 push(k, np.asarray(a[b], dtype=np.int64)[idx])
+            if jacpt is not None:
+                push("D", _jac_block(t, stop, idx, jaccat, fn))
             nsel += len(idx)
         else:
             pt = f["runtree"]["parmtype"].array(library="np")
@@ -319,7 +369,7 @@ def read_files(args, mass):
             f"books the cf branches but does not fill them -- the THREE-TRACK "
             f"maker (ResidualGlobalCorrectionMakerNTrackG4e) has not been "
             f"given the export and writes them empty with ok = false.")
-    return tgrid, tag, cols, nsel, ndrop, bool(want_hitclass)
+    return tgrid, tag, cols, nsel, ndrop, bool(want_hitclass), jaccat
 
 
 def _hitclass(a, ic, pt, cols):
@@ -348,7 +398,8 @@ def _hitclass(a, ic, pt, cols):
 
 
 # --------------------------------------------------------------------------
-def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del):
+def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
+                jaccat=None):
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
     out = {}
     for k, v in cols.items():
@@ -367,11 +418,19 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del):
             out[k] = np.asarray(v, dtype=np.float32)
         elif k in ("hitcnt",):
             out[k] = np.asarray(v, dtype=np.int32)
+        elif k == "D":
+            out[k] = np.concatenate(v, axis=0) if isinstance(v, list) else v
         elif k.startswith("S"):
             out[k] = np.asarray(v, dtype=np.float32)
         else:
             out[k] = np.asarray(v, dtype=np.float64)
     out["tgrid"] = np.asarray(tgrid, dtype=np.float64)
+    if jaccat is not None:
+        # the parameter map of the D block, so a card builder does not have to
+        # re-open a runtree to know what its columns mean
+        out["jac_globalidx"] = np.asarray(jaccat[1], dtype=np.int64)
+        out["jac_parmtype"] = np.asarray(jaccat[2], dtype=np.int32)
+        out["jac_subidx"] = np.asarray(jaccat[3], dtype=np.int64)
     # PROVENANCE. `cf_source` and `cf_model` are new and are read by nothing
     # downstream -- they are there so that a cache says which evaluator and
     # which switch configuration produced it, which the offline caches could
@@ -524,13 +583,27 @@ def main():
                         "A Z production needs e.g. `--mass-window 91.1876 30`, "
                         "otherwise every candidate is dropped on a window it "
                         "was never in.")
+    p.add_argument("--jac-parmtypes", type=int, nargs="*", default=None,
+                   help="ALSO store the per-candidate mass Jacobian "
+                        "`dm_i/dtheta_k` on these global parameter types, as a "
+                        "dense (n, nfit) float32 block plus the parameter map. "
+                        "`14 15` is the field modes + material groups. This is "
+                        "what makes a mass term depend on a calibration "
+                        "parameter through its MEAN, and it is the one thing a "
+                        "joint fit needs that neither the CF exponents nor the "
+                        "quadratic term carry. It is read from the same "
+                        "`Jpsi_jacMass` branch `globalfit/extract.py` uses, in "
+                        "the same pass, so the rows are aligned with the CF "
+                        "rows by construction and no run/lumi/event join is "
+                        "needed.")
     p.add_argument("--mass-del", action="store_true",
                    help="keep the delta-ray family in the MASS cache (the "
                         "reference `build_pairs_tt` model does not have it)")
     a = p.parse_args()
     mass = a.mode == "pairs"
-    tgrid, tag, cols, nsel, ndrop, hitclass = read_files(a, mass)
-    write_cache(a.cache, tgrid, tag, cols, mass, nsel, ndrop, hitclass, a.mass_del)
+    tgrid, tag, cols, nsel, ndrop, hitclass, jaccat = read_files(a, mass)
+    write_cache(a.cache, tgrid, tag, cols, mass, nsel, ndrop, hitclass,
+                a.mass_del, jaccat)
 
 
 if __name__ == "__main__":
