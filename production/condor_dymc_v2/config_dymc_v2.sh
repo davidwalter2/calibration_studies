@@ -72,7 +72,13 @@ DESIRED_SITES=${DESIRED_SITES:-"T2_BE_IIHE,T2_BE_UCL,T2_BR_UERJ,T2_CH_CERN,T2_CN
 # not our payload (the release loads its scram_x86-64-v2 variants) and it is
 # not the chunk; it is those sites' CPUs against that external. Retries carried
 # them, but a job can only retry onto a bad site so many times.
-REQUIREMENTS=${REQUIREMENTS:-'(regexp("swan.hcc.unl.edu", Machine, "i") =!= true) && (regexp("cmsplt02", Machine, "i") =!= true) && (regexp("node-0011.hepgrid.uerj.br", Machine, "i") =!= true) && (regexp("cism.ucl.ac.be", Machine, "i") =!= true) && (regexp("physik.rwth-aachen.de", Machine, "i") =!= true) && (regexp("jinr.ru", Machine, "i") =!= true)'}
+# Black-hole nodes fenced 2026-09-06 from the J/psi v2 submission's own
+# first half hour: 34 of 36 SIGILLs were at five ultralight.org machines
+# (compute-6-34 alone ate 16) plus t2bat0310, this time crashing in
+# edm::StreamSchedule::fillWorkers rather than in XrdCl -- i.e. the node
+# cannot run the release's binaries at all. The rest of Caltech and MIT T2
+# ran hundreds of jobs fine, so fence the NODES, not the sites.
+REQUIREMENTS=${REQUIREMENTS:-'(regexp("swan.hcc.unl.edu", Machine, "i") =!= true) && (regexp("cmsplt02", Machine, "i") =!= true) && (regexp("node-0011.hepgrid.uerj.br", Machine, "i") =!= true) && (regexp("cism.ucl.ac.be", Machine, "i") =!= true) && (regexp("physik.rwth-aachen.de", Machine, "i") =!= true) && (regexp("jinr.ru", Machine, "i") =!= true) && (regexp("compute-6-34\.ultralight\.org", Machine, "i") =!= true) && (regexp("compute-6-6\.ultralight\.org", Machine, "i") =!= true) && (regexp("compute-22-12\.ultralight\.org", Machine, "i") =!= true) && (regexp("compute-12n-23\.ultralight\.org", Machine, "i") =!= true) && (regexp("compute-21-22\.ultralight\.org", Machine, "i") =!= true) && (regexp("t2bat0310\.cmsaf\.mit\.edu", Machine, "i") =!= true)'}
 
 # The 260905 configuration verbatim, plus the four PRODUCTION_NEXT.md §2
 # switches.  numberOfThreads is NOT here: the wrapper takes it from $NTHREADS

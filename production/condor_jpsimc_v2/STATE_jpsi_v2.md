@@ -122,7 +122,63 @@ size, i.e. demonstrably the right file.
 
 ---
 
-## 4. Operating it
+## 4. Submission and first-half-hour throughput
+
+**Cluster `3803264`, 1642 jobs, submitted 2026-09-06 15:51:16, 4 threads,
+`request_memory = 5000` MB.**
+
+| t + | running | idle | held | complete |
+|---:|---:|---:|---:|---:|
+| 5 min | 91 | 1551 | 0 | 0 |
+| 10 min | 149 | 1493 | 0 | 0 |
+| 15 min | 222 | 1420 | 0 | 0 |
+| 20 min | 271 | 1371 | 0 | 0 |
+| 25 min | 342 | 1300 | 0 | 0 |
+| **31 min** | **498** | 1144 | **0** | 0 |
+| 35 min | 558 | 1084 | 0 | 0 |
+
+over 14+ sites — DESY 165, Caltech 70, INFN Legnaro 58, MIT T2 71, KISTI 31,
+CIEMAT 27, INFN Roma 23, Budapest 10, RAL 8, Pisa 6, IHEP 6, Wisconsin 5,
+NCHC 5. The ramp is slower than the DY leg's (which reached 379/380 in 31 min)
+for two reasons that are both expected: it is 4.3x more jobs, and the DY leg
+was concurrently holding ~200-300 slots of the same share. Nothing was held.
+
+No task had completed at t+31 min, which is right: a full J/psi chunk is 12 185
+events, i.e. ~1.5 h at 4 threads on a grid CPU, against DY's 22 375 events of a
+cheaper channel.
+
+### Failures in the first half hour
+
+| what | n | where | verdict |
+|---|---:|---|---|
+| **SIGILL (rc 132)** | 36 | **34 on five `ultralight.org` machines + 2 on `t2bat0310`** — `compute-6-34` alone ate 16 | black-hole NODES, fenced |
+| `no door served <path>` | 1 | task_0106 | **transient** |
+
+The SIGILL here crashes in `edm::StreamSchedule::fillWorkers` (the DY leg's
+were inside `XrdCl` on the `stagein` Prepare) — different call site, same
+meaning: **the node cannot run the release's binaries at all**. It concentrates
+on six machines while the rest of Caltech and MIT T2 ran hundreds of jobs
+cleanly, so the fence is by NODE, not by site — applied with `condor_qedit` to
+both live clusters and written into both `config_*.sh`.
+
+The one door failure is genuinely transient: all six doors returned "no answer"
+for `1239FEDB-…root` inside that job's 180 s window, and both `submit50` and
+`submit53` serve it correctly now at the expected 1 696 464 519 B. Condor
+retries it. **The size guard did not fire once** — no door has ever served a
+wrong replica.
+
+### DY v2 at the same moment (t+87 min for that leg)
+
+`dymc_8p5M_260906_v2`: **164 of 380 complete (43.2 %)**, 211 running, 0 idle,
+0 held, at **177.8 tasks/h**, projected to finish 17:22 — i.e. **1.2 h left
+against the slurm leg's 17.5 h at 11.4 tasks/h. A factor 15.6 on rate.**
+
+Five DY tasks (0000, 0002, 0003, 0260, 0293) exhausted their four starts, all
+with **SIGSEGV (rc 139)**, at four different sites. See §6.
+
+---
+
+## 5. Operating it
 
 ```bash
 cd calibration_studies/production/condor_jpsimc_v2
@@ -137,7 +193,47 @@ alone, `resume` never re-queues an index already in the queue, and the payload
 is pinned inside the production's own output tree so a later resume runs the
 same binary.
 
-## 5. If the grid route had NOT worked
+## 6. The SIGSEGV in `fillRadiativeSpectrum` — open
+
+Five of 380 DY v2 tasks (1.3 %) died with `rc=139`, each after exhausting all
+four starts, at DESY, Caltech, Wisconsin and INFN-LNL. The stack is the same
+every time:
+
+```
+G4MuPairProductionModel::ComputeDMicroscopicCrossSection
+  <- Geant4ePropagator::fillRadiativeSpectrum
+  <- Geant4ePropagator::propagateGenericWithJacobianAltD
+```
+
+**It is NOT a deterministic per-event crash, and it is NOT the new exports.**
+Task 0000's chunk — the same file, `skipEvents=0 nEvents=22120`, the same
+`EXTRA` including `exportCfGroupExponents=True` — was re-run locally from dev2
+and completed **22 120 / 22 120 events, rc=0**
+(`/work/submit/david_w/ZMass/scratch_segv_260906/grpON/`). So a bad candidate
+that always crashes is excluded.
+
+What is left is a rare, intermittent fault in that call path. The leading
+hypothesis is a **thread-safety problem**: `fillRadiativeSpectrum` reaches into
+a G4 model whose state may not be properly per-thread, which would be
+intermittent, possibly stream-count dependent, and invisible to the
+bit-identity gate (when it does not crash, the numbers are exactly right — that
+is what §1 of `STATE_dy_v2.md` measured). A 4-thread local re-run of the same
+chunk, matching the grid configuration, was in flight when this was written;
+its result is the next thing to look at.
+
+**Consequences for the sample.** Retries do not recover these tasks — 4 starts
+each were spent. `resume_dymc_v2.sh` picks exactly them (it reported
+`to resubmit=5`) and a resubmission has whatever per-attempt probability of
+surviving; that is the pragmatic mitigation until the cause is found. The loss
+is 1.3 % of tasks and it is not obviously random in kinematics, so **it should
+not be waved through for a calibration sample** — but it is also identifiable
+task by task and re-runnable once fixed.
+
+The J/psi leg had **zero** rc=139 in its first half hour.
+
+---
+
+## 7. If the grid route had NOT worked
 
 It did, so this is not the plan — but `production/array_jpsimc_v2.sbatch`
 exists as the slurm fallback and as the recommended *slurm* configuration
