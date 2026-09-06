@@ -458,17 +458,39 @@ in-group standard deviation of `u` at `sigma_cap` gives a bias that scales as
 
 | `sigma_cap` | atoms | Δ`m_Z` [MeV] | Δ`Gamma_Z` [MeV] |
 |---|---|---|---|
-| 1e-2 | 144 | +101.7 | +151.8 |
+| 1e-2 | 144 | +101.67 | +151.76 |
 | 3.3e-3 | 400 | +7.10 | +28.98 |
-| 1e-3 | 1183 | +0.73 | +3.91 |
-| **3.3e-4** (the default) | 3215 | see `data/fit_postfsr2.json` | |
+| 1e-3 | 1183 | +0.77 | +3.98 |
+| **3.3e-4** (the new default) | 3215 | **+0.15 ± 0.56** | **+1.31 ± 1.14** |
+| 1e-4 | 9189 | −0.59 ± 0.59 | +0.72 ± 1.14 |
+
+This was found the hard way — the first folded fit came out at +29 MeV on the
+width and looked like a physics failure. A global `Var(u)` comparison of the
+atoms against the data does *not* diagnose it (it is a difference of two
+~1.5e-2 numbers); the `sigma_cap` scan does, and the ladder above is textbook
+second order.
 
 `build_kernel`'s default is now 3.3e-4. Splitting the gen sample in half moves
 the fit by 0.4 MeV on `Gamma_Z` (the kernel's own statistical error at 29 M
 events is negligible); building the kernel from only `m_pre` ∈ 60–88 or 94–130
 moves it by ±5.4 MeV, which is the price of assuming the kernel is
-`m_pre`-independent, and is removed by the **banded** kernel (per-atom
-`m_lo`/`m_hi`, `fit_gen.py kernel --bands ...`).
+`m_pre`-independent, and is largely removed by the **banded** kernel (per-atom
+`m_lo`/`m_hi`, `fit_gen.py kernel --bands ...`; banding moves the inclusive fit
+by 0.3 / 0.7 MeV). `nm` = 4096 / 8192 / 16384 and a Born grid capped at 160 or
+200 GeV all agree to 0.06 MeV.
+
+The closure, with the default kernel and 5 shape terms:
+
+| model, window 60–120 | Δ`m_Z` [MeV] | Δ`Gamma_Z` [MeV] |
+|---|---|---|
+| post-FSR, **no** fold, no `K(m)` | −227.12 ± 0.48 | +741.35 ± 1.19 |
+| post-FSR, **no** fold, + `K(m)` | −30.66 ± 0.56 | +317.02 ± 1.19 |
+| **post-FSR, folded, + `K(m)`** | **+0.15 ± 0.56** | **+1.31 ± 1.14** |
+| pre-FSR control, + `K(m)` | −0.45 ± 0.50 | +1.14 ± 0.97 |
+
+so FSR is *not* absorbable by a smooth nuisance (it broadens the peak; a smooth
+ratio cannot), and once folded the post-FSR fit returns what the pre-FSR fit
+returns.
 
 ### Step 4b — acceptance, and where the multiplicative kernel breaks
 
@@ -488,34 +510,76 @@ The looser selection the CVH production actually applies (`p_T > 5`,
 `|eta| < 2.4`; `TrackProducerFromPatMuons ptMin=-1`) is much better behaved:
 ⟨u⟩ = 19.5e-3 versus 21.4e-3 inclusive.
 
+With the fiducial kernel and `A(m)` both in place the selected spectrum closes:
+
+| model, fiducial `p_T` > 25, \|η\| < 2.4, window 60–120 | Δ`m_Z` [MeV] | Δ`Gamma_Z` [MeV] |
+|---|---|---|
+| no FSR fold, no `A(m)`, + `K(m)` | −29.34 ± 0.88 | +320.55 ± 1.82 |
+| FSR folded, no `A(m)`, + `K(m)` | −0.05 ± 0.87 | +1.69 ± 1.75 |
+| **FSR folded + `A(m)` (Bernstein 8), + `K(m)`** | **−0.31 ± 0.87** | **+2.61 ± 1.75** |
+| … with the *inclusive* kernel instead | −3.48 ± 0.88 | +3.39 ± 1.81 |
+| pre-FSR + `A(m)` control | −1.01 ± 0.78 | +1.86 ± 1.50 |
+
+Bernstein degrees 4 / 6 / 8 / 10 agree to 0.2 / 0.6 MeV. Note that at generator
+level **`A(m)` is largely degenerate with the smooth `K(m)`** — dropping it
+entirely changes the fit by 0.3 / 0.9 MeV — so what matters about `A(m)` is only
+whatever part of it is *not* smooth.
+
+### How to reproduce
+
+```bash
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+# 1. gen dump: 550 MiniAOD files, 8 workers per node, ~35 min, resumable
+$Z/run_gen_dump.sh   0 274 submit50 8 &
+$Z/run_gen_dump.sh 275 549 submit51 8 &
+# 2. merge (on a node with ceph)
+python3 $Z/merge_gen.py -i "/ceph/submit/data/user/d/david_w/ZMass/zgen/gen_*.npz" \
+        -o $Z/data/genmerged_full.npz
+# 3. kernels and acceptance (numpy only)
+python3 fit_gen.py kernel --gen data/genmerged_full.npz -o data/kern_incl_sc3.3e-4.npz
+python3 fit_gen.py kernel --gen data/genmerged_full.npz -o data/kern_fid_sc3.3e-4.npz \
+        --acc-pt 25 --acc-eta 2.4
+python3 fit_gen.py acceptance --gen data/genmerged_full.npz -o data/acc_d8.json --degree 8
+# 4. the three fit suites (~2-10 min each) and the figures
+./run_tf_z.sh python3 -u fit_gen.py fit --gen data/genmerged_full.npz --suite prefsr \
+        -o data/fit_prefsr.json
+./run_tf_z.sh python3 -u fit_gen.py fit --gen data/genmerged_full.npz --suite postfsr \
+        --kernel data/kern_incl_sc3.3e-4.npz --nm 8192 -o data/fit_postfsr2.json
+./run_tf_z.sh python3 -u fit_gen.py fit --gen data/genmerged_full.npz --suite fiducial \
+        --kernel data/kern_fid_sc3.3e-4.npz --acc data/acc_d8.json --nm 8192 \
+        -o data/fit_fiducial.json
+./run_tf_z.sh python3 -u plot_gen.py --gen data/genmerged_full.npz \
+        --fits data/fit_prefsr.json --fits-post data/fit_postfsr2.json \
+        --fits-fid data/fit_fiducial.json --kernel data/kern_incl_sc3.3e-4.npz \
+        --kernel-fid data/kern_fid_sc3.3e-4.npz --acc data/acc_d8.json --nm 8192
+```
+
 ---
 
 ## What is still missing for a *data* Z channel
 
-* **Acceptance `A(m)`.** The likelihood has no acceptance at all. The muon
-  pT/η cuts sculpt the observed spectrum, and — because a muon that radiates
-  hard falls out of acceptance — they also sculpt the FSR kernel, which is why
-  the kernel has to be rebuilt whenever the selection changes. Folding the gen
-  acceptance into the kernel (what `--acc-pt/--acc-eta` do) captures part of it;
-  a proper `A(m)` multiplying the density is the real fix.
-* **The FSR kernel is multiplicative, and `MassCFTerm` convolves.** `dm/m_pre`
-  is nearly independent of `m_pre` while `dm` is not (see the table in the
-  report). The clean fix is to fold FSR into the *provider* — have
-  `ZGammaLineshape` return the CF of the **post**-FSR spectrum, since
-  `p_post(m) = ∫ p_born(m′) K(m|m′) dm′` is a function of the POIs alone. The
-  LL collinear radiator in `../lineshape/zwidth_sensitivity.py` (`FSRKernel`)
-  is the natural implementation. `MassCFTerm` also accepts a per-candidate
-  `phik_grid` of shape `(n, nt)`, which would allow an `m_obs`-dependent
-  kernel, but at 3.9 M × 64 × float64 × 2 that is 4 GB and does not scale.
+* **DONE (2026-09-05) — acceptance and the multiplicative FSR fold** are now
+  in the provider (`acceptance=`, `fsr=`, optionally banded in `m_pre`), and
+  the generator-level section above measures both. What is left of them for
+  *data* is only that the kernel and `A(m)` must be rebuilt with the analysis
+  selection, and that the kernel's `sigma_cap` must be ≤ 3.3e-4.
+* **NEW, and mandatory — the LO→MiNNLO `K(m)`.** The card must float a smooth
+  multiplicative shape (5 Legendre terms is enough and converged). Without one
+  the kernel is wrong by **+76 MeV on `Gamma_Z`**; it costs 1.2× on the errors,
+  and it makes the fit independent of the PDF set, the PDF order and `mu_F`.
 * **Background.** `UniformBackground` / `BernsteinBackground` are wired up with
   a fixed or floating fraction, but the shape and normalisation of the real
   background (Z→ττ, top, QCD) are not measured.
-* **The kernel's own statistical error.** The empirical `phi_K` carries
-  `1/√N_gen` noise (2.8×10⁻³ at 126 k gen events); at the target precision the
-  kernel needs either the full 8.5 M MC or a smooth parametric form.
-* **Theory nuisances.** PDF (regenerate `zlumi_*.npz` per replica and add a
-  luminosity-shape nuisance), EW loop corrections, running α and sin²θ_W, the
-  fixed-vs-running width convention.
+* **The kernel's own statistical error** is *not* a problem: a half-sample
+  split of the 29.3 M gen events moves `Gamma_Z` by 0.4 MeV. (The earlier
+  2.8×10⁻³ figure was for the 126 k-event smoke.)
+* **Theory nuisances.** EW loop corrections and running α / sin²θ_W remain.
+  PDF and μ_F are *covered* by the floating `K(m)` (0.25 MeV / 0.03 MeV spread
+  across five luminosity tables with it floating); **the fixed-vs-running width
+  convention is settled** — POWHEG converts to the constant-width scheme
+  unconditionally and the provider's default is exactly that. Floating
+  `sin²θ_W` as a shape nuisance does *not* work: it is not identifiable from the
+  mass spectrum alone (it runs to +0.072).
 * **`m_Z` and `alpha` are exactly degenerate** in a single-resonance fit. The Z
   channel measures `m_Z` only jointly with a channel that pins the momentum
   scale — which is the whole point of the unified likelihood.
