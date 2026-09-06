@@ -45,7 +45,7 @@ qop functional (single-track trees)
 Usage
 -----
     python extract_groups.py \\
-      --files '/ceph/.../resolution_trackres_jpsigun_ul16_260905d_m0/task_*/globalcor_0.root' \\
+      --files '/ceph/.../resolution_trackres_jpsigun_ul16_260905d_m0/task_*/globalcor_*.root' \\
       --functional mass --parmtypes 14 15 --groups .../materialGroups50.txt \\
       -j 16 --max-chi2-ndof 3 --max-hess 1e8 --max-grad 1e6 \\
       -o runs/matres/gun_groups.npz

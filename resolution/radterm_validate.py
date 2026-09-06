@@ -41,12 +41,17 @@ import uproot
 
 import cf_brems_exact as cbe
 import cf_track_resolution as cft
+import prodfiles
 
 RS = cbe.RADV_STRIDE
 NV = cbe.NRADV
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
-F_LOW = f"{CEPH}/resolution_trackres_mugun_lowpt_260903x_m0/task_0000/globalcor_resclosure_0.root"
-F_HI = f"{CEPH}/resolution_trackres_mugun_ul16_260903x_m0/task_0000/globalcor_resclosure_0.root"
+# single-threaded productions, so one stream file per task; single_file
+# finds it without naming stream 0 and warns if there are several.
+F_LOW = prodfiles.single_file(
+    f"{CEPH}/resolution_trackres_mugun_lowpt_260903x_m0/task_0000", "globalcor_resclosure")
+F_HI = prodfiles.single_file(
+    f"{CEPH}/resolution_trackres_mugun_ul16_260903x_m0/task_0000", "globalcor_resclosure")
 
 BR = ["refParms", "refCov", "genParms", "resinfcov", "resinfvarv", "reseigidx",
       "msmoliidx", "msmoliv", "ioniurbanidx", "ioniurbanv",

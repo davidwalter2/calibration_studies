@@ -114,7 +114,7 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--files",
                    default="/ceph/submit/data/user/d/david_w/ZMass/cvh/"
-                           "resolution_trackres_260802/task_*/globalcor_resclosure_0.root")
+                           "resolution_trackres_260802/task_*/globalcor_resclosure_*.root")
     p.add_argument("--ntasks", type=int, default=100)
     p.add_argument("--kernel", action="store_true")
     p.add_argument("--pairs", action="store_true")

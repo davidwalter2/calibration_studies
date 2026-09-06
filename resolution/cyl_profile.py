@@ -27,6 +27,7 @@ import os
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 RMAX, ZMAX = 120.0, 300.0
@@ -51,8 +52,9 @@ def parse_args():
 
 
 def load(pattern, ntasks):
-    fs = [f for f in sorted(glob.glob(pattern))
-          if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))][:ntasks]
+    # every stream of the first `ntasks` usable tasks (the .complete filter
+    # this used to do by hand is part of prodfiles)
+    fs = prodfiles.resolve(pattern, ntasks)
     if not fs:
         return None
     cols = {k: [] for k in BRANCHES}
@@ -103,15 +105,16 @@ def main():
     rng = np.random.default_rng(23)
     scale = np.expm1(args.eps)
 
-    nom = load(f"{CEPH}/resolution_transmission_{args.nom_tag}_s1000/task_*/globalcor_0.root",
+    nom = load(f"{CEPH}/resolution_transmission_{args.nom_tag}_s1000/task_*/globalcor_*.root",
                args.ntasks)
+    # a glob of PRODUCTION DIRECTORIES, not of files -- plain glob
     dirs = sorted(glob.glob(f"{CEPH}/resolution_cylprobe_{args.tag}_u*"))
     us, data = [], {}
     for dn in dirs:
         u = int(dn.split("_u")[-1]) / 1000.0
         if u <= 0:
             continue           # the R=0 inertness run
-        d = load(f"{dn}/task_*/globalcor_0.root", args.ntasks)
+        d = load(f"{dn}/task_*/globalcor_*.root", args.ntasks)
         if d is not None:
             us.append(u)
             data[u] = d

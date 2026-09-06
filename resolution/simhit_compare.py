@@ -40,6 +40,7 @@ import os
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 BRANCHES = ["refParms", "refCov", "genParms", "chisqval", "ndof", "nValidHits",
@@ -66,7 +67,7 @@ def load_keyed(tag, nfiles):
     genPt and the charge sign are needed to disambiguate. The file index is in
     the key because run/lumi/event repeat across tasks.
     """
-    fs = sorted(glob.glob(f"{CEPH}/resolution_trackres_{tag}/task_*/globalcor_resclosure_0.root"))
+    fs = prodfiles.resolve(f"{CEPH}/resolution_trackres_{tag}/task_*/globalcor_resclosure_*.root")
     if nfiles:
         fs = fs[:nfiles]
     rec = {}
@@ -89,7 +90,7 @@ def load_keyed(tag, nfiles):
 
 
 def load(tag, nfiles):
-    fs = sorted(glob.glob(f"{CEPH}/resolution_trackres_{tag}/task_*/globalcor_resclosure_0.root"))
+    fs = prodfiles.resolve(f"{CEPH}/resolution_trackres_{tag}/task_*/globalcor_resclosure_*.root")
     if nfiles:
         fs = fs[:nfiles]
     qp, qg, c0, cv, nd, nv, pt = [], [], [], [], [], [], []

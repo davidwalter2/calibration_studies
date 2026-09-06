@@ -36,6 +36,7 @@ except Exception:
     logger = None
 
 import uproot
+import prodfiles
 
 # --------------------------------------------------------------------------
 # where things are
@@ -44,11 +45,14 @@ ROOT = "/work/submit/david_w/ZMass/scratch_smoke_260906"
 OUTDIR = "/work/submit/david_w/ZMass/calibration_studies/resolution/runs/exports260906"
 OUTFILE = os.path.join(OUTDIR, "check_exports.txt")
 
-# smoke -> (file basename, tree kind)
+# smoke -> (output stem, tree kind).  A stem, not a file name: the smokes are
+# `numberOfThreads=1` so a directory holds one stream, and
+# prodfiles.single_file finds it without naming stream 0 (and warns if the
+# directory turns out to hold several, which would make this check read 1/N).
 SMOKES = {
-    "gun_tt": ("globalcor_0.root", "tt"),
-    "gun_st": ("globalcor_resclosure_0.root", "st"),
-    "data_tt": ("globalcor_0.root", "tt"),
+    "gun_tt": ("globalcor", "tt"),
+    "gun_st": ("globalcor_resclosure", "st"),
+    "data_tt": ("globalcor", "tt"),
 }
 # configuration -> directory under ROOT.  `base_prod2` only ever holds data_tt.
 CONFIGS = ["base_prod", "base_prod2", "v_noblocks", "v_default", "v_grp"]
@@ -79,7 +83,7 @@ NTAU = 64
 
 
 def path_of(cfg, smoke):
-    return os.path.join(ROOT, cfg, smoke, SMOKES[smoke][0])
+    return prodfiles.single_file(os.path.join(ROOT, cfg, smoke), SMOKES[smoke][0])
 
 
 # --------------------------------------------------------------------------

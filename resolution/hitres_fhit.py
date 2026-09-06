@@ -32,6 +32,7 @@ import os
 import sys
 
 import numpy as np
+import prodfiles
 
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
@@ -63,11 +64,9 @@ def main():
     p.add_argument("--cpixy", type=float, default=0.877)
     args = p.parse_args()
 
-    fs = [f for f in sorted(glob.glob(
-        f"{CEPH}/{args.subdir}_{args.tag}/task_*/globalcor_resclosure_0.root"))
-        if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))]
-    if args.nfiles:
-        fs = fs[:args.nfiles]
+    fs = prodfiles.resolve(
+        f"{CEPH}/{args.subdir}_{args.tag}/task_*/globalcor_resclosure_*.root",
+        args.nfiles)
     if not fs:
         raise SystemExit("no complete files")
 

@@ -23,6 +23,7 @@ import glob
 import os
 
 import numpy as np
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 # argument grid for log phi_c(s). s = t sqrt(v_b)/sigma; t runs to 14 on the
@@ -64,11 +65,8 @@ def build_cf_bank(subdir="hitres3", tag="mugun_lowpt", nfiles=0,
     import uproot
     br = ["dxrecsim", "dxerr", "dyrecsim", "dyerr", "hitDetId", "hitUProj",
           "clusterSizeX", "clusterChargeBin"]
-    fs = [f for f in sorted(glob.glob(
-        f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_0.root"))
-        if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))]
-    if nfiles:
-        fs = fs[:nfiles]
+    fs = prodfiles.resolve(
+        f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_*.root", nfiles)
     if not fs:
         raise SystemExit(f"no complete files in {subdir}_{tag}")
     cols = {b: [] for b in br}

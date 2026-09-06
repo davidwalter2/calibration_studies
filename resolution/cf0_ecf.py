@@ -55,6 +55,7 @@ from scipy.optimize import brentq
 from scipy.stats import chi2 as chi2dist
 
 from wums import logging, output_tools, plot_tools
+import prodfiles
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -74,7 +75,7 @@ def parse_args():
     p.add_argument("-i", "--input",
                    default="/ceph/submit/data/user/d/david_w/ZMass/cvh/"
                            "resolution_closure_260724_eig_alpha999_fb01e7b7741/"
-                           "task_*/globalcor_resclosure_0.root",
+                           "task_*/globalcor_resclosure_*.root",
                    help="glob of gen-closure output files (needs gradchisqv; "
                         "gradllv + reseigidx/reseigv for --extract-exact). The "
                         "_eig production is the same sample and statistics as "
@@ -451,7 +452,7 @@ def fit(args, outdir):
 def main():
     args = parse_args()
     logging.setup_logger(__file__, args.verbose)
-    files = sorted(glob.glob(args.input))
+    files = prodfiles.resolve(args.input)
     if not files and (args.extract or args.extract_full
                       or args.extract_exact or args.reff):
         sys.exit(f"no files match {args.input}")

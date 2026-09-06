@@ -13,6 +13,7 @@ from multiprocessing import Pool
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 BR = ["run", "lumi", "event", "Jpsi_mass", "Jpsigen_mass", "Jpsi_sigmamass",
@@ -41,16 +42,20 @@ def one(args):
              "Jpsi_sigmamass", "nc2", "ptmin", "pmin", "frozen", "niter", "z")}
 
 
-def done_tasks(tag, fname):
-    return {int(os.path.basename(os.path.dirname(f)).split("_")[1])
-            for f in glob.glob(f"{CEPH}/resolution_trackres_{tag}/task_*/{fname}")
-            if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))}
+def done_tasks(tag, stem):
+    """Task NUMBERS that are usable in this production (all streams present)."""
+    return {int(os.path.basename(d).split("_")[1])
+            for d in prodfiles.task_dirs(f"{CEPH}/resolution_trackres_{tag}", stem)
+            if prodfiles.task_complete(d, stem)}
 
 
-def load(tag, tasks, nproc, fname):
-    files = [f"{CEPH}/resolution_trackres_{tag}/task_{i:04d}/{fname}"
-             for i in sorted(tasks)]
-    print(f"{tag}: {len(files)} complete task files")
+def load(tag, tasks, nproc, stem):
+    # EVERY stream of each task: at numberOfThreads=N a task is N files, and
+    # taking stream 0 would compare 1/N of one production with 1/N of another.
+    files = [f for i in sorted(tasks)
+             for f in prodfiles.stream_files(
+                 f"{CEPH}/resolution_trackres_{tag}/task_{i:04d}", stem)]
+    print(f"{tag}: {len(files)} stream files over {len(tasks)} complete tasks")
     with Pool(nproc) as p:
         parts = [q for q in p.map(one, [(f, int(os.path.basename(os.path.dirname(f))
                                               .split("_")[1])) for f in files])
@@ -89,7 +94,9 @@ def main():
     p.add_argument("--new", default="jpsigun_ul16_260904f_m0")
     p.add_argument("--ntasks", type=int, default=20)
     p.add_argument("--nproc", type=int, default=20)
-    p.add_argument("--fname", default="globalcor_0.root")
+    p.add_argument("--fname", default="globalcor",
+                   help="output STEM (globalcor / globalcor_resclosure); every "
+                        "stream of the task is read")
     a = p.parse_args()
     common_tasks = sorted(done_tasks(a.old, a.fname) & done_tasks(a.new, a.fname))
     if a.ntasks > 0:

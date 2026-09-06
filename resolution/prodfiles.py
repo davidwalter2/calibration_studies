@@ -63,7 +63,8 @@ import re
 
 __all__ = [
     "task_dirs", "stream_files", "task_complete", "task_reason",
-    "runtree_file", "iter_files", "resolve", "group_by_task", "last_stats",
+    "runtree_file", "single_file", "iter_files", "resolve", "group_by_task",
+    "last_stats",
 ]
 
 # `globalcor_0.root`, `globalcor_resclosure_12.root`, `globalcor_*.root`
@@ -172,6 +173,33 @@ def runtree_file(task_dir, stem=None, basename=None):
     """
     fs = stream_files(task_dir, stem, basename)
     return fs[0] if fs else None
+
+
+def single_file(task_dir, stem=None, basename=None, warn=None):
+    """The ONE stream file of a task that was produced single-threaded.
+
+    For a diagnostic that compares two trees file by file, and whose producer
+    pins `numberOfThreads=1`, one file IS the task. This returns it without
+    naming stream 0 (a task produced at another thread count would have no
+    `globalcor_0.root`), and shouts if the task turns out to have several
+    streams -- which is the point: such a diagnostic would silently be reading
+    1/N of the candidates, and it should say so rather than quietly halve its
+    own conclusion.
+    """
+    fs = stream_files(task_dir, stem, basename)
+    if not fs:
+        return os.path.join(task_dir, f"{stem or 'globalcor'}_0.root")
+    if len(fs) > 1:
+        msg = (f"prodfiles: {task_dir} has {len(fs)} stream files; this reader "
+               f"takes only {os.path.basename(fs[0])}, i.e. 1/{len(fs)} of its "
+               f"candidates. Re-run it against a single-threaded output, or "
+               f"teach it prodfiles.resolve()")
+        if warn is None:
+            import warnings
+            warnings.warn(msg, RuntimeWarning, stacklevel=2)
+        else:
+            warn(msg)
+    return fs[0]
 
 
 # ---------------------------------------------------------------------------

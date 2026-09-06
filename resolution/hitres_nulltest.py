@@ -30,6 +30,7 @@ import glob
 import os
 
 import numpy as np
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 BR = ["refParms", "refCov", "genParms", "chisqval", "ndof", "nValidHits",
@@ -38,9 +39,8 @@ BR = ["refParms", "refCov", "genParms", "chisqval", "ndof", "nValidHits",
 
 def load_keyed(tag, nfiles=0, subdir="hitres"):
     import uproot
-    fs = sorted(glob.glob(f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_0.root"))
-    if nfiles:
-        fs = fs[:nfiles]
+    fs = prodfiles.resolve(
+        f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_*.root", nfiles)
     rec = {}
     for fn in fs:
         # a task without .complete is a truncated file, not a short one

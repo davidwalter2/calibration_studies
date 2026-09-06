@@ -44,6 +44,7 @@ from scipy.optimize import minimize
 from scipy.special import j0
 
 from wums import logging, output_tools, plot_tools
+import prodfiles
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -58,7 +59,7 @@ def parse_args():
     p.add_argument("-i", "--input",
                    default="/ceph/submit/data/user/d/david_w/ZMass/cvh/"
                            "resolution_closure_260724_moli_alpha999_fb01e7b7741/"
-                           "task_*/globalcor_resclosure_0.root")
+                           "task_*/globalcor_resclosure_*.root")
     p.add_argument("--ntasks", type=int, default=10)
     p.add_argument("--max-blocks", type=int, default=40000)
     p.add_argument("--cache", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -609,7 +610,7 @@ def fit(args, outdir):
 def main():
     args = parse_args()
     if args.extract:
-        files = sorted(glob.glob(args.input))
+        files = prodfiles.resolve(args.input)
         if not files:
             sys.exit(f"no files match {args.input}")
         extract(files, args)

@@ -5,14 +5,15 @@ import glob, sys
 import numpy as np
 import uproot
 from multiprocessing import Pool
+import prodfiles
 
 def one(fn):
     return uproot.open(fn)["tree"].num_entries
 
 if __name__ == "__main__":
     tag, nev, npart = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-    pat = f"/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_{tag}/task_*/globalcor*_0.root"
-    files = sorted(glob.glob(pat))
+    pat = f"/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_{tag}/task_*/globalcor*_*.root"
+    files = prodfiles.resolve(pat)
     with Pool(16) as p:
         n = p.map(one, files)
     n = np.array(n)

@@ -31,7 +31,7 @@ All angles are projected (one plane); the CF is a 2D (space-angle)
 transform, so <theta_space^2> = 2 <theta_plane^2> is applied explicitly.
 
 usage:
-    python rossi_vs_highland.py --file <globalcor_resclosure_0.root> [--ntracks 400]
+    python rossi_vs_highland.py --file <one globalcor_resclosure_*.root> [--ntracks 400]
 """
 
 import argparse

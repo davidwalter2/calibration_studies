@@ -28,6 +28,7 @@ import os
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 CONFIGS = [("jpsigun_ul16", 1.000),
@@ -61,7 +62,7 @@ def parse_args():
 
 
 def load(tag, nfiles):
-    fs = sorted(glob.glob(f"{CEPH}/resolution_trackres_{tag}/task_*/globalcor_0.root"))
+    fs = prodfiles.resolve(f"{CEPH}/resolution_trackres_{tag}/task_*/globalcor_*.root")
     if nfiles:
         fs = fs[:nfiles]
     cols = {k: [] for k in BRANCHES}

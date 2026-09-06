@@ -37,6 +37,7 @@ import os
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 BR = ["reshitidx", "reseigidx", "resinfvarv", "refCov", "nValidHits",
@@ -71,10 +72,9 @@ def main():
 
     fs = []
     for tg in args.tags:
-        g = [f for f in sorted(glob.glob(
-            f"{CEPH}/{args.subdir}_{tg}/task_*/globalcor_resclosure_0.root"))
-            if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))]
-        fs += g[:args.nfiles] if args.nfiles else g
+        fs += prodfiles.resolve(
+            f"{CEPH}/{args.subdir}_{tg}/task_*/globalcor_resclosure_*.root",
+            args.nfiles)
     if not fs:
         raise SystemExit("no complete files")
 

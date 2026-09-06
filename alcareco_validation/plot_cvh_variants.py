@@ -11,7 +11,7 @@ configurations of the step-2 chain for KS, Lambda and J/psi:
 
 Inputs are produced by:
     run_cvh_variants.sh
-    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/260506_variants/<channel>_<variant>/<basename>_0.root
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/260506_variants/<channel>_<variant>/<basename>_*.root
        channels: ks, lambda, jpsi
        variants: nv_np, v_np, v_p
 
@@ -24,6 +24,7 @@ Run inside the wmassdev singularity:
 """
 
 import os
+import glob
 import math
 import datetime
 import numpy as np
@@ -91,8 +92,10 @@ BRANCHES = [
 
 
 def load(channel_tag, basename, variant):
-    path = f'{INBASE}/{channel_tag}_{variant}/{basename}_0.root'
-    if not os.path.exists(path):
+    # every stream of the variant, not `_0` by name
+    paths = sorted(glob.glob(f'{INBASE}/{channel_tag}_{variant}/{basename}_*.root'))
+    path = paths[0] if paths else f'{INBASE}/{channel_tag}_{variant}/{basename}_0.root'
+    if not paths:
         print(f'  missing: {path}')
         return None
     with uproot.open(path) as f:

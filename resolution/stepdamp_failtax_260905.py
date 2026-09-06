@@ -35,6 +35,7 @@ import sys
 from collections import Counter
 
 import numpy as np
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 

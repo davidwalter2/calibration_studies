@@ -18,7 +18,7 @@ the chambers -- but the tracker sees a pristine hadron track, so no kink finder
 can ever reject them. That fraction is reported as the ceiling.
 
 usage:
-  python plot_fake_muon.py --kaons '<dir>/kaon/chunk_*/globalcor_jpsix_kaon_0.root' \
+  python plot_fake_muon.py --kaons '<dir>/kaon/chunk_*/globalcor_jpsix_kaon_*.root' \
                            --pions '<dir>/pi/...' --muons '<dir>/mu/...'
 """
 

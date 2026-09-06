@@ -45,6 +45,7 @@ import uproot
 from scipy.optimize import minimize
 
 from wums import logging, output_tools
+import prodfiles
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -155,11 +156,9 @@ def main():
     outdir = output_tools.make_plot_dir(args.outdir or os.path.expanduser(
         f"~/public_html/calibration_studies/{today}_hitres/"))
 
-    fs = [f for f in sorted(glob.glob(
-        f"{CEPH}/{args.subdir}_{args.tag}/task_*/globalcor_resclosure_0.root"))
-        if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))]
-    if args.nfiles:
-        fs = fs[:args.nfiles]
+    fs = prodfiles.resolve(
+        f"{CEPH}/{args.subdir}_{args.tag}/task_*/globalcor_resclosure_*.root",
+        args.nfiles)
     cols = {b: [] for b in BR}
     for fn in fs:
         a = uproot.open(fn)["tree"].arrays(BR, library="np")

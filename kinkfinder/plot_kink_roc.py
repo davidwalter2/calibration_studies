@@ -12,7 +12,7 @@ veto is allowed to remove -- so every ROC shows decay-vs-clean (solid) and
 nuclear-vs-clean (dashed) together, with a third ROC against their union.
 
 usage:
-  python plot_kink_roc.py --kaons '<dir>/kaon/chunk_*/globalcor_jpsix_kaon_0.root' \
+  python plot_kink_roc.py --kaons '<dir>/kaon/chunk_*/globalcor_jpsix_kaon_*.root' \
                           --pions '<dir>/pi/chunk_*/...' --muons '<dir>/mu/chunk_*/...'
 """
 

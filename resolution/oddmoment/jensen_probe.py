@@ -33,6 +33,10 @@ import uproot
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 import sigma_pull as SP                                       # noqa: E402
+_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
+import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
 
 MMU = 0.1056583745
 BR = ["Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass",
@@ -65,7 +69,7 @@ def main():
     ap.add_argument("--binon", choices=["sbar", "sigma"], default="sbar")
     ap.add_argument("--out", default="")
     a = ap.parse_args()
-    files = sorted(glob.glob(a.files))[: a.ntasks]
+    files = prodfiles.resolve(a.files, a.ntasks, logger=print)
     from multiprocessing import Pool
     with Pool(a.nproc) as pool:
         parts = pool.map(one, files)

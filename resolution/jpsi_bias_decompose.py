@@ -34,6 +34,7 @@ import glob
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 MMU = 0.1056583745
@@ -85,7 +86,7 @@ def med_err(x, nboot, rng):
 def main():
     args = parse_args()
     rng = np.random.default_rng(4)
-    fs = sorted(glob.glob(f"{CEPH}/resolution_trackres_{args.tag}/task_*/globalcor_0.root"))[:args.nfiles]
+    fs = prodfiles.resolve(f"{CEPH}/resolution_trackres_{args.tag}/task_*/globalcor_*.root", args.nfiles)
     need = list(GEN) + ["Jpsi_mass", "Jpsigen_mass", "Muplusgen_dr", "Muminusgen_dr"]
     for v in FLAVOURS.values():
         need += list(v)

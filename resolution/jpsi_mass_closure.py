@@ -33,6 +33,7 @@ import glob
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 VARIANTS = ["Jpsi_mass", "Jpsikin_mass", "Jpsitrk_mass", "Jpsicons_mass",
@@ -59,7 +60,7 @@ def med_err(x, nboot, rng):
 def main():
     args = parse_args()
     rng = np.random.default_rng(20260808)
-    fs = sorted(glob.glob(f"{CEPH}/resolution_trackres_{args.tag}/task_*/globalcor_0.root"))
+    fs = prodfiles.resolve(f"{CEPH}/resolution_trackres_{args.tag}/task_*/globalcor_*.root")
     if args.nfiles:
         fs = fs[:args.nfiles]
     if not fs:

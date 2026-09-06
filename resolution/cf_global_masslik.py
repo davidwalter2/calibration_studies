@@ -51,7 +51,7 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--files",
                    default="/ceph/submit/data/user/d/david_w/ZMass/cvh/"
-                           "resolution_trackres_jpsi260803a/task_*/globalcor_resclosure_0.root")
+                           "resolution_trackres_jpsi260803a/task_*/globalcor_resclosure_*.root")
     p.add_argument("--ntasks", type=int, default=100)
     p.add_argument("--parmtypes", type=int, nargs="+", default=[14],
                    help="global parmtypes to fit (14 = field modes, 15 = material groups)")

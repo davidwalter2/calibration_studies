@@ -28,6 +28,7 @@ import numpy as np
 import uproot
 
 from wums import logging, output_tools
+import prodfiles
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -37,9 +38,7 @@ BR = ["dxrecsim", "dxerr", "hitDetId", "hitPitch", "hitUProj", "clusterSizeX",
 
 
 def load(tag, nfiles, subdir="hitres2"):
-    fs = [f for f in sorted(glob.glob(
-        f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_0.root"))
-        if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))][:nfiles]
+    fs = prodfiles.resolve(f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_0.root", nfiles)
     cols = {b: [] for b in BR}
     for fn in fs:
         a = uproot.open(fn)["tree"].arrays(BR, library="np")

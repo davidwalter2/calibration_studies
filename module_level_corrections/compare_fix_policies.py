@@ -6,6 +6,7 @@
 Checks: hotspot track counts, recovered-track hit counts, and the q/p pull of
 the re-included 798 hit (reorder vs drop on the SAME recovered tracks).
 """
+import glob
 import awkward as ak
 import numpy as np
 import uproot
@@ -15,7 +16,13 @@ RUNS = {"old": "diag_run", "drop": "diag_run_shiftfix2", "reorder": "diag_run_re
 
 
 def load(d):
-    return uproot.open(f"{B}/{d}/effstudy_miniaod_fix_0.root")["tree"].arrays(
+    # every stream of the run, not `_0` by name: the maker writes one file per
+    # stream and naming index 0 would compare 1/N of each policy.
+    fs = sorted(glob.glob(f"{B}/{d}/effstudy_miniaod_fix_*.root"))
+    if not fs:
+        raise SystemExit(f"no effstudy_miniaod_fix_*.root under {B}/{d}")
+    return uproot.concatenate(
+        [f"{f}:tree" for f in fs],
         ["trackPt", "trackEta", "trackPhi", "nValidHits", "run", "event",
          "refParms", "refCov"], library="ak")
 

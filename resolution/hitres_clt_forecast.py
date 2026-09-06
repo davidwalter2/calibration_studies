@@ -27,6 +27,7 @@ import os
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 
@@ -42,9 +43,7 @@ def shape_bank(nfiles):
     """Measured standardised residual per class, from the gen-anchored arm."""
     br = ["dxrecsim", "dxerr", "dyrecsim", "dyerr", "hitDetId", "hitUProj",
           "clusterSizeX", "clusterChargeBin"]
-    fs = [f for f in sorted(glob.glob(
-        f"{CEPH}/hitres3_mugun_lowpt/task_*/globalcor_resclosure_0.root"))
-        if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))][:nfiles]
+    fs = prodfiles.resolve(f"{CEPH}/hitres3_mugun_lowpt/task_*/globalcor_resclosure_*.root", nfiles)
     cols = {b: [] for b in br}
     for fn in fs:
         a = uproot.open(fn)["tree"].arrays(br, library="np")
@@ -93,9 +92,7 @@ def main():
 
     br = ["reshitidx", "reseigidx", "resinfvarv", "refCov", "hitDetId",
           "hitUProj", "clusterSizeX", "clusterChargeBin"]
-    fs = [f for f in sorted(glob.glob(
-        f"{CEPH}/resolution_trackres_mugun_lowpt_cf/task_*/globalcor_resclosure_0.root"))
-        if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))][:args.nfiles_weight]
+    fs = prodfiles.resolve(f"{CEPH}/resolution_trackres_mugun_lowpt_cf/task_*/globalcor_resclosure_*.root", args.nfiles_weight)
     rt = uproot.open(fs[0])["runtree"].arrays(["iidx", "parmtype"], library="np")
     pm = {int(i): int(t) for i, t in zip(rt["iidx"], rt["parmtype"])}
 

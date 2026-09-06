@@ -7,10 +7,13 @@ gen pairing) and fails on a two-track tree. The August J/psi-gun kernel
 built from Jpsigen_mass instead; this script is that step, made explicit.
 The demo scan reads only k["dm"] (cf_mass_likelihood.py ~line 452).
 
-usage: cf_kernel_tt.py --files '<glob of globalcor_0.root>' --out runs/x.npz
+usage: cf_kernel_tt.py --files '<glob of task_*/globalcor_*.root>' --out runs/x.npz
 """
-import argparse, glob, os
+import argparse, os, sys
 import numpy as np, uproot
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import prodfiles  # noqa: E402
 
 MJPSI = 3.0969
 ap = argparse.ArgumentParser()
@@ -18,7 +21,8 @@ ap.add_argument("--files", required=True)
 ap.add_argument("--out", required=True)
 ap.add_argument("--ntasks", type=int, default=100000)
 a = ap.parse_args()
-files = sorted(glob.glob(a.files))[:a.ntasks]
+# --ntasks caps TASKS, not files (a multi-stream task is N files)
+files = prodfiles.resolve(a.files, a.ntasks, logger=print)
 mg = []
 for f in files:
     t = uproot.open(f)["tree"]

@@ -48,6 +48,7 @@ import uproot
 from scipy.optimize import minimize
 
 from wums import logging, output_tools
+import prodfiles
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -57,11 +58,8 @@ BR = ["dxrecsim", "dxerr", "hitDetId", "hitPitch", "hitUProj", "clusterSizeX",
 
 
 def load(tag, subdir, nfiles):
-    fs = [f for f in sorted(glob.glob(
-        f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_0.root"))
-        if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))]
-    if nfiles:
-        fs = fs[:nfiles]
+    fs = prodfiles.resolve(
+        f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_*.root", nfiles)
     if not fs:
         raise SystemExit(f"no complete files in {subdir}_{tag}")
     cols = {b: [] for b in BR}

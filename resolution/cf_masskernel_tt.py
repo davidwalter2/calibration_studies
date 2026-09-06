@@ -23,7 +23,7 @@ no vertex tolerance is needed to reject mispaired combinations.
 Unmatched candidates carry the sentinel -99 and fall outside the window.
 
 usage:
-  python cf_masskernel_tt.py --files '<glob>/globalcor_0.root' --ntasks 48 \
+  python cf_masskernel_tt.py --files '<prod>/task_*/globalcor_*.root' --ntasks 48 \
       --kernel-cache runs/cf_masskernel_<tag>.npz --postfix _<tag>
 """
 

@@ -35,6 +35,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cgfshim                                                   # noqa: E402
+import prodfiles
 
 spec = importlib.util.spec_from_file_location("cft", os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "cf_track_resolution.py"))
@@ -42,9 +43,11 @@ cft = importlib.util.module_from_spec(spec)
 sys.modules["cft"] = cft
 spec.loader.exec_module(cft)
 
-DEFAULT_FILE = ("/ceph/submit/data/user/d/david_w/ZMass/cvh/"
-                "resolution_trackres_mugun_ul16_260830_m0/task_0000/"
-                "globalcor_resclosure_0.root")
+# a single-threaded production, so one stream file per task; single_file picks
+# it up without naming stream 0 and warns if there turn out to be several.
+DEFAULT_FILE = prodfiles.single_file(
+    "/ceph/submit/data/user/d/david_w/ZMass/cvh/"
+    "resolution_trackres_mugun_ul16_260830_m0/task_0000", "globalcor_resclosure")
 
 
 def branch_census(steps):

@@ -38,6 +38,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from wums import logging as _wums_logging                        # noqa: E402
+import prodfiles
 
 logger = _wums_logging.child_logger(__name__)
 
@@ -136,10 +137,8 @@ def load(tag, nfiles=0, subdir="hitres"):
     can also cut on the track (pT, eta, chi2).
     """
     import uproot
-    pat = f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_0.root"
-    fs = sorted(glob.glob(pat))
-    if nfiles:
-        fs = fs[:nfiles]
+    pat = f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_*.root"
+    fs = prodfiles.resolve(pat, nfiles)
     if not fs:
         raise SystemExit(f"no files matching {pat}")
     cols = {k: [] for k in HITBR}

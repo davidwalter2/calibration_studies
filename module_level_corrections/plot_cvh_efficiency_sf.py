@@ -57,8 +57,8 @@ def default_outpath(script_path):
 
 
 def load(tag):
-    files = sorted(glob.glob(f"{BASE}/night_{tag}_317c988483d/task_*/effstudy_miniaod_{tag}_0.root"))
-    files += [f"{BASE}/{tag}_317c988483d/task_{t}/effstudy_miniaod_{tag}_0.root" for t in ORIG_TASKS]
+    files = sorted(glob.glob(f"{BASE}/night_{tag}_317c988483d/task_*/effstudy_miniaod_{tag}_*.root"))
+    files += [f"{BASE}/{tag}_317c988483d/task_{t}/effstudy_miniaod_{tag}_*.root" for t in ORIG_TASKS]
     files = [f for f in files if os.path.exists(f)]
     d = uproot.concatenate(
         [f"{f}:tree" for f in files],

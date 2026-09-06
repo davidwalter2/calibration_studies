@@ -43,6 +43,18 @@ import sys
 
 import numpy as np
 import uproot
+import prodfiles
+
+
+def _gc(*parts, stem="globalcor"):
+    """The one stream file of a single-threaded smoke output.
+
+    The producers of these smokes pin `numberOfThreads=1`, so a task is one
+    file; `prodfiles.single_file` finds it without naming stream 0 and warns
+    loudly if the directory turns out to hold several streams, in which case
+    this comparison would silently be made on 1/N of the candidates.
+    """
+    return prodfiles.single_file(os.path.join(*parts), stem)
 
 SMOKE = "/work/submit/david_w/ZMass/scratch_smoke_260906"
 FDROOT = os.path.join(SMOKE, "fdvar260906")
@@ -160,7 +172,7 @@ def gate_B1(args):
     # column (their J columns are identically zero); for parmtype 15 the MEAN
     # loss part has to come off first, and it is exactly the baseline
     # (mean-only) run's gradient for the same event and the same global index.
-    meanf = os.path.join(args.defroot, "gun_tt", "globalcor_0.root")
+    meanf = _gc(args.defroot, "gun_tt")
     mean = {}
     if os.path.exists(meanf):
         a = load(meanf)
@@ -230,7 +242,7 @@ def _fd_report(label, an, anc, anl, fd, fdc, fdl):
 
 def gate_B(args):
     head("GATE B2 -- FD AT THE PROPAGATOR LEVEL (a real parameter change)")
-    nomf = os.path.join(args.fdroot, "nom", "globalcor_0.root")
+    nomf = _gc(args.fdroot, "nom")
     if not os.path.exists(nomf):
         log(f"  MISSING {nomf} -- run fd_variance_260906.sh first")
         return
@@ -293,8 +305,8 @@ def gate_B(args):
         base = os.path.basename(gdir)
         g = int(base.split("_")[1][1:])
         dtxt = base.split("_p")[1]
-        fp = os.path.join(gdir, "globalcor_0.root")
-        fm = os.path.join(args.fdroot, f"mat_g{g}_m{dtxt}", "globalcor_0.root")
+        fp = _gc(gdir)
+        fm = _gc(args.fdroot, f"mat_g{g}_m{dtxt}")
         if not (os.path.exists(fp) and os.path.exists(fm)):
             log(f"    group {g} delta {dtxt}: MISSING")
             continue
@@ -308,7 +320,7 @@ def gate_B(args):
                                          else []))
         _fd_report(f"  group {g:>3}  delta {dtxt}", *res)
 
-    tightf = os.path.join(args.fdroot, "tight_nom", "globalcor_0.root")
+    tightf = _gc(args.fdroot, "tight_nom")
     if os.path.exists(tightf):
         log()
         log("  the same, with edmConvergence=1e-10 nIters=40 on BOTH the "
@@ -326,9 +338,8 @@ def gate_B(args):
             base = os.path.basename(gdir)
             g = int(base.split("_")[1][1:])
             dtxt = base.split("_p")[1]
-            fp = os.path.join(gdir, "globalcor_0.root")
-            fm = os.path.join(args.fdroot, f"tight_g{g}_m{dtxt}",
-                              "globalcor_0.root")
+            fp = _gc(gdir)
+            fm = _gc(args.fdroot, f"tight_g{g}_m{dtxt}")
             if not (os.path.exists(fp) and os.path.exists(fm)):
                 continue
             gi = grpid.get(g)
@@ -344,8 +355,8 @@ def gate_B(args):
         "(CVH_MS_SCALE)")
     for pdir in sorted(glob.glob(os.path.join(args.fdroot, "ms_p*"))):
         dtxt = os.path.basename(pdir)[4:]
-        fp = os.path.join(pdir, "globalcor_0.root")
-        fm = os.path.join(args.fdroot, "ms_m" + dtxt, "globalcor_0.root")
+        fp = _gc(pdir)
+        fm = _gc(args.fdroot, "ms_m" + dtxt)
         if not (os.path.exists(fp) and os.path.exists(fm)):
             log(f"    delta {dtxt}: MISSING")
             continue
@@ -357,8 +368,8 @@ def gate_B(args):
 # ---------------------------------------------------------------- gate C
 def gate_C(args):
     head("GATE C -- SUM RULE  sum_g d/dk_g == d/d(MS+ioni scale)")
-    nomf = os.path.join(args.fdroot, "nom", "globalcor_0.root")
-    deff = os.path.join(args.defroot, "gun_tt", "globalcor_0.root")
+    nomf = _gc(args.fdroot, "nom")
+    deff = _gc(args.defroot, "gun_tt")
     if not (os.path.exists(nomf) and os.path.exists(deff)):
         log("  MISSING inputs")
         return
@@ -422,8 +433,8 @@ def gate_C(args):
 # ---------------------------------------------------------------- gate D
 def gate_D(args):
     head("GATE D -- TWO-TRACK vs SINGLE-TRACK log-det gradient (parmtype 10)")
-    ttf = os.path.join(args.fdroot, "nom", "globalcor_0.root")
-    stf = os.path.join(args.stroot, "globalcor_resclosure_0.root")
+    ttf = _gc(args.fdroot, "nom")
+    stf = _gc(args.stroot, stem="globalcor_resclosure")
     if not (os.path.exists(ttf) and os.path.exists(stf)):
         log(f"  MISSING: tt={os.path.exists(ttf)} st={os.path.exists(stf)}")
         return
@@ -503,9 +514,9 @@ def gate_D(args):
 def gate_E(args):
     head("GATE E -- POSITIVE SEMI-DEFINITENESS of the exported Hessian")
     for tag, fn in (("log-det on (families 10,11,15)",
-                     os.path.join(args.fdroot, "nom", "globalcor_0.root")),
+                     _gc(args.fdroot, "nom")),
                     ("baseline (mean only)",
-                     os.path.join(args.defroot, "gun_tt", "globalcor_0.root"))):
+                     _gc(args.defroot, "gun_tt"))):
         if not os.path.exists(fn):
             log(f"  {tag}: MISSING")
             continue
@@ -559,7 +570,7 @@ def gate_F(args):
         f"{'delta':>9}")
     base = None
     for tag in ("off", "var15", "varall"):
-        fn = os.path.join(args.factored, tag, "globalcor_0.root")
+        fn = _gc(args.factored, tag)
         if not os.path.exists(fn):
             log(f"  {tag:<8}  MISSING {fn}")
             continue

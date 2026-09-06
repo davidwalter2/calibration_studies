@@ -32,6 +32,7 @@ import sys
 
 import numpy as np
 from scipy.special import ndtr, ndtri
+import prodfiles
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -404,7 +405,7 @@ def load_scan(nfiles=0, cache=""):
         return out, scales
     data = {}
     for tag, s in CONFIGS:
-        fs = sorted(glob.glob(f"{CEPH}/resolution_trackres_{tag}/task_*/globalcor_0.root"))
+        fs = prodfiles.resolve(f"{CEPH}/resolution_trackres_{tag}/task_*/globalcor_*.root")
         if nfiles:
             fs = fs[:nfiles]
         cols = {k: [] for k in BRANCHES}

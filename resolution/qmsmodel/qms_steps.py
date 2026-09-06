@@ -61,6 +61,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import cf_ms_exact as MSX          # noqa: E402  (gshape, moliere_params constants)
 import cf_track_resolution as CTR  # noqa: E402  (the PRODUCTION ms_step_exponent)
 import groups as G                 # noqa: E402  (column layout, read_groups)
+_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
+import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
 
 # msmoliv columns (groups.py)
 C_EFFZ, C_EFFA, C_XG, C_P, C_BETA, C_THP2, C_DOX0, C_ZZP1, C_LNSW, C_GRP = range(10)
@@ -262,9 +266,9 @@ def main():
     ap.add_argument("--sample", type=int, default=4000)
     args = ap.parse_args()
 
-    files = sorted(glob.glob(args.files))
-    if args.max_files:
-        files = files[:args.max_files]
+    # --max-files caps TASKS (a multi-stream task is N files)
+    files = prodfiles.resolve(args.files, args.max_files,
+                              logger=lambda m: print(m, flush=True))
     print(f"{len(files)} files", flush=True)
     t0 = time.time()
     tot = None

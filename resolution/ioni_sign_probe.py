@@ -38,18 +38,19 @@ import glob
 
 import numpy as np
 import uproot
+import prodfiles
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--files", default="/ceph/submit/data/user/d/david_w/ZMass/"
                    "cvh/resolution_trackres_jpsigun_ul16_260902_m0/"
-                   "task_000*/globalcor_0.root")
+                   "task_000*/globalcor_*.root")
     p.add_argument("--ntasks", type=int, default=3)
     p.add_argument("--ncand", type=int, default=4000)
     a = p.parse_args()
 
-    files = sorted(glob.glob(a.files))[:a.ntasks]
+    files = prodfiles.resolve(a.files, a.ntasks, logger=print)
     print(f"{len(files)} files")
     npos = nneg = nzero = 0
     ncand = nsplit = nsame = nodd = 0

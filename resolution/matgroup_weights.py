@@ -37,6 +37,7 @@ import re
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 RULES = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/"
@@ -71,9 +72,7 @@ def group_names():
 
 
 def load(pattern, ntasks):
-    fs = sorted(glob.glob(pattern))
-    fs = [f for f in fs if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))]
-    fs = fs[:ntasks]
+    fs = prodfiles.resolve(pattern, ntasks)
     if not fs:
         return None
     cols = {k: [] for k in BRANCHES}
@@ -128,13 +127,14 @@ def main():
     args = parse_args()
     names = group_names()
 
-    nom = load(f"{CEPH}/resolution_transmission_{args.nom_tag}_s1000/task_*/globalcor_0.root",
+    nom = load(f"{CEPH}/resolution_transmission_{args.nom_tag}_s1000/task_*/globalcor_*.root",
                args.ntasks)
     if nom is None:
         raise SystemExit("no nominal sample")
     print(f"nominal: n={len(nom['key'])} candidates ({args.ntasks} tasks)")
 
     if args.mode == "group":
+        # globs of PRODUCTION DIRECTORIES, not of files
         dirs = sorted(glob.glob(f"{CEPH}/resolution_matgroup_{args.tag}_g??"))
         keyof = lambda d: int(d[-2:])                     # noqa: E731
     else:
@@ -154,7 +154,7 @@ def main():
         [nom["Muplus_dEref"], nom["Muminus_dEref"]]))
     for dn in dirs:
         gid = keyof(dn)
-        pr = load(f"{dn}/task_*/globalcor_0.root", args.ntasks)
+        pr = load(f"{dn}/task_*/globalcor_*.root", args.ntasks)
         if pr is None:
             print(f"{gid:4d} {names.get(gid,'?'):>18}   [no complete tasks]")
             continue

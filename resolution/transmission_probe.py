@@ -36,6 +36,7 @@ import os
 
 import numpy as np
 import uproot
+import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 MMU = 0.1056583745
@@ -64,10 +65,8 @@ def parse_args():
 
 def load(tag, scale, nfiles):
     stag = f"{int(round(scale * 1000)):04d}"
-    fs = sorted(glob.glob(f"{CEPH}/resolution_transmission_{tag}_s{stag}/task_*/globalcor_0.root"))
-    fs = [f for f in fs if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))]
-    if nfiles:
-        fs = fs[:nfiles]
+    fs = prodfiles.resolve(
+        f"{CEPH}/resolution_transmission_{tag}_s{stag}/task_*/globalcor_*.root", nfiles)
     if not fs:
         return None
     cols = {k: [] for k in BRANCHES}
@@ -121,6 +120,7 @@ def main():
     rng = np.random.default_rng(11)
 
     scales = []
+    # a glob of PRODUCTION DIRECTORIES, not of files
     for sdir in sorted(glob.glob(f"{CEPH}/resolution_transmission_{args.tag}_s????")):
         scales.append(int(sdir[-4:]) / 1000.0)
     scales = sorted(scales)

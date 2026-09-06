@@ -26,8 +26,8 @@ def load_all():
                 {k[4:]: z[k] for k in z if k.startswith("bug_")})
     out = {}
     for tag in ("fix", "bug"):
-        files = sorted(glob.glob(f"{BASE}/night_{tag}_317c988483d/task_*/effstudy_miniaod_{tag}_0.root"))
-        files += [f"{BASE}/{tag}_317c988483d/task_{t}/effstudy_miniaod_{tag}_0.root" for t in ORIG]
+        files = sorted(glob.glob(f"{BASE}/night_{tag}_317c988483d/task_*/effstudy_miniaod_{tag}_*.root"))
+        files += [f"{BASE}/{tag}_317c988483d/task_{t}/effstudy_miniaod_{tag}_*.root" for t in ORIG]
         files = [f for f in files if os.path.exists(f)]
         d = uproot.concatenate([f"{f}:tree" for f in files],
                                ["trackPt", "trackEta", "trackPhi", "trackCharge"], library="np")

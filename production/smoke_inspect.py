@@ -18,7 +18,7 @@ always the same and always worth answering before 1000 tasks go out:
     between two files (`--compare other.root`).
 
 usage:
-    python smoke_inspect.py <globalcor_0.root> [--compare <other.root>] [--top N]
+    python smoke_inspect.py <one globalcor_*.root> [--compare <other.root>] [--top N]
 """
 import argparse
 import collections

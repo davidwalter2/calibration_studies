@@ -80,6 +80,6 @@ eval "$(scramv1 runtime -sh)"
 
 nl -ba "$CHUNKLIST" | xargs -P "$NWORKERS" -L1 bash -c 'run_chunk "$0" "$1"'
 
-NOUT=$(find "$OUTBASE" -name "globalcor_jpsix_${PARTICLE}_0.root" | wc -l)
+NOUT=$(find "$OUTBASE" -name ".done" | wc -l)
 echo "[run] done: $NOUT / $NCHUNK chunk outputs in $OUTBASE"
 [ -f "$OUTBASE/logs/failures.txt" ] && cat "$OUTBASE/logs/failures.txt" || true

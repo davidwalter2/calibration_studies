@@ -19,6 +19,7 @@
 import argparse, glob, os, datetime
 import numpy as np
 import uproot
+import prodfiles
 
 SENT = -98.0
 SAMPLES = {"nominal": "hitres_mugun_lowpt",
@@ -36,7 +37,7 @@ def rob(x, f=0.68):
 
 
 def load(tag, nfiles, branches):
-    fs = sorted(glob.glob(f"{CEPH}/{tag}/task_*/globalcor_resclosure_0.root"))[:nfiles]
+    fs = prodfiles.resolve(f"{CEPH}/{tag}/task_*/globalcor_resclosure_*.root", nfiles)
     out = {b: [] for b in branches}
     nread = 0
     for fn in fs:

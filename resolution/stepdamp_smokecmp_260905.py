@@ -10,6 +10,7 @@ import sys
 
 import numpy as np
 import uproot
+import prodfiles
 
 RE_SUM = re.compile(r"(\w+(?:\[\w+\])?)=([-\d.e+]+)")
 
@@ -86,12 +87,15 @@ def st_stats(fn):
 
 def main():
     dirs = sys.argv[1:]
-    for kind, fname, key, stat in (
-            ("tt", "globalcor_0.root", "ResidualGlobalCorrectionMakerTwoTrackG4e fit summary", tt_stats),
-            ("st", "globalcor_resclosure_0.root", "ResidualGlobalCorrectionMakerG4e fit summary", st_stats)):
+    # a STEM per kind, not a file name: these smokes run numberOfThreads=1, so
+    # single_file finds the one stream without naming index 0 (and warns if the
+    # directory holds several, which would compare 1/N of each smoke).
+    for kind, stem, key, stat in (
+            ("tt", "globalcor", "ResidualGlobalCorrectionMakerTwoTrackG4e fit summary", tt_stats),
+            ("st", "globalcor_resclosure", "ResidualGlobalCorrectionMakerG4e fit summary", st_stats)):
         rows = []
         for d in dirs:
-            fn = os.path.join(d, kind, fname)
+            fn = prodfiles.single_file(os.path.join(d, kind), stem)
             log = os.path.join(d, kind, "local.log")
             if not os.path.exists(fn):
                 continue

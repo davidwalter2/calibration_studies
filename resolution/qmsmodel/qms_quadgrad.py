@@ -31,6 +31,10 @@ from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 import uproot
+_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
+import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
 
 _TRIU = {}
 
@@ -174,9 +178,9 @@ def main():
                          "max(dE_ref/p) below each of these")
     args = ap.parse_args()
 
-    files = sorted(glob.glob(args.files))
-    if args.max_files:
-        files = files[:args.max_files]
+    # --max-files caps TASKS (a multi-stream task is N files)
+    files = prodfiles.resolve(args.files, args.max_files,
+                              logger=lambda m: print(m, flush=True))
     cat = build_catalog(files[0], args.parmtypes)
     keepf = np.where(cat["parmtype"] == args.watch_parmtype)[0]
     print(f"{len(files)} files, nfit={len(cat['fitidx'])}, "
