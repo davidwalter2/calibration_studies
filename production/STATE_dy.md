@@ -331,8 +331,13 @@ default is True and would change `resinfv`/`reseigidx`/`resinfvarv`). It parks
 the crashed remains in `task_XXXX/failed_260906/` before resubmitting. The
 recovered tasks carry three extra always-on branches the rest of the set does
 not (`Jpsi_covrefmom`, `Jpsigenpre_*`, `Mu*_maxfracloss`); nothing pools on
-them. Keep running it until the original array drains — new 134s appear until
-then.
+them.
+
+`watch_dy_recover.sh` loops that every 30 min until the original array drains —
+new 134s keep appearing until it does, because the ~240 chunks still queued in
+`6406978` all run the unfixed `.so`. It cannot double-submit (the resume skips
+anything queued, running, or with a sentinel). Stop it with
+`./watch_dy_recover.sh --stop`; log at `~/dy_recover_watch.log`.
 
 ## Notes
 
