@@ -47,12 +47,11 @@ Caveats
 Usage::
 
     python extract.py \\
-      --files '/ceph/.../resolution_trackres_btojpsix_v3_260904f_m0/task_*/globalcor_0.root' \\
+      --files '/ceph/.../resolution_trackres_btojpsix_v3_260904f_m0/task_*/globalcor_*.root' \\
       --parmtypes 14 15 -j 24 -o runs/globalfit_btojpsix_260904f.npz
 """
 
 import argparse
-import glob
 import os
 import sys
 import time
@@ -64,6 +63,8 @@ import uproot
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if os.path.dirname(_HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(_HERE))
+
+import prodfiles  # noqa: E402  (needs the parent directory on sys.path)
 
 # The CF primitives live in the parent directory and are expensive to import
 # (cf_ms_exact builds its electron tables at import time: ~6 min), so they are
@@ -106,8 +107,21 @@ def parse_args():
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    p.add_argument("--files", required=True, help="glob of globalcor_*.root files")
-    p.add_argument("--ntasks", type=int, default=0, help="use only the first N files")
+    p.add_argument(
+        "--files",
+        required=True,
+        help="glob of globalcor_*.root files, a production directory, or "
+        "@list.txt (see prodfiles.resolve). A glob naming stream 0 is widened "
+        "to every stream of the task.",
+    )
+    p.add_argument(
+        "--ntasks",
+        type=int,
+        default=0,
+        help="use only the first N TASKS (0 = all). A task of a multi-stream "
+        "production is globalcor_0..N-1.root and all of its streams are read; "
+        "capping the FILE list instead would take 1/N of the intended tasks.",
+    )
     p.add_argument(
         "--parmtypes",
         type=int,
@@ -498,15 +512,18 @@ def process_file(fname):
 
 def main():
     args = parse_args()
-    files = sorted(glob.glob(args.files))
+    files = prodfiles.resolve(args.files, args.ntasks, logger=log)
     if not files:
         sys.exit(f"no files match {args.files}")
-    if args.ntasks:
-        files = files[: args.ntasks]
-    log(f"{len(files)} files, {args.jobs} workers, parmtypes {args.parmtypes}")
+    st = prodfiles.last_stats()
+    log(f"{st.get('ntasks_used', len(files))} tasks / {len(files)} files, "
+        f"{args.jobs} workers, parmtypes {args.parmtypes}")
 
     if not args.no_mass:
         load_cf_primitives()
+    # ONE runtree. Every stream file of every task carries a byte-identical
+    # copy of the 13 MB parameter map, so the catalog is built from a single
+    # file -- `files[0]` is the first existing stream of the first usable task.
     cat = build_catalog(files[0], args.parmtypes)
     nfit = len(cat["fitidx"])
     counts = {

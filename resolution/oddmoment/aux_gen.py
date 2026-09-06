@@ -37,6 +37,12 @@ import sys
 import numpy as np
 import uproot
 
+_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
+
+import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
+
 MJPSI = 3.0969
 BR = ["Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass",
       "Jpsigen_pt", "Jpsigen_eta", "Jpsigen_phi",
@@ -101,7 +107,7 @@ def main():
     p.add_argument("--nproc", type=int, default=32)
     p.add_argument("--ntasks", type=int, default=100000)
     a = p.parse_args()
-    files = sorted(glob.glob(a.files))[: a.ntasks]
+    files = prodfiles.resolve(a.files, a.ntasks, logger=lambda m: print(m, flush=True))
     print(f"{len(files)} files", flush=True)
     from multiprocessing import Pool
     with Pool(a.nproc) as pool:

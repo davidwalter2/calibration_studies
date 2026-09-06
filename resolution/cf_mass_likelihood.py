@@ -61,6 +61,7 @@ from cf_track_resolution import ms_step_exponent, ioni_step_exponent, ioni_sq2, 
 import cf_brems_exact
 import pubhtml
 import ratiopanel
+import prodfiles
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -323,7 +324,7 @@ def build_pairs(args, outdir):
     """Candidate cache in the cf_track_resolution.closure format:
     z = (m_reco - m_gen)/sigma_pred, sigma = sigma_pred [GeV], plus the
     exponent components on TG."""
-    files = sorted(glob.glob(args.files))[:args.ntasks]
+    files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files")
     zs, sigs, mgen, vgf = [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l = [], [], []
@@ -427,7 +428,7 @@ def build_pairs_tt(args, outdir):
     weights per entry, resinfvarv their variance contributions, and
     resinfcov the material share of Jpsi_sigmamass^2 (hits+beamspot are
     the Gaussian remainder). Output cache matches build_pairs exactly."""
-    files = sorted(glob.glob(args.files))[:args.ntasks]
+    files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files (TwoTrack per-candidate trees)")
     zs, sigs, mgen, vgf = [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l = [], [], []
@@ -579,7 +580,7 @@ def build_pairs_tt(args, outdir):
 
 
 def build_kernel(args, outdir):
-    files = sorted(glob.glob(args.files))[:args.ntasks]
+    files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files")
     masses = []
     vtxtol = args.vtx_tol if args.vtx_tol > 0 else None

@@ -38,6 +38,7 @@ import numpy as np
 import uproot
 
 from wums import logging, output_tools, plot_tools
+import prodfiles
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -68,7 +69,7 @@ def main():
         f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_masslik/")
     os.makedirs(outdir, exist_ok=True)
 
-    files = sorted(glob.glob(args.files))[:args.ntasks]
+    files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files (TwoTrack per-candidate trees)")
     masses, ntot, nunmatched = [], 0, 0
     for fn in files:

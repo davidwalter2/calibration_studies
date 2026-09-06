@@ -47,6 +47,7 @@ from functions import radiator_kernel  # noqa: E402
 
 from wums import logging, output_tools, plot_tools  # noqa: E402
 from cf_mass_likelihood import MJPSI, pair_mass  # noqa: E402
+import prodfiles
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -73,7 +74,7 @@ def parse_args():
 
 def collect(args):
     """Return (dm_all, dm_true) for gen dimuon pairs in the J/psi window."""
-    files = sorted(glob.glob(args.files))[:args.ntasks]
+    files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files")
     dm_all, dm_true, mult = [], [], []
     for fn in files:

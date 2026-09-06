@@ -30,6 +30,7 @@ import numpy as np
 import uproot
 
 from wums import logging, output_tools, plot_tools
+import prodfiles
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -76,7 +77,7 @@ def main():
         f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_transmission/")
     os.makedirs(outdir, exist_ok=True)
 
-    files = sorted(glob.glob(args.files))[:args.ntasks]
+    files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files")
     cols = {k: [] for k in ("dqop", "dE", "pgen", "eta", "q")}
     for fn in files:

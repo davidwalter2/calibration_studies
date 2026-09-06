@@ -127,6 +127,7 @@ import cf_delta_ray
 import cf_brems_exact
 import pubhtml
 import ratiopanel
+import prodfiles
 
 # Discrete delta-ray (knock-on) transverse recoil, see cf_delta_ray.  Stored as
 # the NET change to the MS block: S_delta - carve*S_ms, so it is exactly zero
@@ -1341,7 +1342,7 @@ def extract(args):
     components on TG (Gaussian variance share Vg_frac; MS real exponent;
     ionization complex exponent), stored separately so per-family k
     scalings can be applied at closure time."""
-    files = sorted(glob.glob(args.files))[:args.ntasks]
+    files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files")
     zs, sigs, etas, phis, chgs, vgf = [], [], [], [], [], []
     # ragged per-block store: class index, v_b/refCov00, and the count per track

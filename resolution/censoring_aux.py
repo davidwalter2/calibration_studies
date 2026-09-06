@@ -29,6 +29,7 @@ usage:
 import argparse, glob, os, sys
 import numpy as np
 import uproot
+import prodfiles
 
 MJPSI = 3.0969
 BR = ["event", "Jpsi_mass", "Jpsigen_mass", "Jpsi_sigmamass", "Jpsikin_mass",
@@ -71,7 +72,7 @@ def main():
     p.add_argument("--nproc", type=int, default=24)
     p.add_argument("--ntasks", type=int, default=100000)
     a = p.parse_args()
-    files = sorted(glob.glob(a.files))[: a.ntasks]
+    files = prodfiles.resolve(a.files, a.ntasks, logger=print)
     print(f"{len(files)} files", flush=True)
     from multiprocessing import Pool
     with Pool(a.nproc) as pool:

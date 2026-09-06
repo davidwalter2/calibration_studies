@@ -34,6 +34,7 @@ import numpy as np
 import uproot
 
 from wums import logging
+import prodfiles
 
 logger = logging.child_logger(__name__)
 
@@ -51,7 +52,7 @@ def main():
     a = ap.parse_args()
     logging.setup_logger(__file__, 3, False)
 
-    fs = sorted(glob.glob(a.files))[:a.ntasks]
+    fs = prodfiles.resolve(a.files, a.ntasks, logger=logger.info)
     logger.info(f"{len(fs)} files")
 
     rt = uproot.open(fs[0])["runtree"].arrays(

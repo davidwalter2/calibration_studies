@@ -32,11 +32,11 @@ usage:
   source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
 
   # single-track (q/p functional) -> the cf_track_resolution --extract cache
-  python3 cf_inmaker.py extract --files '<glob>/globalcor_resclosure_0.root' \
+  python3 cf_inmaker.py extract --files '<prod>/task_*/globalcor_resclosure_*.root' \
       --cache runs/cf_trackres_<tag>.npz
 
   # two-track (mass functional) -> the cf_mass_likelihood --pairs-tt cache
-  python3 cf_inmaker.py pairs --files '<glob>/globalcor_0.root' \
+  python3 cf_inmaker.py pairs --files '<prod>/task_*/globalcor_*.root' \
       --cache runs/cf_masspairs_<tag>.npz
 
   # run the reference closure on a 64-point cache
@@ -50,7 +50,6 @@ usage:
   python3 cf_inmaker.py compare --cache a.npz --other b.npz
 """
 import argparse
-import glob as globmod
 import os
 import sys
 
@@ -60,6 +59,8 @@ from wums import logging
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+
+import prodfiles  # noqa: E402  (needs HERE on sys.path)
 
 logger = logging.child_logger(__name__)
 
@@ -113,7 +114,9 @@ def _stack(a, key, n):
 
 # --------------------------------------------------------------------------
 def read_files(args, mass):
-    files = sorted(globmod.glob(args.files))[:args.ntasks]
+    # --ntasks caps TASKS, not files: a task of a multi-stream production is
+    # `globalcor_0..N-1.root`, and every stream of a usable task is read.
+    files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     if not files:
         raise SystemExit(f"no files match {args.files}")
     logger.info(f"{len(files)} files ({'two-track/mass' if mass else 'single-track/qop'})")
@@ -238,7 +241,7 @@ def read_files(args, mass):
                 else:
                     cols.setdefault("hitcnt", []).append(0)
             nsel += len(idx)
-        logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} "
+        logger.info(f"{'/'.join(fn.split('/')[-2:])}: cumulative {nsel} "
                     f"({'candidates' if mass else 'tracks'}), drop {ndrop}")
         if args.max_tracks and nsel >= args.max_tracks:
             break
@@ -427,8 +430,14 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("mode", choices=["extract", "pairs"],
                    help="extract = single-track q/p cache; pairs = two-track mass cache")
-    p.add_argument("--files", required=True)
-    p.add_argument("--ntasks", type=int, default=1000)
+    p.add_argument("--files", required=True,
+                   help="a glob of stream files, a production directory, or "
+                        "@list.txt (see prodfiles.resolve). A glob naming "
+                        "stream 0 is widened to every stream of the task.")
+    p.add_argument("--ntasks", type=int, default=1000,
+                   help="cap on TASKS, not files; 0 = every usable task. The "
+                        "default is unchanged, so a single-stream production "
+                        "reads exactly what it read before.")
     p.add_argument("--max-tracks", type=int, default=0,
                    help="0 = no limit")
     p.add_argument("--cache", required=True)

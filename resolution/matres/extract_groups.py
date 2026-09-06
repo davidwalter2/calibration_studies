@@ -69,6 +69,7 @@ for _p in (_HERE, _PARENT):
         sys.path.insert(0, _p)
 
 import groups as G  # noqa: E402
+import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
 
 # ---------------------------------------------------------------------------
 # CF primitives -- imported lazily (cf_ms_exact builds its electron tables at
@@ -595,11 +596,11 @@ def build_catalog(fname, parmtypes):
 
 def main():
     args = parse_args()
-    files = sorted(glob.glob(args.files))
-    files = [x for x in files
-             if os.path.exists(os.path.join(os.path.dirname(x), ".complete"))] or files
-    if args.ntasks:
-        files = files[:args.ntasks]
+    # prodfiles applies the .complete filter (and the empty/missing-stream
+    # checks the bare sentinel test cannot make) per TASK, and --ntasks caps
+    # TASKS: a task of a multi-stream production is globalcor_0..N-1.root and
+    # all of its streams are read.
+    files = prodfiles.resolve(args.files, args.ntasks, logger=lambda m: print(m, flush=True))
     if not files:
         sys.exit(f"no files match {args.files}")
     print(f"{len(files)} files", flush=True)

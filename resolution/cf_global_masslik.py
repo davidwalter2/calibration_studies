@@ -42,6 +42,7 @@ import uproot
 from wums import logging, output_tools
 from cf_mass_likelihood import (MJPSI, TG, collect_pairs, mass_jacobian,
                                 leg_exponents, FBKG)
+import prodfiles
 
 logger = logging.child_logger(__name__)
 
@@ -70,7 +71,7 @@ def parse_args():
 
 
 def collect(args):
-    files = sorted(glob.glob(args.files))[:args.ntasks]
+    files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files")
     frun = uproot.open(files[0])
     pt = frun["runtree"]["parmtype"].array(library="np")
