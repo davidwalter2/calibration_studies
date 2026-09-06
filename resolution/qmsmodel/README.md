@@ -5,10 +5,11 @@ Reproduce (all offline; ~25 min on 24 cores):
 ```bash
 source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 CVH_IONI_KOKOULIN=0
-F='/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_jpsigun_ul16_260905d_m0/task_*/globalcor_0.root'
+F='/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_jpsigun_ul16_260905d_m0/task_*/globalcor_*.root'
 
 # 1. Q(Rossi) vs Moliere, per material group, from the msmoliv step records
 python3 qms_steps.py    --files "$F" --max-files 24 -j 24 -o tmp/gun_qms_24f.npz
+#   --max-files caps TASKS (a numberOfThreads=N task is N stream files)
 
 # 2. the quadratic term's per-candidate gradient / Hessian diagonal
 python3 qms_quadgrad.py --files "$F" -j 6                      -o tmp/gun_quadgrad.npz

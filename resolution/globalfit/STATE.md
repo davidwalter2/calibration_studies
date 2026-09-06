@@ -121,6 +121,17 @@ Two trees are touched:
 * Production used: `resolution_trackres_btojpsix_v3_260904f_m0`
   (48 tasks x `globalcor_0.root`, two-track, `hesspackedv`, nglobal 126452,
   parmtype 14 x50 + 15 x42, both dense in every candidate's `globalidxv`).
+* **Multi-stream inputs (from 2026-09-06).** A `numberOfThreads=N` production
+  writes `task_XXXX/globalcor_0..N-1.root`; `extract.py` lists them through
+  `resolution/prodfiles.py`, so `--files` may name stream 0, every stream, the
+  production directory or an `@list.txt`, and **`--ntasks` caps TASKS, not
+  files**. The `runtree` catalog is still built from ONE file (`files[0]`, the
+  first existing stream of the first usable task) -- every stream carries a
+  byte-identical copy of the 13 MB parameter map and concatenating them would
+  duplicate it N times. Validated on 20 tasks of `dymc_8p5M_260906_v2`: G and
+  the factored Hessian (with the `hessvar*` block) agree with the per-file sum
+  to 0, and on the single-stream `jpsimc_20M_260905` the output is identical to
+  the pre-change reader.
 
 ### The "1e2-1e3 unit corrections with 300-1000 sigma pulls" — RESOLVED
 
@@ -292,7 +303,7 @@ cd /work/submit/david_w/ZMass/calibration_studies/resolution/globalfit
 ```bash
 # quadratic-only, physical basis, outliers trimmed
 source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
-python3 extract.py --files '<prod>/task_*/globalcor_0.root' --parmtypes 14 15     --no-mass --max-chi2-ndof 3 -j 10 -o $RUNS/extract_quadonly.npz     # ~140 s / 48 files
+python3 extract.py --files '<prod>/task_*/globalcor_*.root' --parmtypes 14 15     --no-mass --max-chi2-ndof 3 -j 10 -o $RUNS/extract_quadonly.npz     # ~140 s / 48 files
 python3 diagnose_quadratic.py -i $RUNS/extract_quadonly.npz --groups $GRP
 python3 solve_reference.py -i $RUNS/extract_quadonly.npz --parmtypes 14     --groups $GRP --whiten -o $RUNS/reference.npz
 deactivate

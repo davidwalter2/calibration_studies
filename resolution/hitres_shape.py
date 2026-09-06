@@ -38,7 +38,7 @@ BR = ["dxrecsim", "dxerr", "hitDetId", "hitPitch", "hitUProj", "clusterSizeX",
 
 
 def load(tag, nfiles, subdir="hitres2"):
-    fs = prodfiles.resolve(f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_0.root", nfiles)
+    fs = prodfiles.resolve(f"{CEPH}/{subdir}_{tag}/task_*/globalcor_resclosure_*.root", nfiles)
     cols = {b: [] for b in BR}
     for fn in fs:
         a = uproot.open(fn)["tree"].arrays(BR, library="np")

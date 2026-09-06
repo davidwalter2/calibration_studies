@@ -35,8 +35,8 @@ COMMON="nEvents=-1 numberOfThreads=1 doRes=True fillGrads=True scalarPot3DInitFi
 run_task() {
   local variant=$1 alphaarg=$2 idx=$3
   local outdir="$OUTROOT/resolution_closure_${OUTTAG}_${variant}_${HASH}/task_$(printf '%04d' "$idx")"
-  local outfile="$outdir/globalcor_resclosure_0.root"
-  if [[ -s "$outfile" ]]; then
+  # ANY non-empty stream the task wrote counts as output, not `_0` by name
+  if [[ -n "$(find "$outdir" -name 'globalcor_resclosure_*.root' -size +0 -print -quit 2>/dev/null)" ]]; then
     echo "[skip] $variant task $idx (output exists)"
     return 0
   fi

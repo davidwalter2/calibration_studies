@@ -38,7 +38,10 @@ scalarPot3DInitFile=$INIT ${EXTRA:-}"
 run_task() {
   local idx=$1
   local outdir="$OUTROOT/${OUTFAM:-hitres}_${OUTTAG}/task_$(printf "%04d" "$idx")"
-  local outfile="$outdir/globalcor_resclosure_0.root"
+  # every stream the task wrote, not `_0` by name: these runs pin
+  # numberOfThreads=1 today, but a leftover from a multithreaded run must
+  # be wiped whole, not down to streams 1..N-1.
+  local outglob="$outdir/globalcor_resclosure_*.root"
   # Resume on a COMPLETION SENTINEL, never on the .root: cmsRun creates its
   # output at START, so a killed task leaves a non-empty TRUNCATED file and a
   # `-s` test would skip it forever (the trap documented in
@@ -49,7 +52,7 @@ run_task() {
   input=$(sed -n "$((idx + 1))p" "$FILELIST")
   [[ -n "$input" ]] || { echo "[err] empty filelist line for task $idx"; return 1; }
   mkdir -p "$outdir"
-  rm -f "$outfile"
+  rm -f $outglob
   echo "[run ] $OUTTAG task $idx"
   # shellcheck disable=SC2086
   if "$RUN_ONE" "$CFG" "$input" "$outdir" $COMMON > "$outdir/local.log" 2>&1; then

@@ -384,10 +384,9 @@ threads and +13.4 % at 8; the candidate tree itself is flat at ~70 kB/candidate.
 
 **Before any multithreaded production is consumed**, the readers that hard-code
 `task_*/globalcor_0.root` must move to the `globalcor_*.root` glob or they take
-1/N of the statistics: `resolution/masspairs_parallel.sh`,
-`resolution/jpsi_mass_closure.py`, `resolution/jpsi_bias_decompose.py`,
-`resolution/runs/matres/run_*.sh`. And a reader must take ONE stream's
-`runtree`, never the concatenation.
+1/N of the statistics, and a reader must take ONE stream's `runtree`, never the
+concatenation. **Done on 2026-09-06** -- see sec. 10, which is now a record of
+the change rather than a to-do list.
 
 ## 9. HTCondor is a grid submission, not a second cluster
 
@@ -437,101 +436,123 @@ but only one of them is the sample the next fit should use.
 
 ---
 
-## 10. Readers that hard-code `globalcor_0.root` (audit 2026-09-06)
+## 10. Reading a multi-stream production (done 2026-09-06)
 
-Both v2 productions run `numberOfThreads=4`, so a task is now **four** files,
-`globalcor_0..3.root`. A reader that names stream 0 takes **1/4 of the
-candidates** and says nothing. Full audit of `calibration_studies/`:
+Both v2 productions run `numberOfThreads=4`, so a task is **four** files,
+`task_XXXX/globalcor_0..3.root`. An event never splits across streams and the
+candidate content is bit-identical to a single-thread run after sorting on
+(run, lumi, event), so the four files simply concatenate -- but a reader that
+names stream 0 takes **1/4 of the candidates** and says nothing.
 
-| class | count |
-|---|---|
-| **BROKEN-AT-N** (names stream 0 for the CANDIDATE tree) | ~134 lines in 78 files |
-| **RUNTREE-ONLY** (names stream 0 but reads only the parameter map — **correct, do not change**) | 33 lines in 29 files |
-| SAFE-GLOB (already `globalcor_*.root`) | ~45 lines in 32 files |
-| GLOB-BUT-RUNTREE-DUP | 0 unintentional |
+The audit found ~134 such lines in 78 files, against 33 lines in 29 files that
+name stream 0 for the `runtree` only (correct: every stream carries a
+byte-identical copy of the 13 MB parameter map, so it must be read once per
+run and never concatenated). All of it is fixed. **There is no
+`globalcor_0.root` left in any `.py` in `calibration_studies/`**, and the
+handful of remaining ones in `.sh` / `.md` are historical statements about
+single-threaded productions, not file listings.
 
-Nothing in `CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/` needs changing
-— it only writes. `lineshape/` has no CVH-output reference at all. All of
-`pixelhits/` and `global_corrections/` already glob correctly.
+### One helper: `resolution/prodfiles.py` (+ `prodfiles.sh`)
 
-### TWO ORDERING HAZARDS — read before touching a single reader
+```python
+task_dirs(base)                        # sorted task directories
+stream_files(task_dir)                 # that task's streams, in STREAM order
+task_complete(task_dir) / task_reason  # usable?  or why not
+runtree_file(task_dir)                 # ONE file: the FIRST EXISTING stream
+single_file(task_dir)                  # the one stream of a 1-thread output,
+                                       #   warning loudly if there are several
+iter_files(base, max_tasks)            # every stream of the first N usable tasks
+resolve(spec, max_tasks)               # DROP-IN for sorted(glob(spec))[:ntasks]
+last_stats()                           # ntasks_used / skipped / why
+```
 
-1. **`--ntasks` is a FILE cap, not a task cap.** `cf_inmaker.py:116`,
-   `globalfit/extract.py:501-505`, `matres/extract_groups.py:598-602`,
-   `cf_mass_likelihood.py`, `cf_masskernel_tt.py`, `censoring_aux.py:74`,
-   `oddmoment/aux_gen.py:104` all cap on the FILE list. Fixing the glob without
-   quadrupling the cap makes `--ntasks 160` (in `chain_260905d.sh:33`,
-   `masslik_jpsigun_260902.sh:19,21`, `run_masspairs_fixsign_260902.sh:28`,
-   `runs/stepdamp260905/slurm/kernel.sbatch:16`) and `NTASKS=48` (in
-   `globalfit/run_validation.sh`) cover **a quarter of the intended tasks**.
-2. **Incomplete-task cleanup deletes only stream 0.** `chain_260904f.sh:43,108`,
-   `chain_260905d.sh:31,80`, `masslik_btojpsix_v3_260902.sh:25`,
-   `masslik_jpsigun_260902.sh:17`, `finish_muon_closure_260902.sh:70`,
-   `cvhcf_e2e_260905.sh:54`, `kinkfinder/run_v3_species.sh:64` all do
-   `rm -f "$d/globalcor_0.root"` for a task with no `.complete`. Under 4
-   threads that leaves streams 1-3 of a TRUNCATED task on disk, and a
-   newly-fixed `globalcor_*.root` glob would then happily ingest them.
-   **Fixing the readers before the cleanups makes the data worse, not better.**
-   Change these to `globalcor_*.root` (or `rm -rf "$d"`) FIRST.
+`resolve` is what the readers call. `spec` may be a glob naming stream 0 (the
+index is **widened**, so existing command lines keep working and now see the
+whole production), a glob already naming every stream, a production or task
+**directory**, or an **`@list.txt`** of explicit inputs -- which is how the
+sharded wrappers hand a worker a subset without a symlink farm. A directory
+spec auto-detects the output stem (`globalcor` vs `globalcor_resclosure`) and
+refuses a directory holding both.
 
-Also note `masspairs_parallel.sh:36` and the `*_shard.sbatch` symlink farms:
-they link each input to a fixed `task_NNNN/globalcor_0.root` name, so four
-streams of one task would **collide on one link**. Those need a per-stream
-name, not just a wider glob.
+The shell twin `prodfiles.sh` delegates to the same module, so the drivers
+cannot drift from the readers: `pf_files`, `pf_task_dirs`, `pf_runtrees`,
+`pf_stream_files`, `pf_task_complete`, `pf_clean_incomplete`, `pf_stats`.
 
-### The critical path (production -> pairs cache -> kernel -> mass fit -> global fit)
+```bash
+python3 resolution/prodfiles.py "$PROD" --stats      # what a spec resolves to
+python3 resolution/prodfiles.py "$PROD" --runtrees   # one file per task
+```
 
-* `resolution/masspairs_parallel.sh:19,36,40` and `extract_parallel.sh:37,54,64`
-  — the parallel cache builders; both have the glob bug AND the symlink collision
-* `resolution/run_pairs_tt_parallel.sh:44`, `run_pairs_tt_shards.sh:20`,
-  `run_pairs_tt_fixsign_260902.sh:38`, `run_pairs_tt_fixsign_wide_260902.sh:17`,
-  `run_masspairs_fixsign_260902.sh:28`
-* `resolution/chain_260905d.sh:33,45`, `chain_260904f.sh:46,62` — the current
-  end-to-end drivers
-* `resolution/masslik_jpsigun_260902.sh:19,21`, `masslik_btojpsix_v3_260902.sh:27,29`
-* `resolution/globalfit/run_validation.sh:26`, plus the recipes in
-  `globalfit/extract.py:50` and `globalfit/STATE.md:122,295`
-* `resolution/runs/matres/{run_big,run_probe,run_quad,run_single}.sh` — the
-  material-group extractions actually run on 09-05
-* `resolution/runs/stepdamp260905/slurm/{kernel,pairs_shard,extract_shard,aux}.sbatch`
-  and the `runs/clampfix260904/slurm/` equivalents
-* `resolution/cf_track_resolution.py:277`, `cf_mass_likelihood.py:116`,
-  `cf_global_masslik.py:53` — CLI defaults (the fallback when `--files` is omitted)
-* `resolution/cf_inmaker.py:35,39` and `zchannel/README.md:83,135` — the
-  **Z-channel** recipe, pointed straight at the DY production now on 4 threads
-* `resolution/jpsi_mass_closure.py:62`, `jpsi_bias_decompose.py:88` — the
-  closure numbers quoted in the scale-closure work
-* `engaging/extract_cpu.sbatch:16,45` — the ORCD extract shards
+### The two ordering hazards, and what they became
 
-### Others (not on the mass-fit path but wrong under N threads)
+1. **`--ntasks` was a FILE cap.** It now caps **TASKS**: `resolve` returns
+   every stream of each kept task, so `--ntasks 160` is 160 tasks at any thread
+   count. Same for `--nfiles`, `--max-files`, `NTASKS=` in
+   `globalfit/run_validation.sh`. Defaults were left where they were, so a
+   single-stream production reads exactly what it read before.
+2. **Cleanups deleted stream 0 only**, which under 4 threads left streams 1-3
+   of a truncated task for a widened glob to swallow. Fixed FIRST, in its own
+   commit: the six analysis drivers call `pf_clean_incomplete`, which removes
+   **every** stream of a task that has no `.complete`, has an empty stream
+   file, or has fewer streams than its sentinel's `streams=N` line declares.
+   The pre-run wipes (`cvhcf_e2e_260905.sh`, `kinkfinder/run_v3_species.sh`,
+   `runs/stepdamp260905/slurm/smoke.sbatch`) take out every stream too.
 
-~35 more `resolution/*.py` readers (`cf0_ecf.py:77`, `cf_ioni_exact.py:63`,
-`cf_ms_exact.py:61`, `cf_ms_moliere.py:63`, `fit_hit_ms_joint.py:85`,
-`fit_ms_material.py:56`, `fit_transmission.py:44`, `fsr_kernel_study.py:62`,
-`cgf_dedx_scan.py:64`, `gate_checks.py:407`, `cyl_profile.py:106,114`,
-`matgroup_weights.py:131,157`, `transmission_probe.py:67`,
-`simhit_compare.py:69,92`, `ioni_sign_probe.py:47`, `radterm_validate.py:48,49`,
-`quick_count_260904.py:14`, and the whole `hitres_*.py` family), plus
-`module_level_corrections/{compare_fix_policies.py:18,plot_cvh_efficiency_sf.py:60,analyze_cvh_hotspot.py:29}`
-(same maker, `outprefix=effstudy_*`), `alcareco_validation/plot_cvh_variants.py:14,94`,
-and the `kinkfinder/plot_fake_muon.py:21` / `plot_kink_roc.py:15` docstrings.
+**Completeness is decided per TASK, everywhere.** A task is usable iff its
+`.complete` exists, none of its stream files is empty, and it has as many
+streams as the sentinel declares; otherwise it is skipped whole and counted
+(`prodfiles.last_stats()['reasons']`). A directory tree with **no** sentinels
+at all -- a hand-made smoke, a staged shard directory -- keeps working: the
+requirement turns itself off, with a warning, the moment no task anywhere has
+one.
 
-Several of these read local smokes whose producers pin `numberOfThreads=1`
-(`smoke_exports_260906.sh`, `fd_variance_260906.sh`, `run_local_*.sh`,
-`runCvhProfile.py`), so they are self-consistent today — but they are the
-same latent bug.
+### The symlink farms are gone
 
-### Do NOT change these
+`masspairs_parallel.sh` and `extract_parallel.sh` staged each shard as
+`task_NNNN/globalcor[_resclosure]_0.root` symlinks -- which cannot represent N
+streams of one task and carry no `.complete`. Both now write the shard's file
+list to a `.txt` and pass it to `--files`.
 
-The **RUNTREE-ONLY** idiom — glob all files, then open `files[0]` for the
-`runtree` — is exactly right, because every stream file carries a
-byte-identical copy of the 13 MB parameter map and concatenating them would
-duplicate it N times. Examples: `globalfit/extract.py:173,510`,
-`matres/extract_groups.py:584,607-613`, `global_corrections/fit_global_grads.py:103`,
-`pixelhits/{fit_classcorr.py:87,write_classcorr_corfile.py:29}`,
-`module_level_corrections/{nano_hotspot2_culprit.py:17,nano_hotspot2_ztwin.py:15,plot_kxi_eta_profile.py}`,
-`production/smoke_inspect.py:153`, and the `frun = uproot.open(files[0])` lines
-in the `cf_*` family.
+`run_pairs_tt_shards.sh`, `run_pairs_tt_parallel.sh` and the two `fixsign`
+variants drove **one worker per file** and named the part after the file's task
+directory, so four streams of one task collapsed onto one
+`part_task_NNNN.npz`: first worker wins, other three hit the resume guard, and
+the merge sees a quarter of the candidates -- with a race for the part file on
+top. They now iterate over **task directories** and pass the directory as
+`--files`. Same for the per-task slurm shards
+(`runs/*/slurm/{pairs,extract}_shard.sbatch`) and `engaging/extract_cpu.sbatch`.
 
-`production/threadscan/compare_threads.py --tree runtree` concatenates on
-purpose — that is the diagnostic that proves the copies are identical.
+### Validation (2026-09-06)
+
+20 tasks of `dymc_8p5M_260906_v2` (4 streams) and 20 of `jpsimc_20M_260905`
+(1 stream):
+
+| check | dymc_8p5M_260906_v2 | jpsimc_20M_260905 |
+|---|---|---|
+| files listed | 20 tasks -> 80 files | 20 tasks -> 20 files |
+| `tree` entries read | 197 699 | 260 351 |
+| what stream 0 alone would give | 49 169 (**ratio 4.02**) | 260 351 (ratio 1.00) |
+| `cf_inmaker.py pairs`: helper vs concat of per-stream-file caches | 194 206 = 194 206, all 9 per-candidate arrays and every provenance scalar **identical** | — |
+| `globalfit/extract.py` G, factored H (+ the `hessvar*` block) vs the per-file sum | `max abs dG/abs G = 0`, `max abs dH/abs H = 0`, 197 699 candidates in the quadratic term both ways | — |
+| pre-change reader vs post-change reader, same inputs | — | `cf_inmaker` cache **md5-identical**; `globalfit/extract.py` all 18 keys identical |
+| an existing cache in `resolution/runs/` | `cf_masspairs_dysmoke_260905.npz` rebuilt from the flat, sentinel-less smoke directory: **md5-identical** | — |
+
+### Known, unrelated, and NOT fixed here
+
+`globalfit/extract.py` **without** `--no-mass` dies on both the 260905 and the
+260906 productions:
+
+```
+ValueError: .../globalcor_0.root: partial radiative export ['radvgrid']
+```
+
+`extract.py:315-321` requires the radiative step branches to be all-four or
+none, and every one of these productions ships `radvgrid` alone (they run
+`exportStepRecords=False`). Reproduced with the **pre-change** reader on the
+same single file, so it is not a threading matter -- it is the offline mass
+builder not having caught up with the `radvgrid` export. The quadratic path
+(`--no-mass`) is unaffected, which is what the table above measures.
+
+`resolution/runs/` is gitignored, so the fixes to
+`runs/{matres,stepdamp260905,clampfix260904}/...` and `runs/solve*_scan.sh`
+are on disk but not in the history.

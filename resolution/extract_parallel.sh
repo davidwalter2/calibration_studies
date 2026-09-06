@@ -38,9 +38,10 @@ trap 'rm -rf "$TMP"' EXIT
 
 # EVERY STREAM OF EVERY USABLE TASK: a numberOfThreads=N task is
 # globalcor_resclosure_0..N-1.root, and naming stream 0 took 1/N of the tracks.
-mapfile -t FILES < <(pf_files "$INDIR/task_*/globalcor_resclosure_0.root")
+SPEC="$INDIR/task_*/globalcor_resclosure_*.root"
+mapfile -t FILES < <(pf_files "$SPEC")
 N=${#FILES[@]}
-echo "[extract_parallel] $N files ($(pf_task_dirs "$INDIR/task_*/globalcor_resclosure_0.root" | wc -l) tasks) -> $NSHARD shards"
+echo "[extract_parallel] $N files ($(pf_task_dirs "$SPEC" | wc -l) tasks) -> $NSHARD shards"
 
 run_shard() {
   local i=$1

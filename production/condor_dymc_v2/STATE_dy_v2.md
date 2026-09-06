@@ -180,14 +180,15 @@ because every existing reader opens the file it happens to have.
 
 ### One consequence downstream
 
-N threads means N files per task. Readers that glob `globalcor_*.root` are
-fine; readers that hard-code `globalcor_0.root` would silently take **1/N of
-the statistics**. In the tree today those are
-`resolution/masspairs_parallel.sh`, `resolution/jpsi_mass_closure.py`,
-`resolution/jpsi_bias_decompose.py` and `resolution/runs/matres/run_*.sh`.
-They must be switched to the glob before any multithreaded production is
-consumed. Also: the `runtree` is written once PER STREAM, identical each time —
-a reader must take ONE stream's copy, never the concatenation.
+N threads means N files per task. Readers that hard-code `globalcor_0.root`
+would silently take **1/N of the statistics**. **Fixed 2026-09-06**: every
+reader in `calibration_studies/` lists its inputs through
+`resolution/prodfiles.py` (shell twin `prodfiles.sh`), which widens the stream
+index, decides completeness per TASK, and makes `--ntasks` a cap on tasks
+rather than on files. The `runtree` is written once PER STREAM, identical each
+time, and `prodfiles.runtree_file()` returns the first EXISTING stream of a
+task so exactly one copy is read and never the concatenation. See
+`PRODUCTION_NEXT.md` sec. 10 for the API and the validation table.
 
 ---
 

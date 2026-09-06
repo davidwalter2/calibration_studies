@@ -19,7 +19,10 @@ COMMON="nEvents=${NEVENTS:--1} numberOfThreads=1 doRes=True fillGrads=True fitFr
 run_task() {
   local idx=$1
   local outdir="$OUTROOT/resolution_trackres_${OUTTAG}/task_$(printf '%04d' "$idx")"
-  local outfile="$outdir/globalcor_resclosure_0.root"
+  # every stream the task wrote, not `_0` by name: these runs pin
+  # numberOfThreads=1 today, but a leftover from a multithreaded run must
+  # be wiped whole, not down to streams 1..N-1.
+  local outglob="$outdir/globalcor_resclosure_*.root"
   # Resume on a COMPLETION SENTINEL, never on the .root itself. cmsRun creates
   # its output at START, so a killed or crashed task leaves a NON-EMPTY but
   # TRUNCATED file, and a `-s` test then skips it forever -- the run looks
@@ -41,7 +44,7 @@ run_task() {
   input=$(sed -n "$((idx + 1))p" "$FILELIST")
   [[ -n "$input" ]] || { echo "[err] empty filelist line for task $idx"; return 1; }
   mkdir -p "$outdir"
-  rm -f "$outfile" "$outdir/.complete"      # drop any truncated leftover
+  rm -f $outglob "$outdir/.complete"      # drop any truncated leftover
   echo "[run ] task $idx -> $outdir"
   # shellcheck disable=SC2086
   if "$RUN_ONE" "$CFG" "$input" "$outdir" $COMMON > "$outdir/local.log" 2>&1; then
