@@ -156,3 +156,47 @@ dNLL 0, dgrad 4.5e-15, dHess 9.5e-16. The chunked construction is exact.
 `IndexedSlices` gradient and `tf.autodiff.ForwardAccumulator` cannot
 differentiate through one. The parameter map is now an affine dense one
 (a 0/1 selection matrix), which also makes the sandwich work.
+
+### 2026-09-06 18:55 — phase 1 running
+* full card `cards/z_full.hdf5`, **3 613 320 candidates, 3.56 GB**, built in
+  7.5 s after the pairs cache is in memory. Parameters
+  `k_hit k_ms k_ioni k_rad m_Z Gamma_Z shape1..shape5`; POIs `m_Z`, `Gamma_Z`.
+* a 300 000-candidate twin `cards/z_n300k.hdf5` (random subsample, seed 1234 --
+  a head slice would be one contiguous run range) carries the same model. The
+  base fit plus five variants (`--ares off`, `--jensen off`, both off,
+  `--jensen shift`, K(m) fixed) run on it in parallel on submit82.
+* the full fit is queued on Engaging as **job 22161390** (`-G h200:1`,
+  `mit_normal_gpu`); the card and the merged rabbit are staged. The CPU path on
+  submit is the fallback and runs in parallel.
+
+### Not done in phase 1, and why
+* **`resolution/cfcompress` (rank-16 PCA) is not applied.** It is a
+  card-SIZE measure and the card is 3.56 GB, which loads in 7 s. Its own study
+  puts the joint-basis rank needed for `max_t W|dS| < 1e-4` at 48-64 on the
+  mass caches, i.e. rank 16 is a 1e-3 approximation -- acceptable for storage
+  at 38 M candidates, not something to introduce when it buys nothing here.
+* **The truncation normalisation `Z` is evaluated at the STORED class sigma,
+  not at the self-consistent `s_i(theta)`.** `_norm_z` is a class-level
+  Gil-Pelaez edge integral and does not see the per-candidate dynamic sigma.
+  The 64 quantile classes already coarse-grain sigma by more than the 2.5 %
+  that `a_i delta_i` moves it, and the window edges sit ~28 sigma from the
+  peak, so this is expected to be far below the class discretisation itself
+  (measured at 1e-6 on a +-30 GeV Z window). To be quantified.
+
+### The `_norm_z` sigma approximation — MEASURED, and it is 0.016 MeV
+`check_normz_sigma.py` scales every class resolution by `1 + eps` and asks
+what moves. On the 300 k card (64 classes):
+
+| eps | max \|dZ/Z\| | max \|d(dlnZ/dm_Z)\| over 5 MeV |
+|---|---|---|
+| 0.005 | 1.12e-05 | 2.14e-09 |
+| **0.025** (the relevant one: `a_i \|delta_i\|/sigma_i`) | 5.70e-05 | **1.08e-08** |
+| 0.050 | 1.17e-04 | 2.17e-08 |
+
+against `dlnZ/dm_Z = 7.66e-07` over the same 5 MeV, and `Z` itself in
+[0.9767, 0.9776] -- so 2.3 % of the model density is outside the window and the
+truncation is NOT inert. What the approximation costs is the 1.4 % it moves the
+`m_Z`-DEPENDENT part of `lnZ`: at 3.66 M candidates that is a gradient error of
+0.008 per MeV against a curvature of 1/1.45^2 = 0.48 per MeV^2, i.e.
+**0.016 MeV on `m_Z`** -- 1 % of the statistical error. An error in `Z` that
+does not move with `m_Z` is absorbed by the normalisation and biases nothing.
