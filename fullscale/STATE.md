@@ -200,3 +200,26 @@ truncation is NOT inert. What the approximation costs is the 1.4 % it moves the
 0.008 per MeV against a curvature of 1/1.45^2 = 0.48 per MeV^2, i.e.
 **0.016 MeV on `m_Z`** -- 1 % of the statistical error. An error in `Z` that
 does not move with `m_Z` is absorbed by the normalisation and biases nothing.
+
+### 2026-09-06 19:05 — phase 2 inputs launched while phase 1 fits run
+* `cf_inmaker.py pairs --jac-parmtypes 14 15` now also exports the dense
+  `(n, 92)` mass Jacobian `dm_i/dtheta_k` plus its parameter map. That is the
+  one thing a joint fit needs and neither the CF exponents nor the quadratic
+  term carry, and `globalfit/extract.py`'s mass path (which would otherwise
+  supply it) is blocked on these productions by the `radvgrid` guard AND would
+  need a per-candidate join afterwards. Vectorized with awkward: bit-identical
+  to the per-candidate loop, which would have cost five hours on the J/psi.
+* running: `runs/jpairs_v1.npz` (J/psi v1, default window, with D) and
+  `runs/zpairs_dyv2_jac.npz` (DY v2, with D). J/psi v1 reports **13 aux columns,
+  absent `fang`, `sigrelp/m`, `rhomom`, `mpre`, `maxfracloss*`** -- as expected,
+  it predates `Jpsi_covrefmom`, so its Jensen `s^2` needs the MC-measured
+  `f_ang` (gun 0.086 / data 0.106) and carries that +-5 %.
+* `make_joint_card.py` scaffolded; `sum_quadratic` (which refuses to add two
+  extractions whose parameter maps differ) is the part that is finished.
+
+### Phase-1 fits in flight
+| where | what | state |
+|---|---|---|
+| submit82 | 300 k card, 6 variants in parallel, chunk 32768, 7 free params | running; ~150 s per Hessian, 48-56 GB each |
+| Engaging `22161787` | **full 3.61 M card**, H200, chunk 32768, 111 chunks | running (an earlier attempt at chunk 262144 OOM'd on 141 GB: the lineshape CF gather is a `(chunk, nt_int)` int64 tiled per pfor parameter) |
+| Engaging `22161788` | same card, `--hess-mode hvp`, chunk 65536 | pending (per-user GPU cap) |
