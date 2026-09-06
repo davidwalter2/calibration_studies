@@ -34,3 +34,11 @@ case "${1:-}" in
   g_cj0) g --sigma-source corrected --jensen 1 --binon csrel --srel-bin 0/5 --label "GUN corr+JENSEN csrel bin 0/5" ;;
   g_cj4) g --sigma-source corrected --jensen 1 --binon csrel --srel-bin 4/5 --label "GUN corr+JENSEN csrel bin 4/5" ;;
 esac
+# (appended) the EXACT second-order form, against the mean-shift approximation
+case "${1:-}" in
+  g_ex)  g --sigma-source corrected --jensen 1 --jensen-mode exact --label "GUN corrected + JENSEN-EXACT" ;;
+  v_ex)  v --sigma-source corrected --jensen 1 --jensen-mode exact --label "V3 corrected + JENSEN-EXACT" ;;
+  g_ex1) g --sigma-source corrected --jensen 1 --jensen-mode exact --binon csrel --srel-bin 1/5 --label "GUN corr+JEXACT csrel bin 1/5" ;;
+  g_ex4) g --sigma-source corrected --jensen 1 --jensen-mode exact --binon csrel --srel-bin 4/5 --label "GUN corr+JEXACT csrel bin 4/5" ;;
+  g_sh1) g --sigma-source corrected --jensen 1 --binon csrel --srel-bin 1/5 --label "GUN corr+JSHIFT csrel bin 1/5" ;;
+esac

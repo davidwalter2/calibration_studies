@@ -33,6 +33,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache", default="runs/cf_trackres_mugun_ul16_260903x_m0_k0.npz")
     ap.add_argument("--F", type=float, nargs="+", default=[1.62, 2.0])
+    ap.add_argument("--FJ", type=float, default=0.56,
+                    help="measured response of the MLE to the second-order term")
     ap.add_argument("--harm-ratio", type=float, default=0.811,
                     help="sigma_harm/<sigma> measured on the gun candidates")
     ap.add_argument("--ratio-eff", type=float, default=0.786,
@@ -95,15 +97,21 @@ def main():
       "CANCEL, with a ratio fixed by (1.5 - f_ang)/[(1+f_hit) F].  The "
       "cancellation is an accident of those two numbers and must not be relied "
       "on: each term alone is ~30 MeV at the Z.")
-    P("| F | artefact [MeV] | Jensen [MeV] | net [MeV] | ratio J/A |")
+    P("The Jensen column carries F_J, the MEASURED response of the mass MLE to "
+      "a second-order (quadratic) perturbation as opposed to a location shift: "
+      f"F_J = {a.FJ:.2f} (0.73 at J/psi sigma_m/m, 0.56 at Z-like 1.85 %; "
+      "toy + exact-vs-shift, NOTES 2026-09-05 (IV)).  The artefact's own "
+      "response is already inside F.")
+    P("| F | artefact [MeV] | Jensen x F_J [MeV] | net [MeV] | ratio J/A |")
     P("|---|---|---|---|---|")
     for F in a.F:
         for nm, (amv, smv, ajv) in (("mean", (am.mean(), smrel.mean(), aj.mean())),
                                     ("median", (np.median(am), np.median(smrel),
                                                 np.median(aj)))):
             art = -amv * F * a.ratio_eff * smv
-            P(f"| {F:.2f} ({nm}) | {MZ*art*1e3:+.1f} | {MZ*ajv*1e3:+.1f} "
-              f"| {MZ*(art+ajv)*1e3:+.1f} | {-ajv/art:.2f} |")
+            ajf = a.FJ * ajv
+            P(f"| {F:.2f} ({nm}) | {MZ*art*1e3:+.1f} | {MZ*ajf*1e3:+.1f} "
+              f"| {MZ*(art+ajf)*1e3:+.1f} | {-ajf/art:.2f} |")
     P("")
     P(f"For scale: the J/psi gun measured a_m = 0.0107, sigma_bar_eff/M = "
       f"0.0088, F = 1.62 -> -0.155e-3, i.e. -0.48 MeV on m(J/psi). The SAME "

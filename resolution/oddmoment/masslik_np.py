@@ -41,7 +41,7 @@ class MassLik:
     def __init__(self, pairs, kernel, sbar=None, krad=1.0, maxn=0,
                  chunk=32768, log=print, corrected=False, a_scale=1.0,
                  a_vec=None, override=None, jensen=0.0, srel_bin=None,
-                 binon="sigma"):
+                 binon="sigma", jensen_mode="shift"):
         d = np.load(pairs)
         self.TG = np.asarray(d["tgrid"], dtype=np.float64)
         z = d["z"].astype(np.float64)
@@ -96,11 +96,14 @@ class MassLik:
         # It is DETERMINISTIC and truth-free: a per-candidate location shift.
         self.binon = binon
         self.jensen = float(jensen)
-        self.mshift = (self.jensen * 1.5 * (self.sig / self.mgen) ** 2
-                       * self.mgen) if self.jensen else None
+        self.jensen_mode = jensen_mode
+        # s^2 = Var(u) with u the LINEAR relative fluctuation
+        self.s2 = (self.sig / self.mgen) ** 2
+        self.mshift = (self.jensen * 1.5 * self.s2 * self.mgen
+                       if (self.jensen and jensen_mode == "shift") else None)
         if self.jensen:
-            log(f"Jensen shift on (scale {self.jensen}): median "
-                f"{np.median(1.5*(self.sig/self.mgen)**2):.3e} relative")
+            log(f"Jensen ({jensen_mode}, scale {self.jensen}): median "
+                f"1.5 s^2 = {np.median(1.5*self.s2):.3e} relative")
         # a single sigma_m/m quantile bin, for the differential test.
         # BINNING ON THE EXPORTED sigma IS BINNING ON THE MASS FLUCTUATION
         # (sigma = sigma_bar (1 + a x)), which displaces the location inside
@@ -154,10 +157,33 @@ class MassLik:
                 setattr(self, nm, v[keep])
 
     def _delta(self, sl, alpha):
+        """The argument at which the LINEAR model density is evaluated.
+
+        `shift`: delta - M * 1.5 s^2, the mean of the second-order term as a
+        deterministic location shift (response to it is 1 by construction).
+
+        `exact`: the second-order map inverted per candidate.  With u the
+        linear relative fluctuation, the conditional expectation of the
+        quadratic form given u is (equal, uncorrelated legs, m ~ (k1 k2)^-1/2)
+
+            m_hat/m - 1 = u + u^2 + 1/2 s^2 ,   s^2 = Var(u) ,
+
+        whose mean is 1.5 s^2 as it must be.  Inverting for u and carrying the
+        Jacobian du/dr = 1/(1 + 2u) makes the treatment exact to second order,
+        so the response factor is not an approximation any more."""
         d = self.mobs[sl] - MJPSI * alpha
-        if self.mshift is not None:
-            d = d - self.mshift[sl]
-        return d
+        if not self.jensen:
+            self._jac = None
+            return d
+        if self.jensen_mode == "shift":
+            self._jac = None
+            return d - self.mshift[sl]
+        s2 = self.jensen * self.s2[sl]
+        r = d / self.mgen[sl]
+        disc = np.maximum(1. + 4. * (r - 0.5 * s2), 0.1)
+        uu = 0.5 * (np.sqrt(disc) - 1.)
+        self._jac = 1. / (1. + 2. * uu)
+        return uu * self.mgen[sl]
 
     def _kcache(self, sl, khit, kms, kioni, krad):
         """e^{Sre} and Sim for a fixed k; independent of alpha."""
@@ -193,6 +219,8 @@ class MassLik:
         dT = np.diff(TG)
         Li = np.sum(dT[None, :] * (integ[:, 1:] + integ[:, :-1]) * 0.5, axis=1) \
             / (np.pi * s)
+        if getattr(self, "_jac", None) is not None:
+            Li = Li * self._jac
         return Li
 
     def logL(self, alpha, khit=1., kms=1., kioni=1., krad=None, fbkg=FBKG):
@@ -318,6 +346,7 @@ def main():
                     help="npz with z, sigma replacing the cache's (toy)")
     ap.add_argument("--jensen", type=float, default=0.0,
                     help="scale on the 1.5 (sigma_m/m)^2 second-order shift")
+    ap.add_argument("--jensen-mode", choices=["shift", "exact"], default="shift")
     ap.add_argument("--srel-bin", default="", help="K/N quantile bin of sigma_m/m")
     ap.add_argument("--binon", choices=["sigma", "csrel"], default="sigma",
                     help="quantity the --srel-bin quantiles are taken on")
@@ -355,7 +384,8 @@ def main():
                 a_scale=a.a_scale, a_vec=av,
                 override=(a.override or None), jensen=a.jensen,
                 srel_bin=(tuple(int(v) for v in a.srel_bin.split("/"))
-                          if a.srel_bin else None), binon=a.binon)
+                          if a.srel_bin else None), binon=a.binon,
+                jensen_mode=a.jensen_mode)
     t0 = time.time()
     if a.cmd == "scan":
         for al in np.linspace(-2e-3, 2e-3, 9):
@@ -363,7 +393,7 @@ def main():
     else:
         ah, eh, nll = L.fit_alpha(**kw)
         line = (f"{a.label or os.path.basename(a.pairs)} "
-                f"[sigma={a.sigma_source} jensen={a.jensen}] alpha = {ah*1e3:+.5f} +- {eh*1e3:.5f} e-3"
+                f"[sigma={a.sigma_source} jensen={a.jensen}/{a.jensen_mode}] alpha = {ah*1e3:+.5f} +- {eh*1e3:.5f} e-3"
                 f"   NLL {nll:.4f}   n={L.n}   ({time.time()-t0:.0f} s)")
         print(line)
         if a.out:

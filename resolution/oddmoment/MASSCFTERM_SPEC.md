@@ -129,21 +129,102 @@ location shift and it is ADDITIVE with the resolution correction of s2-4
 (measured: -0.1234e-3 on top of the naive fit, -0.1237e-3 on top of the
 corrected one -- identical to 3e-7).
 
-Implementation: exactly the same hook.  With
-`mu_i(theta) = M (1 + alpha) (1 + s_i^Jensen)`, i.e.
+### THE EXACT FORM IS THE ONE TO IMPLEMENT (measured 2026-09-05 IV)
 
-    delta_i(theta) = m_i - M(1 + alpha) - M s_i^Jensen
+There are two ways to put the term in, and they are NOT equivalent.
 
-used BOTH in the phase `psi = Sim - tgi * delta` AND inside
+**(a) mean shift (do NOT use as the default).**  Treat 1/2 tr(H Sigma) as a
+deterministic location shift:
+
+    delta_i(theta) = m_i - M(1 + alpha) - M s_i^Jensen .
+
+This assumes the MLE responds to it with weight 1.  It does not: the missing
+term is a QUADRATIC form, and the measured response is
+**F_J = 0.73 +- 0.14 at J/psi sigma_m/m and 0.56 +- 0.22 at Z-like
+sigma_m/m = 1.85 %**, in agreement with the analytic
+(0.5 x 0.606 + 1.0 x 0.803)/1.5 = 0.729.  Using form (a) therefore
+OVER-corrects by 27 % at the J/psi and ~44 % at the Z.
+
+**(b) exact to second order (THE DEFAULT).**  Invert the second-order map per
+candidate.  With u the linear relative fluctuation (what the CF models) and
+s^2 = Var(u) = (sigma_m/m)^2, the conditional expectation of the quadratic form
+given u is, for uncorrelated equal legs and m ~ (k1 k2)^{-1/2},
+
+    m_hat/m - 1 = u + u^2 + 1/2 s^2          (mean 1.5 s^2, as it must be)
+
+so, with r = delta_i(alpha)/m,
+
+    u_i = 1/2 ( sqrt( max(1 + 4(r - s_i^2/2), floor) ) - 1 )
+    delta_i^eff = m u_i ,     L_i -> L_i * du/dr = L_i / (1 + 2 u_i) .
+
+**The Jacobian 1/(1+2u) must be kept.**  No response factor is needed and none
+is assumed.  `masslik_np.py --jensen-mode exact` is the reference
+implementation (`--jensen-mode shift` reproduces form (a)).
+
+Measured difference between the two, on the real candidates:
+| | form (a) shift | form (b) EXACT | (b) - (a) |
+|---|---|---|---|
+| gun | +0.0174 +- 0.0167 | **+0.0512 +- 0.0167** | +0.034e-3 |
+| v3 | -0.0326 +- 0.0253 | **+0.0059 +- 0.0254** | +0.039e-3 |
+| gun, sigma_m/m = 0.0083 | +0.0171 +- 0.0335 | -0.0036 +- 0.0336 | -0.021e-3 |
+| gun, sigma_m/m = 0.0185 (Z-like) | -0.1499 +- 0.0708 | **+0.0484 +- 0.0709** | **+0.198e-3** |
+The difference is **3-4x above 0.01e-3 at the J/psi and ~+0.11e-3 (~10 MeV) at
+Z-like sigma_m/m** -- far above 1 MeV, so form (a) is not acceptable at the Z.
+Form (b) is also the only one that is sigma-INDEPENDENT (-0.004 vs +0.048
+across a factor 2.2 in sigma_m/m, 0.7 sigma apart, against 2.2 sigma for form
+(a)) and it gives the best NLL (v3: -255186.17 against -255128.37 for (a),
+-255177.43 naive).
+
+Implementation hook: whichever form, `delta_i(theta)` is used BOTH in the phase
+`psi = Sim - tgi * delta` AND inside
 `sigma_bar_i(theta) = sigma_i - a_i delta_i(theta)`.
 
 Gates (measured, `oddmoment/out/jensenfits.txt`):
 | gate | measured |
 |---|---|
 | J1 | additivity: the shift moves alpha by -0.1234e-3 from naive and -0.1237e-3 from corrected |
-| J2 | gun alpha: naive -0.0047 -> corrected +0.1410 -> corrected+Jensen **+0.0174 +- 0.0167** |
-| J3 | v3 alpha: naive -0.0464 -> corrected +0.0810 -> corrected+Jensen **-0.0326 +- 0.0253** |
+| J2 | gun alpha: naive -0.0047 -> corrected +0.1410 -> +Jensen(shift) +0.0174 -> **+Jensen(EXACT) +0.0512 +- 0.0167** |
+| J3 | v3 alpha: naive -0.0464 -> corrected +0.0810 -> +Jensen(shift) -0.0326 -> **+Jensen(EXACT) +0.0059 +- 0.0254** |
+| J5 | the response factor: a toy injecting the pure exponentiation m = m_gen e^{s x} on the real per-candidate CFs shifts alpha by +0.0239e-3 against +0.0413e-3 for response 1, i.e. **F = 0.58 measured against 0.606 predicted (E[x^2 psi']/I)** |
 | J4 | differential: in truth-free `sigma_bar` quintiles the ratio alpha/prediction is CONSTANT at **0.94 +- 0.11** over a factor 8 in the predicted size |
+
+## 4c. C++ EXPORT SPEC: what the two-track maker must add
+
+Neither correction needs truth.  The RESOLUTION correction (s2-4) needs only
+`cfmass_vgf` and `Jpsi_sigmamass`, both already in the slim output -- **nothing
+to add**.  The JENSEN term needs A = sigma_rel1^2 + sigma_rel2^2 and
+B = 2 rho sigma_rel1 sigma_rel2, and the two-track maker exports **no covariance
+at all** (only `Jpsi_sigmamass`, `resinfcov` and `Jpsi_jacMass`), so today they
+have to be taken from the MC measurement (rho = 0, f_ang = 0.10-0.14, closed
+form 4.6 % high).  On DATA at production scale they must be exported.
+
+**The quantity is already in scope**: `covrefmom`
+(`Matrix<double,6,6>`, `ResidualGlobalCorrectionMakerTwoTrackG4e.cc:4168`, set
+from `covstate.topLeftCorner<6,6>()`), whose state indices 0-2 and 3-5 are the
+two legs' (q/p, lambda, phi) at the reference; the leg<->plus/minus map is
+`idxplus`/`idxminus`.  No new computation, only a `tree->Branch`.
+
+| option | what | floats | bytes/cand | % of the 80.7 kB slim record | what it buys |
+|---|---|---|---|---|---|
+| **A (minimum)** | `covrefmom(0,0)`, `(3,3)`, `(0,3)` | 3 | **12 B** | **+0.015 %** | A and B EXACTLY; and f_ang for free, as 1 - (J_kappa C J_kappa^T)/sigma_m^2 using the already-exported `Jpsi_jacMass` |
+| **B (recommended)** | the full symmetric 6x6 `Jpsi_covrefmom` | 21 | **84 B** | **+0.10 %** | everything in A, plus the kappa-angle CROSS terms of 1/2 tr(H Sigma) (not evaluated anywhere yet) and the exact angular Hessian piece (-sigma_theta^2/8, ~1e-7, negligible); plus the closure test J Sigma J^T = `Jpsi_sigmamass`^2 |
+| C | per-leg `Muplus/Muminus_resinfvarv` + `sigmaqop2` | ~68 x 2 + 2 | ~550 B | +0.7 % | the per-leg FAMILY split (f_ms, f_ioni per leg).  **NOT needed**: a_i uses the candidate-level f_hit only |
+| D | port the single-track hit-block registration into the two-track maker | ~68 more blocks | ~1.9 kB | +2.4 % | per-leg f_hit.  **NOT needed**, and it would put hit blocks into `resinfcov` and so CHANGE the meaning of `cfmass_vgf`, breaking every existing cache |
+
+**Take option B.**  Option A is the fallback if 84 B is contested; C and D are
+not required by either correction.
+
+**The single-track maker needs nothing**: it already exports the full 5x5
+`refCov` (`ResidualGlobalCorrectionMakerG4e.cc:579/4181`), from which
+sigma_rel = sqrt(refCov[0])*p and hence the track-level a_i follow directly --
+which is exactly what `oddmoment/track_truthfree.py` uses.
+
+**Timing.**  The export must NOT be built before `jpsimc_20M_260905`
+(slurm arrays 6406906 / 6406907) and `dymc_8p5M_260905` (6406978) finish.  A
+`scram b` in an area a production is running from relinks the .so under the
+running jobs and they segfault in the same second (NOTES, "dev-area rebuild
+kills running jobs").  Until then the closed form with the MC-measured
+rho = 0 and f_ang = 0.11 is the working configuration, with the +-5 % it carries.
 
 ## 5. The same defect at track level
 
