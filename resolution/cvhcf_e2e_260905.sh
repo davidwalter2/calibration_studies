@@ -51,7 +51,7 @@ refit) step "refit: $NTASK x $NEV events, two-track, exportStepRecords=True (bot
   pids=""
   for i in $(seq 0 $((NTASK-1))); do
     t=$(printf "task_%04d" $i)
-    d=$OUT/$t; mkdir -p "$d"; rm -f "$d/globalcor_0.root" "$d/.complete"
+    d=$OUT/$t; mkdir -p "$d"; rm -f "$d"/globalcor_*.root "$d/.complete"
     ( $RUN_ONE /work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/test/runCvhJpsiGenMC.py \
         "$SIMDIR/$t/step2.root" "$d" nEvents=$NEV numberOfThreads=1 doRes=True fillGrads=True \
         fitFromGenParms=False scalarPot3DInitFile=$INIT trackSrc=generalTracks useLegacyPairLoop=True \

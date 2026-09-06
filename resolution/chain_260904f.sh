@@ -19,6 +19,8 @@
 set -uo pipefail
 RES=/work/submit/david_w/ZMass/calibration_studies/resolution; cd "$RES"
 source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
+# shellcheck source=prodfiles.sh
+source "$RES/prodfiles.sh"
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 CVH_IONI_KOKOULIN=0
 export PYTHONPATH="$RES:${PYTHONPATH:-}"
 CEPH=/ceph/submit/data/user/d/david_w/ZMass/cvh
@@ -40,7 +42,9 @@ case $st in
      set -- $s; t=$1; n=$2
      G=$CEPH/resolution_trackres_$t
      # drop truncated outputs of any failed task so the globs see complete files only
-     for d in $G/task_*; do [ -f "$d/.complete" ] || { echo "dropping incomplete $d"; rm -f "$d/globalcor_0.root"; }; done
+     # TASK-level: removing stream 0 alone would leave streams 1..N-1 of a
+     # truncated task for the widened globs below.
+     pf_clean_incomplete "$G" globalcor
      if [ ! -s "runs/cf_masskernel_$t.npz" ]; then
        echo "--- kernel $t"
        python3 cf_masskernel_tt.py --files "$G/task_*/globalcor_0.root" --ntasks $n \
@@ -105,7 +109,7 @@ case $st in
 5) step "stage 5: single-track extraction + closures"
    if [ ! -s "runs/cf_trackres_${MUL}_k0.npz" ]; then
      G=$CEPH/resolution_trackres_$MUL
-     for d in $G/task_*; do [ -f "$d/.complete" ] || { echo "dropping incomplete $d"; rm -f "$d/globalcor_resclosure_0.root"; }; done
+     pf_clean_incomplete "$G" globalcor_resclosure
      echo "--- extract $MUL (160 shards)"
      ./extract_parallel.sh "$G" "runs/cf_trackres_${MUL}_k0.npz" 160 \
         > "$LOG/ext_${MUL}.log" 2>&1 \

@@ -28,6 +28,8 @@ cd "$RES"
 VENV=${VENV:-/work/submit/david_w/ZMass/mfs/.venv}
 # shellcheck disable=SC1091
 source "$VENV/bin/activate" || { echo "FATAL: no venv at $VENV"; exit 1; }
+# shellcheck source=prodfiles.sh
+source "$RES/prodfiles.sh"
 NSHARD=${NSHARD:-160}
 
 guard() {
@@ -66,9 +68,7 @@ wait $REFIT_PID
 echo "    refits finished: $(ndone mugun_lowpt_260830)/160 complete ($(date +%H:%M:%S))"
 if [ "$(ndone mugun_lowpt_260830)" -ne 160 ]; then
   echo "    WARNING: incomplete sample; extracting only the complete tasks"
-  for d in "$CEPH"/resolution_trackres_mugun_lowpt_260830/task_*; do
-    [ -f "$d/.complete" ] || { echo "    dropping partial $d"; rm -f "$d/globalcor_resclosure_0.root"; }
-  done
+  pf_clean_incomplete "$CEPH/resolution_trackres_mugun_lowpt_260830" globalcor_resclosure
 fi
 extract mugun_lowpt_260830
 

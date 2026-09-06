@@ -61,7 +61,7 @@ run_chunk() {
     # non-empty but truncated file that must be redone, not skipped.
     if [ -f "$wd/.done" ]; then return 0; fi
     mkdir -p "$wd"
-    rm -f "$wd/globalcor_jpsix_${PARTICLE}_0.root"
+    rm -f "$wd"/globalcor_jpsix_"${PARTICLE}"_*.root
     if ( cd "$wd" && cmsRun "$CFG" \
         input="$files" particle="$PARTICLE" nEvents=-1 \
         scalarPot3DInitFile="$INIT" doKinkFinder=True doSimDecayTruth=True $EXTRA \
