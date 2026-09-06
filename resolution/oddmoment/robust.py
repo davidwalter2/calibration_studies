@@ -133,6 +133,53 @@ def main():
           f"{np.cov(z[m], s[m])[0,1]/s[m].mean():+.5f} | "
           f"{np.median(s[m])/MJ:.5f} |")
 
+    P("")
+    P("## 5  the prediction A = -a + A_model, BIN BY BIN, no free parameter")
+    P("a is re-measured inside each bin as the in-cell (gen p x |eta| x nhits) "
+      "regression slope of ln sigma on q z; A_model is the model's own trimmed "
+      "mean in the same bin (from oddmoment/diff.py). No fit anywhere.")
+    for tag, p_, dfile in (
+            ("mu gun pT 20-60", "runs/cf_trackres_mugun_ul16_260903x_m0_k0.npz",
+             "oddmoment/out/diff_ul16.npz"),
+            ("mu gun pT 2-20", "runs/cf_trackres_mugun_lowpt_260905d_m0_k0.npz",
+             "oddmoment/out/diff_lowpt.npz")):
+        if not os.path.exists(dfile):
+            P(f"(skip {tag}: run oddmoment/diff.py first)")
+            continue
+        d = np.load(p_); dm = np.load(dfile)
+        z = d["z"]; sig = d["sigma"]; q = np.sign(d["charge"]).astype(float)
+        eta = d["eta"].astype(float); pgen = d["genpt"] * np.cosh(eta)
+        nvh = d["nvalidhits"]
+        cid = SP.cellid(qbin(np.log(pgen), 20), qbin(np.abs(eta), 20),
+                        np.clip(nvh.astype(np.int64) - int(nvh.min()), 0, 30))
+        nc = int(cid.max()) + 1
+        ls = np.log(sig)
+        lsc = ls - SP.cellmean(ls, cid, nc)
+        yc = (q * z) - SP.cellmean(q * z, cid, nc)
+        m5 = np.abs(z) < 5.
+        for vname, v in (("abseta", np.abs(eta)), ("genpt", d["genpt"])):
+            rows = dm[vname]; edges = dm[vname + "_edges"]
+            nb = len(edges) - 1
+            b = np.clip(np.digitize(v, edges[1:-1]), 0, nb - 1)
+            P("")
+            P(f"### {tag}, bins of {vname}")
+            P("| bin | n | a_bin | A_model | pred = -a+A_mod | A_data | "
+              "data-pred | err |")
+            P("|---|---|---|---|---|---|---|---|")
+            for k in range(nb):
+                m = (b == k) & m5
+                if m.sum() < 500:
+                    continue
+                ab = float((lsc[m] * yc[m]).sum() / (yc[m] ** 2).sum())
+                # A_model(trim) column of diff.py rows: (ctr,n,Adu,Amu,Adt,Amt,eA,Sdt)
+                row = rows[k]
+                Am = float(row[5])
+                Ad = float((q * z)[m].mean())
+                e = float((q * z)[m].std(ddof=1) / np.sqrt(m.sum()))
+                P(f"| {edges[k]:.3g}..{edges[k+1]:.3g} | {int(m.sum())} | "
+                  f"{ab:+.5f} | {Am:+.5f} | {-ab+Am:+.5f} | {Ad:+.5f} | "
+                  f"{Ad-(-ab+Am):+.5f} | {e:.5f} |")
+
     txt = "\n".join(L)
     print(txt)
     if a.out:
