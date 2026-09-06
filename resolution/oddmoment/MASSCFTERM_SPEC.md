@@ -108,6 +108,43 @@ alpha in 1e-3, statistical error 0.0167 on the gun, 0.0254 on v3):
 | G4 | the corrected alpha agrees with the truth-referenced `sigma_bar` fit | gun: truth-free **+0.14102**, true sigma_bar **+0.13160** (0.009 apart, 0.4 sigma), naive -0.00470 |
 | G5 | the toy fit with the TRUE sigma_bar is bit-identical to the a = 0 toy | **exactly** (-0.09187 / NLL -590499.5705 in all three arms) |
 
+## 4b. A SECOND, INDEPENDENT per-candidate deterministic shift: the Jensen term
+
+The CF propagates the block fluctuations LINEARLY (`resinfv` holds the
+mass-projected dof weights), but m is a nonlinear function of the fitted
+parameters.  The missing quadratic term has a nonzero mean:
+
+    1/2 tr(H Sigma)/m = (3 A + B)/8 ,
+    A = sigma_rel1^2 + sigma_rel2^2 ,  B = 2 rho sigma_rel1 sigma_rel2 ,
+
+for m ~ (kappa1 kappa2)^{-1/2}.  Measured on the gun with GEN leg kinematics:
+**rho = -0.004...-0.009 (legs uncorrelated, B = 0)** and the angular share of
+the mass variance **f_ang = 0.10-0.14**, so the closed form
+
+    **s_i^Jensen = 1.5 (sigma_m,i / m_i)^2**       (truth-free, cache-only)
+
+is **4.6 % high** and is the recommended default (use `1.5 - f_ang` if f_ang is
+ever measured per candidate).  It is a SECOND deterministic per-candidate
+location shift and it is ADDITIVE with the resolution correction of s2-4
+(measured: -0.1234e-3 on top of the naive fit, -0.1237e-3 on top of the
+corrected one -- identical to 3e-7).
+
+Implementation: exactly the same hook.  With
+`mu_i(theta) = M (1 + alpha) (1 + s_i^Jensen)`, i.e.
+
+    delta_i(theta) = m_i - M(1 + alpha) - M s_i^Jensen
+
+used BOTH in the phase `psi = Sim - tgi * delta` AND inside
+`sigma_bar_i(theta) = sigma_i - a_i delta_i(theta)`.
+
+Gates (measured, `oddmoment/out/jensenfits.txt`):
+| gate | measured |
+|---|---|
+| J1 | additivity: the shift moves alpha by -0.1234e-3 from naive and -0.1237e-3 from corrected |
+| J2 | gun alpha: naive -0.0047 -> corrected +0.1410 -> corrected+Jensen **+0.0174 +- 0.0167** |
+| J3 | v3 alpha: naive -0.0464 -> corrected +0.0810 -> corrected+Jensen **-0.0326 +- 0.0253** |
+| J4 | differential: in truth-free `sigma_bar` quintiles the ratio alpha/prediction is CONSTANT at **0.94 +- 0.11** over a factor 8 in the predicted size |
+
 ## 5. The same defect at track level
 
 For a single track, sigma = sigma_bar (1 + a q x) with
@@ -121,6 +158,14 @@ Validated in `oddmoment/track_truthfree.py`: it reproduces the truth-referenced
 momentum ranges.
 
 ## 6. Why it matters
+
+**Both terms scale as sigma_rel^2** -- the resolution artefact as
+-(1 + f_hit) F sigma_rel^2 and the Jensen term as +(1.5 - f_ang) sigma_rel^2 --
+so they partially CANCEL, with a ratio fixed by (1.5-f_ang)/[(1+f_hit) F]:
+0.85 at the J/psi (measured 0.124/0.146) and 0.52-0.86 at the Z.  At Z momenta
+each term ALONE is 15-43 MeV and the net is -5...-14 MeV.  The cancellation is
+an accident of two numbers that both move with the sample; **both terms must be
+put in explicitly.**
 
 At J/psi momenta a_m = 0.0107, the predicted bias is -0.155e-3 and the MEASURED
 one (toy, real per-candidate models) is **-0.148e-3**; on the real gun the

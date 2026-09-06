@@ -40,7 +40,8 @@ WIN = 0.7
 class MassLik:
     def __init__(self, pairs, kernel, sbar=None, krad=1.0, maxn=0,
                  chunk=32768, log=print, corrected=False, a_scale=1.0,
-                 a_vec=None, override=None):
+                 a_vec=None, override=None, jensen=0.0, srel_bin=None,
+                 binon="sigma"):
         d = np.load(pairs)
         self.TG = np.asarray(d["tgrid"], dtype=np.float64)
         z = d["z"].astype(np.float64)
@@ -85,6 +86,38 @@ class MassLik:
         if self.corrected:
             log(f"corrected sigma: <a_i> = {np.median(self.a):.5f} (median), "
                 f"a_scale = {a_scale}")
+        # THE SECOND-ORDER (JENSEN) TERM of the mass functional.  m is a
+        # nonlinear function of the fitted parameters and the CF propagates the
+        # block fluctuations LINEARLY, so the model's location is short by
+        #     1/2 tr(H Sigma)/m = 3/8 (sigma_rel1^2 + sigma_rel2^2)
+        #                       = 1.5 (sigma_m/m)^2
+        # (exact for m ~ (kappa1 kappa2)^{-1/2} with uncorrelated legs and a
+        # negligible angular share of sigma_m; see NOTES 2026-09-05 (III)).
+        # It is DETERMINISTIC and truth-free: a per-candidate location shift.
+        self.binon = binon
+        self.jensen = float(jensen)
+        self.mshift = (self.jensen * 1.5 * (self.sig / self.mgen) ** 2
+                       * self.mgen) if self.jensen else None
+        if self.jensen:
+            log(f"Jensen shift on (scale {self.jensen}): median "
+                f"{np.median(1.5*(self.sig/self.mgen)**2):.3e} relative")
+        # a single sigma_m/m quantile bin, for the differential test.
+        # BINNING ON THE EXPORTED sigma IS BINNING ON THE MASS FLUCTUATION
+        # (sigma = sigma_bar (1 + a x)), which displaces the location inside
+        # each bin by up to 1e-3 -- an order above the Jensen term.  `csrel`
+        # bins on the TRUTH-FREE corrected resolution sigma_bar = sigma - a
+        # (m - M) instead, which is what the differential test needs.
+        if srel_bin is not None:
+            k, nb = srel_bin
+            if self.binon == "csrel":
+                sr = (self.sig - self.a * self.mobs) / self.mgen
+            else:
+                sr = self.sig / self.mgen
+            q = np.quantile(sr[sr < 5. * np.median(sr)], np.linspace(0, 1, nb + 1))
+            keep = (sr >= q[k]) & (sr < q[k + 1])
+            self._apply_mask(keep)
+            log(f"sigma_m/m bin {k}/{nb}: [{q[k]:.5f}, {q[k+1]:.5f}] -> "
+                f"{int(keep.sum())} candidates, <srel> = {sr[keep].mean():.5f}")
         # FSR kernel CF, tabulated on absolute t
         k = np.load(kernel)
         dm = k["dm"]
@@ -102,11 +135,29 @@ class MassLik:
         """The model's absolute scale for this alpha."""
         if not self.corrected:
             return self.s[sl]
-        delta = self.mobs[sl] - MJPSI * alpha
+        delta = self._delta(sl, alpha)
         s = self.s[sl] - self.a[sl] * delta
         # a_i |delta| can exceed sigma on the pathological tail; keep the scale
         # physical (this touches <0.1 % of candidates and only in the far tail)
         return np.maximum(s, 0.2 * self.s[sl])
+
+    def _apply_mask(self, keep):
+        keep = np.asarray(keep, bool)
+        self.n = int(keep.sum())
+        for nm in ("z", "sig", "mgen", "vgf", "mobs", "s", "a", "mshift"):
+            v = getattr(self, nm, None)
+            if v is not None:
+                setattr(self, nm, v[keep])
+        for nm in ("Sms", "Sio_re", "Sio_im", "Srad_re", "Srad_im"):
+            v = getattr(self, nm, None)
+            if v is not None:
+                setattr(self, nm, v[keep])
+
+    def _delta(self, sl, alpha):
+        d = self.mobs[sl] - MJPSI * alpha
+        if self.mshift is not None:
+            d = d - self.mshift[sl]
+        return d
 
     def _kcache(self, sl, khit, kms, kioni, krad):
         """e^{Sre} and Sim for a fixed k; independent of alpha."""
@@ -136,7 +187,7 @@ class MassLik:
                 self._pk = (sl.start, tgi, pKre, pKim)
         else:
             _, tgi, pKre, pKim = self._pk
-        delta = self.mobs[sl] - MJPSI * alpha
+        delta = self._delta(sl, alpha)
         psi = Sim - tgi * delta[:, None]
         integ = eSre * (pKre * np.cos(psi) - pKim * np.sin(psi))
         dT = np.diff(TG)
@@ -162,6 +213,8 @@ class MassLik:
         for _ in range(3):
             g = np.linspace(lo, hi, 7)
             v = np.array([self.nll(x, **kw) for x in g])
+            if not np.all(np.isfinite(v)):
+                raise SystemExit(f"non-finite NLL on the alpha grid: {v}")
             i = int(np.argmin(v))
             i = min(max(i, 1), len(g) - 2)
             c = np.polyfit(g[i - 1:i + 2] - g[i], v[i - 1:i + 2], 2)
@@ -174,7 +227,7 @@ class MassLik:
 
 # ------------------------------------------------------------------- toy
 def sample_from_model(pairs, a_inject, seed=1234, nz=801, zmax=10.,
-                      chunk=8192, krad=1.0, log=print):
+                      chunk=8192, krad=1.0, log=print, mode="sigma"):
     """Draw x_i from each candidate's OWN model density, then apply the map.
 
     Returns (x, z_obs, sigma_obs) with sigma_obs = sigma_bar (1 + a x) and
@@ -216,17 +269,33 @@ def sample_from_model(pairs, a_inject, seed=1234, nz=801, zmax=10.,
         x[sl] = zg[idx - 1] + frac * (zg[idx] - zg[idx - 1])
         if lo % (20 * chunk) == 0:
             log(f"  sampled {lo}/{n}")
+    if mode == "exp":
+        # THE SECOND-ORDER (JENSEN) STRUCTURE, exactly: the model is linear in
+        # m, the truth is m = m_gen e^y with y = s x the LOG residual, so
+        #     z_obs = (e^{s x} - 1)/s ,   s = sigma_bar/m_gen .
+        # Its mean is +s/2 in pull units, i.e. +1/2 s^2 in relative mass -- a
+        # QUADRATIC perturbation, not a location shift, so the fit's response
+        # to it is the number this toy measures.
+        mg = np.load(pairs)["eta"].astype(np.float64)
+        sr = sbar / mg
+        # the 0.4 % of candidates with a pathological Jpsi_sigmamass (up to
+        # 1e6 x m) would overflow expm1; they carry weight 1/sigma^2 in the
+        # likelihood and are irrelevant, so cap the LOG-residual scale
+        sr = np.minimum(sr, 0.2)
+        z_obs = np.expm1(sr * x) / sr
+        sig_obs = sbar.copy()
+        return x, z_obs, sig_obs, sbar
     sig_obs = sbar * (1. + a_inject * x)
     z_obs = x / (1. + a_inject * x)
     return x, z_obs, sig_obs, sbar
 
 
-def write_toy(pairs, out, a_inject, seed=1234, log=print):
+def write_toy(pairs, out, a_inject, seed=1234, log=print, mode="sigma"):
     """Only z, sigma and the truth are written: everything else (the
     exponents, vgf, the gen mass) is read from the parent cache at fit time
     through --override, so a toy costs 5 MB instead of 2.4 GB."""
     x, z_obs, sig_obs, sbar = sample_from_model(pairs, a_inject, seed=seed,
-                                                log=log)
+                                                log=log, mode=mode)
     np.savez_compressed(out, z=z_obs, sigma=sig_obs, sbar=sbar, x=x,
                         a_inject=a_inject)
     log(f"-> {out}  (a_inject = {a_inject:+.5f}, <x> = {x.mean():+.5f}, "
@@ -247,6 +316,11 @@ def main():
                     help="use a CONSTANT a_i (the toy's injected value)")
     ap.add_argument("--override", default="",
                     help="npz with z, sigma replacing the cache's (toy)")
+    ap.add_argument("--jensen", type=float, default=0.0,
+                    help="scale on the 1.5 (sigma_m/m)^2 second-order shift")
+    ap.add_argument("--srel-bin", default="", help="K/N quantile bin of sigma_m/m")
+    ap.add_argument("--binon", choices=["sigma", "csrel"], default="sigma",
+                    help="quantity the --srel-bin quantiles are taken on")
     ap.add_argument("--khit", type=float, default=1.0)
     ap.add_argument("--kms", type=float, default=1.0)
     ap.add_argument("--kioni", type=float, default=1.0)
@@ -256,12 +330,13 @@ def main():
     ap.add_argument("--maxn", type=int, default=0)
     ap.add_argument("--a-inject", type=float, default=0.0)
     ap.add_argument("--seed", type=int, default=1234)
+    ap.add_argument("--toy-mode", choices=["sigma", "exp"], default="sigma")
     ap.add_argument("--out", default="")
     ap.add_argument("--label", default="")
     a = ap.parse_args()
 
     if a.cmd == "toy":
-        write_toy(a.pairs, a.out, a.a_inject, seed=a.seed)
+        write_toy(a.pairs, a.out, a.a_inject, seed=a.seed, mode=a.toy_mode)
         return
 
     sbar = None
@@ -278,7 +353,9 @@ def main():
     L = MassLik(a.pairs, a.kernel, sbar=sbar, krad=a.krad, maxn=a.maxn,
                 corrected=(a.sigma_source == "corrected"),
                 a_scale=a.a_scale, a_vec=av,
-                override=(a.override or None))
+                override=(a.override or None), jensen=a.jensen,
+                srel_bin=(tuple(int(v) for v in a.srel_bin.split("/"))
+                          if a.srel_bin else None), binon=a.binon)
     t0 = time.time()
     if a.cmd == "scan":
         for al in np.linspace(-2e-3, 2e-3, 9):
@@ -286,7 +363,7 @@ def main():
     else:
         ah, eh, nll = L.fit_alpha(**kw)
         line = (f"{a.label or os.path.basename(a.pairs)} "
-                f"[sigma={a.sigma_source}] alpha = {ah*1e3:+.5f} +- {eh*1e3:.5f} e-3"
+                f"[sigma={a.sigma_source} jensen={a.jensen}] alpha = {ah*1e3:+.5f} +- {eh*1e3:.5f} e-3"
                 f"   NLL {nll:.4f}   n={L.n}   ({time.time()-t0:.0f} s)")
         print(line)
         if a.out:
