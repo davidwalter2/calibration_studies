@@ -61,9 +61,14 @@ def main():
 
     with h5py.File(args.card, "r") as f:
         term = unbinned.read_unbinned_terms_from_h5(f["unbinned_terms"])[0]
-        g = f["unbinned_terms"][term.name]
-        keys = {k: np.asarray(g[k]) for k in g.keys()
-                if k.startswith("S_") and not k.endswith("_norm")}
+    # the family exponents come off the TERM, not off the HDF5: the datasets
+    # are stored flat with an `original_shape` attribute and a raw
+    # `np.asarray(g[k])` gives a 1-D array
+    keys = {}
+    for f_ in term.families:
+        for comp in ("re", "im"):
+            if comp in f_:
+                keys[f"S_{comp}_{f_['name']}"] = np.asarray(f_[comp])
     cfg = term.config()
     lo, hi = cfg["norm_window"]
     mref = cfg["m_ref"]

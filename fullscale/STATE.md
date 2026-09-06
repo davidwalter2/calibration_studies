@@ -286,3 +286,40 @@ One thing to carry forward: the material sandwich inflation `sqrt(J/2K)` goes
 from 0.993 median (v1) to **1.326 median / 5.43 max** (v2). With real
 information the per-candidate score distribution is heavier-tailed, so the
 robust error is the one to quote, not `2K^-1`.
+
+### 2026-09-06 19:20 — the DY production completed; the cache is appended, not rebuilt
+`dymc_8p5M_260906_v2` reached 380/380 after the phase-1 cache was written. The
+7 tasks it missed are identified EXACTLY, from the reader's own per-file log
+rather than from mtimes: `task_0000, 0002, 0003, 0148, 0168, 0260, 0293`.
+Their pairs were built on their own (28 stream files, 70 267 candidates) and
+appended with `append_pairs.py`, which refuses the merge unless the two caches
+carry the same columns, the same tau grid, the same CF model, AND are disjoint
+on `(run, lumi, event)` -- the reason those columns are cached at all.
+
+**Which fits used which**: the 300 k variant ladder and the first full-scale
+H200 fit were built from the **373-task** cache (3 663 056 candidates before
+cuts). The final full-scale numbers are rebuilt on the **380-task** cache. The
+appended tasks are 1.9 % of the sample, so the two differ by ~1 % on every
+error and by nothing systematic.
+
+### THE HEADLINE STATISTICAL NUMBER (H200, 3 613 320 candidates, 373-task cache)
+Resolution fixed at the MC truth, K(m) floated (5 Legendre terms), both
+corrections on, expected (Asimov) errors from the reference-point information:
+
+| | sigma [MeV], inverse Hessian | x1.109 sandwich |
+|---|---:|---:|
+| **`m_Z`** | **1.979** | **2.19** |
+| **`Gamma_Z`** | **4.035** | **4.48** |
+| `shape1..5` | 0.0063, 0.0055, 0.0053, 0.0075, 0.0014 | |
+
+against **1.51 / 2.91 MeV with K(m) FIXED** (the 300 k `noshape` Asimov scaled
+to 3.61 M), i.e. floating the LO->MiNNLO shape costs **x1.31 on `m_Z` and
+x1.39 on `Gamma_Z`** -- close to the 1.25x / 1.21x the generator-level study
+measured, and the price of not having to trust an LO parton luminosity.
+
+Correlations worth carrying forward: `rho(shape4, shape5) = -0.964` (the
+Legendre basis is orthogonal over the Born window, not over the *observed*
+spectrum after resolution and acceptance), `rho(m_Z, shape3) = +0.517` and
+`rho(Gamma_Z, shape4) = +0.593` -- above the < 0.40 the generator-level fit
+saw, so the shape is less orthogonal to the POIs at detector level than it is
+at generator level, but nowhere near degenerate.
