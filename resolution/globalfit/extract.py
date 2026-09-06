@@ -6,7 +6,10 @@ unified calibration datacard needs, from the SAME candidates:
   ``K = sum_i H_i`` over a chosen global-parameter subset (parmtype 14 = the
   50 scalar-potential field modes, 15 = the material groups, 0-5 = alignment),
   reading either ``hesspackedv`` (MC productions) or the factored
-  ``hessfactorv`` / ``nRank`` (data productions). Same conventions and same
+  ``hessfactorv`` / ``nRank`` (data productions) -- plus, on a production run
+  with ``exportVarianceGrads``, the separately shipped variance (log-det)
+  block ``hessvaridxv`` / ``hessvarpackedv``, which ``hessfactorv`` does NOT
+  contain and ``hesspackedv`` does. Same conventions and same
   numbers as ``global_corrections/fit_global_grads.py``: **chi2** units, so
   ``theta = -K^-1 G`` and ``cov = 2 K^-1``.
 
@@ -244,11 +247,35 @@ def process_file(fname):
         if "hessfactorv" in keys:
             fmt = "factored"
             want += ["hessfactorv", "nRank"]
+            # THE VARIANCE (log-det) BLOCK.  With `exportVarianceGrads` the
+            # two-track maker's Hessian is 2 J^T R J PLUS tr(dV_i R dV_j R)
+            # over the variance parameters, and only the first is in
+            # `hessfactorv` (the second is a Gram matrix whose rank IS the
+            # number of variance parameters -- it does not compress, so it is
+            # shipped as its own packed triangle).  Its presence is the flag:
+            #     hess = B^T B + scatter(hessvarpackedv on hessvaridxv)
+            if "hessvaridxv" in keys:
+                want += ["hessvaridxv", "hessvarpackedv"]
         elif "hesspackedv" in keys:
             fmt = "packed"
             want.append("hesspackedv")
+            # `hesspackedv` is COMPLETE -- the variance block is already in it
+            # -- so it must NOT be added again.
         else:
             sys.exit(f"{fname}: neither hesspackedv nor hessfactorv present")
+        # A file whose gradient carries the log-det term but whose Hessian
+        # does not is an inconsistent (G, K) pair and would bias the fit; it
+        # is much better to stop than to fit it.
+        if (fmt == "factored" and "gradllv" in keys
+                and "hessvaridxv" not in keys):
+            gll = t["gradllv"].array(entry_stop=200, library="np")
+            if any(len(x) for x in gll):
+                sys.exit(
+                    f"{fname}: gradllv is filled (the log-det term is in "
+                    "gradv) but there is no hessvaridxv, so hessfactorv is "
+                    "the MEAN Hessian only. Refusing to build an "
+                    "inconsistent (G, K)."
+                )
     if "Jpsi_jacMass" not in keys:
         sys.exit(
             f"{fname}: no Jpsi_jacMass branch -- this is not a two-track "
@@ -324,6 +351,28 @@ def process_file(fname):
                 )
                 Bk = B[:, kk]
                 Hkk = Bk.T @ Bk
+                # ... plus the variance (log-det) block, which hessfactorv
+                # does not contain. Scatter its packed triangle onto the
+                # candidate's own column numbering first, then project.
+                if "hessvaridxv" in a:
+                    vi = np.asarray(a["hessvaridxv"][ic], dtype=np.int64)
+                    if len(vi):
+                        vp = np.asarray(
+                            a["hessvarpackedv"][ic], dtype=np.float64
+                        )
+                        m = len(vi)
+                        HV = np.zeros((m, m))
+                        HV[triu_index(m)] = vp
+                        HV = HV + HV.T - np.diag(np.diag(HV))
+                        # rows of vi that survive the parmtype selection, and
+                        # where they land in kk
+                        pos = {int(c): j for j, c in enumerate(kk)}
+                        sel = [(j, pos[int(c)]) for j, c in enumerate(vi)
+                               if int(c) in pos]
+                        if sel:
+                            js = np.asarray([x[0] for x in sel])
+                            ks = np.asarray([x[1] for x in sel])
+                            Hkk[np.ix_(ks, ks)] += HV[np.ix_(js, js)]
             fk = fi[kk]
             hess[np.ix_(fk, fk)] += Hkk
 
