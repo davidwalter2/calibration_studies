@@ -223,3 +223,66 @@ does not move with `m_Z` is absorbed by the normalisation and biases nothing.
 | submit82 | 300 k card, 6 variants in parallel, chunk 32768, 7 free params | running; ~150 s per Hessian, 48-56 GB each |
 | Engaging `22161787` | **full 3.61 M card**, H200, chunk 32768, 111 chunks | running (an earlier attempt at chunk 262144 OOM'd on 141 GB: the lineshape CF gather is a `(chunk, nt_int)` int64 tiled per pfor parameter) |
 | Engaging `22161788` | same card, `--hess-mode hvp`, chunk 65536 | pending (per-user GPU cap) |
+
+### 2026-09-06 19:10 — DECISION: phases 2 and 3 run on J/psi **v2**
+`jpsimc_20M_260906_v2` finishes at the same time as the v1 slurm arrays, so
+there is no reason to calibrate on the weaker leg. **Phase 2 and phase 3 both
+take `/ceph/submit/data/user/d/david_w/ZMass/cvh/jpsimc_20M_260906_v2/`**
+(multi-stream; complete at 1642 tasks). What v2 adds that phase 2 wants
+immediately:
+
+* `Jpsi_covrefmom` and its reductions, so the Jensen `s^2` is **truth-free per
+  candidate** on the J/psi leg instead of carrying the +-5 % of an MC-measured
+  `f_ang` (gun 0.086 / data 0.106);
+* the **two-track variance (log-det) gradient** (`varianceGradFamilies=15`), so
+  the quadratic term's parmtype-15 information is the WIDTH as well as the mean
+  loss -- on the J/psi gun that is a factor 41 (Fisher 4.07 -> 166.3);
+* `Mu*_maxfracloss`, and the per-group CF exponents phase 3 needs.
+
+The v1 extraction already made (`runs/quad_jpsiv1.npz`, 15 965 797 candidates;
+`runs/jpairs_v1.npz`, running) is **kept only as a cross-check**: the same
+candidates through a mean-loss-only quadratic term versus v2's variance-block
+version, quoted as the parmtype-15 material-information ratio. It is not the
+phase-2 input.
+
+### First phase-1 number, 2026-09-06 19:10 — K(m) FIXED (300 k)
+Both corrections on, resolution fixed at the MC truth, the 5 Legendre
+coefficients held at 0 (i.e. the provider's LO shape):
+
+| | fitted [MeV] | sandwich err | truth | pull |
+|---|---:|---:|---:|---:|
+| `m_Z` | +15.90 | 5.79 | 0 | +2.7 |
+| `Gamma_Z` | **+158.18** | 12.16 | +0.0019 | **+13.0** |
+
+`+158 MeV on Gamma_Z` is the LO->MiNNLO K-factor, the thing a floated `K(m)`
+exists to absorb (the generator-level fit to the pre-FSR spectrum measured
++75.8 MeV; the detector-level number is larger). 9 iterations, 773 s, sandwich
+23 s; error ratio sandwich/inverse-Hessian 1.084 / 1.127 against
+`sqrt(N/N_eff) = 1.107`.
+
+Asimov errors at 300 k are `m_Z` 5.244, `Gamma_Z` 10.107 MeV, i.e. **1.51 and
+2.91 MeV at 3 613 320** -- within a few per cent of the 1.45 / 2.76 MeV the
+459-candidate smoke projected.
+
+### The v1 -> v2 cross-check: the material information, on the SAME candidates
+`extract.py --no-mass --ntasks 120` on both J/psi productions -- the same 120
+tasks, i.e. the same events reconstructed twice (1 242 026 vs 1 240 851
+candidates, 0.1 % apart, from one task of v2 not yet complete). Hessians
+normalised per candidate:
+
+| block | tr(K) ratio v2/v1 | per-parameter diag ratio (median, q10, q90, max) | d(log det) | stiffest eigenvalue |
+|---|---:|---|---:|---|
+| **14 field** (50) | **1.0000** | 1.000, 1.000, 1.000, 1.000 | -0.0019 | 73.21 -> 73.20 |
+| **15 material** (42) | **120.2** | **666**, 124, 33 089, 1.3e6 | **+277** | 0.01424 -> **0.8512** |
+
+The field block is BIT-EQUAL, which is the control: `varianceGradFamilies=15`
+touches parmtype 15 and nothing else, exactly as advertised. The material block
+gains a factor **120 on the trace and 666 in the median parameter** -- larger
+even than the factor 41 the J/psi gun predicted. **v1's mean-loss-only
+quadratic term is very nearly blind to the material amounts**, and that alone
+settles the choice of v2 for phases 2 and 3.
+
+One thing to carry forward: the material sandwich inflation `sqrt(J/2K)` goes
+from 0.993 median (v1) to **1.326 median / 5.43 max** (v2). With real
+information the per-candidate score distribution is heavier-tailed, so the
+robust error is the one to quote, not `2K^-1`.

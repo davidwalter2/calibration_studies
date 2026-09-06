@@ -67,7 +67,7 @@ def main():
     cfg = term.config()
     lo, hi = cfg["norm_window"]
     mref = cfg["m_ref"]
-    x = np.asarray(term.param_defaults, np.float64)
+    x = np.array(term.param_defaults, dtype=np.float64, copy=True)
     names = list(term.param_names)
     if args.fit:
         with open(args.fit) as fh:
