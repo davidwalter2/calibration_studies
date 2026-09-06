@@ -325,19 +325,53 @@ data_tt 264/264, none added or removed) and on 833 candidates of chunk 42's
 pre-crash window against the production build. Must be cherry-picked onto
 `WmassNanoProd_15_0_19_patch2_dev` when the productions drain.
 
-**Recovery.** `./resume_dy_dev2.sh` — same sentinel logic as `resume_dy.sh`, but
-it runs from the fixed area and adds `exportHitResBlocks=False` (the branch
-default is True and would change `resinfv`/`reseigidx`/`resinfvarv`). It parks
-the crashed remains in `task_XXXX/failed_260906/` before resubmitting. The
-recovered tasks carry three extra always-on branches the rest of the set does
-not (`Jpsi_covrefmom`, `Jpsigenpre_*`, `Mu*_maxfracloss`); nothing pools on
-them.
+**Recovery — the whole remaining tail moved to the fixed build.**
 
-`watch_dy_recover.sh` loops that every 30 min until the original array drains —
-new 134s keep appearing until it does, because the ~240 chunks still queued in
-`6406978` all run the unfixed `.so`. It cannot double-submit (the resume skips
-anything queued, running, or with a sentinel). Stop it with
-`./watch_dy_recover.sh --stop`; log at `~/dy_recover_watch.log`.
+The first move was to re-drive only the 38 tasks that had already crashed. That
+is not enough: every chunk still queued in `6406978` carries the *unfixed* `.so`
+out of `CMSSW_15_0_19_patch2_dev`, so ~28 % of them would each have burned up to
+4 h of Geant4e and written a keyless file before being recovered — the same work
+done twice, on ~47 of the 168 queued chunks. So:
+
+```
+scancel --state=PENDING 6406978      # 168 PENDING elements; the 69 RUNNING left alone
+./resume_dy_dev2.sh                  # resubmits every chunk with no sentinel and not in squeue
+```
+
+`--state=PENDING` is what makes that safe: the 69 running elements were verified
+byte-for-byte unchanged before and after (`scratch_bugfix_260906/orig_running_{before,after}.txt`).
+They finish on the old build; the ones that die are picked up by the watcher.
+
+| job | what | n |
+|---|---|---|
+| `6409926` | the tasks that had already crashed | 37 |
+| `6409964`, `6409984` | crashed while the recovery was being set up | 1 + 1 |
+| **`6409980`** | **the cancelled PENDING tail, indices 212-379** | **168** |
+
+All of them: area `CMSSW_15_0_19_patch2_dev2`, `array_dymc_dev2.sbatch`,
+`--time 4:00:00`, `%200`, same task directories, and the production `EXTRA`
+plus **`exportHitResBlocks=False`** (the branch default is `True` and would
+register the parmtype-8/9 hit blocks in `dVs`, changing
+`resinfv`/`reseigidx`/`resinfvarv`). Crashed remains are parked in
+`task_XXXX/failed_260906/` first — the `local.log` is the only record that a
+task died of *this*. Tasks driven from dev2 carry three extra always-on branches
+the rest of the set does not (`Jpsi_covrefmom`, `Jpsigenpre_*`,
+`Mu*_maxfracloss`); nothing pools on them, and on 844 candidates of chunk 42
+they agree with the production build on 215 of 217 common branches (the two
+that differ, `radstepstride` and `reshitidx`, are the documented additive export
+changes, not the fix).
+
+`resume_dy_dev2.sh` keys off **the `.complete` sentinel plus a live squeue
+check**, never sacct: crashed, cancelled and never-started are all the same case
+and all get the fixed build. `watch_dy_recover.sh` loops it every 30 min for the
+69 old-build tasks still in flight (and for anything the fixed tail loses to an
+eviction or a wall-clock overrun). It gives up on an index after
+`MAXATTEMPTS` (3) submissions — counts in `.watch_dy_recover.counts`, held
+indices named in the log — so it cannot resubmit a genuinely bad chunk forever.
+Stop it with `./watch_dy_recover.sh --stop`; log at `~/dy_recover_watch.log`.
+
+Accounting immediately after the switch: **380 = 105 complete + 69 running
+(old build) + 206 pending (37 + 1 + 168), no orphans.**
 
 ## Notes
 

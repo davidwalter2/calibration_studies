@@ -65,3 +65,4 @@ resolution/oddmoment/out/
 resolution/oddmoment/tmp/
 production/.watch_dy_recover.pid
 production/.watch_dy_recover.stop
+production/.watch_dy_recover.counts
