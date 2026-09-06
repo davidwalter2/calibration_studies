@@ -110,7 +110,7 @@ def _stem_of_pattern(pattern):
 
 
 # ---------------------------------------------------------------------------
-def stream_files(task_dir, stem="globalcor", basename=None):
+def stream_files(task_dir, stem=None, basename=None):
     """This task's stream files, ordered by stream index (numerically).
 
     Lexical order is wrong from ten streams on (`_10` before `_2`); the index
@@ -142,7 +142,7 @@ def declared_streams(task_dir):
     return int(m.group(1)) if m else None
 
 
-def task_reason(task_dir, stem="globalcor", basename=None, require_complete=True):
+def task_reason(task_dir, stem=None, basename=None, require_complete=True):
     """"" if the task is usable, else a short reason why it is not."""
     fs = stream_files(task_dir, stem, basename)
     if not fs:
@@ -157,12 +157,12 @@ def task_reason(task_dir, stem="globalcor", basename=None, require_complete=True
     return ""
 
 
-def task_complete(task_dir, stem="globalcor", basename=None, require_complete=True):
+def task_complete(task_dir, stem=None, basename=None, require_complete=True):
     """True iff every stream file this task wrote is present and non-empty."""
     return not task_reason(task_dir, stem, basename, require_complete)
 
 
-def runtree_file(task_dir, stem="globalcor", basename=None):
+def runtree_file(task_dir, stem=None, basename=None):
     """ONE file of this task, for the `runtree` parameter map.
 
     Every stream carries a byte-identical copy, so any of them will do -- but
@@ -175,7 +175,7 @@ def runtree_file(task_dir, stem="globalcor", basename=None):
 
 
 # ---------------------------------------------------------------------------
-def task_dirs(base, stem="globalcor", basename=None):
+def task_dirs(base, stem=None, basename=None):
     """The task directories under `base`, sorted.
 
     `base` may be a production directory (holding `task_*/`), a glob of task
@@ -206,6 +206,32 @@ def group_by_task(files):
 
 
 # ---------------------------------------------------------------------------
+def autostem(dirs, logger=None):
+    """The single stream stem present under `dirs`.
+
+    A directory spec (`--files /ceph/.../task_0007`) does not say WHICH kind of
+    output to read, and a production carries exactly one: `globalcor` for the
+    two-track maker, `globalcor_resclosure` for the single-track one. Reading
+    both from one directory would concatenate two different trees, so a
+    directory holding more than one stem is an error, not a guess.
+    """
+    stems = set()
+    for d in dirs:
+        for f in _glob.glob(os.path.join(d, "*.root")):
+            stems.add(split_stream(f)[0])
+    if len(stems) > 1:
+        raise SystemExit(
+            "prodfiles: more than one output stem under these task "
+            f"directories ({', '.join(sorted(stems))}) -- name one with a glob "
+            "such as .../task_*/<stem>_*.root instead of a directory")
+    if not stems:
+        return "globalcor"
+    stem = stems.pop()
+    if logger is not None:
+        logger(f"prodfiles: stem {stem}_*.root")
+    return stem
+
+
 def _select(dirs, stem, basename, max_tasks, require_complete, logger):
     """Common task filter: keep usable tasks, cap on TASKS, count the rest."""
     if require_complete == "auto":
@@ -248,10 +274,12 @@ def _select(dirs, stem, basename, max_tasks, require_complete, logger):
     return files
 
 
-def iter_files(base, max_tasks=None, stem="globalcor", basename=None,
+def iter_files(base, max_tasks=None, stem=None, basename=None,
                require_complete="auto", logger=None):
     """Every stream file of the first `max_tasks` usable tasks under `base`."""
     dirs = task_dirs(base, stem, basename)
+    if stem is None and basename is None:
+        stem = autostem(dirs, logger)
     return _select(dirs, stem, basename, max_tasks, require_complete, logger)
 
 

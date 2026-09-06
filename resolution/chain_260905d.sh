@@ -35,7 +35,7 @@ case $st in
    # widened globs below to ingest.
    pf_clean_incomplete "$G" globalcor
    if [ ! -s "runs/cf_masskernel_$GUN.npz" ]; then
-     python3 cf_masskernel_tt.py --files "$G/task_*/globalcor_0.root" --ntasks 160 \
+     python3 cf_masskernel_tt.py --files "$G/task_*/globalcor_*.root" --ntasks 160 \
          --kernel-cache runs/cf_masskernel_$GUN.npz --postfix "_$GUN" \
          > "$LOG/kernel_$GUN.log" 2>&1 && echo "  [ok] kernel" || echo "  [FAIL] $LOG/kernel_$GUN.log"
    else echo "  skip kernel"; fi
@@ -47,7 +47,7 @@ case $st in
 
 2) step "stage 2: aux columns + masks"
    [ -s "$LOG/aux_jpsigun_260905d.npz" ] || \
-     python3 censoring_aux.py --files "$CEPH/resolution_trackres_$GUN/task_*/globalcor_0.root" \
+     python3 censoring_aux.py --files "$CEPH/resolution_trackres_$GUN/task_*/globalcor_*.root" \
         --cache runs/cf_masspairs_$GUN.npz --out "$LOG/aux_jpsigun_260905d.npz" --nproc 32 --ntasks 160 \
         > "$LOG/aux_jpsigun.log" 2>&1 && echo "  [ok] aux"
    python3 make_masks_260905d.py 2>&1 | tee "$LOG/masks.txt" ;;

@@ -63,10 +63,10 @@ refit) step "refit: $NTASK x $NEV events, two-track, exportStepRecords=True (bot
   done
   for p in $pids; do wait $p; done
   echo "  complete: $(ls -d $OUT/task_*/.complete 2>/dev/null | wc -l)/$NTASK"
-  ls -la $OUT/task_*/globalcor_0.root 2>/dev/null | awk '{s+=$5} END {print "  total bytes", s}' ;;
+  ls -la $OUT/task_*/globalcor_*.root 2>/dev/null | awk '{s+=$5} END {print "  total bytes", s}' ;;
 
 pairs) step "pairs: offline extractor, in-maker reader, and the decimated offline cache"
-  F="$OUT/task_*/globalcor_0.root"
+  F="$OUT/task_*/globalcor_*.root"
   python3 cf_masskernel_tt.py --files "$F" --ntasks $NTASK \
       --kernel-cache "$LOG/kernel_$TAG.npz" --postfix "_$TAG" > "$LOG/kernel.log" 2>&1
   echo "  kernel rc=$?"

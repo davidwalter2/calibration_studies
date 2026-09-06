@@ -6,19 +6,24 @@
 # measured ~9 min/file, i.e. ~6 h for a 40-file production on one core, on a
 # 192-core box. This shards by file and merges the per-shard caches.
 #
-# usage: ./extract_parallel.sh <indir-glob-dir> <out.npz> [nshards]
+# usage: ./masspairs_parallel.sh <production-dir> <out.npz> [nshards]
 set -euo pipefail
 INDIR=$1
 OUT=$2
 NSHARD=${3:-20}
 
 SELF=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=prodfiles.sh
+source "$SELF/prodfiles.sh"
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/masspairs_shards.XXXXXX")
 trap 'rm -rf "$TMP"' EXIT
 
-mapfile -t FILES < <(ls "$INDIR"/task_*/globalcor_0.root | sort)
+# EVERY STREAM OF EVERY USABLE TASK. `ls task_*/globalcor_0.root` took a
+# quarter of the candidates from a numberOfThreads=4 production, and picked up
+# the leftover streams of any task whose sentinel is missing.
+mapfile -t FILES < <(pf_files "$INDIR")
 N=${#FILES[@]}
-echo "[masspairs_parallel] $N files -> $NSHARD shards"
+echo "[masspairs_parallel] $N files ($(pf_task_dirs "$INDIR" | wc -l) tasks) -> $NSHARD shards"
 
 run_shard() {
   local i=$1
@@ -27,18 +32,13 @@ run_shard() {
   local j=$i
   while [ "$j" -lt "$N" ]; do echo "${FILES[$j]}" >> "$list"; j=$((j + NSHARD)); done
   [ -s "$list" ] || return 0
-  # one shard = one explicit file list; --files takes a glob, so stage the
-  # shard's files into a private directory of symlinks and glob that.
-  local sd="$TMP/d_$i"; mkdir -p "$sd"
-  local k=0
-  while read -r f; do
-    mkdir -p "$sd/task_$(printf '%04d' $k)"
-    ln -sf "$f" "$sd/task_$(printf '%04d' $k)/globalcor_0.root"
-    k=$((k + 1))
-  done < "$list"
+  # One shard = one explicit file list, handed to --files directly. This used
+  # to be a directory of symlinks named task_NNNN/globalcor_0.root, which a
+  # multi-stream production breaks twice over: the fake tasks carry no
+  # `.complete`, and a task's four streams would have had to be renamed apart.
   python3 "$SELF/cf_mass_likelihood.py" --pairs-tt \
-      --files "$sd/task_*/globalcor_0.root" \
-      --ntasks 10000 --pairs-cache "$TMP/out_$i.npz" > "$TMP/log_$i.txt" 2>&1 \
+      --files "$list" \
+      --ntasks 0 --pairs-cache "$TMP/out_$i.npz" > "$TMP/log_$i.txt" 2>&1 \
     || { echo "[FAIL] shard $i"; tail -3 "$TMP/log_$i.txt"; return 1; }
 }
 export -f run_shard

@@ -28,9 +28,9 @@ echo "=== production: $(ls -d $G/task_*/.complete 2>/dev/null | wc -l)/48 comple
 # 1..N-1 of a truncated task behind.
 pf_clean_incomplete "$G" globalcor
 step() { echo "=== $1 ($(date +%H:%M:%S)) ==="; shift; "$@" || echo "    [FAIL] rc=$?"; }
-step kernel  python3 cf_masskernel_tt.py --files "$G/task_*/globalcor_0.root" --ntasks 48 \
+step kernel  python3 cf_masskernel_tt.py --files "$G/task_*/globalcor_*.root" --ntasks 48 \
      --kernel-cache runs/cf_masskernel_$TAG.npz --postfix "_$TAG"
-step pairs   python3 cf_mass_likelihood.py --pairs-tt --files "$G/task_*/globalcor_0.root" --ntasks 48 \
+step pairs   python3 cf_mass_likelihood.py --pairs-tt --files "$G/task_*/globalcor_*.root" --ntasks 48 \
      --pairs-cache runs/cf_masspairs_$TAG.npz
 step scan    python3 cf_mass_likelihood.py --demo --pairs-cache runs/cf_masspairs_$TAG.npz \
      --kernel-cache runs/cf_masskernel_$TAG.npz --alpha-min=-2e-4 --alpha-max=12e-4 --alpha-n=57 --postfix "_$TAG"

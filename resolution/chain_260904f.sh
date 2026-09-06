@@ -47,7 +47,7 @@ case $st in
      pf_clean_incomplete "$G" globalcor
      if [ ! -s "runs/cf_masskernel_$t.npz" ]; then
        echo "--- kernel $t"
-       python3 cf_masskernel_tt.py --files "$G/task_*/globalcor_0.root" --ntasks $n \
+       python3 cf_masskernel_tt.py --files "$G/task_*/globalcor_*.root" --ntasks $n \
            --kernel-cache runs/cf_masskernel_$t.npz --postfix "_$t" \
            > "$LOG/kernel_$t.log" 2>&1 && echo "    [ok]" || echo "    [FAIL] $LOG/kernel_$t.log"
      else echo "--- skip kernel $t"; fi
@@ -63,7 +63,7 @@ case $st in
    for s in "$GUN jpsigun 160" "$V3 btojpsix 48"; do
      set -- $s; t=$1; nm=$2; n=$3
      [ -s "$LOG/aux_${nm}_260904f.npz" ] && { echo "--- skip aux $nm"; continue; }
-     python3 censoring_aux.py --files "$CEPH/resolution_trackres_$t/task_*/globalcor_0.root" \
+     python3 censoring_aux.py --files "$CEPH/resolution_trackres_$t/task_*/globalcor_*.root" \
         --cache runs/cf_masspairs_$t.npz --out "$LOG/aux_${nm}_260904f.npz" --nproc 32 --ntasks $n \
         > "$LOG/aux_$nm.log" 2>&1 && echo "    [ok] aux $nm" || echo "    [FAIL] aux $nm"
    done

@@ -23,7 +23,7 @@ set -u
 cd "$(dirname "$0")"
 
 PROD=${PROD:-/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_btojpsix_v3_260904f_m0}
-FILES="${PROD}/task_*/globalcor_0.root"
+FILES="${PROD}/task_*/globalcor_*.root"
 NTASKS=${NTASKS:-48}
 JOBS=${JOBS:-16}
 TAG=${TAG:-btojpsix_v3_260904f}

@@ -13,6 +13,8 @@ RES=/work/submit/david_w/ZMass/calibration_studies/resolution; cd "$RES"
 source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 export PYTHONPATH="$RES:${PYTHONPATH:-}"
+# shellcheck source=prodfiles.sh
+source "$RES/prodfiles.sh"
 PROD=${PROD:?set PROD}
 OUT=${OUT:?set OUT}
 NPAR=${NPAR:-8}
@@ -20,12 +22,13 @@ SCRIPT=${SCRIPT:-/tmp/claude-125124/-work-submit-david-w-ZMass/44cdba6b-f250-445
 PARTS=${PARTS:-$RES/runs/parts_$(basename "${OUT%.npz}")}
 mkdir -p "$PARTS"
 
+# one part per TASK (all of its streams), not per stream file
 run_part() {
-  local f=$1
-  local tag; tag=$(basename "$(dirname "$f")")
+  local d=$1
+  local tag; tag=$(basename "$d")
   local out="$PARTS/part_$tag.npz"
   [ -s "$out" ] && { echo "[skip] $tag"; return 0; }
-  if python3 "$SCRIPT" --pairs-tt --ioni-sign neg --files "$f" --ntasks 1 \
+  if python3 "$SCRIPT" --pairs-tt --ioni-sign neg --files "$d" --ntasks 1 \
        --pairs-cache "$out" > "$PARTS/part_$tag.log" 2>&1; then
     echo "[done] $tag"
   else
@@ -35,7 +38,6 @@ run_part() {
 export -f run_part
 export PARTS SCRIPT
 
-ls -d "$PROD"/task_*/globalcor_0.root 2>/dev/null | sort \
-  | xargs -P "$NPAR" -I{} bash -c 'run_part {}'
+pf_task_dirs "$PROD" | xargs -P "$NPAR" -I{} bash -c 'run_part {}'
 echo "=== parts done ($(date +%H:%M:%S)); merging ==="
 python3 merge_masspairs.py --out "$OUT" "$PARTS/part_task_*.npz"

@@ -25,7 +25,7 @@ build() {  # build <outname> <proddir>
   local out=$1 prod=$2
   echo "=== $out ($(date +%H:%M:%S))"
   python3 cf_mass_likelihood.py --pairs-tt --ioni-sign neg \
-      --files "$CEPH/$prod/task_*/globalcor_0.root" --ntasks 160 \
+      --files "$CEPH/$prod/task_*/globalcor_*.root" --ntasks 160 \
       --pairs-cache "runs/$out" > "$LOG/${out%.npz}.log" 2>&1 \
     && echo "    [ok] $out ($(date +%H:%M:%S))" || echo "    [FAIL] $out"
 }

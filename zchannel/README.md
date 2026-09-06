@@ -5,7 +5,9 @@ against a resonance of known, essentially zero-width mass. The Z channel fits
 `m_Z` and `Γ_Z` themselves, against a lineshape that has to be computed. This
 directory is that channel: the FSR kernel, the datacard builder, the fit driver
 and a systematics scan, prototyped on the 459-candidate smoke of the
-`dymc_8p5M_260905` production and ready to point at the full output.
+`dymc_8p5M_260905` production and ready to point at the full
+`dymc_8p5M_260906_v2` output (four stream files per task -- see
+"Running on the full production").
 
 Everything downstream of `MassCFTerm` lives on the rabbit branch
 `z-lineshape-kernel` (worktree `/work/submit/david_w/ZMass/rabbit-zlineshape`):
@@ -76,12 +78,25 @@ needed **only for the pre-FSR mass** — see "C++ to-do" below.
 
 ## Running on the full production
 
-The production is `dymc_8p5M_260905`: 380 slurm tasks over the 104-file /
-8.5 M-event priority head, output at
+The production is `dymc_8p5M_260906_v2`: 380 tasks over the 104-file /
+8.5 M-event priority head. It runs `numberOfThreads=4`, so **a task is FOUR
+files**, one per stream:
 
 ```
-/ceph/submit/data/user/d/david_w/ZMass/cvh/dymc_8p5M_260905/task_XXXX/globalcor_0.root
+/ceph/submit/data/user/d/david_w/ZMass/cvh/dymc_8p5M_260906_v2/task_XXXX/globalcor_0.root
+                                                              ...      /globalcor_1.root
+                                                              ...      /globalcor_2.root
+                                                              ...      /globalcor_3.root
 ```
+
+An event never splits across streams and the candidate content is bit-identical
+to a single-thread run after sorting on (run, lumi, event), so the four files
+simply concatenate — but **naming `globalcor_0.root` takes a quarter of the
+candidates and says nothing**. Every reader here goes through
+`resolution/prodfiles.py`, which widens the stream index, skips a task whole if
+its `.complete` sentinel is missing or a stream is empty, and — the part that
+bites — makes `--ntasks` a cap on **tasks**, not files. The predecessor
+`dymc_8p5M_260905` (216 tasks, one stream each) still reads unchanged.
 
 expected ~3.90 M candidates (0.460 attempted/event), ~140 GB. `/ceph/submit` is
 evicted on submit82 — use submit50/51/52 (submit60 has ceph but **no AVX2**, so
@@ -124,16 +139,32 @@ checks this and refuses otherwise.
 
 ### 2. Pairs cache
 
-`cf_inmaker.py pairs` reads all files matching one glob and writes one npz;
-`--ntasks` caps how many files it takes. At 3.9 M candidates × 64 τ points × 5
-float32 family arrays the cache is ≈ 5 GB, ~10 GB peak while concatenating —
-fine on a submit node, but shard if you would rather:
+`cf_inmaker.py pairs` reads every stream of every usable task and writes one
+npz; `--ntasks` caps how many **tasks** it takes (0 = all). At 3.9 M candidates
+× 64 τ points × 5 float32 family arrays the cache is ≈ 5 GB, ~10 GB peak while
+concatenating — fine on a submit node, but shard if you would rather:
 
 ```bash
 cd /work/submit/david_w/ZMass/calibration_studies/resolution
-D=/ceph/submit/data/user/d/david_w/ZMass/cvh/dymc_8p5M_260905
-python cf_inmaker.py pairs --files "$D/task_*/globalcor_0.root" \
+D=/ceph/submit/data/user/d/david_w/ZMass/cvh/dymc_8p5M_260906_v2
+python cf_inmaker.py pairs --files "$D/task_*/globalcor_*.root" --ntasks 0 \
     --cache runs/zpairs_dymc8p5M.npz --mass-window 91.1876 60
+```
+
+`--files` also takes the production directory (`--files "$D"`) or an
+`@list.txt` of explicit inputs; see `resolution/prodfiles.py`. To see what a
+spec resolves to before spending the hours:
+
+```bash
+python prodfiles.py "$D" --stats          # ntasks_used / nfiles / why any was skipped
+python prodfiles.py "$D" --runtrees       # one file per task (the parameter map)
+```
+
+Shard it over tasks with `masspairs_parallel.sh`, which hands each worker an
+explicit file list rather than a symlink farm:
+
+```bash
+./masspairs_parallel.sh "$D" runs/zpairs_dymc8p5M.npz 40
 ```
 
 **`--mass-window` is mandatory and it cuts on the *gen* mass**, `|Jpsigen_mass −

@@ -19,6 +19,8 @@ RES=/work/submit/david_w/ZMass/calibration_studies/resolution; cd "$RES"
 source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 export PYTHONPATH="$RES:${PYTHONPATH:-}"
+# shellcheck source=prodfiles.sh
+source "$RES/prodfiles.sh"
 PROD=${PROD:?set PROD to the production directory}
 OUT=${OUT:?set OUT to the merged cache path}
 NPAR=${NPAR:-48}
@@ -26,12 +28,15 @@ SCRIPT=${SCRIPT:-$RES/cf_mass_likelihood.py}
 PARTS=${PARTS:-$RES/runs/parts_$(basename "${OUT%.npz}")}
 mkdir -p "$PARTS"
 
+# ONE PART PER TASK, not per file: a numberOfThreads=N task is N stream files
+# sharing one task directory, so a per-file loop wrote the same
+# `part_task_NNNN.npz` N times (first wins, rest skipped on the resume guard).
 run_part() {
-  local f=$1
-  local tag; tag=$(basename "$(dirname "$f")")
+  local d=$1
+  local tag; tag=$(basename "$d")
   local out="$PARTS/part_$tag.npz"
   [ -s "$out" ] && { echo "[skip] $tag"; return 0; }
-  if python3 "$SCRIPT" --pairs-tt --files "$f" --ntasks 1 --pairs-cache "$out" \
+  if python3 "$SCRIPT" --pairs-tt --files "$d" --ntasks 1 --pairs-cache "$out" \
        > "$PARTS/part_$tag.log" 2>&1; then
     echo "[done] $tag $(python3 -c "import numpy as np;print(len(np.load('$out')['z']))" 2>/dev/null)"
   else
@@ -41,6 +46,6 @@ run_part() {
 export -f run_part
 export PARTS SCRIPT
 
-ls -d "$PROD"/task_*/globalcor_0.root 2>/dev/null | sort | xargs -P "$NPAR" -I{} bash -c 'run_part {}'
+pf_task_dirs "$PROD" | xargs -P "$NPAR" -I{} bash -c 'run_part {}'
 echo "=== parts done ($(date +%H:%M:%S)); merging ==="
 python3 merge_masspairs.py --out "$OUT" "$PARTS/part_task_*.npz"

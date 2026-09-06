@@ -31,12 +31,16 @@ export NUMEXPR_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 
 SELF=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=prodfiles.sh
+source "$SELF/prodfiles.sh"
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/extract_shards.XXXXXX")
 trap 'rm -rf "$TMP"' EXIT
 
-mapfile -t FILES < <(ls "$INDIR"/task_*/globalcor_resclosure_0.root | sort)
+# EVERY STREAM OF EVERY USABLE TASK: a numberOfThreads=N task is
+# globalcor_resclosure_0..N-1.root, and naming stream 0 took 1/N of the tracks.
+mapfile -t FILES < <(pf_files "$INDIR/task_*/globalcor_resclosure_0.root")
 N=${#FILES[@]}
-echo "[extract_parallel] $N files -> $NSHARD shards"
+echo "[extract_parallel] $N files ($(pf_task_dirs "$INDIR/task_*/globalcor_resclosure_0.root" | wc -l) tasks) -> $NSHARD shards"
 
 run_shard() {
   local i=$1
@@ -45,15 +49,9 @@ run_shard() {
   local j=$i
   while [ "$j" -lt "$N" ]; do echo "${FILES[$j]}" >> "$list"; j=$((j + NSHARD)); done
   [ -s "$list" ] || return 0
-  # one shard = one explicit file list; --files takes a glob, so stage the
-  # shard's files into a private directory of symlinks and glob that.
-  local sd="$TMP/d_$i"; mkdir -p "$sd"
-  local k=0
-  while read -r f; do
-    mkdir -p "$sd/task_$(printf '%04d' $k)"
-    ln -sf "$f" "$sd/task_$(printf '%04d' $k)/globalcor_resclosure_0.root"
-    k=$((k + 1))
-  done < "$list"
+  # One shard = one explicit file list, handed to --files directly (the old
+  # symlink farm staged each input as task_NNNN/globalcor_resclosure_0.root,
+  # which carries no `.complete` and cannot hold four streams of one task).
   # EXTRA_ARGS is how a run caps the work per shard. Wall time here is set by
   # ONE file -- each shard gets one -- and the per-track cost is dominated by
   # the exact-delta ionization exponent (_kokoulin_exponent), measured at over
@@ -61,8 +59,8 @@ run_shard() {
   # knob that shortens the run; reducing the FILE count does not.
   # shellcheck disable=SC2086
   python3 "$SELF/cf_track_resolution.py" --extract \
-      --files "$sd/task_*/globalcor_resclosure_0.root" \
-      --ntasks 10000 --cache "$TMP/out_$i.npz" ${EXTRA_ARGS:-} > "$TMP/log_$i.txt" 2>&1 \
+      --files "$list" \
+      --ntasks 0 --cache "$TMP/out_$i.npz" ${EXTRA_ARGS:-} > "$TMP/log_$i.txt" 2>&1 \
     || { echo "[FAIL] shard $i"; tail -3 "$TMP/log_$i.txt"; return 1; }
 }
 export -f run_shard

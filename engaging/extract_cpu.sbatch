@@ -13,7 +13,7 @@
 #   sbatch extract_cpu.sbatch [nshards]      (default 4)
 #
 # `cf_track_resolution.py --extract` is pure numpy + uproot over CVH
-# `globalcor_resclosure_0.root` files, embarrassingly parallel over files and
+# `globalcor_resclosure_*.root` files, embarrassingly parallel over tasks and
 # serial within one.  So the figure of merit is *wall per file*, and the node
 # just multiplies it: mit_normal caps a user at 96 CPU, so 96 shards at a time.
 #
@@ -42,8 +42,8 @@ for d in $(ls -d $IN/task_* | head -$NSHARD); do
   (
     s=$(date +%s)
     python cf_track_resolution.py --extract \
-        --files "$d/globalcor_resclosure_0.root" \
-        --ntasks 10000 --cache $OUTD/shard_$(basename $d).npz \
+        --files "$d" \
+        --ntasks 1 --cache $OUTD/shard_$(basename $d).npz \
         > $ZMASS/logs/extract_$(basename $d).log 2>&1
     rc=$?
     echo "shard $(basename $d): rc=$rc wall=$(( $(date +%s) - s ))s size=$(stat -c%s $OUTD/shard_$(basename $d).npz 2>/dev/null || echo 0)"
