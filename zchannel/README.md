@@ -25,6 +25,13 @@ likelihood (`norm_window`) this channel needs.
 | `fit_z.py` | read the card back, fit, and project the covariance to full statistics |
 | `z_variants.py` | rebuild the term under each modelling choice and report the bias |
 | `check_tgrid.py` | is the in-maker's 64-point τ grid fine enough? (no — see below) |
+| `merge_gen.py` | merge the per-file gen dumps into one compact npz |
+| `fit_gen.py` | **generator-level closure**: FSR kernel, acceptance, and the fit |
+| `make_lumi_scale.py` | parton-luminosity tables at μ_F = k Q (scale systematic) |
+| `plot_gen.py` | the closure figures |
+| `run_gen_dump.sh` | shard `dump_gen_fsr.py` over the full DY MiniAOD filelist |
+| `run_tf_z.sh` | run a script in the rabbit TF image with this branch on the path |
+| `data/generator_settings_*.md` | **the generator's own parameters** (committed) |
 | `data/` | gen dumps, kernels, caches, cards — all regenerable, git-ignored |
 
 The rabbit side:
@@ -330,6 +337,156 @@ a 34 MeV shift on `m_Z` (23 σ at full statistics) and has not been matched
 against what POWHEG MiNNLO + Pythia actually generated; and the provider is LO
 in the parton luminosity while the sample is NNLO. Neither matters at
 140 MeV; both must be settled before 1.5 MeV.
+
+---
+
+## Generator-level closure of the kernel (2026-09-05)
+
+Everything above was prototyped on 459 candidates, where a 140 MeV statistical
+error hides every modelling question. This section is the answer to *is the
+kernel right?*, asked at generator level — no resolution, no detector — against
+29.3 M events of the same sample the detector-level channel will be fitted on.
+
+Figures: `~/public_html/cvh/260905_zgen/`.
+
+### The generator's own parameters
+
+`data/generator_settings_DYJetsToMuMu_powhegMiNNLO_UL16.md` and
+`data/prov/pwhg_main_init.log`: the gridpack's `powheg.input` sets **no** EW
+inputs, so running the gridpack's own `pwhg_main` for one initialisation prints
+what POWHEG actually used. It reads the PDG (running-width) values and
+**converts them to the constant-width scheme**, unconditionally:
+
+```
+input Z mass = 91.187600  Z width = 2.4941343245745466   (PDG, running width)
+      Z mass = 91.153509740726733   Z width = 2.4932018986110700   (used)
+      W mass = 79.906853549493746   sthw2 = 0.23153999447822571
+```
+
+which is `m/sqrt(1+(Gamma/m)^2)` to 3e-15 GeV. **The provider's
+`width_scheme="fixed"` default, and every one of its EW constants, is the
+generator's own** (`GZ_FIXED = 2.4932` is 1.9 keV below POWHEG's 2.4932018986;
+the closure below quotes the exact value as truth). The fixed-vs-running
+ambiguity flagged earlier is *resolved*, not bounded: fitting in either
+convention against its own reference gives the same answer to 0.2 MeV.
+
+### Step 3 — the pre-FSR spectrum
+
+`fit_gen.py fit --suite prefsr`. Fine-binned weighted likelihood on the
+provider's own 2.44 MeV grid, truncated to the fit window, MiNNLO weights
+clipped at 100x the modal |w| (two events in 29 M carry |w| ~ 1e19 and would
+take N_eff from 20 M to 2), sandwich covariance.
+
+The 2-parameter fit does **not** close: `m_Z` −2.47 ± 0.40 MeV,
+`Gamma_Z` **+75.8 ± 0.85 MeV**, and the width bias grows monotonically with the
+window (+5.5 MeV at 89–93, +129 MeV at 51–150). The cause is visible without
+any fit (`01_born_truth.png`): the generated / model ratio runs 1.7 at 55 GeV
+→ 1.0 at the peak → 1.2 at 150 GeV. That is the **NNLO K-factor** — the
+provider's hard ME *and* its parton luminosity are both LO.
+
+It is not a luminosity choice. Repeating the 2-parameter fit with five
+different luminosity tables moves the bias by only a few MeV:
+
+| luminosity | Δ`m_Z` [MeV] | Δ`Gamma_Z` [MeV] |
+|---|---|---|
+| NNPDF3.1 NNLO (nominal, = the generator's `lhaid 306000`) | −2.47 | +75.83 |
+| NNPDF3.1 NNLO replica 1 | −3.04 | +74.51 |
+| NNPDF3.1 **LO** | −4.77 | +71.45 |
+| CT18 NNLO | −1.99 | +73.73 |
+| μ_F = Q/2 | −6.05 | +79.49 |
+| μ_F = 2Q | +0.44 | +72.70 |
+
+i.e. the full PDF-set + PDF-order + scale spread is ±3 MeV on `m_Z` and
+±4 MeV on `Gamma_Z`, **5 % of the effect** (`10_kfactor_vs_lumi.png`).
+
+**It is also not degenerate with the POIs.** Multiplying the Born spectrum by
+`exp(sum_k c_k P_k(m))` (Legendre, orthogonal over the window, the constant
+absorbed by the normalisation) and floating the `c_k`:
+
+| terms | Δ`m_Z` [MeV] | Δ`Gamma_Z` [MeV] |
+|---|---|---|
+| 0 | −2.47 ± 0.40 | +75.83 ± 0.85 |
+| 1 | +18.87 ± 0.43 | +57.46 ± 0.85 |
+| 2 | +8.07 ± 0.42 | +2.85 ± 0.88 |
+| 3 | +3.07 ± 0.46 | +6.85 ± 0.89 |
+| 4 | +1.41 ± 0.46 | −0.69 ± 0.95 |
+| **5** | **−0.45 ± 0.50** | **+1.14 ± 0.97** |
+| 6 | −0.56 ± 0.50 | +0.74 ± 1.03 |
+
+Five terms close, and 5→6 moves nothing. The cost is **1.25x on σ(`m_Z`) and
+1.21x on σ(`Gamma_Z`)**; every ρ(POI, c_k) is below 0.40. And with the shape
+floating, the five luminosities above agree to **0.25 MeV on `m_Z` and 0.03 MeV
+on `Gamma_Z`** — the `c_k` move instead. That is the degeneracy statement: a
+smooth K(m) is *orthogonal enough* to the resonance that it can be floated for
+free.
+
+Cross-checks, all with 3 shape terms unless stated: `m_prelep` (the status-746
+lepton pair) gives the same answer as `m_pre` (the status-62 Z) to 0.0001 MeV;
+the running-width scheme agrees to 0.2 MeV; `nm` = 8192 / 32768 / 65536 agree
+to 0.002 MeV; the unweighted fit agrees within its error and its sandwich error
+equals its unit-weight error to 0.0002 MeV (the sandwich implementation is
+correct). Floating `sin^2 theta_W` **without** a shape drives it to
++0.072 (nonsense — it is acting as a shape parameter), so it is not identifiable
+from the mass spectrum alone.
+
+### Step 4 — the multiplicative FSR fold
+
+The FSR kernel is *exactly* multiplicative in this sample: the distribution of
+`u = -ln(m_post/m_pre)` is the same at every `m_pre` from 60 to 200 GeV to
+within a few per cent (`05_fsr_kernel_mdep.png`); ⟨u⟩ moves from 26.17e-3
+(60–80 GeV) to 28.84e-3 (110–150 GeV), 10 % over the whole range and 2.5 % over
+80–110.
+
+So the fold belongs in the *provider*, not in `MassCFTerm`'s additive `phi_K`:
+`ZGammaLineshape(fsr=...)` now returns
+
+```
+p_post(m) = sum_j w_j p_born(m / r_j) / r_j          r_j = m_post/m_pre <= 1
+```
+
+built on an extended Born grid (the fold needs the density *above* the window),
+so `pdf`, the CF and `MassCFTerm` all model the post-FSR mass as a function of
+the POIs alone. FSR is not optional and cannot be absorbed by anything else:
+without the fold the fit is `m_Z` −227 MeV / `Gamma_Z` +741 MeV, and a 5-term
+smooth shape only pulls that to −31 / +317 MeV.
+
+**The fold is a midpoint quadrature and its discretisation is the leading
+systematic.** Atoms are groups of the empirical `u` spectrum placed at their
+weighted mean, so the residual is `(1/2) Var(u|group) m^2 p''`; capping the
+in-group standard deviation of `u` at `sigma_cap` gives a bias that scales as
+`sigma_cap^2`:
+
+| `sigma_cap` | atoms | Δ`m_Z` [MeV] | Δ`Gamma_Z` [MeV] |
+|---|---|---|---|
+| 1e-2 | 144 | +101.7 | +151.8 |
+| 3.3e-3 | 400 | +7.10 | +28.98 |
+| 1e-3 | 1183 | +0.73 | +3.91 |
+| **3.3e-4** (the default) | 3215 | see `data/fit_postfsr2.json` | |
+
+`build_kernel`'s default is now 3.3e-4. Splitting the gen sample in half moves
+the fit by 0.4 MeV on `Gamma_Z` (the kernel's own statistical error at 29 M
+events is negligible); building the kernel from only `m_pre` ∈ 60–88 or 94–130
+moves it by ±5.4 MeV, which is the price of assuming the kernel is
+`m_pre`-independent, and is removed by the **banded** kernel (per-atom
+`m_lo`/`m_hi`, `fit_gen.py kernel --bands ...`).
+
+### Step 4b — acceptance, and where the multiplicative kernel breaks
+
+`A(m_pre) = P(selected | m_pre)` for `p_T > 25` GeV, `|eta| < 2.4` on the
+post-FSR muons is a smooth rise from 0 at 50 GeV to 0.5 at 200 GeV, fitted by a
+degree-8 Bernstein to ±0.3 % over 70–120 (`07_acceptance.png`), and folded into
+the provider as `acceptance=` — applied to the Born spectrum *before* the FSR
+fold, which is the factorisation
+`P(m_post, pass) = p_born(m_pre) A(m_pre) K_sel(m_post|m_pre)`.
+
+But `K_sel` is **not** `m_pre`-independent. Conditioning on the selection makes
+⟨u⟩ run from 7.1e-3 (60–80 GeV) to 14.9e-3 (110–150 GeV) — a factor two — because
+the `p_T` cut removes hard emission at an `m_pre`-dependent rate; the shape
+ratio between slices reaches 190 %. A single multiplicative kernel is therefore
+*wrong* under a tight fiducial selection and the banded kernel is mandatory.
+The looser selection the CVH production actually applies (`p_T > 5`,
+`|eta| < 2.4`; `TrackProducerFromPatMuons ptMin=-1`) is much better behaved:
+⟨u⟩ = 19.5e-3 versus 21.4e-3 inclusive.
 
 ---
 

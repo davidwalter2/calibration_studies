@@ -84,11 +84,19 @@ def m4(ps, extra=(0.0, 0.0, 0.0, 0.0)):
 
 COLS = (
     "run", "lumi", "event",
-    "m_pre", "m_pre746", "m_post", "m_dress",
-    "pt_pre", "y_pre", "nph", "eph",
+    "m_pre", "m_pre22", "m_pre746", "m_prelep", "m_post", "m_dress",
+    "pt_pre", "y_pre", "nph", "eph", "npre", "weight",
     "pt1", "eta1", "pt2", "eta2",
     "pt1_pre", "eta1_pre", "pt2_pre", "eta2_pre",
 )
+
+# Which of the two candidate pre-FSR definitions the fit uses:
+#   m_pre     the hard-process Z (status 62), present in every event
+#   m_prelep  the pre-FSR *lepton pair* -- the status-746 Photos copies when
+#             the event radiated, else the status-1 pair (which is then the
+#             pre-FSR pair by definition).  Defined in every event, unlike
+#             m_pre746.
+# They agree to ~1e-5 GeV; `analyse_gen.py` quantifies it.
 
 
 def main():
@@ -107,6 +115,7 @@ def main():
           flush=True)
 
     h_pruned = Handle("std::vector<reco::GenParticle>")
+    h_gen = Handle("GenEventInfoProduct")
     cols = {k: [] for k in COLS}
     nseen = nbad = 0
     t0 = time.time()
@@ -123,7 +132,7 @@ def main():
                 print(f"  {nseen} events, {time.time()-t0:.0f} s", flush=True)
 
             e.getByLabel("prunedGenParticles", h_pruned)
-            zb, post, pre746, phot = [], [], [], []
+            zb, zb22, post, pre746, phot = [], [], [], [], []
             for g in h_pruned.product():
                 pid = abs(g.pdgId())
                 if pid == 13:
@@ -136,6 +145,8 @@ def main():
                 elif pid == 23:
                     if g.status() == 62:
                         zb.append(g)
+                    elif g.status() == 22:
+                        zb22.append(g)
                 elif pid == 22 and g.status() == 1 and g.statusFlags().isPrompt():
                     phot.append(g)
 
@@ -155,13 +166,20 @@ def main():
             ppz = sum(p.pz() for p in src); pen = sum(p.energy() for p in src)
             y_pre = 0.5 * math.log((pen + ppz) / (pen - ppz)) if abs(ppz) < pen else 0.0
 
+            e.getByLabel("generator", h_gen)
+            wgt = h_gen.product().weight()
+
             aux = e.eventAuxiliary()
             o = sorted(post, key=lambda g: -g.pt())
             op = sorted(src, key=lambda g: -g.pt())
             v = dict(
                 run=aux.run(), lumi=aux.luminosityBlock(), event=aux.event(),
                 m_pre=zb[0].mass(),
+                m_pre22=zb22[0].mass() if len(zb22) == 1 else np.nan,
                 m_pre746=m4(pre746) if len(pre746) == 2 else np.nan,
+                m_prelep=m4(src),
+                npre=len(pre746),
+                weight=wgt,
                 m_post=m4(post),
                 m_dress=m4(post, (ex, ey, ez, ee)),
                 pt_pre=math.hypot(ppx, ppy), y_pre=y_pre, nph=nph, eph=ee,
@@ -173,7 +191,7 @@ def main():
                 cols[k].append(v[k])
 
     out = {k: np.asarray(cols[k]) for k in COLS}
-    for k in ("run", "lumi", "event", "nph"):
+    for k in ("run", "lumi", "event", "nph", "npre"):
         out[k] = out[k].astype(np.int64)
     os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
     np.savez_compressed(args.output, **out)

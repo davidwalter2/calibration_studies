@@ -48,8 +48,17 @@ slurm/filelists/*resubmit*.txt
 transfer/logs/
 transfer/transfer_status.tsv*
 
-# Z channel: gen dumps, FSR kernels, pairs caches, datacards (all regenerable)
-zchannel/data/
+# Z channel: gen dumps, FSR kernels, pairs caches, datacards (all regenerable).
+# The generator record and the two provenance files it was read from are NOT
+# regenerable without the gridpack, and are the reference the lineshape kernel
+# closes against, so they are kept.  (A blanket `zchannel/data/` would make the
+# negations below impossible -- git cannot re-include inside an excluded dir.)
+zchannel/data/*
+!zchannel/data/generator_settings_*.md
+!zchannel/data/prov/
+zchannel/data/prov/*
+!zchannel/data/prov/pwhg_main_init.log
+!zchannel/data/prov/powheg.input
 
 # oddmoment study outputs (regenerable tables + npz)
 resolution/oddmoment/out/
