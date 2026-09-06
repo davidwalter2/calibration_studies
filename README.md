@@ -61,5 +61,38 @@ cd production
 ./resume.sh              # resubmit only those
 ```
 
+### Reading a production: `resolution/prodfiles.py`
+
+From 2026-09-06 the CVH makers run `numberOfThreads=4`, so **a task is four
+files**, `task_XXXX/globalcor_0.root .. globalcor_3.root`. An event never
+splits across streams and the candidate content is bit-identical to a
+single-thread run after sorting on (run, lumi, event), so the four files simply
+concatenate — but a reader that names `globalcor_0.root` takes a quarter of the
+statistics and says nothing.
+
+Every reader here lists its inputs through `resolution/prodfiles.py` (shell
+twin `prodfiles.sh`) rather than `sorted(glob.glob(...))`:
+
+* the stream index is **widened**, so an existing `--files
+  '.../task_*/globalcor_0.root'` reads the whole task;
+* `--files` also takes a production or task **directory**, or an
+  **`@list.txt`** of explicit inputs;
+* **`--ntasks` caps TASKS, not files** — a cap on the file list would take 1/N
+  of the intended tasks;
+* a task is used only if its `.complete` sentinel is there, no stream file is
+  empty, and it has as many streams as the sentinel declares; otherwise it is
+  skipped **whole** and counted;
+* the `runtree` parameter map (13 MB, byte-identical in every stream) is read
+  once per task via `runtree_file()`, which returns the first EXISTING stream
+  rather than assuming stream 0.
+
+```bash
+python3 resolution/prodfiles.py "$PROD" --stats      # what a spec resolves to
+python3 resolution/prodfiles.py "$PROD" --runtrees   # one file per task
+```
+
+`production/PRODUCTION_NEXT.md` sec. 10 has the full API and the validation
+table.
+
 ## License
 MIT License.
