@@ -101,6 +101,12 @@ def parse_args():
                         "so the naive and corrected fits run off ONE card")
     p.add_argument("--no-ares", action="store_true",
                    help="do not write a_i at all (pre-spec behaviour)")
+    p.add_argument("--max-ares", type=float, default=0.5,
+                   help="clip |a_i| to this. The linearisation "
+                        "sigma = sigma_bar (1 + a x) only means anything while "
+                        "|a| << 1, and a handful of candidates carry a "
+                        "Jpsi_sigmamass of O(1e5 GeV) which would give a_i of "
+                        "the same order")
     p.add_argument("--mref", type=float, default=MJPSI)
     p.add_argument("--window", type=float, default=1.0)
     p.add_argument("--chunk", type=int, default=16384)
@@ -427,13 +433,22 @@ def main():
                       else np.zeros_like(f_hit))
             mg = (d["mgen"][idx].astype(np.float64) if "mgen" in keys
                   else np.full(n, args.mref))
-            a_res = (1.0 + f_hit - f_ioni) * data["sigma"] / np.maximum(mg, 1e-9)
+            a_raw = (1.0 + f_hit - f_ioni) * data["sigma"] / np.maximum(mg, 1e-9)
+            nclip = int((np.abs(a_raw) > args.max_ares).sum())
+            a_res = np.clip(a_raw, -args.max_ares, args.max_ares)
             data["a_res"] = a_res
-            log(f"a_res (self-consistent sigma): mean {a_res.mean():.6f}, "
-                f"rms {a_res.std():.6f}, range {a_res.min():.6f} .. "
-                f"{a_res.max():.6f}"
+            log(f"a_res (self-consistent sigma): median {np.median(a_raw):.6f}, "
+                f"p99 {np.percentile(a_raw, 99):.6f}, max {a_raw.max():.6g}; "
+                f"clipped at {args.max_ares:g}: {nclip}/{n} candidates "
+                f"({100.*nclip/max(n,1):.3f} %)"
                 + ("" if "fioni" in keys else "   [f_ioni not in the extraction,"
                    " taken as 0 -- a 0.1 % effect on a_i]"))
+            if nclip:
+                bad = np.abs(a_raw) > args.max_ares
+                log(f"  the clipped candidates have sigma "
+                    f"{data['sigma'][bad].min():.4g} .. "
+                    f"{data['sigma'][bad].max():.4g} GeV -- a Jpsi_sigmamass "
+                    "tail, not a physical a_i")
         else:
             a_res = None
 
