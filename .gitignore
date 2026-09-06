@@ -50,3 +50,7 @@ transfer/transfer_status.tsv*
 
 # Z channel: gen dumps, FSR kernels, pairs caches, datacards (all regenerable)
 zchannel/data/
+
+# oddmoment study outputs (regenerable tables + npz)
+resolution/oddmoment/out/
+resolution/oddmoment/tmp/
