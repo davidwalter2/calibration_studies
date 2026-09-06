@@ -32,9 +32,10 @@ import sys
 
 import numpy as np
 from scipy.special import ndtr, ndtri
-import prodfiles
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import prodfiles  # noqa: E402  (needs this directory on sys.path)
 
 BASE = "/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop"
 
