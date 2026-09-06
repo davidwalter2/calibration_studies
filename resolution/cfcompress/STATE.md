@@ -231,7 +231,7 @@ full-300k `fullshift` scan COMPLETE (r=8..64).  The `levy` end-to-end arm was
 KILLED: the 6-scalar quadrature diverges (`k_ms -> 1034`, NLL nan) and BFGS
 then burns maxiter=200 per rank -- the divergence is itself the result, and
 `physbasis.py` already answers the physics-basis question properly.
-`gridtest.py` launched and reporting; `figs.py` rerun (adds `nll_impact`,
+`gridtest.py` COMPLETE (12/12 rows); `figs.py` rerun (adds `nll_impact`,
 `param_shifts`, `fullshift`).  A dated entry is in
 `/work/submit/david_w/Documents/Resolution/NOTES.md` (2026-09-04, "COMPRESSING
 the per-candidate CF exponents").  `parse_logs.py` was added to recover the
