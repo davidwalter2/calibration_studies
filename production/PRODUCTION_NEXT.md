@@ -324,3 +324,113 @@ and what every cache built before the hit blocks existed assumes.
 * validation report `calibration_studies/resolution/runs/exports260906/`
 * the export contract itself:
   `Analysis/HitAnalyzer/doc/resolution-cf-export.md`
+
+---
+
+## 8. Multithreading (measured 2026-09-06)
+
+The CVH refit in CMSSW_15 is multithreading-capable and the productions were
+not using it: every 260905 task ran `numberOfThreads=1` on `--cpus-per-task=1
+--mem=6G`. Scanned on one 2000-event DY chunk with the §2 switch set, one arm
+at a time on a quiet 64-core node (`production/threadscan/run_scan.sh`):
+
+| threads | wall (s) | CPU (s) | speedup | peak RSS (GB) | RSS/core (GB) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 770.7 | 761.3 | 1.00 | 1.76 | 1.76 |
+| 2 | 404.2 | 765.5 | 1.91 | 1.85 | 0.93 |
+| 4 | 224.9 | 770.5 | 3.43 | 2.00 | 0.50 |
+| 8 | 131.7 | 772.8 | 5.85 | 2.12 | 0.27 |
+
+and the J/psi leg (`runCvhJpsiGenMC.py`, 2000 ALCARECO events / 1991 candidates):
+
+| threads | wall (s) | CPU (s) | speedup | peak RSS (GB) | RSS/core (GB) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 2039.9 | 2028.0 | 1.00 | 1.36 | 1.36 |
+| 2 | 1024.7 | 2003.4 | 1.99 | 1.45 | 0.73 |
+| 4 | 535.5 | 2020.6 | 3.81 | 1.61 | 0.40 |
+| 8 | 286.4 | 2024.2 | 7.12 | 1.89 | 0.24 |
+
+Total CPU rises **1.5 %** on DY and **falls 0.2 %** on J/psi over the whole range: there is no parallel overhead,
+only a fixed 40.4 s serial head (geometry + field + Geant4 physics list), and
+`wall(N) = 40.4 + 730.3/N` fits all four points to under 1 %. That head is paid
+once per JOB, so on a real 22 120-event chunk the speedup is **3.94x at 4
+threads and 7.73x at 8**, not 3.43 and 5.85.
+
+J/psi fits `wall(N) = 36.0 + 2003.9/N` and scales better than DY at the same
+event count only because its arm is 2.6x longer, so the serial head is a
+smaller fraction. Projected on a real 12 185-event J/psi chunk with the new
+exports: 3.40 h at 1 thread, **0.86 h at 4 (3.97x)**, 0.43 h at 8 (7.84x).
+
+**The output is bit-identical.** N threads means N streams and N output files;
+sorted candidate by candidate on `(run, lumi, event)` with a stable key
+(`production/threadscan/compare_threads.py`), all 213 branches of all 896 DY
+candidates and all 228 branches of all 1991 J/psi candidates agree exactly at
+2, 4 and 8 threads, and the `runtree` is identical in every stream file. Note that the drivers give each stream its OWN CLHEP
+engine wired into Geant4's thread-local RNG, so this is an invariant of the fit
+not sampling, not a structural guarantee — re-run the comparison after any
+change that could make it consume randomness.
+
+**Memory is set by the task tail, not by the core count.** Peak RSS splits into
+~1.71 GB shared (geometry, field, G4 tables, conditions) plus ~51 MB per extra
+stream. The 260905 productions' 1-thread MaxRSS was median 1.9 / p99 3.1 / max
+3.56 GB (J/psi, 1616 tasks) and median 2.6 / max 3.56 GB (DY, 164 tasks) — the
+tail a 2000-event scan does not see. Sizing on `max + (N-1) x 51 MB` with 1.3x
+headroom gives **4 threads at `--mem=5G`**: 3.9x the throughput for 0.83x the
+memory of today's request, i.e. **1.25 GB/core instead of 6**.
+
+The one real cost is that the `runtree` (13.02 MB, 126 452 entries) is written
+into EVERY stream file. On a production chunk that is +5.7 % output at 4
+threads and +13.4 % at 8; the candidate tree itself is flat at ~70 kB/candidate.
+
+**Before any multithreaded production is consumed**, the readers that hard-code
+`task_*/globalcor_0.root` must move to the `globalcor_*.root` glob or they take
+1/N of the statistics: `resolution/masspairs_parallel.sh`,
+`resolution/jpsi_mass_closure.py`, `resolution/jpsi_bias_decompose.py`,
+`resolution/runs/matres/run_*.sh`. And a reader must take ONE stream's
+`runtree`, never the concatenation.
+
+## 9. HTCondor is a grid submission, not a second cluster
+
+Measured 2026-09-06 (details and probe evidence in
+`condor_dymc_v2/STATE_dy_v2.md`): the submit condor pool has **one** local
+execute slot (1 CPU on submit06, gated on `Submit_LocalTest`); everything else
+is glideins flocked to the CMS global pool. **No condor slot reachable from
+submit mounts /ceph, /work or /home** — verified on `mit_tier3` (t3btch001) and
+on global-pool slots at DESY, IIHE and Caltech. `mit_tier3` is excluded twice
+over: native el7 with no singularity, against an `el9_amd64_gcc12` release.
+
+So a condor leg has to carry the CMSSW area (cvmfs base release + a 64 MB
+overlay; the area is NOT relocatable whole — `.SCRAM/RuntimeCache.json` bakes
+in the build path and an untar-in-place run silently uses the wrong libraries),
+stream its input through `root://cms-xrd-global.cern.ch/` (the ceph chunk paths
+are a mirror of the CMS `/store` namespace) and `xrdcp` its output back to
+`root://submit50.mit.edu/`. `condor_dymc_v2/` does all three, and verifies the
+stage-out by reading the remote size back — `xrdcp` has truncated outputs here
+before while returning 0.
+
+### The DY re-production is running there now
+
+`dymc_8p5M_260906_v2`, cluster **3803254**, all 380 chunks, **4 threads,
+`request_memory = 5000` MB**, from `CMSSW_15_0_19_patch2_dev2 @ fab515e`.
+Validated first: 400 events of chunk 0 run on the grid at INFN Pisa (1 thread)
+and Caltech (4 threads) are **bit-identical, all 213 branches, to a local dev2
+run on submit82** — across the batch system, two sites, two CPU vendors,
+xrootd-streamed versus POSIX input, and 1 versus 4 streams.
+
+Concurrency after submission: 76 running at 2 min, 204 at 5, 318 at 16,
+**379 of 380 at 31 min with 0 idle and 0 held**, spread over 12 sites. At that
+same moment the slurm DY leg had **1 task running and 198 pending** at 11.4
+tasks/h, starved by the 90 running J/psi array tasks. The condor leg does not
+compete for that fair share: it is ~380 concurrent tasks of *additional*
+capacity while the J/psi arrays keep theirs.
+
+30 first attempts failed and were retried (0 held). The only structured
+failure is **SIGILL inside the CVMFS release's own `libXrdCl` at `stagein`** —
+16 of 16 at RWTH Aachen and JINR, 8 each — now fenced by `Requirements` in
+`condor_dymc_v2/config_dymc_v2.sh` and on the live cluster.
+
+**Note for the operator:** `dymc_8p5M_260905` (slurm) and
+`dymc_8p5M_260906_v2` (condor) are the SAME 380 chunks. The v2 has the new
+exports and the `ndof == 0` fix; the 260905 one does not. Both were left
+running deliberately — the slurm arrays are not to be cancelled from here —
+but only one of them is the sample the next fit should use.
