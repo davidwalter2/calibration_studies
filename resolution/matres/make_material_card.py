@@ -415,6 +415,28 @@ def main():
             data["phik_re"] = phik.real.copy()
             data["phik_im"] = phik.imag.copy()
 
+        # ---- the self-consistent-resolution coefficient a_i ----------------
+        # MASSCFTERM_SPEC: sigma_i is the FIT's own error, so it is a function
+        # of the residual the likelihood is measuring;
+        #     a_i = (1 + f_hit,i - f_ioni,i) * sigma_i / m_gen,i
+        # with f_hit = vgf and f_ioni the parmtype-11 share (1.1e-3 on the gun,
+        # droppable and dropped here unless the extraction carries it).
+        if not args.no_ares:
+            f_hit = vgf
+            f_ioni = (d["fioni"][idx].astype(np.float64) if "fioni" in keys
+                      else np.zeros_like(f_hit))
+            mg = (d["mgen"][idx].astype(np.float64) if "mgen" in keys
+                  else np.full(n, args.mref))
+            a_res = (1.0 + f_hit - f_ioni) * data["sigma"] / np.maximum(mg, 1e-9)
+            data["a_res"] = a_res
+            log(f"a_res (self-consistent sigma): mean {a_res.mean():.6f}, "
+                f"rms {a_res.std():.6f}, range {a_res.min():.6f} .. "
+                f"{a_res.max():.6f}"
+                + ("" if "fioni" in keys else "   [f_ioni not in the extraction,"
+                   " taken as 0 -- a 0.1 % effect on a_i]"))
+        else:
+            a_res = None
+
         window = (args.mref - 0.5 * args.window, args.mref + 0.5 * args.window)
         term = unbinned.MaterialCFTerm(
             "mass",
@@ -441,28 +463,6 @@ def main():
         # `vg_other` STAYS in the written datasets whether or not any class
         # floats: it is what carries the Gaussian remainder into the term.
         data["vgf"] = vgf
-
-        # ---- the self-consistent-resolution coefficient a_i ----------------
-        # MASSCFTERM_SPEC: sigma_i is the FIT's own error, so it is a function
-        # of the residual the likelihood is measuring;
-        #     a_i = (1 + f_hit,i - f_ioni,i) * sigma_i / m_gen,i
-        # with f_hit = vgf and f_ioni the parmtype-11 share (1.1e-3 on the gun,
-        # droppable and dropped here unless the extraction carries it).
-        if not args.no_ares:
-            f_hit = vgf
-            f_ioni = (d["fioni"][idx].astype(np.float64) if "fioni" in keys
-                      else np.zeros_like(f_hit))
-            mg = (d["mgen"][idx].astype(np.float64) if "mgen" in keys
-                  else np.full(n, args.mref))
-            a_res = (1.0 + f_hit - f_ioni) * data["sigma"] / np.maximum(mg, 1e-9)
-            data["a_res"] = a_res
-            log(f"a_res (self-consistent sigma): mean {a_res.mean():.6f}, "
-                f"rms {a_res.std():.6f}, range {a_res.min():.6f} .. "
-                f"{a_res.max():.6f}"
-                + ("" if "fioni" in keys else "   [f_ioni not in the extraction,"
-                   " taken as 0 -- a 0.1 % effect on a_i]"))
-        else:
-            a_res = None
 
         # SANITY GATE.  A card whose NLL or gradient is not finite AT ITS OWN
         # STARTING POINT cannot be fitted -- rabbit's Cholesky of the Hessian
