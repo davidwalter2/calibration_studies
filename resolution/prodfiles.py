@@ -120,6 +120,11 @@ def stream_files(task_dir, stem=None, basename=None):
     """
     pat = basename or stream_pattern(stem)
     fs = _glob.glob(os.path.join(task_dir, pat))
+    if stem and not basename:
+        # `globalcor_*.root` also matches `globalcor_resclosure_0.root`, so the
+        # stem is required to match EXACTLY: a directory holding both makers'
+        # output must not have the two trees concatenated into one list.
+        fs = [f for f in fs if split_stream(f)[0] == stem]
     return sorted(fs, key=lambda p: (split_stream(p)[1] is None,
                                      split_stream(p)[1] or 0,
                                      os.path.basename(p)))
