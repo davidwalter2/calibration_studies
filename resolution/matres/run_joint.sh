@@ -61,3 +61,17 @@ esac
 #   ./run_joint.sh report --fit $RUNS/fits/inj/fitresults.hdf5 \
 #       --card $RUNS/cards/inj.hdf5 --compare base=$RUNS/fits/joint/fitresults.hdf5 \
 #       --physical
+#
+# MASSCFTERM_SPEC gate (self-consistent resolution), 2026-09-05:
+#   C="--groups-npz $RUNS/gun_groups_probe.npz --groups $GRP --whiten \
+#      --max-chi2-ndof 3 --freeze-zero-info --prune-frac 0.001 --no-quadratic \
+#      --no-jac --with-alpha --poi none"
+#   ./run_tf.sh python3 make_material_card.py $C --no-self-consistent-sigma \
+#       -o $RUNS/cards/a2_naive.hdf5
+#   ./run_tf.sh python3 make_material_card.py $C -o $RUNS/cards/a2_corr.hdf5
+#   # ... then rabbit_fit.py on each, --paramModel UnbinnedParams
+#   # naive -0.026120 +- 0.058680, corrected +0.121160 +- 0.058677,
+#   # shift +0.147280 against the spec's +0.146 +- 0.01.
+#   # --no-jac IS LOAD-BEARING: with the field modes free, bfield_mode0 (the
+#   # same scale as alpha) takes +0.068e-3 of the shift and the gate reads
+#   # +0.0121 instead.
