@@ -22,9 +22,11 @@ code)
   git -C "$ZM/rabbit" bundle create "$TMP/rabbit_material.bundle" \
       material-resolution z-lineshape-kernel unbinned-mass-term main
   rsync -a "$TMP/rabbit_material.bundle" $DEST/
+  # git refuses to fetch into a CHECKED-OUT branch, so detach first
   eng 'bash -lc "
     cd ~/orcd/pool/zmass
     if [ -d rabbit/.git ]; then
+      git -C rabbit checkout -q --detach
       git -C rabbit fetch -f ../rabbit_material.bundle \
           material-resolution:material-resolution
     else

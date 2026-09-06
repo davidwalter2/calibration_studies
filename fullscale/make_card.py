@@ -108,6 +108,15 @@ def parse_args(argv=None):
                         "so one card serves both fits; off = no a_i at all")
     p.add_argument("--max-ares", type=float, default=0.5)
     p.add_argument("--jensen", choices=["exact", "shift", "off"], default="exact")
+    p.add_argument("--corr-clip", type=float, default=5.0,
+                   help="the domain of BOTH corrections, in units of sigma_i. "
+                        "They are expansions in the resolution fluctuation, "
+                        "and at the Z the deviation from the pole is FSR and "
+                        "the Breit-Wigner tail out to 27 sigma -- fed that, "
+                        "the exact Jensen map moves the residual by a median "
+                        "57.7 MeV against the 20.6 MeV it exists to apply. "
+                        "0 = no clip (the J/psi behaviour the spec's gates "
+                        "were measured with).")
     p.add_argument("--jensen-fang", action="store_true", default=True,
                    help="fold the per-candidate angular share into s^2")
     p.add_argument("--no-jensen-fang", dest="jensen_fang", action="store_false")
@@ -263,6 +272,10 @@ def build(args, log=print):
     a_res = None
     if args.ares != "off":
         a_res = (1.0 + vgf) * sigma / np.maximum(np.abs(mreco), 1e-9)
+        if args.corr_clip:
+            log(f"  corrections clipped to |delta| < {args.corr_clip:g} sigma "
+                f"(that is {100.0*np.mean(np.abs(mobs) < args.corr_clip*sigma):.2f} % "
+                f"of candidates inside the clip)")
         nclip = int(np.sum(np.abs(a_res) > args.max_ares))
         a_res = np.clip(a_res, -args.max_ares, args.max_ares)
         log(f"  a_res: median {np.median(a_res):.5f}, "
@@ -403,6 +416,13 @@ def build(args, log=print):
                 "fullscale/patches/unbinned_jensen.py first, or pass "
                 "--jensen off.")
         kw2.update(jensen_s2=jensen_s2, jensen_mode=args.jensen)
+    if args.corr_clip and (a_res is not None or args.jensen != "off"):
+        if "corr_clip" not in sig:
+            raise SystemExit(
+                "this rabbit's MassCFTerm has no `corr_clip`: it predates the "
+                "domain fix. Pass --corr-clip 0 only if you mean to feed the "
+                "corrections the full residual.")
+        kw2["corr_clip"] = args.corr_clip
     if args.shape and "shape" not in inspect.signature(
             ZGammaLineshape.__init__).parameters:
         raise SystemExit(

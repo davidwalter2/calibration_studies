@@ -323,3 +323,46 @@ spectrum after resolution and acceptance), `rho(m_Z, shape3) = +0.517` and
 `rho(Gamma_Z, shape4) = +0.593` -- above the < 0.40 the generator-level fit
 saw, so the shape is less orthogonal to the POIs at detector level than it is
 at generator level, but nowhere near degenerate.
+
+## PHASE 1 FINDING — the two corrections do not transfer from the J/psi to the Z
+
+Both corrections of MASSCFTERM_SPEC are expansions in the RESOLUTION
+fluctuation. What they are fed is `delta_i`, the deviation from the reference
+mass. At the J/psi those are the same object; at the Z they are not, because
+the +-30 GeV window is +-27 sigma and the deviation out there is FSR and the
+Breit-Wigner tail, not resolution.
+
+Measured on the 3 682 662 selected candidates:
+
+| | J/psi (+-0.35 GeV on 3.0969) | **Z (+-30 GeV on 91.19)** |
+|---|---|---|
+| `\|r\| = \|delta\|/m` max | 0.113 | **0.520** (q99 0.437) |
+| `\|a_i delta_i\|/sigma_i` | < 0.1 | median 0.028, **q99 0.53, max 1.02** |
+| what the exact Jensen map MOVES the residual by | ~ its 20.6 MeV mean shift | **median 57.7 MeV, q99 7.9 GeV, max 10.7 GeV** |
+| candidates moved by > 5x the intended shift | — | **39 %** |
+
+and the fits show it. At 300 k, resolution fixed, K(m) floated:
+
+| variant | `m_Z` [MeV] | `Gamma_Z` [MeV] |
+|---|---:|---:|
+| both corrections on, **K(m) fixed** | +15.90 +- 5.79 | **+158.18 +- 12.16** |
+| both on, K(m) floated | **-35.51 +- 6.81** | **-421.03 +- 12.33** |
+| `a_res` off, Jensen exact on | -53.98 +- 6.88 | -427.46 +- 12.33 |
+
+`base` and `noares` agreeing to 6 MeV on `Gamma_Z` says the runaway is the
+JENSEN map, not the self-consistent sigma. And the fitted shape coefficients
+come out at -1.06, -0.83, -0.61, -1.85, +0.31 -- an `exp(sum c_k P_k)` with
+coefficients of order one is not a smooth K(m) correction, it is the fit using
+the shape to compensate a deformed resolution model.
+
+**The fix** (`rabbit-material` `b64f49f`): `corr_clip`, the corrections'
+argument domain in units of `sigma_i`. Inside, bit-for-bit unchanged; outside,
+they SATURATE -- the Jensen map continued with unit slope, so the residual
+stays strictly monotone in the observable and the log-Jacobian is exactly zero
+there. `corr_clip = 0` reproduces the J/psi behaviour, so every existing gate
+is untouched. It is a scalar attribute of the term, so the whole scan runs off
+ONE card (`fit.py --corr-clip`).
+
+Running: `22163315` the six variants UNCLIPPED at full scale (the problem at
+scale), `22163745` the clip scan 3/5/10/0, `22163752` the six variants at
+`corr_clip = 5`.

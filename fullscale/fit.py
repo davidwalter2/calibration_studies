@@ -70,6 +70,10 @@ def parse_args():
     p.add_argument("--jensen", choices=["card", "exact", "shift", "off"],
                    default="card",
                    help="override the card's Jensen mode; same reasoning")
+    p.add_argument("--corr-clip", type=float, default=None,
+                   help="override the domain of BOTH corrections, in units of "
+                        "sigma_i. It is a scalar attribute of the term, so the "
+                        "whole scan runs off one card.")
     p.add_argument("--no-fit", action="store_true")
     p.add_argument("--no-sandwich", action="store_true")
     p.add_argument("--maxiter", type=int, default=200)
@@ -146,6 +150,12 @@ def main():
         print(f"      OVERRIDE jensen_mode -> {term.jensen_mode} "
               f"(active {term._jensen})")
 
+    if args.corr_clip is not None:
+        if not hasattr(term, "corr_clip"):
+            raise SystemExit("this rabbit's MassCFTerm has no `corr_clip`")
+        term.corr_clip = float(args.corr_clip)
+        print(f"      OVERRIDE corr_clip -> {term.corr_clip}")
+
     names = list(term.param_names)
     fixed = set(args.fix)
     unknown = fixed - set(names)
@@ -191,6 +201,7 @@ def main():
            "ares_active": bool(getattr(term, "_dyn_sigma", False)),
            "jensen_active": bool(getattr(term, "_jensen", False)),
            "jensen_mode": getattr(term, "jensen_mode", "n/a"),
+           "corr_clip": float(getattr(term, "corr_clip", 0.0)),
            "label": args.label, "params": obj.freenames,
            "fixed": sorted(fixed), "nll0": f0,
            "t_load": tload, "t_grad": t_grad, "t_hess": t_hess,
