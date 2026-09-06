@@ -14,7 +14,17 @@ The objective has two pieces sharing the *same* global calibration parameters
        chi2(theta) = chi2_0 + G^T theta + 0.5 theta^T K theta
 
    which ``global_corrections/fit_global_grads.py`` solves offline as
-   ``theta = -K^-1 G``, ``cov = 2 K^-1``. **The stored ``gradv`` /
+   ``theta = -K^-1 G``, ``cov = 2 K^-1``.
+
+   **This file needs no flag for the 2026-09-06 variance (log-det) term.** It
+   reads ``G`` and ``K`` from the ``extract.py`` npz, and it is ``extract.py``
+   that knows whether a production ran with ``exportVarianceGrads`` -- the
+   presence of ``hessvaridxv`` in the tree -- and adds the separately shipped
+   variance block to the factored Hessian. What DOES change here, silently and
+   on purpose, is the meaning of the parmtype-15 columns: ``k_g`` becomes an
+   amount-of-material parameter measured through the mean loss AND the width,
+   the same functional the mass term measures, instead of a mean-energy-loss
+   parameter. On the J/psi gun its Fisher information rises by 41x. **The stored ``gradv`` /
    ``hesspackedv`` / ``B^T B`` are in chi2 units** (the factor 2 is inside the
    C++, ``grad = 2 J^T R r``, ``hess = 2 J^T R J``). rabbit's external term is
    in **NLL** units, ``L_ext = g^T theta + 0.5 theta^T H theta``, so the card

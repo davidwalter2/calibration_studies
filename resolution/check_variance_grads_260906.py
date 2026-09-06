@@ -85,6 +85,7 @@ def load(fn, extra=()):
               "objlogdetv", "objlogdetc", "nRank", "hessfactorv",
               "Muplus_pt", "Muplus_eta", "Muplus_phi",
               "Muminus_pt", "Muminus_eta", "Muminus_phi",
+              "Muplus_nvalid", "Muminus_nvalid", "objnullv",
               "trackPt", "trackEta", "trackPhi", "refParms", "edmval",
               "chisqval", "ndof", "niter") + tuple(extra):
         if b in keys:
@@ -306,6 +307,37 @@ def gate_B(args):
                                          if col_of_global(nom, ic, gi) >= 0
                                          else []))
         _fd_report(f"  group {g:>3}  delta {dtxt}", *res)
+
+    tightf = os.path.join(args.fdroot, "tight_nom", "globalcor_0.root")
+    if os.path.exists(tightf):
+        log()
+        log("  the same, with edmConvergence=1e-10 nIters=40 on BOTH the "
+            "nominal and the arms:")
+        log("  what shrinks with that is the Gauss-Newton stopping tolerance "
+            "(the chi2 is")
+        log("  stationary in the state only to O(edm)); what does NOT is the "
+            "reference-trajectory")
+        log("  movement in ln|V|, which the analytic dV deliberately omits "
+            "('the fit never")
+        log("  differentiates through the weights').")
+        tnom = nom
+        nom = load(tightf)
+        for gdir in sorted(glob.glob(os.path.join(args.fdroot, "tight_g*_p*"))):
+            base = os.path.basename(gdir)
+            g = int(base.split("_")[1][1:])
+            dtxt = base.split("_p")[1]
+            fp = os.path.join(gdir, "globalcor_0.root")
+            fm = os.path.join(args.fdroot, f"tight_g{g}_m{dtxt}",
+                              "globalcor_0.root")
+            if not (os.path.exists(fp) and os.path.exists(fm)):
+                continue
+            gi = grpid.get(g)
+            res = collect(fp, fm, float(dtxt),
+                          lambda ic, gi=gi: ([col_of_global(nom, ic, gi)]
+                                             if col_of_global(nom, ic, gi) >= 0
+                                             else []))
+            _fd_report(f"  TIGHT group {g:>3}  delta {dtxt}", *res)
+        nom = tnom
 
     log()
     log("  parmtype 10 -- a COMMON log scale on every step's MS covariance "

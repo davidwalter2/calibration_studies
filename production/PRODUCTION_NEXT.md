@@ -21,7 +21,8 @@ decision, not a revalidation.
 | **hit-class blocks in the two-track maker** | `reshitcls`, `resinfcovhit`, `cf{qop,mass}_hitcls`, `_hitv`, plus the parmtype-8/9 entries in `reseigidx`/`resinfvarv`/`resinfv`/`reshitidx` | the per-hit-class resolution parameters have **never been fitted** — the two-track maker registered no hit blocks at all, so the mass functional had nothing to weigh them with |
 | **the two legs' reference covariance** | `Jpsi_covrefmom` (21 floats, upper triangle of the symmetric 6x6), `Jpsi_jacrefmom`, `Jpsi_qoprefplus/minus`, `Jpsi_sigmarelplus/minus`, `Jpsi_rhomom`, `Jpsi_fang` | makes the Jensen and self-consistent-sigma corrections **truth-free on DATA**. Today `rho` and `f_ang` come from an MC measurement and carry +-5 %; each correction alone is 15-43 MeV on `m_Z` |
 | **pre-FSR gen mass** | `Jpsigenpre_mass`, `Jpsigenpre_status`, `Jpsigenpre_masslep`, `Jpsigen_massdressed` | the Z channel's FSR kernel comes off the production's own pairs cache instead of a separate FWLite pass whose selection has to be kept in step by hand |
-| **material-group process noise** (`exportMaterialNoise`) | `resinfcovgrp` + parmtype-15 entries in `reseigidx`/`resinfvarv` | the quadratic hit-chi2 term now differentiates a group's WIDTH as well as its mean loss — the two functionals of `k_g` were measuring different halves of it. **Single-track maker only**; the two-track one has no log-det machinery to extend |
+| **material-group process noise** (`exportMaterialNoise`) | `resinfcovgrp` + parmtype-15 entries in `reseigidx`/`resinfvarv` | the quadratic hit-chi2 term now differentiates a group's WIDTH as well as its mean loss — the two functionals of `k_g` were measuring different halves of it. As of the `exportVarianceGrads` row below this applies to the TWO-TRACK maker too; on that maker `exportMaterialNoise` alone only registers the blocks (for `resinfcovgrp` and the influence export), and it takes `exportVarianceGrads` as well to put them in the gradient |
+| **the two-track variance (log-det) gradient** (`exportVarianceGrads`) | `gradchisqv`, `gradllv`, `nHessVar`, `hessvaridxv`, `hessvarpackedv`, and CHANGED values in `gradv`/`hesspackedv`/`Jpsi_jacMass`/`*_jacRef` on the parmtype-15 columns | the OTHER half of the line above. The single-track maker got `k_g`'s width term on 2026-09-06; the two-track one had no log-det machinery at all, so its material information was still mean-loss only -- and the mean channel is the WEAK one: on the J/psi gun the parmtype-15 Fisher information goes from 4.07 to 166.3 (41x) when the width is differentiated |
 | **per-leg reference energy loss** | `Mu{plus,minus}_maxfracloss`, `dEref`/`maxfracloss` (single-track) | a `dE_ref/p < 0.01` quality requirement on the quadratic term's material information, without the step records |
 | **the material group on every step record** | `ioniurbanv` / `radstepv` gain a last column; new `ioniurbanstride` | deletes the offline `pair_ioni_rows` heuristic. Only visible with `exportStepRecords=True` |
 
@@ -33,6 +34,7 @@ Take `config_jpsimc20M.sh` verbatim and add **one option**:
  EXTRA="numberOfThreads=1 \
   doRes=True exportCfExponents=True exportStepRecords=False \
 + exportCfGroupExponents=True \
++ exportMaterialNoise=True exportVarianceGrads=True varianceGradFamilies=15 \
   fillJac=True fillGrads=False fillGradsFactored=True \
   ...
 ```
@@ -43,7 +45,10 @@ Everything else is unchanged, and every other new export is **on by default**:
 |---|---|---|
 | `exportCfGroupExponents` | **`True`** | default False. This is the +26 kB/candidate decision, see §3 |
 | `exportHitResBlocks` | `True` (default) | the parmtype-8/9 blocks. `False` reproduces a pre-2026-09-06 two-track tree exactly |
-| `exportMaterialNoise` | **`True` on the single-track legs**, irrelevant on the two-track ones | the parmtype-15 width term. +17 ms/track and +3 kB/track; it CHANGES the exported G and H of the parmtype-15 columns, which is the point |
+| `exportMaterialNoise` | **`True`** on BOTH legs now | the parmtype-15 width term. Single track: +17 ms/track and +3 kB/track. Two track: it registers the blocks, and `exportVarianceGrads` below is what puts them in the gradient |
+| `exportVarianceGrads` | **`True`** | default False. The two-track log-det gradient/Hessian |
+| `varianceGradFamilies` | **`15`** | default (empty) = `{8,9,10,11,15}`. **Use `15`.** It is the layout-preserving subset -- the material-group globals are already columns of `globalidxv` -- so `nParms`, `gradv`, `jacrefv`, `Jpsi_jacMass` and `hessfactorv` keep their shapes and the output still pools with `jpsimc_20M_260905`. Families 8-11 APPEND per-module columns (238 -> 324 median `nParms`) and cost 8x more (see §3) for parameters this maker cannot even apply back: it does not scale the hit covariance by `exp(corparms)` the way the single-track maker does |
+| `exportObjective`, `varianceFDGlobalIdx` | leave off | validation-only; an ncons x ncons eigendecomposition (and, for the second, a full re-profile) per candidate |
 | `exportStepRecords` | `False` (**now the default**) | it was `True`; every production since 2026-09-05 set it False explicitly anyway |
 | `Jpsi_covrefmom` etc. | always on | 148 B/candidate, no switch — without them the corrections have no truth-free input |
 | `Jpsigenpre_*` | always on, needs `doGen=True` | 8.5 B/candidate |
@@ -124,6 +129,43 @@ are, in order of return:
 
 1 + 2 together would be ~3.2 kB/candidate, i.e. 0.12 TB over the full 38 M.
 
+### The variance (log-det) term
+
+Sum of compressed branch bytes EXCLUDING `hesspackedv` -- i.e. the layout a
+production runs (`fillGradsFactored`, `exportStepRecords=False`) -- on 24 gun
+ditrack candidates. The absolute number is not the production's (24 entries do
+not amortize ROOT's per-basket overhead); the DELTA is:
+
+| config | B/candidate | delta |
+|---|---:|---:|
+| `exportVarianceGrads=False` | 37 902 | — |
+| `varianceGradFamilies=15` | 40 568 | **+7.0 %** |
+| `varianceGradFamilies=8,9,10,11,15` | 77 732 | **+105 %** |
+
+and the same on 48 REAL DATA candidates (2016F Charmonium ALCARECO, step
+records excluded as well): **32 473 -> 34 847 B/candidate, +7.3 %**, of which
+1 888 B is the three new branches themselves (`gradchisqv`, `gradllv`, and the
+packed variance block at `nHessVar` = 17-29 columns).
+
+Family 15 costs 2.7 kB/candidate: `gradchisqv` + `gradllv` (two more
+`nParms`-long float arrays, ~1.8 kB) and the packed variance Hessian block
+(`nHessVar` = 21.8 columns, so 21.8*22.8/2 = 249 floats, ~1 kB). It does NOT
+touch `nParms`, `gradv`, `jacrefv`, `Jpsi_jacMass` or `hessfactorv`.
+
+Families 8-11 cost 40 kB because they APPEND per-module columns: `nParms` goes
+from 245.6 to 333.7, every `nParms`-long array grows with it, and `nHessVar`
+goes to 109.9, whose triangle is 6 100 floats. **This is the reason to run with
+`varianceGradFamilies=15`.**
+
+An earlier version carried the variance block as extra ROWS of `hessfactorv`
+instead (`nRank = ndof + nvarcols`). That is also exact, and it needs no
+offline change at all, but it costs `nvar x nParms` floats rather than
+`nvar (nvar+1)/2`: **+57 %** and **+429 %** for the same two configurations.
+The separate block is 8x cheaper at family 15 and 4x at all families, and
+`globalfit/extract.py` was taught to add it (and to REFUSE a factored file
+whose `gradllv` is filled but which has no `hessvaridxv` -- that combination is
+an inconsistent `(G, K)` pair).
+
 ---
 
 ## 4. CPU
@@ -138,6 +180,34 @@ same day):
 | both switches off | 65.30 | 63.56 | 64.43 s | — | — |
 | `exportCfGroupExponents=True` | 80.45 | 81.69 | 81.07 s | **+16.6 s** | **+0.28 s** |
 | `exportMaterialNoise=True` | 63.96 | 64.59 | 64.28 s | −0.15 s | **0** |
+
+and the two-track VARIANCE (log-det) term, same protocol, `fillGradsFactored`,
+same 60 gun events:
+
+user seconds per rep, SIX interleaved reps (`off`, `var15`, `varall`, repeat):
+
+| config | reps | median |
+|---|---|---:|
+| `exportVarianceGrads=False` | 65.02, 58.82, 92.49, 72.80, 71.94, 64.00 | 68.5 s |
+| `varianceGradFamilies=15` | 64.10, 99.11, 82.29, 71.88, 69.77, 62.39 | 70.8 s |
+| `varianceGradFamilies=8,9,10,11,15` | 63.60, 93.54, 82.93, 75.78, 69.18, 63.25 | 72.5 s |
+
+**Not resolvable, and bounded well below 2 %.** The spread of a single arm is
+59-92 s, so the medians say nothing. What does is the WITHIN-REP paired
+difference, `arm - off` in the same rep:
+
+* family 15: -0.92, +40.29, -10.20, -0.92, -2.17, -1.61 -> median **-1.3 s**
+* all families: -1.42, +34.72, -9.56, +2.98, -2.76, -0.75 -> median **-1.1 s**
+
+both NEGATIVE, because the node cools through a rep and `off` runs first. The
+one +40 s is the rep that overlapped the 2 GB data smoke.
+
+That is what the structure predicts: the assembly runs ONCE per candidate, at
+the converged iteration, on the blocks' own ~5x5 row ranges
+(`tr(dV_i R) = tr(D_i R_ii)`, `tr(dV_i R dV_j R) = tr(D_i R_ij D_j R_ji)`)
+rather than as ncons x ncons sparse products -- a few 1e6 flops, i.e. single-
+digit milliseconds, against a 0.65-0.9 s fit. Unlike the per-group CF exponents
+above, there is no reason to trade this one off.
 
 and on the single-track maker (120 mu-gun tracks, 2 reps each):
 
