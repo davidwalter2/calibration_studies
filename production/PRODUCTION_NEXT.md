@@ -149,8 +149,12 @@ packed variance block at `nHessVar` = 17-29 columns).
 
 Family 15 costs 2.7 kB/candidate: `gradchisqv` + `gradllv` (two more
 `nParms`-long float arrays, ~1.8 kB) and the packed variance Hessian block
-(`nHessVar` = 21.8 columns, so 21.8*22.8/2 = 249 floats, ~1 kB). It does NOT
-touch `nParms`, `gradv`, `jacrefv`, `Jpsi_jacMass` or `hessfactorv`.
+(`nHessVar` = 21.8 columns, so 21.8*22.8/2 = 249 floats, ~1 kB). It does not
+change the SHAPE of `nParms`, `globalidxv`, `gradv`, `jacrefv`, `Jpsi_jacMass`
+or `hessfactorv` -- verified on all 59 gun candidates: layout identical, and
+every non-parmtype-15 entry of `gradv` and of the `hesspackedv` block
+bit-identical. What it does change, and must, are the VALUES on the
+parmtype-15 columns of `gradv`, `hess` and `Jpsi_jacMass`.
 
 Families 8-11 cost 40 kB because they APPEND per-module columns: `nParms` goes
 from 245.6 to 333.7, every `nParms`-long array grows with it, and `nHessVar`
