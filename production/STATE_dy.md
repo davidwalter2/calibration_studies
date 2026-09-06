@@ -386,3 +386,11 @@ Accounting immediately after the switch: **380 = 105 complete + 69 running
 * `produceValueMaps=False`: this driver has no output module, so the EDM
   ValueMaps would be produced and dropped. The profiling runs had them on; the
   difference is not measurable.
+
+## 2026-09-06 ~16:20 — slurm DY leg CANCELLED as redundant (Fable control session)
+The condor re-production `dymc_8p5M_260906_v2` (same 380 chunks, physics bit-identical, plus the
+complete 2026-09-06 exports and the ndof==0 fix, 4 threads) was at 282/380 complete and finishing
+~17:22 while this leg had 0 running / 198 pending at 11 tasks/h. All remaining dymc8p5M slurm jobs
+(6409926 6409964 6409980 6409984 6410005 6410032 6410082) were cancelled and `watch_dy_recover.sh`
+stopped. The 182 completed slurm tasks stay on disk as a cross-check sample (single-stream, old
+exports); the analysis uses `dymc_8p5M_260906_v2`.
