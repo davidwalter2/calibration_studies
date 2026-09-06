@@ -8,6 +8,7 @@ ratio, in bins of the harmonic mean of the two gen muon momenta if available.
 """
 import argparse, glob, sys
 import numpy as np, uproot
+import prodfiles
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--a", required=True, help="glob of production A (reference)")
@@ -17,7 +18,9 @@ ap.add_argument("--label", default="B-A")
 args = ap.parse_args()
 
 def load(pattern):
-    files = sorted(glob.glob(pattern))[:args.ntasks]
+    # --ntasks caps TASKS; files[0] is the first existing stream of the
+    # first usable task, and only its `tree` keys are read for the schema.
+    files = prodfiles.resolve(pattern, args.ntasks, logger=print)
     t0 = uproot.open(files[0])["tree"]
     keys = set(t0.keys())
     want = ["run", "lumi", "event", "Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass", "resinfcov", "niter", "chisqval"]

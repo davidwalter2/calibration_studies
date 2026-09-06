@@ -13,12 +13,18 @@ so the question "which tracks carry this group's information, and what material
 do they actually see" can be answered without any model assumption.
 """
 import argparse
-import glob
+import os
+import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 import uproot
+
+_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
+import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
 
 C_EFFZ, C_EFFA, C_XG, C_P, C_BETA, C_THP2, C_DOX0, C_ZZP1, C_LNSW, C_GRP = range(10)
 _TRIU = {}
@@ -155,9 +161,9 @@ def main():
     ap.add_argument("--max-grad", type=float, default=1e6)
     ap.add_argument("--max-hess", type=float, default=1e8)
     args = ap.parse_args()
-    files = sorted(glob.glob(args.files))
-    if args.max_files:
-        files = files[:args.max_files]
+    # --max-files caps TASKS (a multi-stream task is N files)
+    files = prodfiles.resolve(args.files, args.max_files,
+                              logger=lambda m: print(m, flush=True))
     pt, raw, g2f, fitidx = build_catalog(files[0], args.parmtypes)
     ia = int(np.where((pt == 15) & (raw == args.group))[0][0])
     ib = int(np.where((pt == 15) & (raw == args.refgroup))[0][0])

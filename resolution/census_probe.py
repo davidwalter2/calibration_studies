@@ -21,6 +21,7 @@ are scalars only (the jagged CF exports are never touched).
 import argparse, glob, os, sys
 import numpy as np
 import uproot
+import prodfiles
 
 SC = ["run", "lumi", "event"]
 
@@ -128,7 +129,8 @@ def main():
     p.add_argument("--ntasks", type=int, default=100000)
     p.add_argument("--out", default=None)
     a = p.parse_args()
-    files = sorted(glob.glob(a.files))[: a.ntasks]
+    # --ntasks caps TASKS (a numberOfThreads=N task is N stream files)
+    files = prodfiles.resolve(a.files, a.ntasks, logger=lambda m: print(m, flush=True))
     if not files:
         sys.exit(f"no files match {a.files}")
     lines = []
