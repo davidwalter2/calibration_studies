@@ -57,9 +57,14 @@ sys.exit(0 if P.task_complete(sys.argv[2], sys.argv[3]) else 1)' \
 # Delete the ROOT payload of every unusable task under BASE (no `.complete`,
 # an empty stream file, or fewer streams than the sentinel declares). It takes
 # out EVERY stream, which is the whole point: removing stream 0 alone is what
-# leaves a truncated task readable by a widened glob. The `.complete`-less
-# directory itself is left in place so the production bookkeeping still sees
-# the task; only its files go.
+# leaves a truncated task readable by a widened glob.
+#
+# A `.complete` that survives its own payload is removed with it. The sentinel
+# is the only thing `resume_*.sh` consults, so a task whose sentinel landed
+# before a stream did (or whose stream came out empty) would otherwise be
+# skipped by every future resume and be missing for good; without the sentinel
+# it is simply re-driven. The task DIRECTORY stays, so the production
+# bookkeeping still sees the index.
 pf_clean_incomplete() {
   "$PF_PYTHON" -c '
 import os, sys
@@ -76,6 +81,10 @@ for d in P.task_dirs(base, stem):
     for f in fs:
         os.remove(f)
         nf += 1
+    sen = os.path.join(d, ".complete")
+    if os.path.exists(sen):
+        os.remove(sen)
+        print(f"    and its .complete, so a resume re-drives the task")
     n += 1
 print(f"[pf_clean_incomplete] {n} task(s), {nf} file(s) removed under {base}")' \
     "$PF_PY" "$1" "${2:-globalcor}"
