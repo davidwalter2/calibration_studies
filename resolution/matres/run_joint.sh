@@ -38,3 +38,26 @@ case $step in
   report)     ./run_tf.sh python3 -u report_fit.py "$@" ;;
   *)          echo "unknown step $step"; exit 1 ;;
 esac
+
+# Recipe that produced the 2026-09-05 numbers (NOTES.md 2026-09-05 (II)):
+#
+#   RUNS=.../runs/matres
+#   # per-group exponents, 24k ditrack candidates, 64-point tau grid
+#   $RUNS/run_probe.sh                                    # 1812 s, 24 workers
+#   # the quadratic term over the FULL production
+#   $RUNS/run_quad.sh                                     # 51 s, 8 workers
+#   ./run_joint.sh card_quad                              # quadratic-only card
+#   ./run_joint.sh card_joint                             # quadratic + mass
+#   ./run_joint.sh card_mass --field-prior 1.0            # mass only
+#   ./run_joint.sh card_inj --inject material_tib_support:0.00243951   # 5 % more
+#   ./run_joint.sh fit_quad --minimizerMethod trust-exact # 23 s
+#   ./run_joint.sh fit_mass                               # 232 s
+#   ./run_joint.sh fit_joint                              # 2467 s
+#   ./run_joint.sh fit_inj                                # 449 s
+#   ./run_tf.sh python3 cmp_scale.py --card $RUNS/cards/joint.hdf5 \
+#       quad=$RUNS/fits/quad/fitresults.hdf5 \
+#       mass=$RUNS/fits/mass/fitresults.hdf5 \
+#       joint=$RUNS/fits/joint/fitresults.hdf5
+#   ./run_joint.sh report --fit $RUNS/fits/inj/fitresults.hdf5 \
+#       --card $RUNS/cards/inj.hdf5 --compare base=$RUNS/fits/joint/fitresults.hdf5 \
+#       --physical
