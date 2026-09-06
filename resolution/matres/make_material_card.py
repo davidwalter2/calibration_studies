@@ -331,10 +331,19 @@ def main():
             log(f"per-class hit share: {len(hit_params)} classes, "
                 f"{len(data['hit_cls'])/max(n,1):.2f} rows/candidate")
         else:
-            hit_params, share = [], None
+            # No floating class, but the Gaussian remainder must still be in
+            # the model: in the flat MassCFTerm it rides as the `gauss` family
+            # and it is the DOMINANT part of the mass CF.  It goes in as
+            # `vg_other` with an empty class list, i.e. a fixed contribution.
+            hit_params = []
+            data["hit_ptr"] = np.zeros(n + 1, np.int64)
+            data["hit_cls"] = np.zeros(0, np.int64)
+            data["hit_v"] = np.zeros(0, np.float64)
+            data["vg_other"] = vgf
+            share = (data["hit_ptr"], data["hit_cls"], data["hit_v"], vgf)
             log("NO per-class hit share (the two-track maker exports no "
                 "parmtype-8/9 resolution blocks); the Gaussian remainder "
-                "rides as a fixed vgf")
+                "enters as a FIXED vg_other")
 
         # ---- injection into the mass term ----------------------------------
         legacy = []
@@ -422,9 +431,29 @@ def main():
             phik=(data["phik_t"], data["phik_re"], data["phik_im"])
             if "phik_t" in data else None,
         )
-        if not use_hits:
-            data.pop("vg_other", None)
+        # `vg_other` STAYS in the written datasets whether or not any class
+        # floats: it is what carries the Gaussian remainder into the term.
         data["vgf"] = vgf
+
+        # SANITY GATE.  A card whose NLL or gradient is not finite AT ITS OWN
+        # STARTING POINT cannot be fitted -- rabbit's Cholesky of the Hessian
+        # fails and the covariance is lost, with a message that says nothing
+        # about the cause.  Catch it here, where the cause is still visible.
+        import tensorflow as tf
+
+        _x0 = tf.Variable(np.zeros(len(term.param_names)), dtype=tf.float64)
+        with tf.GradientTape() as _tp:
+            _v = term.nll(_x0)
+        _g = np.asarray(_tp.gradient(_v, _x0).numpy())
+        _li = term.raw_density(tf.constant(np.zeros(len(term.param_names)))).numpy()
+        log(f"NLL(0) = {float(_v.numpy()):.6f}, max|grad| = "
+            f"{np.abs(_g).max():.4g}, raw density min {_li.min():.4g} "
+            f"({int((_li <= 0).sum())} candidates <= 0)")
+        if not (np.isfinite(float(_v.numpy())) and np.isfinite(_g).all()):
+            sys.exit("the mass term is not finite at k = 0 -- refusing to write "
+                     "the card.  The usual cause is a missing Gaussian share "
+                     "(vg_other / a gauss family): without it the model is far "
+                     "too narrow and the density underflows.")
 
         poi_set = _poi_set(args.poi, names)
         prior_by_name = dict(zip(names, prior_sigmas))
