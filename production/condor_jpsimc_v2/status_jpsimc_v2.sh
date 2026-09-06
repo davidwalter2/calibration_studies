@@ -6,10 +6,10 @@
 # at START and a killed job leaves a non-empty but truncated file that an `-s`
 # test would accept forever.
 #
-# usage: ./status_dymc_v2.sh [--slow]
+# usage: ./status_jpsimc_v2.sh [--slow]
 set -uo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "$HERE/config_dymc_v2.sh"
+source "$HERE/config_jpsimc_v2.sh"
 SLOW=0
 while [[ $# -gt 0 ]]; do
   case "$1" in

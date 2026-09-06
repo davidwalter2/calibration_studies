@@ -434,3 +434,104 @@ failure is **SIGILL inside the CVMFS release's own `libXrdCl` at `stagein`** —
 exports and the `ndof == 0` fix; the 260905 one does not. Both were left
 running deliberately — the slurm arrays are not to be cancelled from here —
 but only one of them is the sample the next fit should use.
+
+---
+
+## 10. Readers that hard-code `globalcor_0.root` (audit 2026-09-06)
+
+Both v2 productions run `numberOfThreads=4`, so a task is now **four** files,
+`globalcor_0..3.root`. A reader that names stream 0 takes **1/4 of the
+candidates** and says nothing. Full audit of `calibration_studies/`:
+
+| class | count |
+|---|---|
+| **BROKEN-AT-N** (names stream 0 for the CANDIDATE tree) | ~134 lines in 78 files |
+| **RUNTREE-ONLY** (names stream 0 but reads only the parameter map — **correct, do not change**) | 33 lines in 29 files |
+| SAFE-GLOB (already `globalcor_*.root`) | ~45 lines in 32 files |
+| GLOB-BUT-RUNTREE-DUP | 0 unintentional |
+
+Nothing in `CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/` needs changing
+— it only writes. `lineshape/` has no CVH-output reference at all. All of
+`pixelhits/` and `global_corrections/` already glob correctly.
+
+### TWO ORDERING HAZARDS — read before touching a single reader
+
+1. **`--ntasks` is a FILE cap, not a task cap.** `cf_inmaker.py:116`,
+   `globalfit/extract.py:501-505`, `matres/extract_groups.py:598-602`,
+   `cf_mass_likelihood.py`, `cf_masskernel_tt.py`, `censoring_aux.py:74`,
+   `oddmoment/aux_gen.py:104` all cap on the FILE list. Fixing the glob without
+   quadrupling the cap makes `--ntasks 160` (in `chain_260905d.sh:33`,
+   `masslik_jpsigun_260902.sh:19,21`, `run_masspairs_fixsign_260902.sh:28`,
+   `runs/stepdamp260905/slurm/kernel.sbatch:16`) and `NTASKS=48` (in
+   `globalfit/run_validation.sh`) cover **a quarter of the intended tasks**.
+2. **Incomplete-task cleanup deletes only stream 0.** `chain_260904f.sh:43,108`,
+   `chain_260905d.sh:31,80`, `masslik_btojpsix_v3_260902.sh:25`,
+   `masslik_jpsigun_260902.sh:17`, `finish_muon_closure_260902.sh:70`,
+   `cvhcf_e2e_260905.sh:54`, `kinkfinder/run_v3_species.sh:64` all do
+   `rm -f "$d/globalcor_0.root"` for a task with no `.complete`. Under 4
+   threads that leaves streams 1-3 of a TRUNCATED task on disk, and a
+   newly-fixed `globalcor_*.root` glob would then happily ingest them.
+   **Fixing the readers before the cleanups makes the data worse, not better.**
+   Change these to `globalcor_*.root` (or `rm -rf "$d"`) FIRST.
+
+Also note `masspairs_parallel.sh:36` and the `*_shard.sbatch` symlink farms:
+they link each input to a fixed `task_NNNN/globalcor_0.root` name, so four
+streams of one task would **collide on one link**. Those need a per-stream
+name, not just a wider glob.
+
+### The critical path (production -> pairs cache -> kernel -> mass fit -> global fit)
+
+* `resolution/masspairs_parallel.sh:19,36,40` and `extract_parallel.sh:37,54,64`
+  — the parallel cache builders; both have the glob bug AND the symlink collision
+* `resolution/run_pairs_tt_parallel.sh:44`, `run_pairs_tt_shards.sh:20`,
+  `run_pairs_tt_fixsign_260902.sh:38`, `run_pairs_tt_fixsign_wide_260902.sh:17`,
+  `run_masspairs_fixsign_260902.sh:28`
+* `resolution/chain_260905d.sh:33,45`, `chain_260904f.sh:46,62` — the current
+  end-to-end drivers
+* `resolution/masslik_jpsigun_260902.sh:19,21`, `masslik_btojpsix_v3_260902.sh:27,29`
+* `resolution/globalfit/run_validation.sh:26`, plus the recipes in
+  `globalfit/extract.py:50` and `globalfit/STATE.md:122,295`
+* `resolution/runs/matres/{run_big,run_probe,run_quad,run_single}.sh` — the
+  material-group extractions actually run on 09-05
+* `resolution/runs/stepdamp260905/slurm/{kernel,pairs_shard,extract_shard,aux}.sbatch`
+  and the `runs/clampfix260904/slurm/` equivalents
+* `resolution/cf_track_resolution.py:277`, `cf_mass_likelihood.py:116`,
+  `cf_global_masslik.py:53` — CLI defaults (the fallback when `--files` is omitted)
+* `resolution/cf_inmaker.py:35,39` and `zchannel/README.md:83,135` — the
+  **Z-channel** recipe, pointed straight at the DY production now on 4 threads
+* `resolution/jpsi_mass_closure.py:62`, `jpsi_bias_decompose.py:88` — the
+  closure numbers quoted in the scale-closure work
+* `engaging/extract_cpu.sbatch:16,45` — the ORCD extract shards
+
+### Others (not on the mass-fit path but wrong under N threads)
+
+~35 more `resolution/*.py` readers (`cf0_ecf.py:77`, `cf_ioni_exact.py:63`,
+`cf_ms_exact.py:61`, `cf_ms_moliere.py:63`, `fit_hit_ms_joint.py:85`,
+`fit_ms_material.py:56`, `fit_transmission.py:44`, `fsr_kernel_study.py:62`,
+`cgf_dedx_scan.py:64`, `gate_checks.py:407`, `cyl_profile.py:106,114`,
+`matgroup_weights.py:131,157`, `transmission_probe.py:67`,
+`simhit_compare.py:69,92`, `ioni_sign_probe.py:47`, `radterm_validate.py:48,49`,
+`quick_count_260904.py:14`, and the whole `hitres_*.py` family), plus
+`module_level_corrections/{compare_fix_policies.py:18,plot_cvh_efficiency_sf.py:60,analyze_cvh_hotspot.py:29}`
+(same maker, `outprefix=effstudy_*`), `alcareco_validation/plot_cvh_variants.py:14,94`,
+and the `kinkfinder/plot_fake_muon.py:21` / `plot_kink_roc.py:15` docstrings.
+
+Several of these read local smokes whose producers pin `numberOfThreads=1`
+(`smoke_exports_260906.sh`, `fd_variance_260906.sh`, `run_local_*.sh`,
+`runCvhProfile.py`), so they are self-consistent today — but they are the
+same latent bug.
+
+### Do NOT change these
+
+The **RUNTREE-ONLY** idiom — glob all files, then open `files[0]` for the
+`runtree` — is exactly right, because every stream file carries a
+byte-identical copy of the 13 MB parameter map and concatenating them would
+duplicate it N times. Examples: `globalfit/extract.py:173,510`,
+`matres/extract_groups.py:584,607-613`, `global_corrections/fit_global_grads.py:103`,
+`pixelhits/{fit_classcorr.py:87,write_classcorr_corfile.py:29}`,
+`module_level_corrections/{nano_hotspot2_culprit.py:17,nano_hotspot2_ztwin.py:15,plot_kxi_eta_profile.py}`,
+`production/smoke_inspect.py:153`, and the `frun = uproot.open(files[0])` lines
+in the `cf_*` family.
+
+`production/threadscan/compare_threads.py --tree runtree` concatenates on
+purpose — that is the diagnostic that proves the copies are identical.

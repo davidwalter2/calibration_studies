@@ -56,8 +56,21 @@ rc=$?
 if [[ $rc -ne 0 ]]; then echo "[FATAL] cmsRun rc=$rc (see $OUTDIR/local.log)" >&2; exit $rc; fi
 
 shopt -s nullglob
-out=("$OUTDIR"/*.root)
-[[ ${#out[@]} -ge 1 && -s "${out[0]}" ]] || { echo "[FATAL] no/empty output in $OUTDIR" >&2; exit 4; }
+# ONE OUTPUT FILE PER EDM STREAM. `numberOfStreams` follows `numberOfThreads`
+# and the maker writes `globalcor_<stream>.root`
+# (ResidualGlobalCorrectionMakerBase.cc:451), so a multithreaded task produces N
+# files and the old `>= 1 && -s out[0]` test would have accepted a task that
+# wrote ONE of them -- i.e. 1/N of the candidates, silently, with a `.complete`
+# sentinel on top. N is read back out of the configuration that was actually
+# passed, so a single-threaded task behaves exactly as before.
+NSTREAM=$(grep -o 'numberOfThreads=[0-9]*' <<< "${EXTRA:-}" | tail -1 | grep -o '[0-9]*')
+NSTREAM=${NSTREAM:-1}
+out=("$OUTDIR"/globalcor_*.root)
+[[ ${#out[@]} -eq $NSTREAM ]] || {
+  echo "[FATAL] expected $NSTREAM stream file(s) in $OUTDIR, found ${#out[@]}" >&2; exit 4; }
+for _f in "${out[@]}"; do
+  [[ -s "$_f" ]] || { echo "[FATAL] empty output $_f" >&2; exit 4; }
+done
 # Guard against the silent-empty-input failure: the maker always prints a fit
 # summary, and a run that read nothing prints attempted=0.
 if grep -q "fit summary  attempted=0 " "$OUTDIR/local.log"; then
