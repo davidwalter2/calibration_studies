@@ -96,6 +96,11 @@ def parse_args():
     p.add_argument("--phik-points", type=int, default=8192)
     p.add_argument("--phik-cache", default=None)
     p.add_argument("--with-alpha", action="store_true")
+    p.add_argument("--no-self-consistent-sigma", action="store_true",
+                   help="write a_i but switch the correction OFF in the term, "
+                        "so the naive and corrected fits run off ONE card")
+    p.add_argument("--no-ares", action="store_true",
+                   help="do not write a_i at all (pre-spec behaviour)")
     p.add_argument("--mref", type=float, default=MJPSI)
     p.add_argument("--window", type=float, default=1.0)
     p.add_argument("--chunk", type=int, default=16384)
@@ -428,12 +433,36 @@ def main():
             scale_param="alpha" if args.with_alpha else None,
             bkg_frac=args.fbkg, floor=args.floor, chunk=args.chunk,
             channel="jpsi", jac=jac, jac_params=jac_params,
+            a_res=a_res,
+            self_consistent_sigma=not args.no_self_consistent_sigma,
             phik=(data["phik_t"], data["phik_re"], data["phik_im"])
             if "phik_t" in data else None,
         )
         # `vg_other` STAYS in the written datasets whether or not any class
         # floats: it is what carries the Gaussian remainder into the term.
         data["vgf"] = vgf
+
+        # ---- the self-consistent-resolution coefficient a_i ----------------
+        # MASSCFTERM_SPEC: sigma_i is the FIT's own error, so it is a function
+        # of the residual the likelihood is measuring;
+        #     a_i = (1 + f_hit,i - f_ioni,i) * sigma_i / m_gen,i
+        # with f_hit = vgf and f_ioni the parmtype-11 share (1.1e-3 on the gun,
+        # droppable and dropped here unless the extraction carries it).
+        if not args.no_ares:
+            f_hit = vgf
+            f_ioni = (d["fioni"][idx].astype(np.float64) if "fioni" in keys
+                      else np.zeros_like(f_hit))
+            mg = (d["mgen"][idx].astype(np.float64) if "mgen" in keys
+                  else np.full(n, args.mref))
+            a_res = (1.0 + f_hit - f_ioni) * data["sigma"] / np.maximum(mg, 1e-9)
+            data["a_res"] = a_res
+            log(f"a_res (self-consistent sigma): mean {a_res.mean():.6f}, "
+                f"rms {a_res.std():.6f}, range {a_res.min():.6f} .. "
+                f"{a_res.max():.6f}"
+                + ("" if "fioni" in keys else "   [f_ioni not in the extraction,"
+                   " taken as 0 -- a 0.1 % effect on a_i]"))
+        else:
+            a_res = None
 
         # SANITY GATE.  A card whose NLL or gradient is not finite AT ITS OWN
         # STARTING POINT cannot be fitted -- rabbit's Cholesky of the Hessian

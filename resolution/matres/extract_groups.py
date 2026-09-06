@@ -271,7 +271,7 @@ def process_file(fname):
             ok_cut = m if ok_cut is None else (ok_cut & m)
 
     store = G.GroupStore(fams, len(_TSEL))
-    out = {k: [] for k in ("sigma", "vgf", "vg_other", "chi2ndof")}
+    out = {k: [] for k in ("sigma", "vgf", "vg_other", "chi2ndof", "fioni")}
     out.update({k: [] for k in (("m0", "mgen", "D") if ismass else
                                 ("z", "eta", "phi", "charge", "chi2n",
                                  "nvhit", "trackPt", "genPt"))})
@@ -536,6 +536,9 @@ def process_file(fname):
         out["sigma"].append(sig)
         out["vgf"].append(vg / (sig * sig))
         out["vg_other"].append(vg / (sig * sig) - v_i / (sig * sig))
+        # the parmtype-11 (ionization) influence share, the `f_ioni` of
+        # MASSCFTERM_SPEC's a_i = (1 + f_hit - f_ioni) sigma / m_gen
+        out["fioni"].append(float(vb[fam == 11].sum()) / (sig * sig))
         out["chi2ndof"].append(float(rchi2[ic]))
         if ismass:
             out["m0"].append(float(a["Jpsi_mass"][ic]))
