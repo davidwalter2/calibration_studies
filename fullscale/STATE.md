@@ -1,4 +1,4 @@
-# fullscale — STATE  (checkpoint 2026-09-06 21:00)
+# fullscale — STATE  (checkpoint 2026-09-07 06:45)
 
 **Read this file top to bottom before touching anything.** The running log of
 how each number was obtained is in `STATE_log.md` next to this file; this file
@@ -15,16 +15,19 @@ Figures: `~/public_html/cvh/260906_fullscale/` (already has `index.php`).
 
 ## 0. THE STATISTICAL NUMBER, AND THE PHYSICS PROBLEM — NOW SOLVED
 
-**Statistical precision, at the full 3.6 M candidates**, resolution fixed at
-the MC truth, K(m) floated, Asimov (reference-point) information:
+**Statistical precision, MEASURED at the fitted minimum** on all 3 682 662
+candidates, resolution and alignment fixed at the MC truth, K(m) floated
+(sandwich errors, `results/fit_f380fl_base.json`):
 
-| | inverse Hessian | x1.109 sandwich |
+| | sandwich | inverse Hessian |
 |---|---:|---:|
-| `sigma(m_Z)` | **1.98 MeV** | **2.19 MeV** |
-| `sigma(Gamma_Z)` | **4.04 MeV** | **4.48 MeV** |
+| **`sigma(m_Z)`** | **2.27 MeV** | 2.07 MeV |
+| **`sigma(Gamma_Z)`** | **4.16 MeV** | 3.78 MeV |
 
-with K(m) FIXED it is 1.51 / 2.91 MeV, so floating the LO->MiNNLO shape costs
-x1.31 / x1.39.
+with K(m) FIXED the Asimov projection is 1.51 / 2.91 MeV, so floating the
+LO->MiNNLO shape costs x1.5 / x1.4 — the price of not having to trust an LO
+parton luminosity. `Gamma_Z` at 4.2 MeV is already at the interesting scale
+(the Z-width sensitivity note targets ~2 MeV). **The MC closure is in sec. 0b.**
 
 ### The problem (phase-1 finding, 2026-09-06 19:30)
 
@@ -141,16 +144,33 @@ suites all still pass (the refactor is bit-identical at `upsample == 1`).
 
 ---
 
-## 0b. PHASE 1 AT 300 k — THE CLIP IS NOT STABLE, THE REFORMULATION IS
+## 0b. PHASE 1 — THE FINAL NUMBER
 
-Both ladders are the same model, resolution and alignment fixed at the MC
-truth, K(m) floated, `fitted - generator` in MeV with the x1.109 sandwich
-error. **They are NOT the same 300 000 candidates**: `z_n300k.hdf5` is a
-subsample of the 373-task cache and `z_n300k_fl.hdf5` of the 380-task one, so
-cross-form comparisons carry ~8 MeV of independent statistical scatter.
-Within a ladder every row is the same candidates.
+**Z alone, all 380 DY tasks, 3 682 662 candidates after cuts, resolution and
+alignment fixed at the MC truth, K(m) floated (5 Legendre terms), both
+corrections in the FLUCTUATION form, `corr_coeff_max = 0.08`, x1.109 sandwich
+errors.** `fitted - generator` with the generator at
+`m_Z = 91.153509740726733`, `Gamma_Z = 2.4932018986110700`:
 
-### The residual form and its clip — GATE 2
+| | fitted - generator | stat | pull |
+|---|---:|---:|---:|
+| **`m_Z`** | **-11.06 MeV** | **+- 2.27** | -4.9 |
+| **`Gamma_Z`** | **-5.26 MeV** | **+- 4.16** | -1.3 |
+
+(38 iterations, 16 940 s on a preemptable H200; sandwich/inverse-Hessian error
+ratio 1.096-1.099 against `sqrt(N/N_eff) = 1.109`. `results/fit_f380fl_base.json`.)
+
+**`Gamma_Z` closes at 1.3 sigma. `m_Z` does not: -11.1 +- 2.3 MeV.**
+
+### The 300 k ladder that gets there — and the clip that does not (GATE 2)
+
+Both ladders are the same model with one thing changed per row, resolution and
+alignment at the MC truth, K(m) floated. They are NOT the same 300 000
+candidates (`z_n300k.hdf5` subsamples the 373-task cache, `z_n300k_fl.hdf5` the
+380-task one), so cross-form comparisons carry ~8 MeV of scatter; within a
+ladder every row is the same candidates.
+
+**The residual form and its clip:**
 
 | variant | `m_Z` | `Gamma_Z` |
 |---|---:|---:|
@@ -163,43 +183,65 @@ Within a ladder every row is the same candidates.
 | **`corr_clip = 5`** | **+94.32 +- 7.92** | -12.37 +- 14.68 |
 | **`corr_clip = 10`** | **+74.32 +- 7.30** | -49.00 +- 14.49 |
 
-`m_Z` swings over **130 MeV** and `Gamma_Z` over **425 MeV** across the clip,
-against an 8 MeV statistical error on the same candidates. **The clipped answer
-is not stable in the clip**, which was the question STATE said would decide the
-matter. The unclipped fit also finds an NLL 27 000 units "better" than every
-well-behaved variant, bought with K(m) coefficients of order one — it is fitting
-the shape to a deformed resolution model, not measuring a mass.
+`m_Z` swings over **130 MeV** and `Gamma_Z` over **425 MeV** across a knob with
+no physics in it, against an 8 MeV statistical error on the same candidates.
+**The clipped answer is not stable in the clip** — the question STATE said would
+decide the matter. The unclipped fit also buys an NLL **27 000 units** lower
+than every well-behaved variant with K(m) coefficients of order one: it is
+fitting the shape to a deformed resolution model, not measuring a mass.
 
-### The fluctuation form
+**The fluctuation form:**
 
 | variant | `m_Z` | `Gamma_Z` |
 |---|---:|---:|
 | **both corrections (the model)** | **-20.67 +- 8.09** | **+18.66 +- 14.72** |
+| the same with `corr_coeff_max = 0.08` | -20.62 +- 8.09 | +18.64 +- 14.72 |
 | `a_res` off (Jensen only) | -35.92 +- 8.08 | +17.14 +- 14.61 |
 | Jensen off (`a_res` only) | -13.56 +- 8.13 | +22.29 +- 14.77 |
 | neither | -28.66 +- 8.10 | +17.66 +- 14.67 |
 | K(m) FIXED, both | -27.44 +- 5.86 | +175.25 +- 11.99 |
+| K(m) with **7** terms | -21.94 +- 7.90 | +60.44 +- 16.11 |
+| window **80-100** instead of 60-120 | -30.12 +- 25.01 | -87.68 +- 48.37 |
 
-**The two corrections are ADDITIVE to 0.2 MeV**: `a_res` alone moves `m_Z` by
-+15.10 MeV and the Jensen map alone by -7.26 MeV, against a measured
-`base - noboth` of +8.00 MeV (sum of the two: +7.84). That is the same
-additivity the spec measured on the J/psi (J1, 3e-7 there), and it is the check
-that the two are not fighting each other through the CF.
+Finite, clip-free, every variant converging in 10-38 iterations. The two
+corrections do what the census predicts and **are additive to 0.2 MeV**:
+`a_res` alone moves `m_Z` by **+15.10 MeV** (its per-candidate mean shift is
+-32.5 MeV), the Jensen map alone by **-7.26 MeV** (mean shift +20.6 MeV), and
+together **+8.00 MeV** against the sum +7.84. Neither touches `Gamma_Z`, as it
+must be: both are location effects.
 
-Finite, clip-free, and every variant converges (10-25 iterations). The two
-corrections do what the census predicts: the Jensen part alone moves `m_Z` by
-**-7.3 MeV** (its per-candidate mean shift is +20.6 MeV) and the
-self-consistent width by **+15.3 MeV** on top (its mean shift is -32.5 MeV), for
-a net **+8.0 MeV**. `Gamma_Z` is unaffected by either, as it must be: both are
-location effects. The +175 MeV on `Gamma_Z` with K(m) fixed is the LO->MiNNLO
-K-factor and is why K(m) is floated.
+### What the -11 MeV is NOT
 
-**What is NOT closed**: `m_Z` sits at **-20.7 +- 8.1 MeV**, a -2.6 sigma pull at
-300 k. At 3.68 M the statistical error is 2.3 MeV, so if it is real it will show
-at 9 sigma. It is NOT the corrections (the uncorrected fit is -28.7 and they
-move it +8.0 toward zero); the candidates are the Z lineshape provider, the FSR
-fold, the acceptance and the truncation `Z`. That is the phase-1 question the
-full-scale fit has to answer.
+* **Not the corrections.** Without them the fit is -28.7 MeV at 300 k and they
+  move it +8.0 toward zero. The spec's own prediction for the NET defect at Z
+  momenta is -5...-14 MeV (the two terms partially cancel); +8.0 MeV is inside it.
+* **Not the Born lineshape or K(m).** At GENERATOR level the same provider with
+  5 Legendre terms closes to **-0.45 +- 0.50 MeV** pre-FSR and **+0.15 +- 0.56**
+  post-FSR-folded (`zchannel/README.md`). Going 5 -> 7 terms at detector level
+  moves `m_Z` by **-1.3 MeV**, inside its own error: the basis is saturated.
+  (7 terms DO move `Gamma_Z` by +42 MeV, which generator level did not — worth a
+  look, but it is not the `m_Z` story.)
+* **Not obviously the tails.** Narrowing the window to 80-100 GeV (88.0 % of the
+  candidates) gives -30.1 +- 25.0: the error triples because the shoulders carry
+  the information, and the central value does not move outside it. Inconclusive
+  rather than exculpatory.
+* **Not the coefficient bound.** 0.049 MeV, measured.
+
+### What it might be
+
+The post-fit spectrum (`11_postfit_n300kfl_base.png`) has **visible structure**:
+`chi2/ndof = 1.36` over 240 bins, data/model below 1 on the 82-88 GeV shoulder
+and above 1 on the 95-105 GeV one. That is an S-shape a smooth K(m) cannot
+absorb and it is exactly the shape that biases a mass. Since generator level
+closes and the shape basis is saturated, what is left between them is the
+**detector-level resolution model**: the per-candidate CF (`k_hit`, `k_ms`,
+`k_ioni`, `k_rad` are FIXED at 1 here), the truncation `Z` evaluated at the
+stored class sigma, and the 0.19 % one-sided selection-variable mismatch. The
+first is phase 3's job -- it replaces the four knobs with the parmtype-15
+material amounts and floats them. **The natural next diagnostic is a
+`sigma_m/m` quantile split**: the resolution-model hypothesis predicts the bias
+grows with `sigma_rel`, and the spec's own J/psi differential test (J4) is the
+template.
 
 ---
 
