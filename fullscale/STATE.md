@@ -372,7 +372,8 @@ human has to run **`!eng-master`** in an interactive terminal. It was down
 |---|---|---|
 | **22167631** | `zvarfl` on `z_full380_fl.hdf5`, `mit_normal_gpu` | PENDING since 21:00 yesterday, `scontrol` estimate 14:40. Runs the whole phase-1 ladder from the start. |
 | **22199038** | the same on `mit_preemptable` | PENDING (submitted 07:53). Whichever starts first wins; cancel the other. |
-| **22199037** | **`zjoint`** — `fit_joint.py` on the full `cards/joint_v2.hdf5`, `mit_preemptable`, `--hess-mode pfor` | PENDING (07:53). **This is phase 2 at full size.** |
+| ~~22199037~~ | `zjoint` on the full `cards/joint_v2.hdf5`, `--hess-mode pfor` | **OOMed on the H200 at 07:58** (`ResourceExhaustedError`). See "phase 2 does not fit trust-exact" below. |
+| **22199336** | `zshape` — the K(m) ladder at full statistics (`z_full380_fl_s6/s7`) | submitted 07:59; the loose end of phase 1 |
 | ~~22171547~~ | the preemptable ladder | ran 01:28-07:1x, produced `base` (collected) and was cut off during `noares` |
 
 Notes: **H200**; **do not pass `--chunk`** on a card with a sparse `D`; the
@@ -390,6 +391,29 @@ per-user GPU limit is one job per partition, so submitting to both
 | `srelsplit.sh` | `cards/z_srel_{lo,mid,hi}.hdf5` -> `results/fit_srel_*.json` | **the differential test**: `sigma_m/m` tertiles (`< 0.0110`, `0.0110-0.0140`, `> 0.0140`), 400 k each, sequential. Both corrections and any error in the per-candidate CF scale as `sigma_rel^2`, so a bias that IS the resolution model must GROW across the slices and one that is the lineshape must not. The Z analogue of MASSCFTERM_SPEC's gate J4. |
 | `shapeladder.sh` | `cards/z_full380_fl_s{6,7}.hdf5`, staged | the K(m) ladder at FULL statistics, which is the one loose end of phase 1 (`Gamma_Z` moved +42 MeV under 5 -> 7 at 300 k). The cards build on submit and the fits run from `engaging/shape_ladder.sbatch`. |
 | `joint100k.sh` | `cards/joint_v2_n100k.hdf5` -> `results/fit_joint_v2_n100k.json` | the CPU fallback for phase 2: 100 k + 100 k at `--chunk 8192`, 26 chunks. Reference point value+grad **15.9 s**, pfor Hessian **921 s**, peak **155 GB** -> 5-10 h. **pfor's peak is set by chunk x nparams, NOT by the candidate count**, which is why the smaller card was written at the smaller chunk. |
+
+### PHASE 2 AT FULL SIZE DOES NOT FIT `trust-exact` — MEASURED
+
+`fit_joint.py` inherits `fit.py`'s `scipy.optimize.minimize(method="trust-exact")`,
+which needs the FULL Hessian at **every** iteration; the Z-alone fit took 38 of
+them. On the full joint card that is not affordable in either resource:
+
+* **memory**: `pfor` over 99 free parameters at `chunk 32768` **OOMs an H200**
+  (job 22199037, `ResourceExhaustedError`). On CPU the same shape peaks at
+  270 GB at `chunk 16384` and 155 GB at 8192. Halving the chunk halves the peak
+  and doubles the chunk count, so it buys memory and **not** time.
+* **time**: the phase-1 ladder's `pfor` Hessian is 390 s for 113 chunks and 7
+  parameters on the same H200. Scaling to the joint card's 205 chunks and 99
+  parameters is ~10 000 s per Hessian, i.e. ~105 h for 38 iterations. `hvp` is
+  4.3x slower still.
+
+**Three ways out, in order of value.** (1) A Krylov minimiser — expose a single
+Hessian-vector product on `ChunkedObjective` (the `_hess_piece_hvp` loop already
+does exactly one per column) and switch to `trust-krylov`/`trust-ncg`, which
+needs O(10) HVPs per iteration instead of 99. (2) Freeze the parameters nothing
+constrains (see the phase-3 occupancy note: `material_pp1_cables` is touched by
+NOBODY, `thermal_screen` and `support_tube` by < 0.1 %, and the hit-chi2 term is
+blind to all three). (3) Reduced statistics — which is what is running.
 
 ### PHASE 2 — what exists
 
