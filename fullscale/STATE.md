@@ -27,7 +27,7 @@ in the fluctuation form. Errors are the x1.109 sandwich.
 | **`sigma(m_Z)`** | **2.27 MeV** | statistics + the floated K(m) (x1.5 over K(m) fixed) |
 | **`sigma(Gamma_Z)`** | **4.16 MeV** | statistics + the floated K(m) (x1.4) |
 | **`m_Z` closure** | **-11.06 +- 2.27 MeV** | **the detector-level resolution model** (sec. 0b) |
-| **`Gamma_Z` closure** | **-5.26 +- 4.16 MeV** | closes at 1.3 sigma |
+| **`Gamma_Z` closure** | **-5.26 +- 4.16 MeV** | closes at 1.3 sigma — **but see the K(m) caveat below: NOT yet a 4 MeV result** |
 | the two resolution corrections | +8.00 MeV on `m_Z`, additive to 0.2 MeV | done; inside the spec's own -5...-14 MeV prediction |
 | the momentum scale | phase 2 (running) | the J/psi transfers it through the field modes, not a free alpha |
 | the material amounts | phase 3 (blocked on one reader) | they are what would float the resolution model |
@@ -38,9 +38,12 @@ it is NOT the corrections, NOT the Born lineshape, NOT K(m) and NOT the
 coefficient bound — all measured in sec. 0b. What is left is the per-candidate
 resolution CF, whose four scale knobs are held at the MC truth in phases 1-2 and
 which phase 3 replaces with the parmtype-15 material amounts.
-(2) The K(m) shape costs a factor 1.5 on `sigma(m_Z)`; it cannot be dropped
-(without it `Gamma_Z` carries +175 MeV of LO->MiNNLO K-factor) and 5 terms are
-already saturated.
+(2) The K(m) shape costs a factor 1.5 on `sigma(m_Z)` and cannot be dropped
+(without it `Gamma_Z` carries +175 MeV of LO->MiNNLO K-factor). Five terms are
+saturated for `m_Z` (5 -> 7 moves it -1.3 MeV) but **NOT for `Gamma_Z`**, which
+5 -> 7 moves by +42 MeV at 300 k against 0.4 MeV at generator level. Until that
+ladder is repeated at full statistics the `Gamma_Z` closure is a
+tens-of-MeV statement, not a 4 MeV one.
 (3) The MiNNLO weights cost a flat x1.109 (`N_eff/N = 0.8130`).
 (4) Not limiting, but recorded: the `_norm_z` class-sigma approximation
 (0.016 MeV), the coefficient bound (0.049 MeV), and the 0.19 % one-sided
@@ -250,12 +253,18 @@ must be: both are location effects.
 * **Not the corrections.** Without them the fit is -28.7 MeV at 300 k and they
   move it +8.0 toward zero. The spec's own prediction for the NET defect at Z
   momenta is -5...-14 MeV (the two terms partially cancel); +8.0 MeV is inside it.
-* **Not the Born lineshape or K(m).** At GENERATOR level the same provider with
-  5 Legendre terms closes to **-0.45 +- 0.50 MeV** pre-FSR and **+0.15 +- 0.56**
-  post-FSR-folded (`zchannel/README.md`). Going 5 -> 7 terms at detector level
-  moves `m_Z` by **-1.3 MeV**, inside its own error: the basis is saturated.
-  (7 terms DO move `Gamma_Z` by +42 MeV, which generator level did not — worth a
-  look, but it is not the `m_Z` story.)
+* **Not the Born lineshape or K(m) — for `m_Z`.** At GENERATOR level the same
+  provider with 5 Legendre terms closes to **-0.45 +- 0.50 MeV** pre-FSR and
+  **+0.15 +- 0.56** post-FSR-folded (`zchannel/README.md`). Going 5 -> 7 terms at
+  detector level moves `m_Z` by **-1.3 MeV**, inside its own error: for `m_Z` the
+  basis is saturated.
+
+  **But NOT for `Gamma_Z`.** The same 5 -> 7 moves `Gamma_Z` by **+42 MeV**
+  (+18.66 +- 14.72 -> +60.44 +- 16.11 on the SAME 300 k candidates), where at
+  generator level 5 -> 6 moved 0.4 MeV. **The `Gamma_Z` closure of -5.3 +- 4.2 MeV
+  is therefore shape-basis dependent at the tens-of-MeV level and must not be
+  quoted as a 4 MeV result until the 5 -> 6 -> 7 ladder is repeated at full
+  statistics.** That is the single most important loose end of phase 1.
 * **Not obviously the tails.** Narrowing the window to 80-100 GeV (88.0 % of the
   candidates) gives -30.1 +- 25.0: the error triples because the shoulders carry
   the information, and the central value does not move outside it. Inconclusive
