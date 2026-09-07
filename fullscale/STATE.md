@@ -294,6 +294,34 @@ high tertiles measure the exponent.
 statistics — 5.90 against 8.09 MeV — because a better-resolved candidate carries
 more mass information.)
 
+### THE POST-FIT RESIDUAL IS A 2.8 % WIDTH DEFICIT PLUS A SHIFT — decomposed
+
+`resid_decompose.py` projects `data/model - 1` onto two templates computed from
+the TERM itself (no analytic approximation): `model(m_Z + 20 MeV)/model - 1`,
+which is ODD about the pole, and `model(sigma x 1.01)/model - 1`, which is EVEN.
+**Sign convention**: a POSITIVE shift coefficient means the data prefers a
+LARGER `m_Z` than the fit returned; a POSITIVE width coefficient means the data
+is WIDER than the model. On the full-scale base fit, 240 bins over 60-120 GeV,
+30 000-candidate model ensemble:
+
+| | value |
+|---|---:|
+| raw residual | `chi2/ndf` = **1130.9/240 = 4.71** |
+| after shift + width | **825.1/237 = 3.48** |
+| **SHIFT** | **+18.79 +- 1.70 MeV** |
+| **WIDTH** | **+2.838 +- 0.222 %** on `sigma` |
+| constant | -0.00026 +- 0.00058 |
+
+**The modelled resolution is 2.8 +- 0.2 % too NARROW.** That is a real,
+9-sigma-significant core-width deficit, and it is exactly at the edge of what
+floating `k_ms` could have seen (it returned 1.001 +- 0.034 — a 3.4 % error, so
+a 2.8 % width error is invisible to it). It is what the parmtype-15 material
+amounts exist to absorb, and phase 3 is its test.
+
+The residual is therefore **not** "a shift" or "a width mismatch" but both, and
+even with both removed `chi2/ndf` is still 3.48 — a third component neither
+hypothesis covers, and one a floated 5-term K(m) has already failed to absorb.
+
 ### The Z ALONE CANNOT SEPARATE THE RESOLUTION MODEL FROM `m_Z` — measured
 
 Float ONE resolution knob at a time on the 300 k card, everything else as the
@@ -466,7 +494,7 @@ the control.
 
 | input | tasks | content |
 |---|---|---|
-| `runs/quad_jpsiv2_ok.npz` | **1641 / 1642** (only 1313 out) | THE ONE TO USE, being extracted |
+| `runs/quad_jpsiv2_ok.npz` | **1641 / 1642** (only 1313 out) | **16 915 249** in the quadratic term, 4 711 523 cut. THE ONE TO USE |
 | ~~`runs/quad_jpsiv2_x16.npz`~~ | 1626 (the 16 out) | what `cards/joint_v2*.hdf5` and the running GPU fit use |
 | ~~`runs/quad_jpsiv2.npz`~~ | 1629, including 12 suspect | never use |
 | `runs/jpairs_v2_n600.npz` | 600 by CHOICE (tasks 0-599) | unaffected by any of this — no rebuild |
@@ -474,7 +502,8 @@ the control.
 | `runs/quad_dyv2.npz`, `runs/zpairs_dyv2_jac_full.npz` | 380 / 380 | the DY production is complete and untouched |
 
 `cards/joint_ok_{n500k,full}.hdf5` are the rebuilds against the 1641-task
-quadratic term. The 15 tasks are ~1 % of the quadratic term's statistics, so a
+quadratic term (**20 666 936** candidates in `hitchi2` over J/psi + DY), built
+and staged 11:43. The 15 tasks are ~1 % of the quadratic term's statistics, so a
 result already taken on `x16` is not wrong, only slightly less complete — say
 which it used.
 

@@ -145,7 +145,7 @@ def main():
     base = model()
     shifted = model(dmz=args.dm)
     widened = model(scale_sigma=1.0 + args.ds)
-    logger.info(f"templates: dm = {args.dm} MeV, ds = {args.ds:.3g} relative")
+    print(f"templates: dm = {args.dm} MeV, ds = {args.ds:.3g} relative")
 
     ok = (base > 0) & (obs > 0)
     res = obs / base - 1.0
@@ -166,12 +166,12 @@ def main():
     chi2_0 = float(np.sum(Wd * ycol ** 2))
     chi2_f = float(np.sum(Wd * (ycol - fitres) ** 2))
     ndf = int(ok.sum())
-    logger.info(f"  chi2/ndf of the raw residual   {chi2_0:.1f}/{ndf} = {chi2_0/ndf:.2f}")
-    logger.info(f"  chi2/ndf after shift+width     {chi2_f:.1f}/{ndf-3} = {chi2_f/(ndf-3):.2f}")
-    logger.info(f"  const   {coef[0]:+.5f} +- {err[0]:.5f}")
-    logger.info(f"  SHIFT   {coef[1]:+.4f} +- {err[1]:.4f} of a {args.dm:g} MeV template "
+    print(f"  chi2/ndf of the raw residual   {chi2_0:.1f}/{ndf} = {chi2_0/ndf:.2f}")
+    print(f"  chi2/ndf after shift+width     {chi2_f:.1f}/{ndf-3} = {chi2_f/(ndf-3):.2f}")
+    print(f"  const   {coef[0]:+.5f} +- {err[0]:.5f}")
+    print(f"  SHIFT   {coef[1]:+.4f} +- {err[1]:.4f} of a {args.dm:g} MeV template "
                 f"-> {coef[1]*args.dm:+.2f} +- {err[1]*args.dm:.2f} MeV")
-    logger.info(f"  WIDTH   {coef[2]:+.4f} +- {err[2]:.4f} of a {100*args.ds:g} % template "
+    print(f"  WIDTH   {coef[2]:+.4f} +- {err[2]:.4f} of a {100*args.ds:g} % template "
                 f"-> {100*coef[2]*args.ds:+.3f} +- {100*err[2]*args.ds:.3f} % on sigma")
 
     fig = plt.figure(figsize=(8, 7))
@@ -187,9 +187,9 @@ def main():
             label=rf"WIDTH {100*coef[2]*args.ds:+.2f} % (even)")
     ax.plot(c[ok], fitres, color="tab:green", lw=1.8, ls="--", label="sum")
     ax.axhline(0.0, color="k", lw=0.8)
-    ax.set_ylim(-0.12, 0.12)
+    ax.set_ylim(-0.13, 0.19)
     ax.set_ylabel("data / model $-$ 1")
-    ax.legend(fontsize=11, loc="upper left")
+    ax.legend(fontsize=10, loc="lower center", ncol=2)
     rax.errorbar(c[ok], (res - fitres)[ok], yerr=res_e[ok], fmt="ko", ms=2.5, lw=0.8)
     rax.axhline(0.0, color="k", lw=0.8)
     rax.set_ylim(-0.12, 0.12)
