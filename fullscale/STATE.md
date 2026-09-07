@@ -1,4 +1,4 @@
-# fullscale — STATE  (checkpoint 2026-09-07 06:45)
+# fullscale — STATE  (checkpoint 2026-09-07 07:30)
 
 **Read this file top to bottom before touching anything.** The running log of
 how each number was obtained is in `STATE_log.md` next to this file; this file
@@ -9,7 +9,9 @@ the unbinned CVH mass likelihood, alone (phase 1) and jointly with the J/psi
 channel that fixes the momentum scale (phase 2), then with the full design
 (phase 3).
 
-Figures: `~/public_html/cvh/260906_fullscale/` (already has `index.php`).
+Figures: `~/public_html/cvh/260906_fullscale/` (the phase-1 inputs, the two
+correction forms and the clip scan) and `~/public_html/cvh/260907_fullscale/`
+(the full-scale post-fit spectrum). Both have `index.php`.
 
 ---
 
