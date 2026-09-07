@@ -495,6 +495,59 @@ per-user GPU limit is one job per partition, so submitting to both
 | `shapeladder.sh` | `cards/z_full380_fl_s{6,7}.hdf5`, staged | the K(m) ladder at FULL statistics, which is the one loose end of phase 1 (`Gamma_Z` moved +42 MeV under 5 -> 7 at 300 k). The cards build on submit and the fits run from `engaging/shape_ladder.sbatch`. |
 | `joint100k.sh` | `cards/joint_v2_n100k.hdf5` -> `results/fit_joint_v2_n100k.json` | the CPU fallback for phase 2: 100 k + 100 k at `--chunk 8192`, 26 chunks. Reference point value+grad **15.9 s**, pfor Hessian **921 s**, peak **155 GB** -> 5-10 h. **pfor's peak is set by chunk x nparams, NOT by the candidate count**, which is why the smaller card was written at the smaller chunk. |
 
+## 0c. PHASE 2 — THE FIRST JOINT NUMBER (2026-09-07)
+
+`cards/joint_v2_n100k.hdf5`: a J/psi `MassCFTerm` (100 000 candidates, delta
+kernel at the PDG mass, **`scale_param=None`** — the scale transfers through the
+field modes, not through a free alpha), a Z `MassCFTerm` (100 000), and the
+`hitchi2` external quadratic on the 92 calibration parameters from **20.5 M**
+candidates, over ONE parameter vector; 99 free, resolution fixed at the MC
+truth, K(m) floated. 38 iterations, 22 397 s on CPU.
+
+| | fitted - generator | stat | pull |
+|---|---:|---:|---:|
+| **`m_Z`** | **+28.51 MeV** | **+- 14.15** | +2.0 |
+| **`Gamma_Z`** | **-2.49 MeV** | +- 25.28 | -0.1 |
+
+**The scale transfer costs essentially nothing.** The Z-alone fit at 300 k gives
+`sigma(m_Z) = 8.09 MeV`, i.e. 14.0 MeV scaled to 100 k; the JOINT fit at 100 k
+gives **14.15 MeV**. Adding 92 free calibration parameters and taking the
+momentum scale from the J/psi instead of absorbing it inflates `sigma(m_Z)` by
+**~1 %**. That is the phase-2 statistical answer.
+
+| correlation | max \|rho\| | RMS |
+|---|---:|---:|
+| `rho(m_Z, field)` | **0.213** (`bfield_mode0`) | 0.030 |
+| `rho(m_Z, material)` | 0.006 | 0.001 |
+| `rho(Gamma_Z, field)` | 0.004 | 0.0005 |
+| `rho(Gamma_Z, material)` | 0.0002 | 0.00002 |
+
+`bfield_mode0` — the overall field scale — is the transfer channel and shows it,
+at 0.21; nothing else reaches 0.05. **The material amounts do not limit `m_Z`
+at this level** (0.006), which is worth knowing before phase 3.
+
+**On the 92 "pulls" (mean +7.1, RMS 26.8, max 176, 53 of 92 above 3): they are
+NOT a closure test.** The MC was produced with `useDefaultField=True` and no
+global corrections applied, so `theta = 0` is not the minimum of the hit-chi2
+term — its `G` is non-zero there by construction. The fit is measuring the
+corrections the reconstruction WOULD need, not recovering a known injection.
+The closure test for this machinery is `--inject`, and it reads **0.0023 %** on
+`bfield_mode0`.
+
+**And the honest caveat**, which `fit_joint.py` prints itself: the mass-term and
+hit-chi2 scores of the SAME candidate are correlated and no extraction stored
+that cross block, so the two sandwich meats are added as if independent. The
+error ratio is 1.029 median, so it is not a large effect here, but it is an
+assumption and not a measurement.
+
+**`m_Z` moves by about +49 MeV against the Z-alone fit at comparable
+statistics** (-20.7 +- 8.1 at 300 k -> +28.5 +- 14.2 joint). That is the
+momentum scale being SET by the J/psi rather than absorbed by `m_Z`, and it is
+the single most important thing to check when the full-size joint fit lands: it
+is a 2 sigma closure, in the opposite direction to the Z-alone bias.
+
+---
+
 ### J/psi v2 EXCLUSIONS — now ONE task (2026-09-07 11:15)
 
 **CURRENT: `task_1313` only.** It is silently EMPTY — four 15.5 kB streams WITH
