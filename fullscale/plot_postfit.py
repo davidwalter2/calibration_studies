@@ -117,12 +117,24 @@ def main():
     if getattr(term, "jensen_s2", None) is not None:
         kwargs["jensen_s2"] = term.jensen_s2.numpy()[rep]
         kwargs["jensen_mode"] = term.jensen_mode
+    if getattr(term, "corr_form", "residual") != "residual":
+        kwargs["corr_form"] = term.corr_form
     t2 = unbinned.MassCFTerm(
         "grid", sigma=sigma[rep], mobs=grid - mref, tgrid=term.tgrid_stored,
         families=fams, vgf=None if vgf is None else vgf[rep],
         kernel=term.kernel, background=term.background, m_ref=mref,
         scale_param=cfg["scale_param"], bkg_frac=cfg["bkg_frac"],
         upsample=cfg["upsample"], chunk=131072, dtype=DT, **kwargs)
+    # THE PER-CANDIDATE CONSTANTS COME FROM THE CANDIDATE, NOT FROM THE GRID.
+    # `t2`'s rows are (candidate, mass) pairs and its `mobs` is the grid, so
+    # `_build_fluct` would evaluate c_i = -a_i sigma_i + sigma_i^2/m_i and
+    # d_i = m_i s_i^2/2 at the PLOTTING mass -- a +-15 % spread across the
+    # window instead of one number per candidate. Take them off the parent.
+    if getattr(t2, "_fluct_active", False):
+        t2._fl_a = tf.constant(term._fl_a.numpy()[rep], DT)
+        t2._fl_g = tf.constant(term._fl_g.numpy()[rep], DT)
+        t2._fl_d = (None if term._fl_d is None
+                    else tf.constant(term._fl_d.numpy()[rep], DT))
     unbinned.declare_params(t2, {nm: (float(x[i]), np.nan, float(x[i]), 0)
                                  for i, nm in enumerate(names)
                                  if nm in t2.param_names})
