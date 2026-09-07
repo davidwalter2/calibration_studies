@@ -228,7 +228,7 @@ FINAL cards are `cards/z_full380_fl.hdf5` and `cards/z_n300k_fl.hdf5`.
 | job | what | status |
 |---|---|---|
 | **22161787** | `zfit`, 373-task **residual** card, base | running |
-| **22163315** | `zvar`, six variants UNCLIPPED on `z_full380.hdf5` | running — this is the "unclipped runaway at full scale" column |
+| ~~22163315~~ | `zvar`, six variants UNCLIPPED on `z_full380.hdf5` | **CANCELLED at 1:57**. It never got past its FIRST variant: the unclipped residual form does not converge at 3.68 M any more than it does at 300 k, and it was holding the GPU the phase-1 FINAL job needs. The unclipped runaway is documented at 300 k (`m_Z` -35.5, `Gamma_Z` -421, and an NLL 27 000 units "better" than every well-behaved variant — the fit buying that with order-one K(m) coefficients) |
 | ~~22163745~~ | `zclip`, `corr_clip` in {3,5,10,0} | **CANCELLED** — superseded by the reformulation; the clip dependence is covered at 300 k locally |
 | ~~22163752~~ | `zvar` at `corr_clip = 5` | **CANCELLED**, same |
 | ~~22161787~~ | the 373-task base fit | **CANCELLED** — redundant with 22163315's `base` at 380 tasks, and it was holding the GPU cap |
