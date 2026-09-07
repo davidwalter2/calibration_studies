@@ -487,39 +487,39 @@ full-scale fit on `mit_preemptable` is a coin flip.
 | `fit_locK_{etaB,etaT,etaE,srlo,srmid}` | **the splits with K(m) FIXED**, so they share one shape model and become comparable. This is the measurement that decides whether the barrel/`sigma_rel` contradiction in sec. 0b is real or is the shape absorbing differently in each subsample. |
 | `fit_loc_{chgP,chgM,vgfH}`, `fit_srel_hi` | the rest of the K(m)-floated splits |
 
-### J/psi v2 EXCLUSIONS — now ONE task (2026-09-07 11:15)
+### J/psi v2 — FINAL, no exclusions (2026-09-07 15:30)
 
-**CURRENT: `task_1313` only.** It is silently EMPTY — four 15.5 kB streams WITH
-a `.complete` sentinel, because its input lacks a StreamerInfo — so
-`prodfiles`'s sentinel check does not catch it and it has to be named.
-`./run_phase2.sh xlist` writes `runs/jpsiv2_tasks_ok.txt`, **1641 tasks /
-6564 files**, and both `extract.py` and `cf_inmaker.py` take it as
-`--files @runs/jpsiv2_tasks_ok.txt`.
+`jpsimc_20M_260906_v2` is **1645 / 1645 tasks, 21 750 740 events**.
+`./run_phase2.sh xlist` writes `runs/jpsiv2_tasks_ok.txt` from whatever carries
+a `.complete` sentinel — **1645 tasks / 6580 files** — and `JV2_BAD` is now
+empty.
 
-**FORMER, repaired and back in**: 1219-1222, 1334-1337, 1409-1412 were the
-"re-staged" grid copies — 0.82 candidates/event against 0.997 and `chi2/ndof`
-median **3.5e6**, i.e. worthless, so excluding them was necessary and not
-conservative — and 1552-1555 exited rc=91 with no output. All sixteen were
-re-produced from properly repacked inputs on 9/7 and validated at 0.9967
-candidates/event, 0.0073 % failures, `chi2/ndof` median 0.953 against 0.954 for
-the control.
+**History, so nobody re-derives it.** Three separate defects were excluded and
+then repaired: **1219-1222, 1334-1337, 1409-1412** were the "re-staged" grid
+copies (0.82 candidates/event against 0.997, `chi2/ndof` median **3.5e6** —
+worthless, so the exclusion was necessary and not conservative); **1552-1555**
+exited rc=91 with no output; **1313** was silently EMPTY (four 15.5 kB streams
+WITH a `.complete` sentinel, because its input lacked a StreamerInfo, so the
+sentinel check could not catch it and it had to be named). All were re-produced
+from properly repacked inputs and validated at 0.9967 candidates/event, 0.0073 %
+failures, `chi2/ndof` median 0.953 against 0.954 for the control. Repairing 1313
+also recovered its input's missing tail as three NEW tasks, **1642-1644**
+(~51 k candidates). Two NUL-signature files' existing outputs were verified
+bit-identical against re-runs.
 
 **Which count every input used** — quote this with any number:
 
 | input | tasks | content |
 |---|---|---|
-| `runs/quad_jpsiv2_ok.npz` | **1641 / 1642** (only 1313 out) | **16 915 249** in the quadratic term, 4 711 523 cut. THE ONE TO USE |
-| ~~`runs/quad_jpsiv2_x16.npz`~~ | 1626 (the 16 out) | what `cards/joint_v2*.hdf5` and the running GPU fit use |
-| ~~`runs/quad_jpsiv2.npz`~~ | 1629, including 12 suspect | never use |
-| `runs/jpairs_v2_n600.npz` | 600 by CHOICE (tasks 0-599) | unaffected by any of this — no rebuild |
-| `runs/gpairs_v2_n50.npz` | 50 (tasks 0-49) | likewise |
-| `runs/quad_dyv2.npz`, `runs/zpairs_dyv2_jac_full.npz` | 380 / 380 | the DY production is complete and untouched |
+| `runs/quad_jpsiv2_ok.npz` | **1645 / 1645**, being re-extracted 15:16 | THE FINAL ONE |
+| ~~the same, 1641~~ | 1313 out | 16 915 249 in the quadratic term; what `cards/joint_ok_*` currently hold |
+| ~~the same, 1626~~ | the 16 out | 16 755 046; what `results/fit_joint_v2_n100k.json` used |
+| `runs/jpairs_v2_n600.npz` | 600 by CHOICE (tasks 0-599) | 7 923 460 candidates. Untouched by every one of these defects — all of them are above 1219 |
+| `runs/gpairs_v2_n50.npz` | 50 (tasks 0-49) | the phase-3 per-group cache; likewise untouched |
+| `runs/quad_dyv2.npz`, `runs/zpairs_dyv2_jac_full.npz` | 380 / 380 | the DY production is complete and was never affected |
 
-`cards/joint_ok_{n500k,full}.hdf5` are the rebuilds against the 1641-task
-quadratic term (**20 666 936** candidates in `hitchi2` over J/psi + DY), built
-and staged 11:43. The 15 tasks are ~1 % of the quadratic term's statistics, so a
-result already taken on `x16` is not wrong, only slightly less complete — say
-which it used.
+The successive quadratic terms differ by ~1 %, so a number already taken on an
+earlier one is not wrong, only slightly less complete — **say which it used**.
 
 ### PHASE 2 AT FULL SIZE DOES NOT FIT `trust-exact` — MEASURED
 
