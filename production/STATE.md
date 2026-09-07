@@ -374,20 +374,41 @@ the limit. **Adding a per-task runtime outlier check to the status script costs
 nothing and would have caught this on day one**, without knowing anything about
 split levels or ROOT #19773.
 
-### Two further defects, both outside the 16 chunks
+### Round 2 — the other three files, and why the task count is 1645
 
-* **`task_1313` is silently empty** — 4 valid-but-empty stream files and a
-  `.complete` for a whole **19 797-event chunk**. Its input
-  `2830000/FDB8C946-...root` has **no StreamerInfo**: ROOT opens it and counts
-  19 797 entries (so the 2026-09-05 zombie scan passed it), but CMSSW cannot
-  deserialise it and `skipBadFiles=True` drops it. The maker then never runs, so
-  **no `fit summary` line is written** and the `attempted=0` guard matches
-  nothing. Both wrappers now also fail on the skip message and on a missing
-  summary. **The task has not been re-run** — it needs the same repack, and is
-  the obvious next action.
-* two more inputs (`0B395A0D-...`, `290E1F42-...`) carry the same NUL
-  corruption in ParameterSets but in psets cmsRun never parses; their seven
-  tasks sit at 0.000-0.020 % failures, i.e. in the baseline. Left as they are.
+* **`task_1313` was silently empty, and its input was also TRUNCATED.**
+  `2830000/FDB8C946-...root` has **no StreamerInfo** (ROOT opens it and counts
+  19 797 entries, so the 2026-09-05 zombie scan passed it; CMSSW cannot
+  deserialise it and `skipBadFiles=True` drops it). The maker then never runs,
+  so **no `fit summary` line is written** and the `attempted=0` guard matched
+  nothing — 4 empty stream files and a `.complete`. Both wrappers now also fail
+  on the skip message and on a missing summary.
+  Worse: the local repack is **724 MB against a 1942 MB original and holds
+  19 797 events against 51 478**. `mkchunks.py` reads `Events->GetEntries()` on
+  the local file, so it tiled 38 % of it — **31 681 events were never chunked at
+  all**, on top of the 19 797 task_1313 skipped.
+  Repaired: line 1314 keeps `0 19797` repointed at the repack, and the tail is
+  **appended as tasks 1642-1644** so no existing index moves. All four ran:
+  **51 290 candidates at 0.9958-0.9965/event**, chi2/ndof median 0.9518 against
+  the controls' 0.9538. **`task_1313` is now usable.**
+* **the two inert-NUL inputs are proven inert.** `0B395A0D-...` and
+  `290E1F42-...` carry the same NUL corruption in psets cmsRun never parses.
+  Rather than assume that, both were repacked (the new files are **264 B and
+  299 B smaller** — only the provenance blob changed) and their 7 chunks re-run
+  into a side tree with the **original** payload, so the input was the only
+  difference. Result: **BIT-IDENTICAL over 102 507 candidates**, all 228 tree
+  branches and 36 `runtree` branches, zero differing values. **The existing
+  outputs stay**; the side tree `cvh/jpsimc_20M_260906_v2_nulcheck/` is kept as
+  evidence with a README saying it is deletable.
+
+### Final state
+
+**`jpsimc_20M_260906_v2` is 1645/1645**, four stream files and a sentinel in
+every task, **21 750 740 events** (was 1642 / 21 719 059 — the difference is
+exactly the FDB8C946 tail). All **410 distinct inputs are clean**: 403 untouched
+group-store repacks plus **7 repaired files** in
+`restaged/jpsimc_20M_260906_repack/`, every one split-1, with an entry count
+matching the *central* original, `edmProvDump` clean and NUL-scan clean.
 
 ### Sample-wide integrity, measured rather than assumed
 

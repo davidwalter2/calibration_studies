@@ -491,3 +491,88 @@ knowledge of split levels or ROOT #19773 required. **`status_jpsimc_v2.sh`
 should flag per-task runtime outliers** (it already reads the `.complete`
 sentinels, which carry `seconds=`); a chunk taking 4x the median is either a
 sick node or a sick input, and both are worth an alert.
+
+---
+
+## 9. 2026-09-07 (round 2) — the last three inputs, and why the task count is now 1645
+
+§8.6 left three files unrepaired: one unopenable and two carrying NUL runs that
+cmsRun happened not to trip over. Both have now been closed, and the first one
+turned out to be worse than "task_1313 is empty".
+
+### 9.1 `FDB8C946-...` was TRUNCATED as well as StreamerInfo-less — 31 681 events were never in the production
+
+The local repack is **724 613 966 B against a 1 942 543 999 B original**, and it
+holds **19 797 events where the original holds 51 478**. `mkchunks.py` sizes
+chunks from `Events->GetEntries()` on the *local* file, so it tiled 38 % of the
+file and nobody noticed: task_1313's single chunk claimed the whole file.
+
+So this one file cost the production **51 478 events** — the 19 797 that
+task_1313 silently skipped *plus* **31 681 that were never chunked at all**.
+
+The repair must not renumber anything (task index **is** the chunk-list line
+number, and other people's caches are keyed on it). So:
+
+* line 1314 keeps its `0 19797` range, repointed at the repack;
+* the missing tail is **appended as three new tasks, 1642-1644**
+  (`19797 10561`, `30358 10560`, `40918 10560`).
+
+**Every pre-existing index is untouched. The chunk list is now 1645 lines and
+the production is 1645/1645, covering 21 750 740 events** (was 1642 and
+21 719 059). That is the only reason the totals moved.
+
+| task | events | attempted | succeeded | cand/ev | fail % |
+|---|---:|---:|---:|---:|---:|
+| 1313 | 19 797 | 19 731 | 19 728 | 0.9965 | 0.0152 |
+| 1642 | 10 561 | 10 524 | 10 524 | 0.9965 | 0.0000 |
+| 1643 | 10 560 | 10 516 | 10 516 | 0.9958 | 0.0000 |
+| 1644 | 10 560 | 10 523 | 10 522 | 0.9964 | 0.0095 |
+
+**51 290 candidates recovered where there were zero.** Against the controls:
+chi2/ndof median 0.9518 vs 0.9538, p99 2.891 vs 2.883, p99.9 5.128 vs 5.243,
+`niter==10` 1.612 % vs 1.439 %, m(mumu) median 3.09506 vs 3.09468, 98.52 % vs
+98.56 % in the mass window, gen-match lost 0.010 % vs 0.013 %. **task_1313 and
+1642-1644 are fully usable.**
+
+### 9.2 The two inert-NUL files: proven inert, outputs kept
+
+`0B395A0D-...` (8 entries, 428 B zeroed) and `290E1F42-...` (8 entries, 413 B)
+both ran fine, but "it ran fine" is not evidence that the event payload is
+untouched. Both were repacked and their 7 chunks re-run into a **side tree**,
+`cvh/jpsimc_20M_260906_v2_nulcheck/`, with the **original** payload
+(`overlay_jpsimc_20M_260906_v2.tgz`, fab515e — *not* the `_xrdfix` one) and the
+plain wrapper, so that the **input was the only difference**.
+
+The repacks came out **264 B and 299 B smaller** than the originals, which is
+already the answer in miniature: only the provenance blob changed.
+
+Compared candidate by candidate (`compare_task_outputs.py`) — the two runs
+cannot be compared file by file, because with 4 streams the candidate-to-stream
+assignment is not reproducible, so both sides are read as one set and sorted on
+`(run, lumi, event)` with a kinematic tiebreaker:
+
+```
+task_1342  BIT-IDENTICAL over 14152 candidates      task_1374  ... 15303
+task_1343  BIT-IDENTICAL over 14147                 task_1375  ... 15302
+task_1344  BIT-IDENTICAL over 14150                 task_1376  ... 15307
+task_1345  BIT-IDENTICAL over 14146
+                                        total 102 507 candidates
+```
+
+all 228 tree branches and all 36 `runtree` branches, zero differing values.
+Their `fit summary` lines match digit for digit too (`attempted`, `succeeded`
+and `clampevents[step]` identical in all seven).
+
+**Decision: the existing outputs stay.** The side tree is kept as the evidence
+with a README saying it is verified-redundant and deletable (6.9 GB).
+
+### 9.3 Final state of the inputs
+
+All **410 distinct inputs** the chunk list names are now clean: 403 untouched
+group-store repacks (scanned OK) and **7 repaired files** in
+`restaged/jpsimc_20M_260906_repack/` — split-1, exact entry counts against the
+*central* originals, `edmProvDump` clean, NUL-scan clean, and all served by the
+doors at the sizes recorded in the chunk list.
+
+**`jpsimc_20M_260906_v2` is 1645/1645, four stream files and a sentinel in every
+task, 21 750 740 events.**
