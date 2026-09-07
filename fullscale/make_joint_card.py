@@ -68,12 +68,32 @@ WHAT `--inject` DOES AND DOES NOT CLOSE
 `-K dtheta`, so a translation-invariant mass likelihood puts the joint minimum
 at `theta*_base + dtheta` exactly.
 
-MEASURED on the 100 k DY card (`bfield_mode0/1/2` free, everything else frozen,
-`dtheta = (+0.010, -0.002, +0.003)` card units):
+MEASURED on the 100 k DY card, RESIDUAL form (`bfield_mode0/1/2` free,
+everything else frozen, `dtheta = (+0.010, -0.002, +0.003)` card units):
 
     mode1   -0.00200065 vs -0.002    -3.3e-4 of the injection
     mode2   +0.00299921 vs +0.003    -2.6e-4 of the injection
     mode0   +0.01120382 vs +0.010    +1.20e-1 of the injection   <-- NOT closed
+
+RE-MEASURED 2026-09-06 in the FLUCTUATION form, on the 60 k + 60 k joint smoke
+card (`cards/joint_smoke.hdf5` vs `cards/joint_smoke_inj.hdf5`, the same three
+modes free, `fit_joint.py --free bfield_mode0 bfield_mode1 bfield_mode2`), as
+the difference between the injected and the un-injected minimum:
+
+    mode1   -0.00200000 vs -0.002    +1.5e-11  =  +0.0000 % of the injection
+    mode2   +0.00300000 vs +0.003    -6.7e-11  =  -0.0000 % of the injection
+    mode0   +0.01000023 vs +0.010    +2.3e-07  =  +0.0023 % of the injection
+
+i.e. mode 0 closes 5300x better and the other two by four orders of magnitude.
+The diagnosis below is confirmed and now historical: what did not translate was
+the residual form's Jensen map, whose argument `r = delta/m` carries the
+OBSERVED mass. The fluctuation form's residual is linear in theta again -- the
+Jensen map contributes a per-candidate CONSTANT `d_i` and a CF factor with no
+`delta` in it -- so the only thing left that does not translate is the second-
+order dependence of `a_i`, `c_i`, `d_i` themselves on the shifted masses, and
+that is the 2.3e-7 above: 1.6e-3 of `bfield_mode0`'s own statistical error, and
+NOT the minimiser (the Newton step still implied by the residual gradient is
+1.8e-12, five orders smaller).
 
 **This was measured with the RESIDUAL form** (`corr_form="residual"`, the
 only one that existed then); the fluctuation form makes the residual LINEAR in
