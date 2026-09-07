@@ -293,7 +293,17 @@ two treatments.
 | `sigma_m/m < 0.0110` (32.4 %) | -1.61 +- 5.90 | **-73.99 +- 4.48** | **-72** |
 | `sigma_m/m` 0.0110-0.0140 | -0.57 +- 6.72 | +8.18 +- 4.91 | +9 |
 | `sigma_m/m > 0.0140` | running | running | |
+| **`vgf < 0.19`** (hit-POOR, 33 %) | **-32.00 +- 7.60** | — | |
+| **`vgf > 0.26`** (hit-DOMINATED, 33 %) | **+31.78 +- 8.81** | — | |
+| leading `mu+` | -17.84 +- 7.83 | — | |
+| leading `mu-` | -8.52 +- 7.88 | — | |
 | inclusive, 300 k | -20.67 +- 8.09 | -27.44 +- 5.86 | -7 |
+
+**The `vgf` split spans 64 MeV** (-32.0 hit-poor to +31.8 hit-dominated), the
+largest of any split — and `vgf` is itself strongly `eta`-correlated (its
+`> 0.85` tail has `|eta|` median 2.13). So `eta`, `vgf` and (with K(m) fixed)
+`sigma_m/m` all track ONE underlying correlate; `eta` is the label to give it,
+because that is how the field and the alignment are organised.
 
 **THE `eta` SPLIT IS STABLE AND MONOTONE.** Barrel -> transition -> endcap gives
 -36 / 0 / +4 with K(m) floated and -41 / -10 / +16 with it fixed: the same
