@@ -270,39 +270,50 @@ FINAL cards are `cards/z_full380_fl.hdf5` and `cards/z_n300k_fl.hdf5`.
 
 ---
 
-## 2. WHAT IS RUNNING
+## 2. WHAT IS RUNNING  (checkpoint 2026-09-06 23:20)
 
-### On submit82 — detached, logs in `fullscale/logs/`
-* the five 300 k **residual-form** variant fits the previous session started;
-  `base/noares/noshape/nojensen/noboth/jshift` have landed in `results/`,
-  `clip3`/`clip5` (pids 509886/509887) are the last two. They are the
-  "clipped, for the record" column and nothing depends on them.
-* the five 300 k **fluctuation-form** fits (`fit_n300kfl_{base,noares,
-  nojensen,noboth,noshape}.json`, logs alongside) — the phase-1 ladder at
-  300 k, which is what tells us the reformulation is stable before the
-  full-scale numbers land.
-* `cf_inmaker.py pairs` on **J/psi v2, `--ntasks 600`** ->
-  `runs/jpairs_v2_n600.npz`, the phase-2 J/psi leg (~7.2 M candidates). 600
-  tasks, not 1642: the J/psi leg is not statistics-limited here (299 k gun
-  candidates already give sigma(alpha) = 0.017e-3, i.e. 1.5 MeV at the Z; 7 M
-  give 0.003e-3 = 0.3 MeV, an order below sigma(m_Z) = 2 MeV), and the cache
-  and the card scale linearly with it.
+### On submit82 — detached, `setsid`, logs in `fullscale/logs/`
+
+| what | output | note |
+|---|---|---|
+| `fit_f380fl_base` | `results/fit_f380fl_base.json` | **the phase-1 FINAL number**, 3 682 662 candidates, fluctuation form, K(m) floated, on CPU with 64 threads. Reference Hessian 1310 s, value+grad 89 s, peak RSS 79 GB. Expect 2-3 h. |
+| `fit_f380fl_noboth` | `results/fit_f380fl_noboth.json` | the same with neither correction — the "what the corrections are worth at full scale" row |
+| `fit_n300kflw_base` | `results/fit_n300kflw_base.json` | the NARROW-WINDOW diagnostic, `--window 80 100` (88.0 % of the candidates), 300 k. If the -20.7 MeV non-closure is the lineshape/FSR tails it moves; if it is the core it does not. |
+
+Everything else at 300 k has landed. The J/psi v2 pairs cache
+(`runs/jpairs_v2_n600.npz`, 7 923 460 candidates, 12 GB) and the v2 quadratic
+extraction (`runs/quad_jpsiv2.npz`, 16 743 019 candidates, 4 705 662 cut) are
+done, and `cards/joint_v2.hdf5` (10.7 GB) is BUILT and staged.
 
 ### On Engaging (ORCD) — `eng 'timeout 30 squeue -u david_w'`
 
 | job | what | status |
 |---|---|---|
-| **22161787** | `zfit`, 373-task **residual** card, base | running |
-| ~~22163315~~ | `zvar`, six variants UNCLIPPED on `z_full380.hdf5` | **CANCELLED at 1:57**. It never got past its FIRST variant: the unclipped residual form does not converge at 3.68 M any more than it does at 300 k, and it was holding the GPU the phase-1 FINAL job needs. The unclipped runaway is documented at 300 k (`m_Z` -35.5, `Gamma_Z` -421, and an NLL 27 000 units "better" than every well-behaved variant — the fit buying that with order-one K(m) coefficients) |
-| ~~22163745~~ | `zclip`, `corr_clip` in {3,5,10,0} | **CANCELLED** — superseded by the reformulation; the clip dependence is covered at 300 k locally |
-| ~~22163752~~ | `zvar` at `corr_clip = 5` | **CANCELLED**, same |
-| ~~22161787~~ | the 373-task base fit | **CANCELLED** — redundant with 22163315's `base` at 380 tasks, and it was holding the GPU cap |
-| **22167631** | `zvarfl`, the five variants on **`z_full380_fl.hdf5`** (fluctuation form) | **the phase-1 FINAL job**; `fullscale_variants_fl.sbatch` |
+| **22167631** | `zvarfl`, the five variants on `z_full380_fl.hdf5` | **PENDING, estimated start 2026-09-07 14:40.** Fairshare is exhausted after the day's GPU use; `scontrol show job` gives the estimate. This is the phase-1 final ladder and it will run by itself. |
+| **22171547** | the same on `mit_preemptable` | PENDING on `QOSMaxGRESPerUser` — the preemptable GPU slot is held by `22115497 insitu-1gpu`, which is NOT this session's job and was left alone. It starts the moment that finishes. |
+| ~~22161787~~, ~~22163315~~, ~~22163745~~, ~~22163752~~ | the residual-form jobs | **CANCELLED** (see below) |
+
+`22163315` (six UNCLIPPED variants at full scale) was cancelled at 1:57 having
+never got past its FIRST variant: the unclipped residual form does not converge
+at 3.68 M any more than it does at 300 k, and it was holding the GPU. The
+unclipped runaway is documented at 300 k in sec. 0b. `22161787` was the
+373-task twin of a number `22163315` was also computing. The two clip jobs are
+superseded by the reformulation; the clip scan is in sec. 0b at 300 k.
 
 Engaging notes: `eng-master` may need a human Duo touch; wrap every remote
-command in `timeout`; **H200, not L40S**; **`--chunk 32768`** (262144 OOMs).
+command in `timeout`; **H200**; **`--chunk 32768`** (262144 OOMs); and the
+per-user GPU limit is one job per partition, so a `mit_normal_gpu` and a
+`mit_preemptable` copy of the same job is the way to get scheduled.
 
----
+### THE ONE THING THAT IS NOT WRITTEN YET
+`fit.py` fits ONE unbinned term and ignores the external quadratic term
+entirely, so it cannot fit `cards/joint_v2.hdf5` — which is a J/psi
+`MassCFTerm` (3 000 000 candidates, 96 parameters), a Z `MassCFTerm`
+(3 682 662, 103) and the `hitchi2` external term (92) over one parameter
+vector. `chunkfit.ChunkedObjective` already takes a LIST of terms and already
+has the `hvp` Hessian mode built for exactly this parameter count; what is
+missing is a driver that also adds the external term's closed-form
+`g^T x + 0.5 x^T H x`. That is `fit_joint.py` (in progress).
 
 ## 3. HOW TO REPRODUCE EACH STEP
 
