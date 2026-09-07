@@ -94,7 +94,22 @@ nothing to the mean, which is the whole content of both corrections.
 | unit 5 | gradient vs FD | 3e-10 |
 | unit 6 | `c_i = -vgf sigma^2/m` | 7e-18 |
 | unit 7 | `set_corrections` == purpose-built terms | bit-identical, all four ladder points |
-| **gun** | the REAL J/psi gun, 299 422 candidates | `gate_fluct_gun.py` — see `results/gate_fluct_gun.json` |
+| **gun** | the REAL J/psi gun, 299 422 candidates | **PASS**, table below |
+
+**GATE 1, the real J/psi gun** (`gate_fluct_gun.py`, 299 422 candidates, five
+rabbit terms sharing them, so the shift carries no statistical error):
+
+| | alpha [e-3] | shift [e-3] | MASSCFTERM_SPEC |
+|---|---:|---:|---:|
+| uncorrected | -0.00825 | — | -0.0047 |
+| a_res only, residual | +0.13705 | **+0.14530** | +0.1457 |
+| a_res only, fluctuation | +0.13792 | **+0.14617** | +0.1457 |
+| both, residual | +0.05082 | **+0.05907** | +0.0559 |
+| both, fluctuation | +0.04858 | **+0.05683** | +0.0559 |
+
+`|fluctuation - residual|` = **0.00087 e-3** (a_res alone) and **0.00224 e-3**
+(both), against the 0.01 e-3 the gate asks; both forms sit within 0.003 e-3 of
+the numbers the offline numpy implementation measured.
 
 `tests/test_fluctuation.py` in the rabbit worktree; the seven pre-existing
 suites all still pass (the refactor is bit-identical at `upsample == 1`).
@@ -171,10 +186,20 @@ FINAL cards are `cards/z_full380_fl.hdf5` and `cards/z_n300k_fl.hdf5`.
 ## 2. WHAT IS RUNNING
 
 ### On submit82 — detached, logs in `fullscale/logs/`
-The five 300 k **residual-form** variant fits the previous session started;
-`base/noares/noshape/nojensen/noboth/jshift` have landed in `results/`,
-`clip3`/`clip5` (pids 509886/509887) are the last two. They are the
-"clipped, for the record" column and nothing depends on them.
+* the five 300 k **residual-form** variant fits the previous session started;
+  `base/noares/noshape/nojensen/noboth/jshift` have landed in `results/`,
+  `clip3`/`clip5` (pids 509886/509887) are the last two. They are the
+  "clipped, for the record" column and nothing depends on them.
+* the five 300 k **fluctuation-form** fits (`fit_n300kfl_{base,noares,
+  nojensen,noboth,noshape}.json`, logs alongside) — the phase-1 ladder at
+  300 k, which is what tells us the reformulation is stable before the
+  full-scale numbers land.
+* `cf_inmaker.py pairs` on **J/psi v2, `--ntasks 600`** ->
+  `runs/jpairs_v2_n600.npz`, the phase-2 J/psi leg (~7.2 M candidates). 600
+  tasks, not 1642: the J/psi leg is not statistics-limited here (299 k gun
+  candidates already give sigma(alpha) = 0.017e-3, i.e. 1.5 MeV at the Z; 7 M
+  give 0.003e-3 = 0.3 MeV, an order below sigma(m_Z) = 2 MeV), and the cache
+  and the card scale linearly with it.
 
 ### On Engaging (ORCD) — `eng 'timeout 30 squeue -u david_w'`
 
@@ -182,8 +207,10 @@ The five 300 k **residual-form** variant fits the previous session started;
 |---|---|---|
 | **22161787** | `zfit`, 373-task **residual** card, base | running |
 | **22163315** | `zvar`, six variants UNCLIPPED on `z_full380.hdf5` | running — this is the "unclipped runaway at full scale" column |
-| **22163745** | `zclip`, `corr_clip` in {3,5,10,0} | PENDING behind the GPU cap. SUPERSEDED — cancel it to make room for the fluctuation-form phase 1 |
-| **22163752** | `zvar` at `corr_clip = 5` | PENDING, same |
+| ~~22163745~~ | `zclip`, `corr_clip` in {3,5,10,0} | **CANCELLED** — superseded by the reformulation; the clip dependence is covered at 300 k locally |
+| ~~22163752~~ | `zvar` at `corr_clip = 5` | **CANCELLED**, same |
+| ~~22161787~~ | the 373-task base fit | **CANCELLED** — redundant with 22163315's `base` at 380 tasks, and it was holding the GPU cap |
+| **22167631** | `zvarfl`, the five variants on **`z_full380_fl.hdf5`** (fluctuation form) | **the phase-1 FINAL job**; `fullscale_variants_fl.sbatch` |
 
 Engaging notes: `eng-master` may need a human Duo touch; wrap every remote
 command in `timeout`; **H200, not L40S**; **`--chunk 32768`** (262144 OOMs).
