@@ -541,14 +541,17 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
         else:
             out[k] = np.asarray(v, dtype=np.float64)
     out["tgrid"] = np.asarray(tgrid, dtype=np.float64)
-    if ngroups is not None:
-        _finish_groups(out, ngroups, groups_file)
     if jaccat is not None:
         # the parameter map of the D block, so a card builder does not have to
         # re-open a runtree to know what its columns mean
         out["jac_globalidx"] = np.asarray(jaccat[1], dtype=np.int64)
         out["jac_parmtype"] = np.asarray(jaccat[2], dtype=np.int32)
         out["jac_subidx"] = np.asarray(jaccat[3], dtype=np.int64)
+    # AFTER the jac block: the group aliases include `fit_parmtype` etc., which
+    # `matres/make_material_card.py` needs and which are copies of the jac
+    # catalog written just above
+    if ngroups is not None:
+        _finish_groups(out, ngroups, groups_file)
     # PROVENANCE. `cf_source` and `cf_model` are new and are read by nothing
     # downstream -- they are there so that a cache says which evaluator and
     # which switch configuration produced it, which the offline caches could
