@@ -528,7 +528,7 @@ bit-identical against re-runs.
 
 | input | tasks | content |
 |---|---|---|
-| `runs/quad_jpsiv2_ok.npz` | **1645 / 1645**, being re-extracted 15:16 | THE FINAL ONE |
+| `runs/quad_jpsiv2_ok.npz` | **1645 / 1645** | **16 955 312** in the quadratic term, 4 722 750 cut, 642 s. THE FINAL ONE; `cards/joint_ok_*` are being rebuilt against it |
 | ~~the same, 1641~~ | 1313 out | 16 915 249 in the quadratic term; what `cards/joint_ok_*` currently hold |
 | ~~the same, 1626~~ | the 16 out | 16 755 046; what `results/fit_joint_v2_n100k.json` used |
 | `runs/jpairs_v2_n600.npz` | 600 by CHOICE (tasks 0-599) | 7 923 460 candidates. Untouched by every one of these defects — all of them are above 1219 |
