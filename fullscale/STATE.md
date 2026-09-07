@@ -26,23 +26,26 @@ in the fluctuation form. Errors are the x1.109 sandwich.
 |---|---:|---|
 | **`sigma(m_Z)`** | **2.27 MeV** | statistics + the floated K(m) (x1.5 over K(m) fixed) |
 | **`sigma(Gamma_Z)`** | **4.16 MeV** | statistics + the floated K(m) (x1.4) |
-| **`m_Z` closure** | **-11.06 +- 2.27 MeV** | **the RESOLUTION MODEL, through its `eta`-dependent width mis-scaling** (sec. 0b). Measured directly: the true per-leg momentum scale is FLAT in `eta` to 0.41e-4 = 3.7 MeV, while the fitted `m_Z` spans 40-57 MeV — so the `eta` dependence is the likelihood's response, not the momenta. The model is 2.8 +- 0.2 % too narrow, `k_hit` floats to 1.133 +- 0.039, and the resolution width itself varies 3.5x across `eta`. **Phase 3 is the direct fix.** |
+| **`m_Z` closure** | **-11.06 +- 2.27 MeV** | **the KERNEL: the Z lineshape, the FSR fold, the acceptance and K(m)** (sec. 0b). Measured directly: with NO kernel at all — `m_reco - m_gen` against the resolution CF — the detector half closes at **+0.9 +- 2.1 MeV**, and the mass pull width is **0.996, flat in `eta`**, so the resolution model is right to 0.4 %. Phase 3 cannot fix this one. |
 | **`Gamma_Z` closure** | **-5.26 +- 4.16 MeV** | closes at 1.3 sigma — **but see the K(m) caveat below: NOT yet a 4 MeV result** |
 | the two resolution corrections | +8.00 MeV on `m_Z`, additive to 0.2 MeV | done; inside the spec's own -5...-14 MeV prediction |
 | the momentum scale | phase 2 (running) | the J/psi transfers it through the field modes, not a free alpha |
 | the material amounts | phase 3 (blocked on one reader) | they are what would float the resolution model |
 | the post-fit spectrum | `chi2/ndof = 4.75` over 240 bins | genuine few-% shape mismodelling; unchanged when the model subsample is grown 6.7x |
 
-**What limits it, in order.** (1) The `m_Z` closure: -11 MeV at 4.9 sigma. It is
-NOT the corrections, NOT the Born lineshape, NOT K(m), NOT the coefficient
-bound, **not a loose SIM stepper** (rejected by two direct tests) and **not the
-reconstruction's momentum scale** — measured against gen, the leg momenta give
-masses +6.2 MeV HIGH, the opposite sign, and are FLAT in `eta` to 3.7 MeV while
-the fitted `m_Z` spans 40-57 MeV. What is left is the **resolution model**: it
-is 2.8 +- 0.2 % too narrow, `k_hit` floats to 1.133 +- 0.039 (3.4 sigma), and
-its width varies 3.5x across `eta`, so the mis-scaling is necessarily
-`eta`-dependent and pulls `m_Z` `eta`-dependently. **Phase 3 floats exactly
-those parameters.**
+**What limits it, in order.** (1) The `m_Z` closure: -11 MeV at 4.9 sigma. Six
+things are excluded by direct measurement — the two corrections, the Born
+lineshape, K(m), the coefficient bound, a loose SIM stepper, the
+reconstruction's momentum scale (which gives masses +6.2 MeV HIGH, the opposite
+sign, and is flat in `eta` to 3.7 MeV) and **the resolution model** (the mass
+pull is 0.996 and flat in `eta`; with the kernel removed entirely the detector
+half closes at +0.9 +- 2.1 MeV). **What is left is the KERNEL** — the Z
+lineshape, the FSR fold, the acceptance and their interplay with K(m) — which is
+also where the +42 MeV `Gamma_Z` shape sensitivity lives. **Phase 3 does not
+address it**; `zchannel`'s generator-level chain does.
+(1b) Real but separate: `k_ms` = 1.0298 +- 0.0042 in the kernel-free fit — the
+multiple-scattering TAIL is ~3 % short. That IS the material and phase 3 is its
+test; it moves `m_Z` by 0.5 MeV.
 (2) The K(m) shape costs a factor 1.5 on `sigma(m_Z)` and cannot be dropped
 (without it `Gamma_Z` carries +175 MeV of LO->MiNNLO K-factor). Five terms are
 saturated for `m_Z` (5 -> 7 moves it -1.3 MeV) but **NOT for `Gamma_Z`**, which
