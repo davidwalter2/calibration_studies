@@ -76,6 +76,28 @@ from `E[x e^{i tau x}] = -i phi'` and `E[x^2 e^{i tau x}] = -phi''`,
 **No clip, no log-Jacobian, no dependence on `delta_i`, `sigma_i` stays
 constant so the cheap static path returns.**
 
+**The one bound the form needs — `corr_coeff_max`, on the COEFFICIENT.** The
+quadratic term enters as `g_i x^2` against the linear `x`, so
+`g_i = c_i/sigma_i` IS the expansion parameter, and where `|g_i x| ~ 1` the
+first-order truncation stops being a correction: the modelled density can go
+negative in a large-`sigma_m/m` candidate's tail, and one negative density takes
+the NLL to `-inf`. Scanned on the 300 k Z card at five parameter points
+(reference, `m_Z` +-30 MeV, `Gamma_Z` +-60 MeV):
+
+| cap | both | noares | nojensen | noboth |
+|---|---|---|---|---|
+| none | \|g\|max 0.097, **0** bad | 0.100, **0** | 0.197, **19** | **0** |
+| 0.10 | capped 0, **0** | 0, **0** | 1997, **2-3** | **0** |
+| **0.08** | capped 364, **0** | 509, **0** | 3242, **0** | **0** |
+| 0.06 | capped 1088, **0** | 1426, **0** | 6261, **0** | **0** |
+
+**0.08 is the default.** The 364 of 300 000 (0.12 %) it bounds in the physics
+configuration all have `sigma_m/m > 0.066`, i.e. a factor 40 less weight in the
+mass than a typical candidate. This bounds a per-candidate CONSTANT computed
+from observables — theta-independent, so it cannot deform the likelihood's
+dependence on the parameters. That is precisely what `corr_clip`, which bounded
+the ARGUMENT, could not say.
+
 What is exact / what is approximated: exact for the first moment,
 `E[Delta_i] = Var(x)(c_i - a_i sigma_i) + d_i` (measured to 1e-10 in the unit
 test); neglected `O(a^2, ac, c^2) ~ 1e-4` of a correction that is itself ~1e-2

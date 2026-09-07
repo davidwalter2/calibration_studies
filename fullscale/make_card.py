@@ -123,6 +123,14 @@ def parse_args(argv=None):
                         "the historical form, exact at a delta kernel and "
                         "measured on the J/psi, which needs --corr-clip at the "
                         "Z and is kept only as the reference for that gate.")
+    p.add_argument("--corr-coeff-max", type=float, default=0.08,
+                   help="bound on the fluctuation form's quadratic coefficient "
+                        "|c_i/sigma_i| -- the expansion parameter itself. A "
+                        "per-candidate CONSTANT, so it cannot deform the "
+                        "likelihood's dependence on the parameters. Below it "
+                        "the first-order truncation can put the modelled "
+                        "density negative in the tail of a large-sigma_m/m "
+                        "candidate. 0 disables it.")
     p.add_argument("--corr-clip", type=float, default=0.0,
                    help="the domain of BOTH corrections, in units of sigma_i. "
                         "They are expansions in the resolution fluctuation, "
@@ -445,6 +453,8 @@ def build(args, log=print):
                 "(there is no residual-valued argument to clip); pass "
                 "--corr-clip 0")
         kw2["corr_form"] = args.corr_form
+        if "corr_coeff_max" in sig:
+            kw2["corr_coeff_max"] = args.corr_coeff_max
     if args.corr_clip and (a_res is not None or args.jensen != "off"):
         if "corr_clip" not in sig:
             raise SystemExit(
