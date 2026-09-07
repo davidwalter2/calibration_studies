@@ -96,6 +96,14 @@ def parse_args(argv=None):
     p.add_argument("--max-chi2-ndof", type=float, default=3.0)
     p.add_argument("--max-sigma-rel", type=float, default=0.10,
                    help="drop candidates with sigma_m/m above this")
+    p.add_argument("--min-sigma-rel", type=float, default=0.0,
+                   help="drop candidates with sigma_m/m BELOW this. With "
+                        "--max-sigma-rel this cuts a resolution slice, which "
+                        "is the differential test of whether a residual bias "
+                        "is the resolution model: both corrections and any "
+                        "error in the per-candidate CF scale as sigma_rel^2, "
+                        "so the bias must grow across the slices. It is the "
+                        "Z analogue of MASSCFTERM_SPEC's gate J4.")
     p.add_argument("--max-sigma", type=float, default=0.0,
                    help="absolute sigma_m cut [GeV]; 0 = off")
     p.add_argument("--maxn", type=int, default=0)
@@ -215,6 +223,9 @@ def select(d, args, log=print):
     if args.max_sigma_rel > 0:
         keep &= srel < args.max_sigma_rel
         steps.append((f"sigma_m/m < {args.max_sigma_rel:g}", keep.copy()))
+    if args.min_sigma_rel > 0:
+        keep &= srel >= args.min_sigma_rel
+        steps.append((f"sigma_m/m >= {args.min_sigma_rel:g}", keep.copy()))
     if args.max_sigma > 0:
         keep &= sigma < args.max_sigma
         steps.append((f"sigma_m < {args.max_sigma:g} GeV", keep.copy()))
