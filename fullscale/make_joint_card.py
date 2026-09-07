@@ -61,6 +61,46 @@ the bundle. There is NO configuration of the current rabbit in which
 card whose mass terms carry all 92 columns: the two would declare the same
 names and `build_tf_unbinned_terms` refuses the duplicate.
 
+WHAT `--inject` DOES AND DOES NOT CLOSE
+---------------------------------------
+`--inject NAME:VALUE` is `make_global_term.py`'s convention: every mass term's
+`m_i^0` moves by `(D_card dtheta)_i` and the quadratic term's `G` by
+`-K dtheta`, so a translation-invariant mass likelihood puts the joint minimum
+at `theta*_base + dtheta` exactly.
+
+MEASURED on the 100 k DY card (`bfield_mode0/1/2` free, everything else frozen,
+`dtheta = (+0.010, -0.002, +0.003)` card units):
+
+    mode1   -0.00200065 vs -0.002    -3.3e-4 of the injection
+    mode2   +0.00299921 vs +0.003    -2.6e-4 of the injection
+    mode0   +0.01120382 vs +0.010    +1.20e-1 of the injection   <-- NOT closed
+
+**This was measured with the RESIDUAL form** (`corr_form="residual"`, the
+only one that existed then); the fluctuation form makes the residual LINEAR in
+theta again, so the defect below is expected to collapse. Re-measure it.
+
+The 12 % is entirely `jensen_mode="exact"`. `MassCFTerm._jensen_m` is
+`mobs + m_ref`, the OBSERVED mass, and it is the denominator of `r = delta/m`
+(and of the discriminant floor) in the exact second-order map -- so the map
+does not commute with a shift of the observed masses. Turning that one
+correction off at fit time and re-measuring the translation defect in the
+gradient gives:
+
+    jensen exact   defect  -8494  ->  +1.214e-3 = +12.14 % of the injection
+    jensen off     defect   -235  ->  +3.35e-5  =  +0.34 % of the injection
+    a_res off      defect  -8244  ->  +1.178e-3 = +11.78 %  (a_res is NOT it)
+
+i.e. the sparse-`D` wiring is right (it closes to 3e-4 on the two modes whose
+`D` column is not proportional to `m`), and what does not translate is the
+Jensen map's dependence on the observed mass. The likely reason it shows up
+ONLY on mode 0 is that the map is invariant under a COMMON rescaling of
+`(m, sigma, delta)` -- a momentum-scale error rescales all three -- while
+`--inject` moves the mean and leaves `sigma`, `a_res` and `jensen_s2` at the
+values computed from the unshifted masses. A faithful scale injection would
+have to rescale those too; until it does, read a `--inject` closure on
+`bfield_mode0` (or on any mode whose `D` column is proportional to `m`) as a
+12 %-level statement, not a 1e-2 one.
+
 A CAVEAT ABOUT `--chunk`
 ------------------------
 `chunkfit.ChunkedObjective(chunk=)` -- and therefore `fit.py --chunk` and
@@ -147,6 +187,15 @@ def parse_args(argv=None):
                         "it. `fit.py --chunk` and `run_phase1.sh`'s "
                         "CHUNK=262144 are therefore unusable on a joint card "
                         "until chunkfit re-slices the Jacobian too.")
+    p.add_argument("--corr-form", choices=["fluctuation", "residual"],
+                   default="fluctuation",
+                   help="WHERE the two corrections act, on BOTH legs. "
+                        "`fluctuation` applies them as one deterministic map "
+                        "of the resolution fluctuation inside the convolution; "
+                        "it is the only form defined at the Z, and it is also "
+                        "the form in which the residual is LINEAR in theta, "
+                        "which is what the --inject translation closure needs "
+                        "(see the module docstring).")
     p.add_argument("--fit-upsample-z", type=int, default=4)
     p.add_argument("--fit-upsample-jpsi", type=int, default=1,
                    help="the J/psi window is +-0.35 GeV, i.e. a handful of "
@@ -352,6 +401,8 @@ def build_jpsi(args, log=print):
         "--max-sigma-rel", repr(args.max_sigma_rel),
         "--chunk", str(args.chunk),
         "--fit-upsample", str(args.fit_upsample_jpsi),
+        "--corr-form", args.corr_form,
+        "--corr-clip", "0",
     ])
 
     d = np.load(args.jpsi_pairs, allow_pickle=True)
@@ -419,6 +470,7 @@ def build_jpsi(args, log=print):
         weights=weights,
         a_res=a_res, self_consistent_sigma=True,
         jensen_s2=jensen_s2, jensen_mode="exact",
+        corr_form=args.corr_form,
         norm_window=(lo, hi), norm_tpoints=jargs.norm_tpoints, norm=norm,
         upsample=args.fit_upsample_jpsi,
         chunk=args.chunk, channel="jpsi")
@@ -621,6 +673,8 @@ def main():
              "--max-chi2-ndof", repr(args.max_chi2_ndof),
              "--max-sigma-rel", repr(args.max_sigma_rel),
              "--chunk", str(args.chunk),
+             "--corr-form", args.corr_form,
+             "--corr-clip", "0",
              "--fit-upsample", str(args.fit_upsample_z)]
     if args.fsr:
         zargv += ["--fsr", args.fsr]
