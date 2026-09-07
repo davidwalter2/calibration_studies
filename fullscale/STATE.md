@@ -286,21 +286,34 @@ Everything else at 300 k has landed.
 draining; `prodfiles` skips any task without its `.complete` sentinel, so both
 are internally consistent, just short of the whole production):
 
+**16 J/psi v2 task indices are EXCLUDED** and must stay excluded from every
+cache and term: **1219-1222, 1334-1337, 1409-1412** (the "re-staged" copies
+fetched from the grid on 9/6; they yield 0.82 candidates/event against 0.997 for
+a normal chunk, i.e. a 17 % fit-failure excess consistent with the un-repacked
+split-99 originals having been fetched) and **1552-1555** (input exits rc=91
+after 27 s on every attempt, no output). 16 of 1642, ~1 % of the statistics. The
+list is materialised as `runs/jpsiv2_tasks_x16.txt` (1626 tasks / 6504 files)
+and both `extract.py` and `cf_inmaker.py` take it as
+`--files @runs/jpsiv2_tasks_x16.txt`.
+
 | input | tasks used | content |
 |---|---|---|
-| `runs/jpairs_v2_n600.npz` | **600 / 1642**, by CHOICE (`--ntasks 600`) | 7 923 460 candidates, 12 GB, with the (n,92) mass Jacobian |
-| `runs/quad_jpsiv2.npz` | **1629 / 1642** (13 had no `.complete` at 22:34) | 16 743 019 candidates in the quadratic term, 4 705 662 cut |
+| `runs/jpairs_v2_n600.npz` | **600 / 1642**, by CHOICE (`--ntasks 600`) | 7 923 460 candidates, 12 GB, with the (n,92) mass Jacobian. Tasks 0-599, so **none of the 16 excluded indices is in it** — no rebuild needed |
+| `runs/quad_jpsiv2_x16.npz` | **1626**, the 16 excluded | **THE ONE TO USE** |
+| ~~`runs/quad_jpsiv2.npz`~~ | 1629, INCLUDING 12 of the suspect ones | superseded; do not use |
 | `runs/quad_dyv2.npz` | 380 / 380 | 3 751 687 |
 | `runs/zpairs_dyv2_jac_full.npz` | 380 / 380 | 3 733 323, with the Jacobian |
 
-The production has since reached 1638/1642, the last 4 being re-run with the
-xrootd-fixed payload. Appending them is worth ~0.25 % on the quadratic term and
-is NOT worth redoing anything for; it matters only if a FINAL number is to be
-quoted as "the whole production", in which case re-run the quad extraction
-(807 s) and rebuild the card. The J/psi mass leg is deliberately 600 tasks and
-does not change.
+The DY production is complete and untouched by any of this. A separate agent is
+repairing the 16 J/psi inputs; if repaired chunks arrive, append them with the
+tail mechanism and re-fit only if the numbers matter.
 
-`cards/joint_v2.hdf5` (10.7 GB) is BUILT from those and staged to Engaging.
+**`cards/joint_v2.hdf5` as first built used the SUPERSEDED quadratic term and
+must be rebuilt against `quad_jpsiv2_x16.npz`.** The J/psi mass leg is
+deliberately 600 tasks and does not change.
+
+The first build of `cards/joint_v2.hdf5` (10.7 GB) is staged to Engaging but
+carries the superseded quadratic term.
 
 ### On Engaging (ORCD) — `eng 'timeout 30 squeue -u david_w'`
 
