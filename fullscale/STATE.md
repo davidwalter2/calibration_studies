@@ -584,3 +584,20 @@ median 6.2e-2), Asimov/toy pulls, and the group-leader table.
 11. **`corr_form` is consumed at CONSTRUCTION** — the per-candidate `c_i`, `d_i`
     are baked in. Flipping `self_consistent_sigma` / `jensen_mode` by hand no
     longer switches the correction; call `term.set_corrections(...)`.
+12. **`pfor`'s Hessian memory is set by `chunk x nparams`, NOT by the number of
+    candidates.** 99 free parameters at `chunk 16384` peaks at **270 GB**;
+    the same card written at `chunk 8192` peaks at 144 GB. The candidate count
+    changes the TIME (one Hessian per chunk) and nothing else. A joint card
+    therefore has to choose its chunk at WRITE time with the Hessian in mind —
+    and it cannot be re-chunked afterwards, because its per-candidate sparse `D`
+    is sliced per chunk when it is written.
+13. **`trust-exact` needs the full Hessian at EVERY iteration.** The Z-alone fit
+    took 38 of them. That is why a 6.68 M joint fit with 99 free parameters is a
+    GPU job and not a CPU one: 1842 s per Hessian at 600 k on submit.
+14. **The Engaging SSH master expires after 8 h, silently.** `eng` then prints
+    instructions instead of output and every `rsync`/`sbatch` fails with
+    `connection unexpectedly closed`. Only a human can fix it: `!eng-master`.
+    Budget for it — it cost 65 minutes today.
+15. **The K(m) Legendre basis is saturated for `m_Z` and NOT for `Gamma_Z`.**
+    Do not carry "5 terms close it" from the generator-level study to the
+    detector-level `Gamma_Z`.
