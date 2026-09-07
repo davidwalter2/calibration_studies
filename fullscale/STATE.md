@@ -545,38 +545,59 @@ no extraction stored the cross block), and the `hitchi2` Hessian is singular in
 `material_support_tube` and `material_pp1_cables` are constrained by the mass
 terms alone.
 
-### Phase 3 (full design) — and the ONE reader that blocks it
+### PHASE 3 — the blocker is GONE (2026-09-07)
 
-**`matres/extract_groups.py` CANNOT be used on these productions.** It rebuilds
-the per-group CF offline from Geant4 step records and dies with
-`KeyInFileError: not found: 'ioniurbanidx'` — both `jpsimc_20M_260906_v2` and
-`dymc_8p5M_260906_v2` ran `exportStepRecords=False` (the same flag that blocks
-`globalfit/extract.py`'s mass path, pitfall 1).
+`matres/extract_groups.py` cannot be used on either production: it rebuilds the
+per-group CF offline from Geant4 step records and dies on the missing
+`ioniurbanidx` (both ran `exportStepRecords=False`). Both ran
+`exportCfGroupExponents=True`, so **`cf_inmaker.py pairs --groups`** (commits
+`b7e7f9d`, `6af07ed`) reads the maker's own split into the CSR layout
+`MaterialCFTerm` / `make_material_card.py` consume. The per-group families are
+named `grp_*` because `Sms`/`Sio_re`/... are already the FLAT exponents in the
+same file. `matres/validate_inmaker_groups.py` (`317a33a`) audits it on 200 000
+candidates of each leg: summing the group rows reproduces the flat exponent to
+**7.5e-8 relative on both legs**, exactly the float32 storage floor, and the
+maker's own float64 `cfmass_grp_closure` reads **1.4e-14**. `make_material_card.py`
+reads the cache unchanged and writes a card — which is the proof the layout is
+right rather than merely plausible (it caught a real bug first: the
+`fit_parmtype`/`fit_subidx` aliases were written before the `jac_*` catalog they
+copy).
 
-**But the per-group CF is there anyway**, written by the maker itself because
-those productions ran `exportCfGroupExponents=True`. The tree carries
+| cache | tasks | candidates | size |
+|---|---|---|---|
+| `runs/gpairs_v2_n50.npz` | 0-49 of J/psi v2 (none of the 16 excluded) | 651 672 | 20.5 GB |
+| `runs/gzpairs_dyv2_n50.npz` | 0-49 of DY v2 | 487 742 | 17.0 GB |
 
-    cfmass_grp                    the material-group index axis
-    cfmass_grp_ms
-    cfmass_grp_ioni_re / _im
-    cfmass_grp_rad_re  / _im
-    cfmass_grp_closure            the maker's own closure check
-    cfmass_hitcls, cfmass_hitv    the hit-class axis and its variance shares
-    resinfcovgrp
+both with `--jac-parmtypes 14 15`, DY with `--mass-window 91.1876 60`.
+30.6 / 34.1 kB per candidate, measured on 1-task runs, so 50 tasks is what fits
+a ~20 GB budget — **not** a statistics-driven choice.
 
-next to the flat `cfmass_*` that `cf_inmaker.py pairs` already reads. **What is
-missing is a reader**: `cf_inmaker.py` has no per-group mode (`grp` appears
-nowhere in its pairs path), so nothing produces the CSR layout
-(`grp_ptr`/`grp_id`/`Sg_*`, `hit_ptr`/`hit_cls`/`hit_v`/`vg_other`) that
-`rabbit.unbinned.MaterialCFTerm` and `matres/make_material_card.py` consume.
+**Occupancy, which decides constrainability**: 23.0 material groups per
+candidate on the J/psi leg (median 23, p1 16, p99 31, max 35 of 42) and 25.7 on
+DY. **`material_pp1_cables` is touched by NOBODY on either leg**;
+`material_thermal_screen` (2e-4 / 1e-3) and `material_support_tube`
+(2e-4 / 8e-4) by under 0.1 %. Those are three of the four parameters the
+hit-chi2 term is ALSO blind to, so they are unconstrained by any term in the
+design and must be frozen or given a prior. `material_beampipe`, the fourth, is
+touched by 99.99 % of candidates and is fine from the mass side.
 
-That reader, its closure validation (per-group sum == the flat exponent;
-`vg_other + sum_c hit_v == vgf`), and the two per-group caches are what phase 3
-starts from. After them: a `--material` mode in `make_joint_card.py` that makes
-BOTH mass terms `MaterialCFTerm`s sharing the parmtype-15 parameters with the
-hit-chi2 term, hit-class parameters from the mass terms, corrections truth-free
-from `Jpsi_covrefmom` (already the case on the J/psi leg: per-candidate `f_ang`,
-median 6.2e-2), Asimov/toy pulls, and the group-leader table.
+**A caveat against the export doc**: it says `cfmass_vgf` keeps meaning the
+total Gaussian share (hits + beamspot + pointing) on the two-track tree, so
+`vg_other` should be a positive remainder. Measured, `sum_c cfmass_hitv` equals
+`cfmass_vgf` — `|vg_other|/vgf` is 1e-6 median and 6e-6 at q99 on both legs, of
+BOTH signs. So on two-track candidates the hit classes account for all of `vgf`
+and `vg_other` is float32 accumulation noise. **`MaterialCFTerm` should clip
+`vg_other` at 0 rather than trust its sign.** The candidates with
+`vg_other/vgf ~ 1` are the `vgf = 1` pathologies (no influence decomposition at
+all, `sigma_m/m` up to 3828); 11 in J/psi and 62 in DY, all removed by the
+`sigma_m/m < 0.10` cut.
+
+**What is left of phase 3**: a `--material` mode in `make_joint_card.py` that
+makes BOTH mass terms `MaterialCFTerm`s sharing the parmtype-15 parameters with
+the hit-chi2 term, hit-class parameters from the mass terms, corrections
+truth-free from `Jpsi_covrefmom` (already so on the J/psi leg: per-candidate
+`f_ang`, median 6.2e-2), then Asimov/toy pulls and the group-leader table. And
+it inherits phase 2's minimiser problem, with 42 + 18 more parameters.
 
 ---
 
