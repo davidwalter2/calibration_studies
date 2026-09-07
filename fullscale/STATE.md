@@ -271,6 +271,29 @@ must be: both are location effects.
   rather than exculpatory.
 * **Not the coefficient bound.** 0.049 MeV, measured.
 
+### THE BIAS SCALES WITH `sigma_m/m` — the first localisation result
+
+`sigma_m/m` tertiles, 400 000 candidates each, same model, K(m) floated:
+
+| tertile | `m_Z` [MeV] | `Gamma_Z` [MeV] |
+|---|---:|---:|
+| **`sigma_m/m < 0.0110`** (32.4 % of the sample) | **-1.61 +- 5.90** | +8.73 +- 10.83 |
+| `0.0110 - 0.0140` | running | |
+| `> 0.0140` | running | |
+| inclusive, 300 k | -20.67 +- 8.09 | +18.66 +- 14.72 |
+| inclusive, 3.68 M | -11.06 +- 2.27 | -5.26 +- 4.16 |
+
+**In the best-resolved third of the sample the closure is consistent with zero**
+(-1.6 +- 5.9 MeV) while inclusively it is -11 MeV at 4.9 sigma. Both the
+corrections and any error in the per-candidate CF scale as `sigma_rel^2`, and
+the Born lineshape / FSR / acceptance do not, so this is the discriminator: it
+says the residual is in the RESOLUTION MODEL, not in the mass model. The mid and
+high tertiles measure the exponent.
+
+(Note also that the low tertile is the more precise sample despite the same
+statistics — 5.90 against 8.09 MeV — because a better-resolved candidate carries
+more mass information.)
+
 ### The Z ALONE CANNOT SEPARATE THE RESOLUTION MODEL FROM `m_Z` — measured
 
 Float ONE resolution knob at a time on the 300 k card, everything else as the
