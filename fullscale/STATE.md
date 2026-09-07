@@ -138,6 +138,61 @@ suites all still pass (the refactor is bit-identical at `upsample == 1`).
 
 ---
 
+## 0b. PHASE 1 AT 300 k — THE CLIP IS NOT STABLE, THE REFORMULATION IS
+
+Both ladders are the same model, resolution and alignment fixed at the MC
+truth, K(m) floated, `fitted - generator` in MeV with the x1.109 sandwich
+error. **They are NOT the same 300 000 candidates**: `z_n300k.hdf5` is a
+subsample of the 373-task cache and `z_n300k_fl.hdf5` of the 380-task one, so
+cross-form comparisons carry ~8 MeV of independent statistical scatter.
+Within a ladder every row is the same candidates.
+
+### The residual form and its clip — GATE 2
+
+| variant | `m_Z` | `Gamma_Z` |
+|---|---:|---:|
+| unclipped, both corrections | **-35.51 +- 6.81** | **-421.03 +- 12.33** |
+| unclipped, `a_res` off | -53.98 +- 6.88 | -427.47 +- 12.33 |
+| unclipped, Jensen off | -14.42 +- 8.55 | -1.85 +- 14.89 |
+| unclipped, neither | -26.08 +- 8.00 | -19.70 +- 14.44 |
+| Jensen as a mean shift | -32.76 +- 9.60 | -0.01 +- 15.51 |
+| **`corr_clip = 3`** | **+40.07 +- 8.77** | +4.11 +- 14.76 |
+| **`corr_clip = 5`** | **+94.32 +- 7.92** | -12.37 +- 14.68 |
+| **`corr_clip = 10`** | **+74.32 +- 7.30** | -49.00 +- 14.49 |
+
+`m_Z` swings over **130 MeV** and `Gamma_Z` over **425 MeV** across the clip,
+against an 8 MeV statistical error on the same candidates. **The clipped answer
+is not stable in the clip**, which was the question STATE said would decide the
+matter. The unclipped fit also finds an NLL 27 000 units "better" than every
+well-behaved variant, bought with K(m) coefficients of order one — it is fitting
+the shape to a deformed resolution model, not measuring a mass.
+
+### The fluctuation form
+
+| variant | `m_Z` | `Gamma_Z` |
+|---|---:|---:|
+| **both corrections (the model)** | **-20.67 +- 8.09** | **+18.66 +- 14.72** |
+| `a_res` off (Jensen only) | -35.92 +- 8.08 | +17.14 +- 14.61 |
+| neither | -28.66 +- 8.10 | +17.66 +- 14.67 |
+| K(m) FIXED, both | -27.44 +- 5.86 | +175.25 +- 11.99 |
+
+Finite, clip-free, and every variant converges (10-25 iterations). The two
+corrections do what the census predicts: the Jensen part alone moves `m_Z` by
+**-7.3 MeV** (its per-candidate mean shift is +20.6 MeV) and the
+self-consistent width by **+15.3 MeV** on top (its mean shift is -32.5 MeV), for
+a net **+8.0 MeV**. `Gamma_Z` is unaffected by either, as it must be: both are
+location effects. The +175 MeV on `Gamma_Z` with K(m) fixed is the LO->MiNNLO
+K-factor and is why K(m) is floated.
+
+**What is NOT closed**: `m_Z` sits at **-20.7 +- 8.1 MeV**, a -2.6 sigma pull at
+300 k. At 3.68 M the statistical error is 2.3 MeV, so if it is real it will show
+at 9 sigma. It is NOT the corrections (the uncorrected fit is -28.7 and they
+move it +8.0 toward zero); the candidates are the Z lineshape provider, the FSR
+fold, the acceptance and the truncation `Z`. That is the phase-1 question the
+full-scale fit has to answer.
+
+---
+
 ## 1. WHAT EXISTS
 
 ### The merged rabbit — this is not on any remote
