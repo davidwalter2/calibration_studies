@@ -36,6 +36,14 @@ Two Hessian modes:
 
 Both are exact; `--check` compares them.
 
+`hessp(x, p)` is ONE such product with an arbitrary tangent, which is what a
+Krylov trust-region minimiser (`trust-krylov`, `trust-ncg`) asks for instead of
+the matrix. It matters: at 99 free parameters `pfor` OOMs an H200 at
+`chunk 32768` and, where it fits, `trust-exact` needs one FULL Hessian per
+iteration -- ~10 000 s each on the joint card, ~105 h for the 38 iterations the
+Z-alone fit took. A Krylov step needs O(10) `hessp` calls, each ~2 gradients and
+independent of the parameter count.
+
 usage:
     from chunkfit import ChunkedObjective
     obj = ChunkedObjective(terms, free=..., hess_mode="pfor")
@@ -300,6 +308,42 @@ class ChunkedObjective:
             hv = acc.jvp(g)
             H[:, j] = np.zeros(n) if hv is None else hv.numpy()
         return H
+
+    def hessp(self, xf, p):
+        """ONE Hessian-vector product ``H @ p``, accumulated over chunks.
+
+        WHY THIS EXISTS.  `trust-exact` needs the FULL Hessian at every
+        iteration, and over the joint fit's 99 free parameters that is 99
+        columns of tape per chunk: measured, it OOMs an H200 at `chunk 32768`
+        and costs ~10 000 s per Hessian there even when it fits, i.e. ~105 h for
+        the 38 iterations the Z-alone fit took.  A Krylov trust-region method
+        (`trust-krylov`, `trust-ncg`) never forms the Hessian: it asks for
+        O(10) products of it with a vector, each ~2 gradients and INDEPENDENT of
+        the parameter count.  That is the difference between a fit that runs and
+        one that does not.
+
+        Exactly the same arithmetic as one column of :meth:`_hess_piece_hvp`,
+        with an arbitrary tangent instead of a unit vector, plus the analytic
+        prior diagonal.
+        """
+        v = tf.constant(np.asarray(xf, np.float64), DTYPE)
+        pv = np.asarray(p, np.float64)
+        tangent = tf.constant(pv, DTYPE)
+        out = (self._pmask.numpy() / self._psig.numpy() ** 2)[self.free] * pv
+        for it, t, ci in self._pieces():
+            with tf.autodiff.ForwardAccumulator(v, tangent) as acc:
+                with tf.GradientTape() as tape:
+                    tape.watch(v)
+                    x = self.full(v)
+                    vals = t._values(tf.linalg.matvec(self._sel[it], x))
+                    f = self._chunk_nll(t, vals, ci)
+                g = tape.gradient(f, v)
+            hv = acc.jvp(g)
+            if hv is not None:
+                out = out + hv.numpy()
+        if not np.all(np.isfinite(out)):
+            return np.zeros_like(out)
+        return out
 
     def hess(self, xf, mode=None):
         v = tf.constant(np.asarray(xf, np.float64), DTYPE)

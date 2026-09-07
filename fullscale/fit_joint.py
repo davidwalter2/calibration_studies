@@ -106,6 +106,15 @@ def parse_args(argv=None):
                    help="the three plumbing gates; implies --no-fit")
     p.add_argument("--fd-params", nargs="*", default=None,
                    help="parameters to finite-difference in --selftest")
+    p.add_argument("--method",
+                   choices=["trust-exact", "trust-krylov", "trust-ncg"],
+                   default="trust-exact",
+                   help="`trust-exact` builds the FULL Hessian every "
+                        "iteration; the Krylov methods ask for Hessian-VECTOR "
+                        "products instead (`ChunkedObjective.hessp`), which is "
+                        "what makes a 99-parameter joint fit affordable. One "
+                        "full Hessian is still built after the fit for the "
+                        "covariance.")
     p.add_argument("--maxiter", type=int, default=200)
     p.add_argument("--gtol", type=float, default=1e-6)
     p.add_argument("--start-from", default=None)
@@ -517,9 +526,20 @@ def main(argv=None):
 
     # ---- fit --------------------------------------------------------------
     t0 = time.time()
-    r = minimize(obj.value_grad, x0, jac=True, hess=obj.hess,
-                 method="trust-exact",
-                 options={"maxiter": args.maxiter, "gtol": args.gtol})
+    if args.method == "trust-exact":
+        r = minimize(obj.value_grad, x0, jac=True, hess=obj.hess,
+                     method="trust-exact",
+                     options={"maxiter": args.maxiter, "gtol": args.gtol})
+    else:
+        # A Krylov trust-region step never forms the Hessian: it asks for O(10)
+        # Hessian-VECTOR products, each ~2 gradients and INDEPENDENT of the
+        # parameter count.  `trust-exact` needs the full matrix at EVERY
+        # iteration, which at 99 free parameters OOMs an H200 at chunk 32768 and
+        # is ~105 h where it fits.  One full Hessian is still built AFTER the
+        # fit, for the covariance.
+        r = minimize(obj.value_grad, x0, jac=True, hessp=obj.hessp,
+                     method=args.method,
+                     options={"maxiter": args.maxiter, "gtol": args.gtol})
     t_fit = time.time() - t0
     H = obj.hess(r.x)
     C = np.linalg.inv(H)
