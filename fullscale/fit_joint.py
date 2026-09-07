@@ -93,7 +93,13 @@ def parse_args(argv=None):
     p.add_argument("--chunk", type=int, default=0,
                    help="override the card's chunk size. REFUSED on a card "
                         "whose terms carry a sparse D -- see the error text.")
-    p.add_argument("--hess-mode", choices=["pfor", "hvp"], default="hvp")
+    p.add_argument("--hess-mode", choices=["pfor", "hvp"], default="hvp",
+                   help="`hvp` is the default for MEMORY, not for speed: on "
+                        "the 60 k + 60 k smoke card with 99 free parameters "
+                        "pfor took 336 s and hvp 1453 s (agreeing to 1.7e-21), "
+                        "but pfor holds 99 columns of a (chunk, nt_int) tape "
+                        "at once while hvp holds ~2 gradients regardless of "
+                        "the parameter count. Use pfor whenever it fits.")
     p.add_argument("--no-fit", action="store_true")
     p.add_argument("--no-sandwich", action="store_true")
     p.add_argument("--selftest", action="store_true",
