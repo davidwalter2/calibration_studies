@@ -31,6 +31,7 @@ in the fluctuation form. Errors are the x1.109 sandwich.
 | the two resolution corrections | +8.00 MeV on `m_Z`, additive to 0.2 MeV | done; inside the spec's own -5...-14 MeV prediction |
 | the momentum scale | phase 2 (running) | the J/psi transfers it through the field modes, not a free alpha |
 | the material amounts | phase 3 (blocked on one reader) | they are what would float the resolution model |
+| the post-fit spectrum | `chi2/ndof = 4.75` over 240 bins | genuine few-% shape mismodelling; unchanged when the model subsample is grown 6.7x |
 
 **What limits it, in order.** (1) The `m_Z` closure: -11 MeV at 4.9 sigma, and
 it is NOT the corrections, NOT the Born lineshape, NOT K(m) and NOT the
@@ -263,9 +264,13 @@ must be: both are location effects.
 
 ### What it might be
 
-The post-fit spectrum (`11_postfit_n300kfl_base.png`) has **visible structure**:
-`chi2/ndof = 1.36` over 240 bins, data/model below 1 on the 82-88 GeV shoulder
-and above 1 on the 95-105 GeV one. That is an S-shape a smooth K(m) cannot
+The post-fit spectrum has **real structure, and it is not a plotting
+artifact**. At full scale (`260907_fullscale/12_..._nsub6k`,
+`13_..._nsub40k.png`) `chi2/ndof` over 240 bins is **4.53 with a 6 000-candidate
+model subsample and 4.75 with 40 000** — 6.7x the model statistics and the chi2
+goes UP, not down, so what it measures is the model and not the subsample. The
+shape is data/model ~ +5-10 % at 60-66 GeV, flat to 80, a shallow dip on the
+82-90 GeV shoulder and ~+3 % on the 95-105 GeV one. That is an S-shape a smooth K(m) cannot
 absorb and it is exactly the shape that biases a mass. Since generator level
 closes and the shape basis is saturated, what is left between them is the
 **detector-level resolution model**: the per-candidate CF (`k_hit`, `k_ms`,
