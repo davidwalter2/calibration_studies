@@ -491,20 +491,29 @@ THREADS=8 $FS/run_tf.sh python3 -u $FS/plot_postfit.py \
 10. `f_ang` is folded into `jensen_s2` per candidate (median 8e-5 at the Z, so
     negligible there; on J/psi v2 it comes from `Jpsi_covrefmom`, truth-free).
 
-### Phase 1 final (Z alone, 380 tasks, fluctuation form)
-Build `cards/z_full380_fl.hdf5` and `cards/z_n300k_fl.hdf5`; run
-`base / --ares off / --jensen off / both off / K(m) fixed`; quote
-fitted - generator (`m_Z` 91.153509740726733, `Gamma_Z` 2.4932018986110700)
-with statistical errors and the x1.109 sandwich; keep the residual-form
-(clipped and unclipped) numbers alongside.
+### Phase 1 — DONE (sec. 0b). What is left of it
+Only the full-scale VARIANT ladder: `base` landed (that is the number), and
+`noares / nojensen / noboth / noshape` at 3.68 M are what job 22171547 (running
+blind) and 22167631 (starting ~14:40) produce. The CPU `noboth` twin has been
+in its minimisation for 9 h and needs ~5 more. The 300 k ladder in sec. 0b
+already says what each variant is worth; the full-scale ladder only tightens
+those differences from ~8 MeV to ~2.3 MeV.
 
-### Phase 2 (J/psi v2 + Z)
-`./run_phase2.sh pairs quad` (it refuses a partial production), then the joint
-card: the quadratic term on parmtypes 14+15 summed over both productions, a
-J/psi `MassCFTerm` with a **delta kernel at the PDG mass and
-`scale_param=None`** (the scale transfers through the field modes, not a free
-alpha), and the Z term. Report `m_Z`/`Gamma_Z` closure, the pulls of the 92
-globals, `rho(m_Z, field/material)`.
+### Phase 2 — the card and the driver EXIST; the fit is the long pole
+`cards/joint_v2.hdf5` is built and `fit_joint.py` is gated (sec. 2). What
+remains is to run it. On a GPU it is a few hours; on this CPU node it is 10-19 h
+at 300 k + 300 k, which is why a 100 k twin is running alongside. When it lands,
+report `m_Z`/`Gamma_Z` closure with the transferred scale, the pulls of the 92
+globals, and `rho(m_Z, field)` / `rho(m_Z, material)` — `fit_joint.py` prints
+all of them, quoting the largest |rho| per block and its RMS rather than 92
+numbers.
+
+Two things to say honestly with the result: the sandwich adds the mass-term and
+hit-chi2 meats **as if independent** (the same candidate contributes to both and
+no extraction stored the cross block), and the `hitchi2` Hessian is singular in
+4 directions, so `material_beampipe`, `material_thermal_screen`,
+`material_support_tube` and `material_pp1_cables` are constrained by the mass
+terms alone.
 
 ### Phase 3 (full design) — and the ONE reader that blocks it
 
