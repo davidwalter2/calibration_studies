@@ -16,16 +16,21 @@ RES=/work/submit/david_w/ZMass/calibration_studies/resolution
 Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
 CEPH=/ceph/submit/data/user/d/david_w/ZMass/cvh
 JV2=$CEPH/jpsimc_20M_260906_v2
-# 16 J/psi v2 task indices are EXCLUDED from every cache and term:
-#   1219-1222, 1334-1337, 1409-1412  the "re-staged" grid copies -- 0.82
-#       candidates/event against 0.997 for a normal chunk, a 17 % fit-failure
-#       excess consistent with the un-repacked split-99 originals having been
-#       fetched;
-#   1552-1555                        input exits rc=91 after 27 s, no output.
-# 16 of 1642, ~1 % of the statistics.  `runs/jpsiv2_tasks_x16.txt` is the
-# resulting 1626-task / 6504-file list; `./run_phase2.sh xlist` rebuilds it.
-JV2LIST=$FS/runs/jpsiv2_tasks_x16.txt
-JV2_BAD="1219 1220 1221 1222 1334 1335 1336 1337 1409 1410 1411 1412 1552 1553 1554 1555"
+# EXCLUSIONS, and their history.  `./run_phase2.sh xlist` rebuilds the file list.
+#
+# CURRENT: task_1313 only.  It is silently EMPTY -- four zero-length streams
+#   WITH a `.complete` sentinel, because its input lacks a StreamerInfo -- so
+#   `prodfiles`'s sentinel check does not catch it and it has to be named.
+#
+# FORMER (2026-09-06/07), now REPAIRED and back in: 1219-1222, 1334-1337,
+#   1409-1412 were the "re-staged" grid copies, 0.82 candidates/event against
+#   0.997 and chi2/ndof median 3.5e6 -- worthless, so the exclusion was
+#   necessary and not conservative; 1552-1555 exited rc=91 with no output.  All
+#   sixteen were re-produced from properly repacked inputs and validated at
+#   0.9967 candidates/event, 0.0073 % failures, chi2/ndof median 0.953 against
+#   0.954 for the control.
+JV2LIST=$FS/runs/jpsiv2_tasks_ok.txt
+JV2_BAD="1313"
 DYV2=$CEPH/dymc_8p5M_260906_v2
 GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt
 STAGES=${*:-pairs quad}
@@ -81,15 +86,15 @@ quad)
   python3 -u "$RES/globalfit/extract.py" --files "@$JV2LIST" --ntasks 0 \
       --parmtypes 14 15 --no-mass \
       --max-chi2-ndof 3 --max-hess 1e8 --max-grad 1e6 --max-dEref-p 0.01 \
-      -j 16 -o "$FS/runs/quad_jpsiv2_x16.npz" 2>&1 \
-      | tee "$FS/logs/quad_jpsiv2_x16.log"
+      -j 16 -o "$FS/runs/quad_jpsiv2_ok.npz" 2>&1 \
+      | tee "$FS/logs/quad_jpsiv2_ok.log"
   ;;
 card)
   THREADS=${THREADS:-32} "$FS/run_tf.sh" python3 -u "$FS/make_joint_card.py" \
       --jpsi-pairs "$FS/runs/jpairs_v2_n${NTASKS:-600}.npz" \
       --jpsi-maxn  "${JPSI_MAXN:-3000000}" \
       --z-pairs    "$FS/runs/zpairs_dyv2_jac_full.npz" \
-      --quad "$FS/runs/quad_jpsiv2_x16.npz" "$FS/runs/quad_dyv2.npz" \
+      --quad "$FS/runs/quad_jpsiv2_ok.npz" "$FS/runs/quad_dyv2.npz" \
       --groups "$GRP" --whiten --shape 5 \
       --fsr "$Z/data/kern_loose_band3.3e-4.npz" --acc "$Z/data/acc_loose_d8.json" \
       -o "$FS/cards/joint_v2.hdf5" 2>&1 | tee "$FS/logs/card_joint_v2.log"

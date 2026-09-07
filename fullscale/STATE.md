@@ -422,40 +422,38 @@ per-user GPU limit is one job per partition, so submitting to both
 | `shapeladder.sh` | `cards/z_full380_fl_s{6,7}.hdf5`, staged | the K(m) ladder at FULL statistics, which is the one loose end of phase 1 (`Gamma_Z` moved +42 MeV under 5 -> 7 at 300 k). The cards build on submit and the fits run from `engaging/shape_ladder.sbatch`. |
 | `joint100k.sh` | `cards/joint_v2_n100k.hdf5` -> `results/fit_joint_v2_n100k.json` | the CPU fallback for phase 2: 100 k + 100 k at `--chunk 8192`, 26 chunks. Reference point value+grad **15.9 s**, pfor Hessian **921 s**, peak **155 GB** -> 5-10 h. **pfor's peak is set by chunk x nparams, NOT by the candidate count**, which is why the smaller card was written at the smaller chunk. |
 
-### 16 J/psi v2 TASKS ARE EXCLUDED — keep them out until their yields are shown
+### J/psi v2 EXCLUSIONS — now ONE task (2026-09-07 11:15)
 
-**1219-1222, 1334-1337, 1409-1412** are the "re-staged" copies fetched from the
-grid on 9/6: they yield **0.82 candidates/event against 0.997** for a normal
-chunk, a 17 % fit-failure excess consistent with the un-repacked split-99
-originals having been fetched. **1552-1555** produced nothing (input exits
-rc=91 after 27 s). 16 of 1642, ~1 % of the statistics. The list is materialised
-as `runs/jpsiv2_tasks_x16.txt` (1626 tasks / 6504 files) and both `extract.py`
-and `cf_inmaker.py` take it as `--files @runs/jpsiv2_tasks_x16.txt`;
-`./run_phase2.sh xlist` regenerates it.
+**CURRENT: `task_1313` only.** It is silently EMPTY — four 15.5 kB streams WITH
+a `.complete` sentinel, because its input lacks a StreamerInfo — so
+`prodfiles`'s sentinel check does not catch it and it has to be named.
+`./run_phase2.sh xlist` writes `runs/jpsiv2_tasks_ok.txt`, **1641 tasks /
+6564 files**, and both `extract.py` and `cf_inmaker.py` take it as
+`--files @runs/jpsiv2_tasks_ok.txt`.
 
-| input | tasks used | content |
+**FORMER, repaired and back in**: 1219-1222, 1334-1337, 1409-1412 were the
+"re-staged" grid copies — 0.82 candidates/event against 0.997 and `chi2/ndof`
+median **3.5e6**, i.e. worthless, so excluding them was necessary and not
+conservative — and 1552-1555 exited rc=91 with no output. All sixteen were
+re-produced from properly repacked inputs on 9/7 and validated at 0.9967
+candidates/event, 0.0073 % failures, `chi2/ndof` median 0.953 against 0.954 for
+the control.
+
+**Which count every input used** — quote this with any number:
+
+| input | tasks | content |
 |---|---|---|
-| `runs/jpairs_v2_n600.npz` | **600 / 1642 by CHOICE**; tasks 0-599, so none of the 16 | 7 923 460 candidates, 12 GB, with the (n,92) mass Jacobian. Never needs rebuilding for this. |
-| `runs/quad_jpsiv2_x16.npz` | **1626**, the 16 excluded | 16 755 046 in the quadratic term, 4 666 769 cut. **THE ONE TO USE** |
-| ~~`runs/quad_jpsiv2.npz`~~ | 1629, INCLUDING 12 of the suspect ones | superseded; do not use |
-| `runs/quad_dyv2.npz` | 380 / 380 | 3 751 687 |
-| `runs/zpairs_dyv2_jac_full.npz` | 380 / 380 | 3 733 323, with the Jacobian |
-| `runs/gpairs_v2_n50.npz`, `runs/gzpairs_dyv2_n50.npz` | tasks 0-49 of each, so none of the 16 | the phase-3 per-group caches |
+| `runs/quad_jpsiv2_ok.npz` | **1641 / 1642** (only 1313 out) | THE ONE TO USE, being extracted |
+| ~~`runs/quad_jpsiv2_x16.npz`~~ | 1626 (the 16 out) | what `cards/joint_v2*.hdf5` and the running GPU fit use |
+| ~~`runs/quad_jpsiv2.npz`~~ | 1629, including 12 suspect | never use |
+| `runs/jpairs_v2_n600.npz` | 600 by CHOICE (tasks 0-599) | unaffected by any of this — no rebuild |
+| `runs/gpairs_v2_n50.npz` | 50 (tasks 0-49) | likewise |
+| `runs/quad_dyv2.npz`, `runs/zpairs_dyv2_jac_full.npz` | 380 / 380 | the DY production is complete and untouched |
 
-A separate agent is repairing the 16 (13 back by 10:16, 3 still running).
-**Keep them excluded until that agent reports their YIELDS** — the reason they
-are out is the yield, so a repaired chunk is usable only once its yield is
-measured to be normal, not once the file exists. When it is:
-
-```bash
-cd calibration_studies/fullscale
-# drop the healthy indices from JV2_BAD in run_phase2.sh first
-./run_phase2.sh xlist      # regenerates runs/jpsiv2_tasks_x16.txt
-./run_phase2.sh quad       # 868 s -> quad_jpsiv2_x16.npz
-./run_phase2.sh card       # ~10 min
-```
-The whole 16 are ~1 % of the quadratic term, so re-fitting for them is only
-worth it if a FINAL number is being quoted.
+`cards/joint_ok_{n500k,full}.hdf5` are the rebuilds against the 1641-task
+quadratic term. The 15 tasks are ~1 % of the quadratic term's statistics, so a
+result already taken on `x16` is not wrong, only slightly less complete — say
+which it used.
 
 ### PHASE 2 AT FULL SIZE DOES NOT FIT `trust-exact` — MEASURED
 
