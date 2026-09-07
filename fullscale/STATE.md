@@ -353,29 +353,23 @@ FINAL cards are `cards/z_full380_fl.hdf5` and `cards/z_n300k_fl.hdf5`.
 
 ## 2. WHAT IS RUNNING  (checkpoint 2026-09-07 07:00)
 
-### !! ENGAGING IS UNREACHABLE UNTIL A HUMAN RUNS `eng-master` !!
-The 8 h multiplexed master expired at ~06:45 and MIT wants a Kerberos password
-plus a Duo approval for a new session. **Run `!eng-master` in an interactive
-terminal**; everything below then works again. Until then no job can be
-submitted, and no result can be collected, from Engaging.
+### On Engaging (ORCD) — `eng 'timeout 30 squeue -u david_w'`
+The 8 h SSH master expires silently and then MIT wants a Kerberos password plus
+a Duo approval; when `eng` starts printing instructions instead of output, a
+human has to run **`!eng-master`** in an interactive terminal. It was down
+06:45-07:50 today.
 
-### On Engaging — running blind
-
-| job | what | state |
+| job | what | state at 07:55 |
 |---|---|---|
-| **22171547** | `zvarfl` on `z_full380_fl.hdf5` (mit_preemptable) | RUNNING. It was preempted once and restarted at 01:28; `base` finished at 06:32 (38 iterations, 16 940 s) and **is already collected** as `results/fit_f380fl_base.json` — that is the phase-1 headline. It then went on to `noares`, and has `nojensen`, `noboth`, `noshape` after it. **Collect with `rsync -a engaging:orcd/pool/zmass/fitresults/ results/` as soon as the master is back.** Its walltime is 5:45 from 01:28, so it is due to be cut off around 07:15 and will NOT finish the ladder — resubmit the remainder. |
-| **22167631** | the same on `mit_normal_gpu` | PENDING, `scontrol` estimated 2026-09-07 14:40. It runs the whole ladder from the start, so it supersedes whatever 22171547 did not reach. |
+| **22167631** | `zvarfl` on `z_full380_fl.hdf5`, `mit_normal_gpu` | PENDING since 21:00 yesterday, `scontrol` estimate 14:40. Runs the whole phase-1 ladder from the start. |
+| **22199038** | the same on `mit_preemptable` | PENDING (submitted 07:53). Whichever starts first wins; cancel the other. |
+| **22199037** | **`zjoint`** — `fit_joint.py` on the full `cards/joint_v2.hdf5`, `mit_preemptable`, `--hess-mode pfor` | PENDING (07:53). **This is phase 2 at full size.** |
+| ~~22171547~~ | the preemptable ladder | ran 01:28-07:1x, produced `base` (collected) and was cut off during `noares` |
 
-**To submit phase 2** once the master is back:
-```bash
-cd calibration_studies/fullscale
-./stage_eng.sh code && ./stage_eng.sh card cards/joint_v2.hdf5
-eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -G h200:1 \
-     -p mit_preemptable --export=ALL,CARD=$HOME/orcd/pool/zmass/cards/joint_v2.hdf5,TAG=joint_v2 \
-     joint_gpu.sbatch'
-```
-(also submit a `mit_normal_gpu` copy — the per-user GPU limit is one job per
-partition, so two partitions is how anything gets scheduled.)
+Notes: **H200**; **do not pass `--chunk`** on a card with a sparse `D`; the
+per-user GPU limit is one job per partition, so submitting to both
+`mit_normal_gpu` and `mit_preemptable` is how anything gets scheduled;
+`chunk 262144` OOMs.
 
 ### On submit82 — detached, `setsid`, logs in `fullscale/logs/`
 
