@@ -173,8 +173,15 @@ the shape to a deformed resolution model, not measuring a mass.
 |---|---:|---:|
 | **both corrections (the model)** | **-20.67 +- 8.09** | **+18.66 +- 14.72** |
 | `a_res` off (Jensen only) | -35.92 +- 8.08 | +17.14 +- 14.61 |
+| Jensen off (`a_res` only) | -13.56 +- 8.13 | +22.29 +- 14.77 |
 | neither | -28.66 +- 8.10 | +17.66 +- 14.67 |
 | K(m) FIXED, both | -27.44 +- 5.86 | +175.25 +- 11.99 |
+
+**The two corrections are ADDITIVE to 0.2 MeV**: `a_res` alone moves `m_Z` by
++15.10 MeV and the Jensen map alone by -7.26 MeV, against a measured
+`base - noboth` of +8.00 MeV (sum of the two: +7.84). That is the same
+additivity the spec measured on the J/psi (J1, 3e-7 there), and it is the check
+that the two are not fighting each other through the CF.
 
 Finite, clip-free, and every variant converges (10-25 iterations). The two
 corrections do what the census predicts: the Jensen part alone moves `m_Z` by
