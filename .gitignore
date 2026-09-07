@@ -72,3 +72,10 @@ production/.watch_dy_recover.counts
 fullscale/runs/
 fullscale/cards/
 fullscale/logs/
+
+# fullscale fit results: 0.8 MB of embedded provider config each, and every
+# number that matters is in fullscale/STATE.md and fullscale/PHASE1.md
+fullscale/results/*.json
+!fullscale/results/gate_*.json
+fullscale/results/*.hdf5
+fullscale/results/*.txt
