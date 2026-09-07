@@ -107,6 +107,23 @@ def parse_args(argv=None):
                         "alone. `corr_mass` carries the real per-candidate mass "
                         "so the two corrections stay evaluated where they "
                         "belong.")
+    p.add_argument("--floor-scale", type=float, default=0.0,
+                   help="softness of the positivity floor on L_i; 0 keeps "
+                        "MassCFTerm's own default (1e-9), which is a HARD clip "
+                        "in practice: a single candidate whose Fourier-"
+                        "reconstructed density undershoots to a small negative "
+                        "value underflows it to exactly 0 and takes the whole "
+                        "NLL to -inf. Against a peak density of ~0.4 a scale of "
+                        "1e-6 is a 3e-6 relative bias and keeps log finite. "
+                        "Matters where the model has no smooth physics kernel "
+                        "to fill the tail -- i.e. --residual-mode.")
+    p.add_argument("--max-resid", type=float, default=10.0,
+                   help="residual-mode only: keep |m_reco - m_gen| below this "
+                        "[GeV]. A delta kernel convolved with the resolution "
+                        "has no support many sigma out, so without a cut the "
+                        "far tail underflows the positivity floor and the NLL "
+                        "is -inf. The cut is applied AND normalised (the "
+                        "truncated likelihood), so it costs nothing.")
     p.add_argument("--eta-lead", type=float, nargs=2, default=None,
                    metavar=("LO", "HI"),
                    help="keep only candidates whose LEADING muon (higher pT) "
@@ -351,6 +368,16 @@ def build(args, log=print):
         # the observable is the RESIDUAL; `alpha` enters as m_ref * alpha, so it
         # keeps its units of 1e-3 of the Z mass
         mobs = (mreco - mgen)
+        keep_r = np.abs(mobs) < args.max_resid
+        log(f"  |m_reco - m_gen| < {args.max_resid:g} GeV keeps "
+            f"{int(keep_r.sum())} of {len(mobs)} "
+            f"({100.0*keep_r.mean():.3f} %)")
+        idx = idx[keep_r]
+        sigma, mreco, mgen, vgf = (a[keep_r] for a in
+                                   (sigma, mreco, mgen, vgf))
+        mobs = mobs[keep_r]
+        n = len(idx)
+        # `weights` is built from `idx` further down, so it needs no slicing
         log(f"  RESIDUAL MODE: modelling m_reco - m_gen. "
             f"median {1e3*np.median(mobs):+.2f} MeV, "
             f"RMS {1e3*np.std(mobs):.0f} MeV; the kernel is a delta and the "
@@ -463,6 +490,7 @@ def build(args, log=print):
         args.fsr = None
         args.acc = None
         args.with_alpha = True
+        lo, hi = args.mref - args.max_resid, args.mref + args.max_resid
     t0 = time.time()
     acc = None
     if args.acc:
@@ -559,6 +587,7 @@ def build(args, log=print):
         bkg_frac_param="f_bkg" if args.float_bkg else None,
         bkg_frac=args.fbkg,
         weights=weights,
+        **({"floor_scale": args.floor_scale} if args.floor_scale else {}),
         norm_window=None if args.no_window_norm else (lo, hi),
         norm_tpoints=args.norm_tpoints, norm=norm,
         upsample=args.fit_upsample,
