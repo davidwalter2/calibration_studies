@@ -96,6 +96,17 @@ def parse_args(argv=None):
     p.add_argument("--max-chi2-ndof", type=float, default=3.0)
     p.add_argument("--max-sigma-rel", type=float, default=0.10,
                    help="drop candidates with sigma_m/m above this")
+    p.add_argument("--residual-mode", action="store_true",
+                   help="THE PURE DETECTOR TEST. Model `m_reco - m_gen` "
+                        "directly against the per-candidate resolution CF: the "
+                        "observable becomes the residual (offset by --mref so "
+                        "`alpha` still has units), the physics kernel becomes a "
+                        "DELTA, and the FSR fold, the acceptance and K(m) are "
+                        "all dropped. Nothing of the mass model survives, so a "
+                        "width or shift measured here is the DETECTOR half "
+                        "alone. `corr_mass` carries the real per-candidate mass "
+                        "so the two corrections stay evaluated where they "
+                        "belong.")
     p.add_argument("--eta-lead", type=float, nargs=2, default=None,
                    metavar=("LO", "HI"),
                    help="keep only candidates whose LEADING muon (higher pT) "
@@ -336,7 +347,16 @@ def build(args, log=print):
     mreco = m_all[idx]
     mgen = d["eta"].astype(np.float64)[idx]
     vgf = d["vgf"].astype(np.float64)[idx]
-    mobs = mreco - args.mref
+    if args.residual_mode:
+        # the observable is the RESIDUAL; `alpha` enters as m_ref * alpha, so it
+        # keeps its units of 1e-3 of the Z mass
+        mobs = (mreco - mgen)
+        log(f"  RESIDUAL MODE: modelling m_reco - m_gen. "
+            f"median {1e3*np.median(mobs):+.2f} MeV, "
+            f"RMS {1e3*np.std(mobs):.0f} MeV; the kernel is a delta and the "
+            f"FSR fold, the acceptance and K(m) are all OFF")
+    else:
+        mobs = mreco - args.mref
     lo, hi = args.window
 
     weights, winfo = build_weights(w_all, idx, args, log)
@@ -381,6 +401,9 @@ def build(args, log=print):
 
     families = [{"name": "hit", "param": "k_hit", "kind": "gauss"}]
     datasets = {"sigma": sigma, "mobs": mobs, "vgf": vgf, "tgrid": tgrid}
+    if args.residual_mode:
+        # the corrections must still see the candidate's PHYSICAL mass
+        datasets["corr_mass"] = mreco
     if weights is not None:
         datasets["weights"] = weights
     if a_res is not None:
@@ -435,6 +458,11 @@ def build(args, log=print):
         log("  NO window normalisation (biased likelihood; diagnostic only)")
 
     # ---- provider --------------------------------------------------------
+    if args.residual_mode:
+        args.shape = 0
+        args.fsr = None
+        args.acc = None
+        args.with_alpha = True
     t0 = time.time()
     acc = None
     if args.acc:
@@ -523,8 +551,10 @@ def build(args, log=print):
         args.name, sigma=sigma, mobs=mobs, tgrid=tgrid,
         families=[dict(f, **arrays.get(f["name"], {})) for f in families],
         vgf=vgf, phik=None,
-        kernel=unbinned.TabulatedLineshapeKernel(provider=provider),
+        kernel=(unbinned.DeltaKernel() if args.residual_mode
+                else unbinned.TabulatedLineshapeKernel(provider=provider)),
         background=background, m_ref=args.mref,
+        corr_mass=(mreco if args.residual_mode else None),
         scale_param="alpha" if args.with_alpha else None,
         bkg_frac_param="f_bkg" if args.float_bkg else None,
         bkg_frac=args.fbkg,
@@ -534,11 +564,15 @@ def build(args, log=print):
         upsample=args.fit_upsample,
         chunk=args.chunk, channel=args.channel, **kw2)
 
-    pdkw = {"mz_prior": args.mz_prior or None,
-            "gz_prior": args.gz_prior or None}
-    if "shape_prior" in inspect.signature(provider.param_declarations).parameters:
-        pdkw["shape_prior"] = args.shape_prior or None
-    decl = dict(provider.param_declarations(**pdkw))
+    if args.residual_mode:
+        decl = {}
+    else:
+        pdkw = {"mz_prior": args.mz_prior or None,
+                "gz_prior": args.gz_prior or None}
+        if "shape_prior" in inspect.signature(
+                provider.param_declarations).parameters:
+            pdkw["shape_prior"] = args.shape_prior or None
+        decl = dict(provider.param_declarations(**pdkw))
     for f in families:
         decl[f["param"]] = (1.0, args.k_prior or np.nan, 1.0, 0)
     if args.with_alpha:
