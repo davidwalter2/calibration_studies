@@ -235,6 +235,18 @@ class JointObjective:
             H = H + self.ext.Hfree
         return H
 
+    def hessp(self, xf, p):
+        """``H @ p`` without ever forming ``H`` -- what `trust-krylov` asks for.
+
+        The external term is a quadratic form, so its contribution is exactly
+        ``Hfree @ p``; the unbinned part is `ChunkedObjective.hessp`, one
+        forward-over-reverse product per chunk.
+        """
+        out = self.inner.hessp(xf, p)
+        if self.ext is not None:
+            out = out + self.ext.Hfree @ np.asarray(p, np.float64)
+        return out
+
     def sandwich(self, xf, check=True, jsand=None):
         J = self.inner.sandwich(xf, check=check)
         if jsand is not None:
