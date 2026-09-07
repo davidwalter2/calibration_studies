@@ -463,90 +463,29 @@ FINAL cards are `cards/z_full380_fl.hdf5` and `cards/z_n300k_fl.hdf5`.
 
 ---
 
-## 2. WHAT IS RUNNING  (checkpoint 2026-09-07 07:00)
+## 2. WHAT IS RUNNING  (checkpoint 2026-09-07 15:15)
 
-### On Engaging (ORCD) — `eng 'timeout 30 squeue -u david_w'`
-The 8 h SSH master expires silently and then MIT wants a Kerberos password plus
-a Duo approval; when `eng` starts printing instructions instead of output, a
-human has to run **`!eng-master`** in an interactive terminal. It was down
-06:45-07:50 today.
+### On Engaging — `eng 'timeout 30 squeue -u david_w'`
+The 8 h SSH master expires silently; when `eng` prints instructions instead of
+output a human must run **`!eng-master`**. **Preemptable jobs get preempted** —
+`22171547` and `22199336` both restarted from scratch once — so a 4.7 h
+full-scale fit on `mit_preemptable` is a coin flip.
 
-| job | what | state at 07:55 |
+| job | what | state |
 |---|---|---|
-| **22167631** | `zvarfl` on `z_full380_fl.hdf5`, `mit_normal_gpu` | PENDING since 21:00 yesterday, `scontrol` estimate 14:40. Runs the whole phase-1 ladder from the start. |
-| **22199038** | the same on `mit_preemptable` | PENDING (submitted 07:53). Whichever starts first wins; cancel the other. |
-| ~~22199037~~ | `zjoint` on the full `cards/joint_v2.hdf5`, `--hess-mode pfor` | **OOMed on the H200 at 07:58** (`ResourceExhaustedError`). See "phase 2 does not fit trust-exact" below. |
-| **22199336** | `zshape` — the K(m) ladder at full statistics (`z_full380_fl_s6/s7`) | submitted 07:59; the loose end of phase 1 |
-| ~~22171547~~ | the preemptable ladder | ran 01:28-07:1x, produced `base` (collected) and was cut off during `noares` |
-
-Notes: **H200**; **do not pass `--chunk`** on a card with a sparse `D`; the
-per-user GPU limit is one job per partition, so submitting to both
-`mit_normal_gpu` and `mit_preemptable` is how anything gets scheduled;
-`chunk 262144` OOMs.
+| **22199336** | `zshape` — the K(m) ladder at full statistics (`s6`, then `s7`) | RUNNING since 10:42 (restarted after a preemption). **The loose end of phase 1**: at 300 k, 5 -> 7 terms moves `Gamma_Z` by +42 MeV. |
+| **22210973** | `zjoint` — `fit_joint.py --method trust-krylov` on `cards/joint_ok_n500k.hdf5` (500 k + 500 k, the 1641-task quadratic term) | PENDING. **Phase 2 at 5x the statistics of the one that landed.** |
+| ~~22199038~~ | the phase-1 variant ladder | ran `base` again (38 iterations, 16 764 s — reproducing 06:32 exactly) and was cut off during `noares`. **The full-scale variant ladder has now failed to get past `base` twice**; the 300 k ladder in sec. 0b answers those questions and the full-scale version is not worth a third GPU-day. |
+| ~~22204679~~ | `zjoint`, first Krylov attempt | died on `JointObjective` having no `hessp` — fixed (`17721a0`), and its reference Hessian had SUCCEEDED (456 s, 43.4 GB at chunk 8192 on an H200) |
+| ~~22199037~~ | `zjoint`, `trust-exact` at chunk 32768 | OOMed the H200 |
 
 ### On submit82 — detached, `setsid`, logs in `fullscale/logs/`
 
-| what | output | note |
-|---|---|---|
-| `fit_f380fl_noboth` | `results/fit_f380fl_noboth.json` | the full-scale "neither correction" row, on CPU with 64 threads, started 22:22. The CPU `base` twin was killed once the GPU produced it. |
-| ~~`joint300k.sh`~~ | `cards/joint_v2_n300k.hdf5` (kept) | **KILLED** once the full-size fit started on a GPU. Its reference point is the useful measurement: 300 k + 300 k, 99 free parameters, 38 chunks of 16384 -> value+grad **29.5 s**, pfor Hessian **1841.9 s**, peak RSS **270 GB**. `trust-exact` needs one Hessian per ITERATION, so 10-19 h on CPU; the card is still there if it is ever wanted. |
-| `fit_n300kfl_free_{krad,kioni,kms}` | `results/fit_n300kfl_free_*.json` | **float ONE resolution knob at a time** at 300 k. The post-fit residual is data/model **+5-10 % on the LOW side (60-66 GeV)** — the model UNDER-predicts the low-mass tail, which is what a too-small RADIATIVE tail looks like. Bremsstrahlung is negligible for the ~5 GeV muons the J/psi gun gate was measured on and significant for the ~45 GeV muons here, so `k_rad` is the knob the J/psi could never have tested. If floating it closes `m_Z` and flattens the residual, that is the answer. |
-| `srelsplit.sh` | `cards/z_srel_{lo,mid,hi}.hdf5` -> `results/fit_srel_*.json` | **the differential test**: `sigma_m/m` tertiles (`< 0.0110`, `0.0110-0.0140`, `> 0.0140`), 400 k each, sequential. Both corrections and any error in the per-candidate CF scale as `sigma_rel^2`, so a bias that IS the resolution model must GROW across the slices and one that is the lineshape must not. The Z analogue of MASSCFTERM_SPEC's gate J4. |
-| `shapeladder.sh` | `cards/z_full380_fl_s{6,7}.hdf5`, staged | the K(m) ladder at FULL statistics, which is the one loose end of phase 1 (`Gamma_Z` moved +42 MeV under 5 -> 7 at 300 k). The cards build on submit and the fits run from `engaging/shape_ladder.sbatch`. |
-| `joint100k.sh` | `cards/joint_v2_n100k.hdf5` -> `results/fit_joint_v2_n100k.json` | the CPU fallback for phase 2: 100 k + 100 k at `--chunk 8192`, 26 chunks. Reference point value+grad **15.9 s**, pfor Hessian **921 s**, peak **155 GB** -> 5-10 h. **pfor's peak is set by chunk x nparams, NOT by the candidate count**, which is why the smaller card was written at the smaller chunk. |
-
-## 0c. PHASE 2 — THE FIRST JOINT NUMBER (2026-09-07)
-
-`cards/joint_v2_n100k.hdf5`: a J/psi `MassCFTerm` (100 000 candidates, delta
-kernel at the PDG mass, **`scale_param=None`** — the scale transfers through the
-field modes, not through a free alpha), a Z `MassCFTerm` (100 000), and the
-`hitchi2` external quadratic on the 92 calibration parameters from **20.5 M**
-candidates, over ONE parameter vector; 99 free, resolution fixed at the MC
-truth, K(m) floated. 38 iterations, 22 397 s on CPU.
-
-| | fitted - generator | stat | pull |
-|---|---:|---:|---:|
-| **`m_Z`** | **+28.51 MeV** | **+- 14.15** | +2.0 |
-| **`Gamma_Z`** | **-2.49 MeV** | +- 25.28 | -0.1 |
-
-**The scale transfer costs essentially nothing.** The Z-alone fit at 300 k gives
-`sigma(m_Z) = 8.09 MeV`, i.e. 14.0 MeV scaled to 100 k; the JOINT fit at 100 k
-gives **14.15 MeV**. Adding 92 free calibration parameters and taking the
-momentum scale from the J/psi instead of absorbing it inflates `sigma(m_Z)` by
-**~1 %**. That is the phase-2 statistical answer.
-
-| correlation | max \|rho\| | RMS |
-|---|---:|---:|
-| `rho(m_Z, field)` | **0.213** (`bfield_mode0`) | 0.030 |
-| `rho(m_Z, material)` | 0.006 | 0.001 |
-| `rho(Gamma_Z, field)` | 0.004 | 0.0005 |
-| `rho(Gamma_Z, material)` | 0.0002 | 0.00002 |
-
-`bfield_mode0` — the overall field scale — is the transfer channel and shows it,
-at 0.21; nothing else reaches 0.05. **The material amounts do not limit `m_Z`
-at this level** (0.006), which is worth knowing before phase 3.
-
-**On the 92 "pulls" (mean +7.1, RMS 26.8, max 176, 53 of 92 above 3): they are
-NOT a closure test.** The MC was produced with `useDefaultField=True` and no
-global corrections applied, so `theta = 0` is not the minimum of the hit-chi2
-term — its `G` is non-zero there by construction. The fit is measuring the
-corrections the reconstruction WOULD need, not recovering a known injection.
-The closure test for this machinery is `--inject`, and it reads **0.0023 %** on
-`bfield_mode0`.
-
-**And the honest caveat**, which `fit_joint.py` prints itself: the mass-term and
-hit-chi2 scores of the SAME candidate are correlated and no extraction stored
-that cross block, so the two sandwich meats are added as if independent. The
-error ratio is 1.029 median, so it is not a large effect here, but it is an
-assumption and not a measurement.
-
-**`m_Z` moves by about +49 MeV against the Z-alone fit at comparable
-statistics** (-20.7 +- 8.1 at 300 k -> +28.5 +- 14.2 joint). That is the
-momentum scale being SET by the J/psi rather than absorbed by `m_Z`, and it is
-the single most important thing to check when the full-size joint fit lands: it
-is a 2 sigma closure, in the opposite direction to the Z-alone bias.
-
----
+| what | state |
+|---|---|
+| `fit_f380fl_noboth` | the full-scale "neither correction" row, 16 h in on CPU. Low value now — the 300 k ladder has the answer — but it costs nothing to let it finish. |
+| `fit_locK_{etaB,etaT,etaE,srlo,srmid}` | **the splits with K(m) FIXED**, so they share one shape model and become comparable. This is the measurement that decides whether the barrel/`sigma_rel` contradiction in sec. 0b is real or is the shape absorbing differently in each subsample. |
+| `fit_loc_{chgP,chgM,vgfH}`, `fit_srel_hi` | the rest of the K(m)-floated splits |
 
 ### J/psi v2 EXCLUSIONS — now ONE task (2026-09-07 11:15)
 
