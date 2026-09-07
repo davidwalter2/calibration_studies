@@ -466,11 +466,38 @@ J/psi `MassCFTerm` with a **delta kernel at the PDG mass and
 alpha), and the Z term. Report `m_Z`/`Gamma_Z` closure, the pulls of the 92
 globals, `rho(m_Z, field/material)`.
 
-### Phase 3 (full design)
-Per-group exponents on both legs -> `MaterialCFTerm` with the parmtype-15
-parameters shared between the hit-chi2 term and both mass terms; hit-class
-parameters from the mass terms; corrections truth-free from `Jpsi_covrefmom`;
-Asimov/toy pulls; the group-leader table.
+### Phase 3 (full design) — and the ONE reader that blocks it
+
+**`matres/extract_groups.py` CANNOT be used on these productions.** It rebuilds
+the per-group CF offline from Geant4 step records and dies with
+`KeyInFileError: not found: 'ioniurbanidx'` — both `jpsimc_20M_260906_v2` and
+`dymc_8p5M_260906_v2` ran `exportStepRecords=False` (the same flag that blocks
+`globalfit/extract.py`'s mass path, pitfall 1).
+
+**But the per-group CF is there anyway**, written by the maker itself because
+those productions ran `exportCfGroupExponents=True`. The tree carries
+
+    cfmass_grp                    the material-group index axis
+    cfmass_grp_ms
+    cfmass_grp_ioni_re / _im
+    cfmass_grp_rad_re  / _im
+    cfmass_grp_closure            the maker's own closure check
+    cfmass_hitcls, cfmass_hitv    the hit-class axis and its variance shares
+    resinfcovgrp
+
+next to the flat `cfmass_*` that `cf_inmaker.py pairs` already reads. **What is
+missing is a reader**: `cf_inmaker.py` has no per-group mode (`grp` appears
+nowhere in its pairs path), so nothing produces the CSR layout
+(`grp_ptr`/`grp_id`/`Sg_*`, `hit_ptr`/`hit_cls`/`hit_v`/`vg_other`) that
+`rabbit.unbinned.MaterialCFTerm` and `matres/make_material_card.py` consume.
+
+That reader, its closure validation (per-group sum == the flat exponent;
+`vg_other + sum_c hit_v == vgf`), and the two per-group caches are what phase 3
+starts from. After them: a `--material` mode in `make_joint_card.py` that makes
+BOTH mass terms `MaterialCFTerm`s sharing the parmtype-15 parameters with the
+hit-chi2 term, hit-class parameters from the mass terms, corrections truth-free
+from `Jpsi_covrefmom` (already the case on the J/psi leg: per-candidate `f_ang`,
+median 6.2e-2), Asimov/toy pulls, and the group-leader table.
 
 ---
 
