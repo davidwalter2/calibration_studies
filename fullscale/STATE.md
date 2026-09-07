@@ -271,6 +271,36 @@ must be: both are location effects.
   rather than exculpatory.
 * **Not the coefficient bound.** 0.049 MeV, measured.
 
+### The Z ALONE CANNOT SEPARATE THE RESOLUTION MODEL FROM `m_Z` — measured
+
+Float ONE resolution knob at a time on the 300 k card, everything else as the
+base fit (the knobs' MC truth is 1.0):
+
+| floated | fitted knob | `m_Z` [MeV] | `Gamma_Z` [MeV] |
+|---|---:|---:|---:|
+| none (base) | — | -20.67 +- 8.09 | +18.66 +- 14.72 |
+| `k_ms` | **+1.001 +- 0.034** | -20.62 +- 8.10 | +17.88 +- 26.55 |
+| `k_ioni` | +7.32 +- 4.10 | **-38.89 +- 14.26** | -9.57 +- 23.33 |
+| `k_rad` | -0.76 +- 9.61 | -18.25 +- 15.19 | +20.78 +- 18.82 |
+
+Read off three things.
+
+1. **`k_ms` IS measurable from the Z mass spectrum and comes out at the MC
+   truth**: 1.001 +- 0.034, a 3.4 % measurement of the multiple-scattering CF
+   that costs nothing on `m_Z` (-20.62 against -20.67) and doubles the error on
+   `Gamma_Z` (both are widths).
+2. **`k_rad` is not measurable at all** — 9.6 on a parameter whose truth is 1.
+   The radiative tail cannot be tested, or blamed, from the Z spectrum alone,
+   which kills the tidy "the low-side residual is a too-small brems tail"
+   hypothesis as something this fit could settle.
+3. **`k_ioni` is degenerate with `m_Z`**: floating it moves `m_Z` by -18 MeV and
+   inflates its error from 8.1 to 14.3.
+
+**None of the three closes `m_Z`.** Freeing a resolution knob does not remove
+the -11 MeV, it inflates the error — which is the physics case for phases 2 and
+3 in one table: the J/psi and the hit-chi2 term are what constrain the
+resolution model INDEPENDENTLY of `m_Z`, and the Z alone never can.
+
 ### What it might be
 
 The post-fit spectrum has **real structure, and it is not a plotting
