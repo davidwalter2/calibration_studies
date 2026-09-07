@@ -13,6 +13,38 @@ Figures: `~/public_html/cvh/260906_fullscale/` (already has `index.php`).
 
 ---
 
+## THE TABLE  (what to take to the group leader)
+
+Z -> mumu MC, 3 682 662 CVH-refit candidates (all 380 tasks of
+`dymc_8p5M_260906_v2`), unbinned per-candidate mass likelihood, resolution and
+alignment FIXED at the MC truth, K(m) floated, both MASSCFTERM_SPEC corrections
+in the fluctuation form. Errors are the x1.109 sandwich.
+
+| | value | limited by |
+|---|---:|---|
+| **`sigma(m_Z)`** | **2.27 MeV** | statistics + the floated K(m) (x1.5 over K(m) fixed) |
+| **`sigma(Gamma_Z)`** | **4.16 MeV** | statistics + the floated K(m) (x1.4) |
+| **`m_Z` closure** | **-11.06 +- 2.27 MeV** | **the detector-level resolution model** (sec. 0b) |
+| **`Gamma_Z` closure** | **-5.26 +- 4.16 MeV** | closes at 1.3 sigma |
+| the two resolution corrections | +8.00 MeV on `m_Z`, additive to 0.2 MeV | done; inside the spec's own -5...-14 MeV prediction |
+| the momentum scale | phase 2 (running) | the J/psi transfers it through the field modes, not a free alpha |
+| the material amounts | phase 3 (blocked on one reader) | they are what would float the resolution model |
+
+**What limits it, in order.** (1) The `m_Z` closure: -11 MeV at 4.9 sigma, and
+it is NOT the corrections, NOT the Born lineshape, NOT K(m) and NOT the
+coefficient bound — all measured in sec. 0b. What is left is the per-candidate
+resolution CF, whose four scale knobs are held at the MC truth in phases 1-2 and
+which phase 3 replaces with the parmtype-15 material amounts.
+(2) The K(m) shape costs a factor 1.5 on `sigma(m_Z)`; it cannot be dropped
+(without it `Gamma_Z` carries +175 MeV of LO->MiNNLO K-factor) and 5 terms are
+already saturated.
+(3) The MiNNLO weights cost a flat x1.109 (`N_eff/N = 0.8130`).
+(4) Not limiting, but recorded: the `_norm_z` class-sigma approximation
+(0.016 MeV), the coefficient bound (0.049 MeV), and the 0.19 % one-sided
+selection-variable mismatch.
+
+---
+
 ## 0. THE STATISTICAL NUMBER, AND THE PHYSICS PROBLEM — NOW SOLVED
 
 **Statistical precision, MEASURED at the fitted minimum** on all 3 682 662
