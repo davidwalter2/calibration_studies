@@ -382,7 +382,8 @@ partition, so two partitions is how anything gets scheduled.)
 | what | output | note |
 |---|---|---|
 | `fit_f380fl_noboth` | `results/fit_f380fl_noboth.json` | the full-scale "neither correction" row, on CPU with 64 threads, started 22:22. The CPU `base` twin was killed once the GPU produced it. |
-| `joint300k.sh` | `cards/joint_v2_n300k.hdf5` then `results/fit_joint_v2_n300k.json` | **PHASE 2 on CPU**: a 300 k + 300 k joint card (the full one is a GPU job, see below) with the same 92 calibration parameters and the same 20.5 M-candidate quadratic term. `--hess-mode pfor`; expect 6-9 h on this (fully loaded, load avg 780/768) node. |
+| `joint300k.sh` | `cards/joint_v2_n300k.hdf5` -> `results/fit_joint_v2_n300k.json` | **PHASE 2 on CPU**, 300 k + 300 k, 99 free parameters, 38 chunks of 16384. Measured at the reference point: value+grad **29.5 s**, pfor Hessian **1841.9 s**, peak RSS **270 GB**. `trust-exact` needs one Hessian per iteration, so at the ~38 iterations the Z-alone fit took this is 10-19 h. |
+| `joint100k.sh` | `cards/joint_v2_n100k.hdf5` -> `results/fit_joint_v2_n100k.json` | the same at 100 k + 100 k and `--chunk 8192`, i.e. 13 chunks and half the pfor tape. ~3-4 h, so it is the one that gives a phase-2 NUMBER today; the 300 k twin is the better one if it finishes. **pfor's peak is set by chunk x nparams, NOT by the number of candidates**, which is why the smaller card was written at a smaller chunk. |
 
 ### PHASE 2 — what exists
 
