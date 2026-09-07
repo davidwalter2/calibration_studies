@@ -275,24 +275,46 @@ must be: both are location effects.
 
 `sigma_m/m` tertiles, 400 000 candidates each, same model, K(m) floated:
 
-| tertile | `m_Z` [MeV] | `Gamma_Z` [MeV] |
+All rows K(m) FLOATED, which is the caveat that comes first:
+
+| split (300-400 k each) | `m_Z` [MeV] | `Gamma_Z` [MeV] |
 |---|---:|---:|
-| **`sigma_m/m < 0.0110`** (32.4 % of the sample) | **-1.61 +- 5.90** | +8.73 +- 10.83 |
-| `0.0110 - 0.0140` | running | |
-| `> 0.0140` | running | |
 | inclusive, 300 k | -20.67 +- 8.09 | +18.66 +- 14.72 |
 | inclusive, 3.68 M | -11.06 +- 2.27 | -5.26 +- 4.16 |
+| **`sigma_m/m < 0.0110`** (32.4 %) | **-1.61 +- 5.90** | +8.73 +- 10.83 |
+| **`sigma_m/m` 0.0110-0.0140** | **-0.57 +- 6.72** | -25.53 +- 12.39 |
+| `sigma_m/m > 0.0140` | running | |
+| **leading-mu `\|eta\|` < 0.9** (42.7 %) | **-35.79 +- 7.13** | -16.14 +- 13.14 |
+| **leading-mu `\|eta\|` 0.9-1.6** (29.5 %) | **+0.08 +- 7.89** | -6.94 +- 14.74 |
+| **leading-mu `\|eta\|` > 1.6** (27.8 %) | **+4.07 +- 9.64** | -27.46 +- 17.40 |
+| `vgf < 0.19` (hit-poor) | -32.00 +- 7.60 | +40.51 +- 13.89 |
+| `k_hit` FLOATED (inclusive) | -21.21 +- 8.06 | -11.96 +- 17.08 |
+| `Gamma_Z` FIXED at truth (inclusive) | -20.83 +- 8.08 | — |
 
-**In the best-resolved third of the sample the closure is consistent with zero**
-(-1.6 +- 5.9 MeV) while inclusively it is -11 MeV at 4.9 sigma. Both the
-corrections and any error in the per-candidate CF scale as `sigma_rel^2`, and
-the Born lineshape / FSR / acceptance do not, so this is the discriminator: it
-says the residual is in the RESOLUTION MODEL, not in the mass model. The mid and
-high tertiles measure the exponent.
+**READ THE CAVEAT BEFORE THE TABLE.** Every row refits its OWN 5-term K(m), and
+`rho(m_Z, shape3) = +0.5`, so each subsample re-absorbs a different part of the
+mismodelling into its shape and the `m_Z` values are **not directly
+comparable**. The two marginal splits already contradict each other at face
+value — the barrel is the BEST-resolved region (`sigma_m/m` median 0.0103) and
+shows the LARGEST bias (-35.8), while the best-resolved `sigma_m/m` tertile
+shows none (-1.6). That cannot both be a property of the data. The comparable
+version, every split refitted with **K(m) FIXED** so they share one shape model,
+is running (`results/fit_locK_*.json`) and is what these rows have to be
+replaced by.
 
-(Note also that the low tertile is the more precise sample despite the same
-statistics — 5.90 against 8.09 MeV — because a better-resolved candidate carries
-more mass information.)
+What IS safe to read off already:
+
+* **`k_hit` = 1.133 +- 0.039** when floated inclusively — a **3.4 sigma** excess
+  over the MC truth of 1.0. With `vgf` median 0.217 that is a
+  `0.133 x 0.217 / 2 = 1.4 %` increase in `sigma`, i.e. **about half the
+  2.8 +- 0.2 % width deficit the residual decomposition measures**. The two
+  independent methods agree on the sign and the order.
+* **`m_Z` barely moves when `k_hit` floats** (-21.21 against -20.67), so the
+  width deficit is real but is NOT what drives the `m_Z` bias.
+* **`m_Z` is insensitive to `Gamma_Z`** (-20.83 fixed at truth against -20.67
+  floated; `rho = 0.03`), so the S-shape is not a `Gamma_Z` artefact.
+* The low tertile is the more PRECISE sample at equal statistics (5.90 against
+  8.09 MeV) because a better-resolved candidate carries more mass information.
 
 ### THE POST-FIT RESIDUAL IS A 2.8 % WIDTH DEFICIT PLUS A SHIFT — decomposed
 
