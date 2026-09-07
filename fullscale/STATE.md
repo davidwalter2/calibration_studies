@@ -271,50 +271,52 @@ must be: both are location effects.
   rather than exculpatory.
 * **Not the coefficient bound.** 0.049 MeV, measured.
 
-### THE BIAS SCALES WITH `sigma_m/m` — the first localisation result
+### LOCALISATION: the bias is ETA-DEPENDENT and that is the stable statement
 
-`sigma_m/m` tertiles, 400 000 candidates each, same model, K(m) floated:
+Each split was fitted twice — once with its OWN 5-term K(m) floated, once with
+K(m) FIXED at zero so every split shares one shape model. **Neither alone is
+clean**: floated, each subsample absorbs a different part of the mismodelling
+into its shape; fixed, each carries a different amount of the LO->MiNNLO shape
+error (`Gamma_Z` runs from +113 to +208 MeV across the splits, so it is
+demonstrably not common). What is trustworthy is what does NOT move between the
+two treatments.
 
-All rows K(m) FLOATED, which is the caveat that comes first:
+| split (300-400 k each) | `m_Z`, K(m) FLOATED | `m_Z`, K(m) FIXED | moves by |
+|---|---:|---:|---:|
+| **leading-mu `\|eta\|` < 0.9** (42.7 %) | **-35.79 +- 7.13** | **-41.07 +- 5.34** | -5 |
+| **leading-mu `\|eta\|` 0.9-1.6** (29.5 %) | **+0.08 +- 7.89** | **-10.30 +- 5.93** | -10 |
+| **leading-mu `\|eta\|` > 1.6** (27.8 %) | **+4.07 +- 9.64** | **+16.31 +- 6.82** | +12 |
+| `sigma_m/m < 0.0110` (32.4 %) | -1.61 +- 5.90 | **-73.99 +- 4.48** | **-72** |
+| `sigma_m/m` 0.0110-0.0140 | -0.57 +- 6.72 | +8.18 +- 4.91 | +9 |
+| `sigma_m/m > 0.0140` | running | running | |
+| inclusive, 300 k | -20.67 +- 8.09 | -27.44 +- 5.86 | -7 |
 
-| split (300-400 k each) | `m_Z` [MeV] | `Gamma_Z` [MeV] |
-|---|---:|---:|
-| inclusive, 300 k | -20.67 +- 8.09 | +18.66 +- 14.72 |
-| inclusive, 3.68 M | -11.06 +- 2.27 | -5.26 +- 4.16 |
-| **`sigma_m/m < 0.0110`** (32.4 %) | **-1.61 +- 5.90** | +8.73 +- 10.83 |
-| **`sigma_m/m` 0.0110-0.0140** | **-0.57 +- 6.72** | -25.53 +- 12.39 |
-| `sigma_m/m > 0.0140` | running | |
-| **leading-mu `\|eta\|` < 0.9** (42.7 %) | **-35.79 +- 7.13** | -16.14 +- 13.14 |
-| **leading-mu `\|eta\|` 0.9-1.6** (29.5 %) | **+0.08 +- 7.89** | -6.94 +- 14.74 |
-| **leading-mu `\|eta\|` > 1.6** (27.8 %) | **+4.07 +- 9.64** | -27.46 +- 17.40 |
-| `vgf < 0.19` (hit-poor) | -32.00 +- 7.60 | +40.51 +- 13.89 |
-| `k_hit` FLOATED (inclusive) | -21.21 +- 8.06 | -11.96 +- 17.08 |
-| `Gamma_Z` FIXED at truth (inclusive) | -20.83 +- 8.08 | — |
+**THE `eta` SPLIT IS STABLE AND MONOTONE.** Barrel -> transition -> endcap gives
+-36 / 0 / +4 with K(m) floated and -41 / -10 / +16 with it fixed: the same
+ordering, a span of **40-57 MeV**, and each band moves by only 5-12 MeV between
+the two treatments — an order less than the span. That is a real, ~7 sigma,
+monotone `eta` dependence of the fitted `m_Z`.
 
-**READ THE CAVEAT BEFORE THE TABLE.** Every row refits its OWN 5-term K(m), and
-`rho(m_Z, shape3) = +0.5`, so each subsample re-absorbs a different part of the
-mismodelling into its shape and the `m_Z` values are **not directly
-comparable**. The two marginal splits already contradict each other at face
-value — the barrel is the BEST-resolved region (`sigma_m/m` median 0.0103) and
-shows the LARGEST bias (-35.8), while the best-resolved `sigma_m/m` tertile
-shows none (-1.6). That cannot both be a property of the data. The comparable
-version, every split refitted with **K(m) FIXED** so they share one shape model,
-is running (`results/fit_locK_*.json`) and is what these rows have to be
-replaced by.
+**THE `sigma_m/m` SPLIT IS NOT STABLE and must not be read.** Its low tertile
+moves by **-72 MeV** between the two K(m) treatments — larger than any trend it
+could show — because that is the sharpest-peaked subsample, where `K(m)` and
+`m_Z` are most entangled. The earlier reading ("the bias scales with
+`sigma_m/m`, therefore it is the resolution model") came from the floated
+version alone and **does not survive the control**. Retracted.
 
-What IS safe to read off already:
+**What an `eta`-dependent momentum bias is.** It is the signature of the
+magnetic field and of alignment — not of the resolution model, which would have
+to show up as a `sigma_rel` trend that survives the control and does not. It is
+exactly what the joint fit's 50 field modes exist to absorb, and phase 2 shows
+them doing it: the joint fit moves `m_Z` by **+49 MeV** relative to the Z alone,
+`rho(m_Z, bfield_mode0) = 0.213` is the only correlation above 0.05, and
+`rho(m_Z, material) = 0.006`.
 
-* **`k_hit` = 1.133 +- 0.039** when floated inclusively — a **3.4 sigma** excess
-  over the MC truth of 1.0. With `vgf` median 0.217 that is a
-  `0.133 x 0.217 / 2 = 1.4 %` increase in `sigma`, i.e. **about half the
-  2.8 +- 0.2 % width deficit the residual decomposition measures**. The two
-  independent methods agree on the sign and the order.
-* **`m_Z` barely moves when `k_hit` floats** (-21.21 against -20.67), so the
-  width deficit is real but is NOT what drives the `m_Z` bias.
-* **`m_Z` is insensitive to `Gamma_Z`** (-20.83 fixed at truth against -20.67
-  floated; `rho = 0.03`), so the S-shape is not a `Gamma_Z` artefact.
-* The low tertile is the more PRECISE sample at equal statistics (5.90 against
-  8.09 MeV) because a better-resolved candidate carries more mass information.
+**A caveat that limits all of this**: at the Z, `|eta|` and `sigma_m/m` are
+strongly correlated (the three `eta` bands have `sigma_m/m` medians 0.0103 /
+0.0128 / 0.0166), so the two splits are not independent tests. Separating them
+properly needs a `sigma_rel`-MATCHED `eta` comparison, which is the obvious next
+diagnostic and has not been run.
 
 ### THE POST-FIT RESIDUAL IS A 2.8 % WIDTH DEFICIT PLUS A SHIFT — decomposed
 
