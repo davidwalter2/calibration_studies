@@ -407,13 +407,20 @@ them. On the full joint card that is not affordable in either resource:
   parameters is ~10 000 s per Hessian, i.e. ~105 h for 38 iterations. `hvp` is
   4.3x slower still.
 
-**Three ways out, in order of value.** (1) A Krylov minimiser — expose a single
-Hessian-vector product on `ChunkedObjective` (the `_hess_piece_hvp` loop already
-does exactly one per column) and switch to `trust-krylov`/`trust-ncg`, which
-needs O(10) HVPs per iteration instead of 99. (2) Freeze the parameters nothing
-constrains (see the phase-3 occupancy note: `material_pp1_cables` is touched by
-NOBODY, `thermal_screen` and `support_tube` by < 0.1 %, and the hit-chi2 term is
-blind to all three). (3) Reduced statistics — which is what is running.
+**The way out is DONE** (`4d8cc34`): `ChunkedObjective.hessp(x, p)` is one
+forward-over-reverse product with an arbitrary tangent — the same arithmetic as
+one column of `_hess_piece_hvp`, plus the analytic prior diagonal — so a Krylov
+trust-region step costs O(10) of them per iteration instead of 99 columns, each
+~2 gradients and INDEPENDENT of the parameter count. `fit.py` and `fit_joint.py`
+take `--method {trust-exact,trust-krylov,trust-ncg}`; one full Hessian is still
+built AFTER the fit, for the covariance. `test_hessp.py` checks it against the
+assembled Hessian on the real 300 k Z card: **max |hessp - H@p| / max|H@p| =
+3.7e-16** over four random tangents.
+
+Two further reductions, if it is still not enough: freeze the parameters nothing
+constrains (`material_pp1_cables` is touched by NOBODY, `thermal_screen` and
+`support_tube` by < 0.1 %, and the hit-chi2 term is blind to all three — see
+phase 3), and reduced statistics.
 
 ### PHASE 2 — what exists
 
