@@ -240,3 +240,184 @@ exists as the slurm fallback and as the recommended *slurm* configuration
 going forward: `--cpus-per-task=4 --mem=5G --time=4:00:00` from dev2. **It must
 not be submitted while the `jpsimc20M_*` arrays are in `squeue`** — it would
 only queue behind them for the same fair share.
+
+---
+
+## 8. 2026-09-07 — the four bad inputs, repaired (cluster `3803425`)
+
+Sixteen chunks were re-run from proper split-1 repacks. Four separate defects
+came out of it, three of them previously invisible.
+
+### 8.1 The "recovery" of 2026-09-06 made things worse, not better
+
+The 12 chunk lines that §1 of `production/STATE.md` describes as "recovered by
+re-fetching to a user area" were repointed at files pulled from
+`root://cms-xrd-global.cern.ch/`. **That is the central, UN-REPACKED original.**
+`splitlevels.py` on all three:
+
+```
+split=99  nsub=2   SiStripClusteredmNewDetSetVector_ALCARECOTkAlJpsiMuMu__RECO.
+    sub split=98   ...present / ...obj
+```
+
+against `split=1 / sub-0` on a correctly repacked file. Their sizes are
+byte-identical to what the redirector serves, which is the proof: they *are*
+the originals. So the fix for a corrupt provenance blob re-introduced
+ROOT #19773, which is the very thing the whole repack campaign exists to avoid.
+This is exactly the trap `config_jpsimc_v2.sh` warns about at length — and it
+was walked into anyway, because a redirector was used to *repair* an input
+rather than to *read* one.
+
+### 8.2 What the split-99 chunks produced: 0.82 cand/event, and 100 % of the survivors are garbage
+
+| | control (1223, 1224, 1338, 1413) | split-99 (the 12) |
+|---|---:|---:|
+| candidates / event | **0.9968** | **0.8242** |
+| fit failures | 0.00–0.01 % | **17.4 %**, all `fail[prop]` |
+| `clampevents[step]` | 8 | **116 113** |
+| propagator calls | 1.39 M | **5.75 M** |
+| chi2/ndof median | 0.955 | **3.5e6** |
+| chi2/ndof > 10 | 0.011 % | **100.000 %** |
+| `niter == 10` (the limit) | 1.42 % | **99.81 %** |
+| m(mumu) in [2.9, 3.3] | 98.47 % | **2.90 %** |
+| gen match lost | 0.017 % | **88.63 %** |
+| valid strip hits (mu+) | 14.898 | 15.005 |
+| `nvalidFinal == nvalid` | 100 % | 100 % |
+| **input** `Jpsitrk_mass` | 3.08768 ± 0.00024 | 3.08834 ± 0.00016 |
+
+Read the last three rows together: **every pre-refit quantity agrees and every
+post-CVH quantity is destroyed.** The fit did not reject the corrupted hits —
+it kept all of them (`nvalidFinal == nvalid` for 100 % of tracks) and paid for
+them in the residuals, at an effective per-hit pull of **1860 sigma** against
+0.98 in the control. The 17 % that fail are only the ones that also hit a hard
+propagation abort; the 83 % that survive are non-converged fits written out at
+the iteration limit. The 250 candidates with `niter < 10` are no better
+(median chi2/ndof 4.6e6). **There is no salvage cut.** All ~128.7 k candidates
+were discarded.
+
+The 12 outputs are kept as the evidence, one level down in
+`task_XXXX/bad_split99_260906/`, where the single-level `task_*/globalcor_*.root`
+globs every downstream script uses cannot reach them.
+
+### 8.3 The rc=91 of tasks 1552-1555: our repack corrupted its own output in memory
+
+`70000/03249796-...root` is **correctly split-1** and its `Events` tree is
+intact (49 516 entries) — so this was never the same fault as §8.1. cmsRun dies
+constructing `PoolSource`:
+
+```
+FormatIncompatibility ... EntryError can not convert representation of
+   Recommend2D: <34 NUL bytes> to value of type vector<string_hex>
+```
+
+Characterised byte by byte:
+
+* 28 of the 8147 `ParameterSets` entries carry **52 runs of NUL, 2153 bytes**;
+* each run replaces a pset value's *content* **with its length exactly
+  preserved** (`Recommend2D`'s encoded default is exactly 34 bytes);
+* the zeroing is confined to payload lengths **32–46 bytes** — 47 of 17781 in
+  that band, **0 of 30228 outside it** — i.e. `std::string` lengths just above
+  libstdc++'s 15-char SSO threshold, the signature of a freed-and-reused small
+  allocation;
+* every basket **decompresses cleanly**, so the NULs are in the *uncompressed*
+  payload: they were written that way.
+
+So this is **write-side memory corruption inside our own July-2026 repack
+job**, not disk rot and not transfer damage. `edmProvDump` is clean on the
+central original and fails on our copy. The same signature is present in the
+other three group-store repacks (32/42/33 entries), which is why *they* threw
+exit 91 too — the 2026-09-06 note's "the MIT copies rotted" is the right
+observation with the wrong mechanism.
+
+### 8.4 The repair
+
+`production/repack_fix_260907/` — `repack_worker.sh` (the 10_6 `splitLevel=0`
+repack in the el7 container, tmp-then-promote), `run_repack_fix.sh`,
+`fetch_and_repack_03249796.sh`, `verify_repacks.sh`, `repoint_and_quarantine.sh`,
+`validate_refit.sh`, `scan_pset_nulls.py`, `scan_all_inputs.sh`, `scan_fitfail.sh`.
+
+The three staged files needed **no second download**: they already were the
+central originals, so they were repacked in place. Only `03249796` was re-fetched
+(1 986 290 360 B, size-verified, not exit-code-verified).
+
+Output: `/ceph/submit/data/user/d/david_w/ZMass/restaged/jpsimc_20M_260906_repack/`
+The old directory is now `restaged_split99_DO_NOT_USE/` with a README; nothing
+was deleted and the group store was not touched.
+
+| file | new size | entries | split | provdump | NUL scan |
+|---|---:|---:|:-:|:-:|:-:|
+| `BDA060EF-...` | 1 872 652 106 | 51 231 | 1 | OK | clean |
+| `0909778B-...` | 2 055 629 896 | 56 267 | 1 | OK | clean |
+| `4B9D2D77-...` | 1 770 114 676 | 48 621 | 1 | OK | clean |
+| `03249796-...` | 1 801 876 175 | 49 516 | 1 | OK | clean |
+
+Entry counts equal exactly what the chunk list tiles. All six doors serve them
+at the recorded sizes, so the 4th-field size guard passes.
+
+**Acceptance gate** — 2000 events, dev2 @ `ca6058d`, the production switch set,
+4 threads, against the same run on a known-good group-store file:
+
+| | repack `BDA060EF` | control `BDB523D0` |
+|---|---:|---:|
+| candidates / event | **0.9995** | 0.9955 |
+| fit failures | **0.000 %** | 0.050 % |
+| `clampevents[step]` | 0 | 7 |
+| chi2/ndof median | 0.9638 | 0.9489 |
+| chi2/ndof > 10 | 0.0000 % | 0.0000 % |
+| `niter == 10` | 1.35 % | 1.86 % |
+| m(mumu) median | 3.0948 | 3.0958 |
+
+### 8.5 Two bugs found on the way, both fixed here
+
+**`recover_xrdfix.sh` could never have submitted.** It appended `REDIR`, which
+`config_jpsimc_v2.sh` does not define (only the DY config does), so under
+`set -u` it died *after* writing `.recover_idx.txt` and *before* `condor_submit`
+— which is why the 1552-1555 recovery attempted on 2026-09-06 left an index
+file and no jobs. It also never passed `INDOORS`, so a recovered job would have
+fallen back to the single default door. Both fixed. (The comment explaining it
+is *above* `condor_submit`: a `#` inside a backslash-continued argument list
+silently truncates the command.)
+
+**The `attempted=0` guard has a hole, and one task fell through it.**
+`task_1313` staged four empty stream files and a `.complete` for a whole
+**19 797-event chunk**. Its input, `2830000/FDB8C946-...root`, has **no
+StreamerInfo**: ROOT opens it and reports 19 797 entries, so the 2026-09-05
+zombie scan passed it, but CMSSW cannot deserialise it and `PoolSource` drops
+it —
+
+```
+Input file: ... was not found or could not be opened, and will be skipped.
+```
+
+The maker then never runs, so **no `fit summary` line is written at all** and
+`grep -q "fit summary  attempted=0 "` matches nothing. Both wrappers now also
+fail on the skip message (exit 6) and on the *absence* of a summary (exit 5).
+**Task 1313 has NOT been re-run** — that is a fifth file and a 17th chunk,
+outside this pass; it needs the same repack treatment.
+
+### 8.6 Sample-wide integrity: the rest of the production is clean
+
+Two cheap scans were run over everything, and both say the damage is contained.
+
+`scan_pset_nulls.py` over all **410 production inputs** (ParameterSets is a few
+MB even for a 2 GB ALCARECO, so this is minutes, not hours):
+
+| verdict | n | which |
+|---|---:|---|
+| OK | 403 | |
+| NULS, and cmsRun died (exit 91) | 4 | the four repaired here |
+| NULS, but cmsRun ran fine | 2 | `0B395A0D-...` (8 entries, 428 B), `290E1F42-...` (8 entries, 413 B) |
+| unopenable | 1 | `FDB8C946-...` (no StreamerInfo) — task_1313 |
+
+`scan_fitfail.sh` over all **1642 task logs** — the per-task CVH failure rate,
+which is what a silently corrupted *event* payload would show up in:
+
+```
+baseline (1625 tasks):  mean 0.0067 %   max 0.0414 %
+the 12 split-99 tasks:  16.72 - 17.96 %
+```
+
+Nothing else is an outlier — in particular the seven tasks reading the two
+NUL-carrying-but-runnable files sit at 0.000-0.020 %, dead in the baseline. So
+the memory corruption of §8.3 hit only the provenance blob in every case where
+it did not stop the job, and the physics payload of the sample is sound.

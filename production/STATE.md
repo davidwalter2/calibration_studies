@@ -310,3 +310,82 @@ exercised before today.
   array task asserts input readability on its node for the same reason.
 * `fillGrads=False` does **not** save the packing CPU — the packed Hessian is
   computed unconditionally and the flag only controls whether it is written.
+
+## 2026-09-07 — the 2026-09-06 "recovery" was wrong, and what the repair found
+
+The section above says the three exit-91 files were "recovered by re-fetching
+to a user area". **They were not.** `cms-xrd-global` serves the CENTRAL copy of
+this dataset, which is the un-repacked **split-99** original — precisely what
+the whole repack campaign exists to avoid (ROOT #19773). The staged files are
+byte-size-identical to what the redirector serves today, and `splitlevels.py`
+reports `split=99 / sub-98` on all three cluster and rechit branches.
+
+The full account, with every number, is in
+**`condor_jpsimc_v2/STATE_jpsi_v2.md` §8**. In brief:
+
+* the 12 chunks made from those files yield **0.824 candidates/event** against
+  0.9968, with 17.4 % `fail[prop]` — and the surviving 83 % are **also
+  garbage**: median chi2/ndof 3.5e6, 99.8 % at the iteration limit, 2.9 % inside
+  the J/psi mass window, effective per-hit pull 1860 sigma. Every *pre-refit*
+  quantity agrees with the control, so it is the refit reading corrupted strip
+  clusters, not a different sample. **No salvage cut exists.**
+* the exit-91 provenance damage is **write-side memory corruption in our own
+  July-2026 repack job**: NUL runs inside the *uncompressed* ParameterSets
+  payload, each replacing a value's content with its length preserved, confined
+  to the 32-46 byte band (`std::string` lengths just above the SSO threshold).
+  Not disk rot, not transfer damage — `edmProvDump` is clean on the central
+  original and fails on our copy.
+* all four files were re-repacked to split-1 and validated; the 16 chunks were
+  re-run on condor as cluster **`3803425`**. New inputs:
+  `/ceph/submit/data/user/d/david_w/ZMass/restaged/jpsimc_20M_260906_repack/`.
+  The bad staged copies are kept as `restaged_split99_DO_NOT_USE/`.
+
+### The slurm v1 leg `jpsimc_20M_260905` — 12 affected chunks, deliberately NOT repaired
+
+`chunks_jpsimc_20M_260905.txt` carries the same 12 repointed lines, so the same
+task indices are affected, and they were still running when this was written
+(they hold the split-99 files open, so renaming the directory did not disturb
+them; they will finish, and their output will be garbage):
+
+```
+task_1219 task_1220 task_1221 task_1222      BDA060EF-B8F8-7349-9277-363C3AB7EA76
+task_1334 task_1335 task_1336 task_1337      0909778B-8728-764F-B41B-1C9DCE5C849E
+task_1409 task_1410 task_1411 task_1412      4B9D2D77-92ED-8440-8697-DD4AC560E61C
+task_1552 task_1553 task_1554 task_1555      03249796-...  (exit 91, no output)
+```
+
+**DISCARD those 12 (and note 1552-1555 never produced anything).** v1 is a
+cross-check sample only, so it was left alone rather than repaired; a marker
+listing them sits in the output tree as `BAD_TASKS_split99_260907.txt`. If v1 is
+ever used quantitatively, either exclude the 12 or re-run them against
+`jpsimc_20M_260906_repack/`.
+
+### Two further defects, both outside the 16 chunks
+
+* **`task_1313` is silently empty** — 4 valid-but-empty stream files and a
+  `.complete` for a whole **19 797-event chunk**. Its input
+  `2830000/FDB8C946-...root` has **no StreamerInfo**: ROOT opens it and counts
+  19 797 entries (so the 2026-09-05 zombie scan passed it), but CMSSW cannot
+  deserialise it and `skipBadFiles=True` drops it. The maker then never runs, so
+  **no `fit summary` line is written** and the `attempted=0` guard matches
+  nothing. Both wrappers now also fail on the skip message and on a missing
+  summary. **The task has not been re-run** — it needs the same repack, and is
+  the obvious next action.
+* two more inputs (`0B395A0D-...`, `290E1F42-...`) carry the same NUL
+  corruption in ParameterSets but in psets cmsRun never parses; their seven
+  tasks sit at 0.000-0.020 % failures, i.e. in the baseline. Left as they are.
+
+### Sample-wide integrity, measured rather than assumed
+
+Two scans in `production/repack_fix_260907/`:
+
+* `scan_pset_nulls.py` over all 410 inputs: **403 OK, 6 with NUL runs, 1
+  unopenable**;
+* `scan_fitfail.sh` over all 1642 task logs: baseline **mean 0.0067 %, max
+  0.0414 %**; only the 12 split-99 tasks are outliers, at 16.7-18.0 %.
+
+So the corruption is contained: where it did not stop the job it hit only the
+provenance blob, and the physics payload of the sample is sound. **Run both
+scans on any future repack before a production reads it** — together they cost
+minutes and they catch all three classes (NUL provenance, missing StreamerInfo,
+and any silent event-level damage, via the failure rate).

@@ -167,7 +167,17 @@ out=(globalcor_*.root)
   || fail "expected $NTHREADS stream file(s), found ${#out[@]}" 4
 for f in "${out[@]}"; do [[ -s "$f" ]] || fail "empty output $f" 4; done
 # `skipBadFiles=True` makes an unreadable input SILENT: the job writes a valid,
-# EMPTY output. The maker always prints a fit summary, so attempted=0 catches it.
+# EMPTY output. 2026-09-07: the "the maker always prints a fit summary" premise
+# is FALSE when PoolSource drops the file -- the maker never runs at all, no
+# summary line is written, and task_1313 of jpsimc_20M_260906_v2 therefore
+# staged four empty stream files and a .complete for a whole 19 797-event
+# chunk (its input, FDB8C946-..., has NO StreamerInfo: ROOT opens it, CMSSW
+# cannot deserialise it).  So test for the skip message AND for the presence
+# of a summary, not only for attempted=0.
+grep -q "could not be opened, and will be skipped" local.log \
+  && fail "PoolSource SKIPPED the input (skipBadFiles) -- unreadable file" 6
+grep -q "fit summary " local.log \
+  || fail "no fit summary in the log -- the maker never processed an event" 5
 grep -q "fit summary  attempted=0 " local.log && fail "attempted=0 -- input yielded nothing" 5
 
 # ---- stage out, verified by size -----------------------------------------
