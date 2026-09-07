@@ -312,80 +312,72 @@ FINAL cards are `cards/z_full380_fl.hdf5` and `cards/z_n300k_fl.hdf5`.
 
 ---
 
-## 2. WHAT IS RUNNING  (checkpoint 2026-09-06 23:20)
+## 2. WHAT IS RUNNING  (checkpoint 2026-09-07 07:00)
+
+### !! ENGAGING IS UNREACHABLE UNTIL A HUMAN RUNS `eng-master` !!
+The 8 h multiplexed master expired at ~06:45 and MIT wants a Kerberos password
+plus a Duo approval for a new session. **Run `!eng-master` in an interactive
+terminal**; everything below then works again. Until then no job can be
+submitted, and no result can be collected, from Engaging.
+
+### On Engaging — running blind
+
+| job | what | state |
+|---|---|---|
+| **22171547** | `zvarfl` on `z_full380_fl.hdf5` (mit_preemptable) | RUNNING. It was preempted once and restarted at 01:28; `base` finished at 06:32 (38 iterations, 16 940 s) and **is already collected** as `results/fit_f380fl_base.json` — that is the phase-1 headline. It then went on to `noares`, and has `nojensen`, `noboth`, `noshape` after it. **Collect with `rsync -a engaging:orcd/pool/zmass/fitresults/ results/` as soon as the master is back.** Its walltime is 5:45 from 01:28, so it is due to be cut off around 07:15 and will NOT finish the ladder — resubmit the remainder. |
+| **22167631** | the same on `mit_normal_gpu` | PENDING, `scontrol` estimated 2026-09-07 14:40. It runs the whole ladder from the start, so it supersedes whatever 22171547 did not reach. |
+
+**To submit phase 2** once the master is back:
+```bash
+cd calibration_studies/fullscale
+./stage_eng.sh code && ./stage_eng.sh card cards/joint_v2.hdf5
+eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -G h200:1 \
+     -p mit_preemptable --export=ALL,CARD=$HOME/orcd/pool/zmass/cards/joint_v2.hdf5,TAG=joint_v2 \
+     joint_gpu.sbatch'
+```
+(also submit a `mit_normal_gpu` copy — the per-user GPU limit is one job per
+partition, so two partitions is how anything gets scheduled.)
 
 ### On submit82 — detached, `setsid`, logs in `fullscale/logs/`
 
 | what | output | note |
 |---|---|---|
-| `fit_f380fl_base` | `results/fit_f380fl_base.json` | **the phase-1 FINAL number**, 3 682 662 candidates, fluctuation form, K(m) floated, on CPU with 64 threads. Reference Hessian 1310 s, value+grad 89 s, peak RSS 79 GB. Expect 2-3 h. |
-| `fit_f380fl_noboth` | `results/fit_f380fl_noboth.json` | the same with neither correction — the "what the corrections are worth at full scale" row |
-| `fit_n300kflw_base` | `results/fit_n300kflw_base.json` | the NARROW-WINDOW diagnostic, `--window 80 100` (88.0 % of the candidates), 300 k. If the -20.7 MeV non-closure is the lineshape/FSR tails it moves; if it is the core it does not. |
+| `fit_f380fl_noboth` | `results/fit_f380fl_noboth.json` | the full-scale "neither correction" row, on CPU with 64 threads, started 22:22. The CPU `base` twin was killed once the GPU produced it. |
+| `joint300k.sh` | `cards/joint_v2_n300k.hdf5` then `results/fit_joint_v2_n300k.json` | **PHASE 2 on CPU**: a 300 k + 300 k joint card (the full one is a GPU job, see below) with the same 92 calibration parameters and the same 20.5 M-candidate quadratic term. `--hess-mode pfor`; expect 6-9 h on this (fully loaded, load avg 780/768) node. |
 
-Everything else at 300 k has landed.
+### PHASE 2 — what exists
 
-**Which tasks each phase-2 input used** (`jpsimc_20M_260906_v2` was still
-draining; `prodfiles` skips any task without its `.complete` sentinel, so both
-are internally consistent, just short of the whole production):
-
-**16 J/psi v2 task indices are EXCLUDED** and must stay excluded from every
-cache and term: **1219-1222, 1334-1337, 1409-1412** (the "re-staged" copies
-fetched from the grid on 9/6; they yield 0.82 candidates/event against 0.997 for
-a normal chunk, i.e. a 17 % fit-failure excess consistent with the un-repacked
-split-99 originals having been fetched) and **1552-1555** (input exits rc=91
-after 27 s on every attempt, no output). 16 of 1642, ~1 % of the statistics. The
-list is materialised as `runs/jpsiv2_tasks_x16.txt` (1626 tasks / 6504 files)
-and both `extract.py` and `cf_inmaker.py` take it as
-`--files @runs/jpsiv2_tasks_x16.txt`.
-
-| input | tasks used | content |
-|---|---|---|
-| `runs/jpairs_v2_n600.npz` | **600 / 1642**, by CHOICE (`--ntasks 600`) | 7 923 460 candidates, 12 GB, with the (n,92) mass Jacobian. Tasks 0-599, so **none of the 16 excluded indices is in it** — no rebuild needed |
-| `runs/quad_jpsiv2_x16.npz` | **1626**, the 16 excluded | **THE ONE TO USE** |
-| ~~`runs/quad_jpsiv2.npz`~~ | 1629, INCLUDING 12 of the suspect ones | superseded; do not use |
-| `runs/quad_dyv2.npz` | 380 / 380 | 3 751 687 |
-| `runs/zpairs_dyv2_jac_full.npz` | 380 / 380 | 3 733 323, with the Jacobian |
-
-The DY production is complete and untouched by any of this. A separate agent is
-repairing the 16 J/psi inputs; if repaired chunks arrive, append them with the
-tail mechanism and re-fit only if the numbers matter.
-
-**`cards/joint_v2.hdf5` as first built used the SUPERSEDED quadratic term and
-must be rebuilt against `quad_jpsiv2_x16.npz`.** The J/psi mass leg is
-deliberately 600 tasks and does not change.
-
-The first build of `cards/joint_v2.hdf5` (10.7 GB) is staged to Engaging but
-carries the superseded quadratic term.
-
-### On Engaging (ORCD) — `eng 'timeout 30 squeue -u david_w'`
-
-| job | what | status |
-|---|---|---|
-| **22167631** | `zvarfl`, the five variants on `z_full380_fl.hdf5` | **PENDING, estimated start 2026-09-07 14:40.** Fairshare is exhausted after the day's GPU use; `scontrol show job` gives the estimate. This is the phase-1 final ladder and it will run by itself. |
-| **22171547** | the same on `mit_preemptable` | PENDING on `QOSMaxGRESPerUser` — the preemptable GPU slot is held by `22115497 insitu-1gpu`, which is NOT this session's job and was left alone. It starts the moment that finishes. |
-| ~~22161787~~, ~~22163315~~, ~~22163745~~, ~~22163752~~ | the residual-form jobs | **CANCELLED** (see below) |
-
-`22163315` (six UNCLIPPED variants at full scale) was cancelled at 1:57 having
-never got past its FIRST variant: the unclipped residual form does not converge
-at 3.68 M any more than it does at 300 k, and it was holding the GPU. The
-unclipped runaway is documented at 300 k in sec. 0b. `22161787` was the
-373-task twin of a number `22163315` was also computing. The two clip jobs are
-superseded by the reformulation; the clip scan is in sec. 0b at 300 k.
-
-Engaging notes: `eng-master` may need a human Duo touch; wrap every remote
-command in `timeout`; **H200**; **`--chunk 32768`** (262144 OOMs); and the
-per-user GPU limit is one job per partition, so a `mit_normal_gpu` and a
-`mit_preemptable` copy of the same job is the way to get scheduled.
-
-### THE ONE THING THAT IS NOT WRITTEN YET
-`fit.py` fits ONE unbinned term and ignores the external quadratic term
-entirely, so it cannot fit `cards/joint_v2.hdf5` — which is a J/psi
-`MassCFTerm` (3 000 000 candidates, 96 parameters), a Z `MassCFTerm`
-(3 682 662, 103) and the `hitchi2` external term (92) over one parameter
-vector. `chunkfit.ChunkedObjective` already takes a LIST of terms and already
-has the `hvp` Hessian mode built for exactly this parameter count; what is
-missing is a driver that also adds the external term's closed-form
-`g^T x + 0.5 x^T H x`. That is `fit_joint.py` (in progress).
+* `cards/joint_v2.hdf5` (10.7 GB), REBUILT 06:38 against `quad_jpsiv2_x16.npz`:
+  a J/psi `MassCFTerm` (3 000 000 candidates, 96 parameters, delta kernel at the
+  PDG mass, `scale_param=None`), a Z `MassCFTerm` (3 682 662, 103), the
+  `hitchi2` external quadratic (92 parameters, from **20 506 733** candidates)
+  and the `global_params` bundle. Staged to Engaging (the pre-x16 version;
+  **re-stage it**).
+* `fit_joint.py` — the driver `fit.py` could not be. Three gates, all measured
+  on a 60 k + 60 k smoke card:
+  * **(a)** with the 92 globals fixed it reproduces `fit.py`'s objective
+    **exactly** — 0 difference in NLL and 0 in the gradient;
+  * **(b)** analytic gradient vs central finite differences at the FD noise
+    floor, on `m_Z`, `Gamma_Z` and two of the 92;
+  * **(c)** `pfor` and `hvp` Hessians agree to **3.7e-16** (and 1.7e-21 on the
+    two-term card).
+  It also flags the one thing nobody has: the mass and hit-chi2 scores of the
+  SAME candidate are correlated and neither extraction stored that cross block,
+  so the two sandwich meats are added as if independent. It says so in its own
+  output rather than quoting a robust error that assumes it away.
+* **The `--inject` translation closure, re-measured in the fluctuation form:**
+  `bfield_mode0` +0.0023 % of the injection against **+12.14 %** in the residual
+  form (5300x better); modes 1 and 2 at 1e-11, four orders better. What did not
+  translate was the residual form's Jensen map, whose argument `r = delta/m`
+  carries the observed mass. The 2.3e-7 that remains is the second-order
+  dependence of `a_i`, `c_i`, `d_i` on the shifted masses — 1.6e-3 of
+  `bfield_mode0`'s own statistical error, and not the minimiser (the Newton step
+  still implied by the residual gradient is 1.8e-12).
+* The `hitchi2` Hessian is **singular in 4 directions** and carries no
+  information at all on `material_beampipe`, `material_thermal_screen`,
+  `material_support_tube`, `material_pp1_cables`. In the joint fit the mass
+  terms constrain them through `D`; alone they would have to be frozen or given
+  a prior.
 
 ## 3. HOW TO REPRODUCE EACH STEP
 
