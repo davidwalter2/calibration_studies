@@ -126,33 +126,48 @@ def main():
           f"upsample {cfg.get('upsample')}, "
           f"self_consistent_sigma {cfg.get('self_consistent_sigma')}, "
           f"jensen {cfg.get('jensen_mode')}, "
+          f"corr_form {cfg.get('corr_form', 'residual')}, "
           f"background {cfg['background']['type']}")
 
     # ---- fit-time model switches (one card, every variant) --------------
-    if args.ares != "card":
-        want = args.ares == "on"
-        if want and getattr(term, "a_res", None) is None:
+    # In the FLUCTUATION form the two corrections are baked into
+    # per-candidate constants at construction, so the flags cannot simply be
+    # flipped: `set_corrections` rebuilds them.  On a rabbit that predates it
+    # the old in-place flip is still correct (residual form only).
+    if args.ares != "card" or args.jensen != "card":
+        want_a = None if args.ares == "card" else (args.ares == "on")
+        want_j = None if args.jensen == "card" else args.jensen
+        if want_a and getattr(term, "a_res", None) is None:
             raise SystemExit("--ares on, but the card stores no a_res")
-        term.self_consistent_sigma = want
-        term._dyn_sigma = bool(
-            want and term.a_res is not None
-            and np.any(term._a_res_np != 0.0))
-        print(f"      OVERRIDE self_consistent_sigma -> {term._dyn_sigma}")
-    if args.jensen != "card":
-        if args.jensen != "off" and getattr(term, "jensen_s2", None) is None:
+        if want_j not in (None, "off") and getattr(term, "jensen_s2", None) is None:
             raise SystemExit(f"--jensen {args.jensen}, but the card stores no "
                              f"jensen_s2")
-        term.jensen_mode = args.jensen
-        term._jensen = (
-            args.jensen != "off" and term.jensen_s2 is not None
-            and term.jensen_scale != 0.0
-            and bool(np.any(term._jensen_s2_np != 0.0)))
-        print(f"      OVERRIDE jensen_mode -> {term.jensen_mode} "
-              f"(active {term._jensen})")
+        if hasattr(term, "set_corrections"):
+            term.set_corrections(self_consistent_sigma=want_a, jensen_mode=want_j)
+        else:
+            if want_a is not None:
+                term.self_consistent_sigma = want_a
+                term._dyn_sigma = bool(
+                    want_a and term.a_res is not None
+                    and np.any(term._a_res_np != 0.0))
+            if want_j is not None:
+                term.jensen_mode = want_j
+                term._jensen = (
+                    want_j != "off" and term.jensen_s2 is not None
+                    and term.jensen_scale != 0.0
+                    and bool(np.any(term._jensen_s2_np != 0.0)))
+        print(f"      OVERRIDE ares -> {args.ares}, jensen -> {args.jensen} "
+              f"(active: ares {getattr(term, '_dyn_sigma', False)}, "
+              f"jensen {getattr(term, '_jensen', False)}, "
+              f"fluctuation {getattr(term, '_fluct_active', False)})")
 
     if args.corr_clip is not None:
         if not hasattr(term, "corr_clip"):
             raise SystemExit("this rabbit's MassCFTerm has no `corr_clip`")
+        if getattr(term, "corr_form", "residual") != "residual":
+            raise SystemExit(
+                "--corr-clip has no meaning on a fluctuation-form card: that "
+                "form has no residual-valued argument to clip")
         term.corr_clip = float(args.corr_clip)
         print(f"      OVERRIDE corr_clip -> {term.corr_clip}")
 
@@ -202,6 +217,8 @@ def main():
            "jensen_active": bool(getattr(term, "_jensen", False)),
            "jensen_mode": getattr(term, "jensen_mode", "n/a"),
            "corr_clip": float(getattr(term, "corr_clip", 0.0)),
+           "corr_form": getattr(term, "corr_form", "residual"),
+           "fluct_active": bool(getattr(term, "_fluct_active", False)),
            "label": args.label, "params": obj.freenames,
            "fixed": sorted(fixed), "nll0": f0,
            "t_load": tload, "t_grad": t_grad, "t_hess": t_hess,

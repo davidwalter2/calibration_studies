@@ -22,10 +22,15 @@ model the group-leader numbers require. What is different, and why:
    multiplicative shape the generator-level fit is +76 MeV on `Gamma_Z`. Five
    Legendre terms close it and cost 1.25x on sigma(m_Z).
 
-4. **Both corrections of MASSCFTERM_SPEC.** `a_res` (sec. 2-3, the
-   self-consistent resolution) and `jensen_s2` (sec. 4b, the EXACT second-order
-   map). Each alone is 15-43 MeV at Z resolution and they partially cancel;
-   both must be in explicitly.
+4. **Both corrections of MASSCFTERM_SPEC, in the FLUCTUATION form.** `a_res`
+   (sec. 2-3, the self-consistent resolution) and `jensen_s2` (sec. 4b, the
+   second-order map). Each alone is 15-43 MeV at Z resolution and they
+   partially cancel; both must be in explicitly. Both are expansions in the
+   RESOLUTION fluctuation, so at the Z they must be applied as a deterministic
+   map of it INSIDE the convolution (`--corr-form fluctuation`), not evaluated
+   at `delta_i = m_i - M(theta)`, which over a +-27 sigma window is the
+   Breit-Wigner tail and FSR rather than resolution. `--corr-form residual`
+   plus `--corr-clip` is the historical stopgap, kept for the J/psi gate.
 
 5. **Quality cuts**, documented and scannable: the observed-mass window, the
    fit quality `chi2/ndof`, and a `sigma_m/m` cut. The last is not cosmetic:
@@ -108,7 +113,17 @@ def parse_args(argv=None):
                         "so one card serves both fits; off = no a_i at all")
     p.add_argument("--max-ares", type=float, default=0.5)
     p.add_argument("--jensen", choices=["exact", "shift", "off"], default="exact")
-    p.add_argument("--corr-clip", type=float, default=5.0,
+    p.add_argument("--corr-form", choices=["fluctuation", "residual"],
+                   default="fluctuation",
+                   help="WHERE the two corrections act. `fluctuation` (the "
+                        "default, and the only form defined at the Z) applies "
+                        "them as one deterministic map of the resolution "
+                        "fluctuation INSIDE the convolution: no clip, no "
+                        "log-Jacobian, no dependence on delta_i. `residual` is "
+                        "the historical form, exact at a delta kernel and "
+                        "measured on the J/psi, which needs --corr-clip at the "
+                        "Z and is kept only as the reference for that gate.")
+    p.add_argument("--corr-clip", type=float, default=0.0,
                    help="the domain of BOTH corrections, in units of sigma_i. "
                         "They are expansions in the resolution fluctuation, "
                         "and at the Z the deviation from the pole is FSR and "
@@ -116,7 +131,9 @@ def parse_args(argv=None):
                         "the exact Jensen map moves the residual by a median "
                         "57.7 MeV against the 20.6 MeV it exists to apply. "
                         "0 = no clip (the J/psi behaviour the spec's gates "
-                        "were measured with).")
+                        "were measured with). IGNORED, and required to be 0, "
+                        "when --corr-form fluctuation: that form has no "
+                        "argument to clip.")
     p.add_argument("--jensen-fang", action="store_true", default=True,
                    help="fold the per-candidate angular share into s^2")
     p.add_argument("--no-jensen-fang", dest="jensen_fang", action="store_false")
@@ -272,7 +289,7 @@ def build(args, log=print):
     a_res = None
     if args.ares != "off":
         a_res = (1.0 + vgf) * sigma / np.maximum(np.abs(mreco), 1e-9)
-        if args.corr_clip:
+        if args.corr_clip and args.corr_form == "residual":
             log(f"  corrections clipped to |delta| < {args.corr_clip:g} sigma "
                 f"(that is {100.0*np.mean(np.abs(mobs) < args.corr_clip*sigma):.2f} % "
                 f"of candidates inside the clip)")
@@ -416,6 +433,18 @@ def build(args, log=print):
                 "fullscale/patches/unbinned_jensen.py first, or pass "
                 "--jensen off.")
         kw2.update(jensen_s2=jensen_s2, jensen_mode=args.jensen)
+    if args.corr_form != "residual":
+        if "corr_form" not in sig:
+            raise SystemExit(
+                "this rabbit's MassCFTerm has no `corr_form`: it predates the "
+                "fluctuation reformulation. Pass --corr-form residual "
+                "--corr-clip 5 to reproduce the clipped stopgap.")
+        if args.corr_clip:
+            raise SystemExit(
+                "--corr-clip has no meaning with --corr-form fluctuation "
+                "(there is no residual-valued argument to clip); pass "
+                "--corr-clip 0")
+        kw2["corr_form"] = args.corr_form
     if args.corr_clip and (a_res is not None or args.jensen != "off"):
         if "corr_clip" not in sig:
             raise SystemExit(
