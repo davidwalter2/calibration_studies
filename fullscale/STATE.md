@@ -280,10 +280,27 @@ FINAL cards are `cards/z_full380_fl.hdf5` and `cards/z_n300k_fl.hdf5`.
 | `fit_f380fl_noboth` | `results/fit_f380fl_noboth.json` | the same with neither correction — the "what the corrections are worth at full scale" row |
 | `fit_n300kflw_base` | `results/fit_n300kflw_base.json` | the NARROW-WINDOW diagnostic, `--window 80 100` (88.0 % of the candidates), 300 k. If the -20.7 MeV non-closure is the lineshape/FSR tails it moves; if it is the core it does not. |
 
-Everything else at 300 k has landed. The J/psi v2 pairs cache
-(`runs/jpairs_v2_n600.npz`, 7 923 460 candidates, 12 GB) and the v2 quadratic
-extraction (`runs/quad_jpsiv2.npz`, 16 743 019 candidates, 4 705 662 cut) are
-done, and `cards/joint_v2.hdf5` (10.7 GB) is BUILT and staged.
+Everything else at 300 k has landed.
+
+**Which tasks each phase-2 input used** (`jpsimc_20M_260906_v2` was still
+draining; `prodfiles` skips any task without its `.complete` sentinel, so both
+are internally consistent, just short of the whole production):
+
+| input | tasks used | content |
+|---|---|---|
+| `runs/jpairs_v2_n600.npz` | **600 / 1642**, by CHOICE (`--ntasks 600`) | 7 923 460 candidates, 12 GB, with the (n,92) mass Jacobian |
+| `runs/quad_jpsiv2.npz` | **1629 / 1642** (13 had no `.complete` at 22:34) | 16 743 019 candidates in the quadratic term, 4 705 662 cut |
+| `runs/quad_dyv2.npz` | 380 / 380 | 3 751 687 |
+| `runs/zpairs_dyv2_jac_full.npz` | 380 / 380 | 3 733 323, with the Jacobian |
+
+The production has since reached 1638/1642, the last 4 being re-run with the
+xrootd-fixed payload. Appending them is worth ~0.25 % on the quadratic term and
+is NOT worth redoing anything for; it matters only if a FINAL number is to be
+quoted as "the whole production", in which case re-run the quad extraction
+(807 s) and rebuild the card. The J/psi mass leg is deliberately 600 tasks and
+does not change.
+
+`cards/joint_v2.hdf5` (10.7 GB) is BUILT from those and staged to Engaging.
 
 ### On Engaging (ORCD) — `eng 'timeout 30 squeue -u david_w'`
 
