@@ -316,6 +316,17 @@ them doing it: the joint fit moves `m_Z` by **+49 MeV** relative to the Z alone,
 `rho(m_Z, bfield_mode0) = 0.213` is the only correlation above 0.05, and
 `rho(m_Z, material) = 0.006`.
 
+**The charge-ordering split is a NULL**: leading `mu+` gives -17.84 +- 7.83 and
+leading `mu-` -8.52 +- 7.88, a difference of **-9.3 +- 11.1 MeV** (0.8 sigma) on
+independent subsamples. So the bias has no significant charge-ODD component,
+which disfavours a pure charge-dependent misalignment (the `M` term of
+AN-21-131) and leaves the charge-EVEN ones — the field scale `A`, and the
+material. **But the test is intrinsically weak**: a charge-odd curvature bias
+`q M` shifts the two muons of a pair oppositely and largely CANCELS in their
+invariant mass, surviving only through the pair's `pT` asymmetry, which is what
+"which charge leads" is a proxy for. Read the null as "no LARGE charge-odd
+term", not as an exclusion.
+
 **A caveat that limits all of this**: at the Z, `|eta|` and `sigma_m/m` are
 strongly correlated (the three `eta` bands have `sigma_m/m` medians 0.0103 /
 0.0128 / 0.0166), so the two splits are not independent tests. Separating them
