@@ -145,6 +145,49 @@ _MASS_AUX = {
 _MASS_AUX_INT = {"run": "run", "lumi": "lumi", "event": "event"}
 
 
+# --------------------------------------------------------------------------
+# PER-MATERIAL-GROUP EXPONENTS (`--groups`, 2026-09-07).
+#
+# `exportCfGroupExponents=True` makes the maker write each family's log-CF
+# exponent SPLIT by the parmtype-15 material group of the step that produced
+# it, which is what turns the four ad-hoc `k_hit/k_ms/k_ioni/k_rad` knobs into
+# the physical amounts:
+#
+#     S_f(tau; k) = S_f^fix(tau) + sum_g A(k_g) S_{f,g}(tau)
+#
+# (`Analysis/HitAnalyzer/doc/resolution-cf-export.md`, and the physics in
+# `rabbit.unbinned.MaterialCFTerm`).  `matres/extract_groups.py` produces the
+# same layout by rebuilding the exponents OFFLINE from the Geant4 step records;
+# that path is unusable on a production with `exportStepRecords=False` (it dies
+# on the missing `ioniurbanidx`), which is every production since 2026-09-06.
+# This reads the maker's own arrays instead.
+#
+# NAMING.  The per-group arrays cannot be called `Sms`/`Sio_re`/... in this
+# cache: those keys are already the FLAT (n, nt) exponents every existing
+# consumer reads.  They are `Sgrp_*` and the `families` array names them, which
+# is what `matres/make_material_card.py` keys off (`d["S" + f]` for f in
+# `d["families"]`), so ONE card builder serves both this cache and
+# `extract_groups.py`'s.
+_GRP_FAMS = ("grp_ms", "grp_io_re", "grp_io_im", "grp_rad_re", "grp_rad_im")
+_GRP_BRANCH = ("ms", "ioni_re", "ioni_im", "rad_re", "rad_im")
+# the flat branch suffix each per-group family must sum back to
+_GRP_FLAT = ("ms", "ioni_re", "ioni_im", "rad_re", "rad_im")
+_GRP_FLATKEY = ("Sms", "Sio_re", "Sio_im", "Srad_re", "Srad_im")
+
+
+def _grp_branches(t, prefix):
+    """The per-group branch names, or None if the file was not exported with
+    `exportCfGroupExponents`."""
+    names = [f"{prefix}_grp"] + [f"{prefix}_grp_{s}" for s in _GRP_BRANCH] \
+        + [f"{prefix}_hitcls", f"{prefix}_hitv"]
+    have = set(t.keys())
+    if not all(n in have for n in names):
+        return None
+    if f"{prefix}_grp_closure" in have:
+        names.append(f"{prefix}_grp_closure")
+    return names
+
+
 def _fam_arrays(t, prefix):
     """The six family branch names for `prefix`, or None if absent."""
     names = [f"{prefix}_{s}" for s in
@@ -212,6 +255,13 @@ def read_files(args, mass):
     want_hitclass = None
     jacpt = getattr(args, "jac_parmtypes", None) or None
     jaccat = None
+    grp = bool(getattr(args, "groups", False))
+    if grp and not mass:
+        raise SystemExit("--groups is implemented for the `pairs` (two-track "
+                         "mass) path only; the single-track cache still goes "
+                         "through matres/extract_groups.py")
+    ngroups = None
+    grpstats = {"clo": 0.0, "n": 0}
     for fn in files:
         try:
             f = uproot.open(fn)
@@ -247,6 +297,22 @@ def read_files(args, mass):
         if fams is None:
             raise SystemExit(f"{fn} has no {prefix}_* branches")
         nt = len(tgrid)
+        gbr = None
+        if grp:
+            gbr = _grp_branches(t, prefix)
+            if gbr is None:
+                raise SystemExit(
+                    f"{fn} has no {prefix}_grp* / {prefix}_hitcls branches -- "
+                    f"it was not produced with exportCfGroupExponents=True")
+            if ngroups is None:
+                pt_all = f["runtree"]["parmtype"].array(library="np")
+                ngroups = int((pt_all == 15).sum())
+                if ngroups == 0:
+                    raise SystemExit(
+                        f"{fn}: the runtree declares no parmtype-15 material "
+                        f"groups, so the per-group exponents index nothing")
+                logger.info(f"per-group exponents: {ngroups} parmtype-15 "
+                            f"material groups, families {list(_GRP_FAMS)}")
 
         need = list(fams) + [f"{prefix}_vgf", f"{prefix}_ok"]
         aux = auxi = {}
@@ -325,6 +391,8 @@ def read_files(args, mass):
                 push(k, np.asarray(a[b], dtype=np.int64)[idx])
             if jacpt is not None:
                 push("D", _jac_block(t, stop, idx, jaccat, fn))
+            if grp:
+                _grp_block(t, stop, idx, prefix, nt, push, grpstats, fn)
             nsel += len(idx)
         else:
             pt = f["runtree"]["parmtype"].array(library="np")
@@ -369,7 +437,50 @@ def read_files(args, mass):
             f"books the cf branches but does not fill them -- the THREE-TRACK "
             f"maker (ResidualGlobalCorrectionMakerNTrackG4e) has not been "
             f"given the export and writes them empty with ok = false.")
+    if grp:
+        logger.info(f"per-group closure (the maker's own "
+                    f"max_j|sum_g S_g - S| / max_j|S|): worst "
+                    f"{grpstats['clo']:.3e} over {grpstats['n']} candidates")
+        cols["_ngroups"] = ngroups
     return tgrid, tag, cols, nsel, ndrop, bool(want_hitclass), jaccat
+
+
+def _grp_block(t, stop, idx, prefix, nt, push, stats, fn):
+    """The per-group and per-hit-class CSR rows of the SELECTED candidates.
+
+    Vectorized with awkward for the same reason `_jac_block` is: a python loop
+    over 26 groups x 64 tau per candidate is hours over a production.
+    """
+    import awkward as ak
+    br = [f"{prefix}_grp"] + [f"{prefix}_grp_{s}" for s in _GRP_BRANCH] \
+        + [f"{prefix}_hitcls", f"{prefix}_hitv"]
+    have_clo = f"{prefix}_grp_closure" in t.keys()
+    if have_clo:
+        br.append(f"{prefix}_grp_closure")
+    a = t.arrays(br, library="ak", entry_stop=stop)
+    a = a[idx]
+    ng = ak.to_numpy(ak.num(a[f"{prefix}_grp"])).astype(np.int64)
+    push("grp_cnt", ng)
+    push("grp_id", ak.to_numpy(ak.flatten(a[f"{prefix}_grp"])).astype(np.int16))
+    tot = int(ng.sum())
+    for key, s in zip(_GRP_FAMS, _GRP_BRANCH):
+        v = ak.to_numpy(ak.flatten(a[f"{prefix}_grp_{s}"]))
+        if v.size != tot * nt:
+            raise SystemExit(
+                f"{fn}: {prefix}_grp_{s} has {v.size} values but "
+                f"{tot} groups x {nt} tau = {tot * nt} were expected; the "
+                f"export is row-major (group, tau) and this file is not")
+        push("S" + key, v.astype(np.float32).reshape(tot, nt))
+    nh = ak.to_numpy(ak.num(a[f"{prefix}_hitcls"])).astype(np.int64)
+    push("hit_cnt", nh)
+    push("hit_cls", ak.to_numpy(ak.flatten(a[f"{prefix}_hitcls"])).astype(np.int16))
+    push("hit_v", ak.to_numpy(ak.flatten(a[f"{prefix}_hitv"])).astype(np.float64))
+    if have_clo:
+        c = ak.to_numpy(a[f"{prefix}_grp_closure"]).astype(np.float64)
+        push("grp_closure", c)
+        if c.size:
+            stats["clo"] = max(stats["clo"], float(np.nanmax(c)))
+    stats["n"] += len(idx)
 
 
 def _hitclass(a, ic, pt, cols):
@@ -399,8 +510,9 @@ def _hitclass(a, ic, pt, cols):
 
 # --------------------------------------------------------------------------
 def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
-                jaccat=None):
+                jaccat=None, groups_file=None, compress=True):
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    ngroups = cols.pop("_ngroups", None)
     out = {}
     for k, v in cols.items():
         # The MASS path appends one array per input FILE (`read_files` is
@@ -412,8 +524,12 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
             v = np.concatenate(v, axis=0)
         if k in _MASS_AUX_INT:
             out[k] = np.asarray(v, dtype=np.int64)
-        elif k in ("hitcls",):
+        elif k in ("hitcls", "grp_id", "hit_cls"):
             out[k] = np.asarray(v, dtype=np.int16)
+        elif k in ("grp_cnt", "hit_cnt"):
+            out[k] = np.asarray(v, dtype=np.int64)
+        elif k in ("hit_v",):
+            out[k] = np.asarray(v, dtype=np.float32)
         elif k in ("hitamp2",):
             out[k] = np.asarray(v, dtype=np.float32)
         elif k in ("hitcnt",):
@@ -425,6 +541,8 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
         else:
             out[k] = np.asarray(v, dtype=np.float64)
     out["tgrid"] = np.asarray(tgrid, dtype=np.float64)
+    if ngroups is not None:
+        _finish_groups(out, ngroups, groups_file)
     if jaccat is not None:
         # the parameter map of the D block, so a card builder does not have to
         # re-open a runtree to know what its columns mean
@@ -458,9 +576,73 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
         if hitclass:
             import hitres_classes
             out["hitclsnames"] = np.array(hitres_classes.CLASSES)
-    np.savez_compressed(path, **out)
+    (np.savez_compressed if compress else np.savez)(path, **out)
     logger.info(f"wrote {path} ({nsel} entries, {ndrop} dropped, "
-                f"rad_model={int(out['rad_model'])})")
+                f"rad_model={int(out['rad_model'])}"
+                + (", compressed" if compress else ", UNcompressed") + ")")
+
+
+def _finish_groups(out, ngroups, groups_file):
+    """CSR pointers, `vg_other`, the label arrays and the aliases
+    `matres/make_material_card.py` reads.
+
+    The per-file blocks were pushed as COUNTS (`grp_cnt`, `hit_cnt`), not
+    pointers, precisely so that the generic concatenation above is enough and
+    no pointer offset has to be fixed up per shard.
+    """
+    import sys as _sys
+    _mat = os.path.join(HERE, "matres")
+    if _mat not in _sys.path:
+        _sys.path.insert(0, _mat)
+    import groups as G
+
+    for pref, cnt in (("grp", "grp_cnt"), ("hit", "hit_cnt")):
+        c = np.asarray(out.pop(cnt), dtype=np.int64)
+        out[f"{pref}_ptr"] = np.concatenate(
+            [[0], np.cumsum(c)]).astype(np.int64)
+    n = len(out["sigma"])
+    if len(out["grp_ptr"]) != n + 1 or len(out["hit_ptr"]) != n + 1:
+        raise SystemExit(
+            f"group CSR pointer has {len(out['grp_ptr'])} entries and the hit "
+            f"one {len(out['hit_ptr'])}, but there are {n} candidates")
+
+    # v_other = vgf - sum_c v_c, EXACTLY the offline formula the export doc
+    # prescribes.  The two-track `cfmass_vgf` is the TOTAL Gaussian share
+    # (hits + beamspot + pointing) and the hit-class variances went into
+    # `resinfcovhit`, NOT into `resinfcov`, so the remainder is a real physical
+    # share and not a rounding residue -- see
+    # Analysis/HitAnalyzer/doc/resolution-cf-export.md, "The hit-class blocks".
+    hv = np.asarray(out["hit_v"], dtype=np.float64)
+    hp = out["hit_ptr"]
+    seg = np.zeros(n)
+    if hv.size:
+        np.add.at(seg, np.repeat(np.arange(n), np.diff(hp)), hv)
+    out["vg_other"] = (np.asarray(out["vgf"], np.float64) - seg).astype(np.float64)
+
+    gnames, _ = G.group_param_names(ngroups, groups_file)
+    out["group_names"] = np.array(gnames)
+    import hitres_classes
+    out["hit_classes"] = np.array(hitres_classes.CLASSES)
+    out["families"] = np.array(list(_GRP_FAMS))
+    out["amount_convention"] = np.array("exp(k_g) per group, weights frozen")
+    out["hitmode"] = np.array("class18")
+    out["functional"] = np.array("mass")
+    out["cf_groups"] = np.array("cvhcf-inmaker")
+
+    # aliases so `matres/make_material_card.py` reads this cache unchanged
+    if "m0" not in out:
+        out["m0"] = np.asarray(out["z"]) * np.asarray(out["sigma"]) \
+            + np.asarray(out["eta"])
+    if "mgen" not in out:
+        out["mgen"] = np.asarray(out["eta"], dtype=np.float64)
+    if "chi2ndof" not in out and "chisqval" in out and "ndof" in out:
+        out["chi2ndof"] = (np.asarray(out["chisqval"], np.float64)
+                           / np.maximum(np.asarray(out["ndof"], np.float64), 1.0))
+    for a, b in (("fit_parmtype", "jac_parmtype"),
+                 ("fit_subidx", "jac_subidx"),
+                 ("fit_globalidx", "jac_globalidx")):
+        if b in out and a not in out:
+            out[a] = out[b]
 
 
 # --------------------------------------------------------------------------
@@ -596,6 +778,27 @@ def main():
                         "the same pass, so the rows are aligned with the CF "
                         "rows by construction and no run/lumi/event join is "
                         "needed.")
+    p.add_argument("--groups", action="store_true",
+                   help="ALSO store the per-MATERIAL-GROUP log-CF exponents "
+                        "and the per-HIT-CLASS Gaussian shares the maker "
+                        "exports with `exportCfGroupExponents=True`, in the "
+                        "CSR layout `rabbit.unbinned.MaterialCFTerm` and "
+                        "`matres/make_material_card.py` consume. This is what "
+                        "replaces the four ad-hoc k_* resolution knobs with "
+                        "the physical parmtype-15 amounts. `pairs` only. "
+                        "~27 kB/candidate raw against 1.4 kB flat.")
+    p.add_argument("--groups-file",
+                   default="/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/"
+                           "src/Analysis/HitAnalyzer/data/materialGroups50.txt",
+                   help="materialGroups tier file, for the group NAMES only "
+                        "(the ids come from the file). The names must be the "
+                        "ones `make_global_term.name_params` builds or a joint "
+                        "card will float two disjoint sets of parameters.")
+    p.add_argument("--no-compress", action="store_true",
+                   help="write with np.savez instead of np.savez_compressed. "
+                        "A per-group cache is mostly float32 CF exponents, "
+                        "which barely compress, and zipping 20 GB costs more "
+                        "wall time than the disk it saves.")
     p.add_argument("--mass-del", action="store_true",
                    help="keep the delta-ray family in the MASS cache (the "
                         "reference `build_pairs_tt` model does not have it)")
@@ -603,7 +806,8 @@ def main():
     mass = a.mode == "pairs"
     tgrid, tag, cols, nsel, ndrop, hitclass, jaccat = read_files(a, mass)
     write_cache(a.cache, tgrid, tag, cols, mass, nsel, ndrop, hitclass,
-                a.mass_del, jaccat)
+                a.mass_del, jaccat, groups_file=a.groups_file,
+                compress=not a.no_compress)
 
 
 if __name__ == "__main__":
