@@ -6,6 +6,8 @@ Companion to `STATE.md` (`jpsimc_20M_260905`) and `STATE_dy.md`
 exports are on the branch **`cvh-exports-260906`**, built in a SECOND area,
 `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2` (a git worktree of the
 same repo, so the production area was never touched while its jobs ran).
+**As of 2026-09-07 the split is over: both areas hold the same tree at
+`ca6058d`. Read §0 first — it says which area to run from.**
 
 Nothing here needs to be re-derived: the physics is bit-identical to
 `157775e` on all three smoke samples, so this is a configuration and a volume
@@ -13,10 +15,44 @@ decision, not a revalidation.
 
 ---
 
-## 0. PREREQUISITE: the `ndof == 0` abort must be in the area that runs it
+## 0. THE TWO AREAS ARE NOW ONE (2026-09-07) — and which one to run from
 
-**A re-production from `157775e` would lose ~13 % of its DY chunks outright.**
-The two-track maker's factored-Hessian rank report reads
+**Consolidated.** With the slurm `jpsimc20M_*` arrays finished and the slurm DY
+leg cancelled, nothing was running out of the production area any more, so
+`WmassNanoProd_15_0_19_patch2_dev` was **fast-forwarded onto
+`cvh-exports-260906`** (17 commits, `157775e` -> `ca6058d`, a clean
+fast-forward, no merge commit, nothing pushed to any remote). The
+`Utilities/XrdAdaptor` pattern — added to the dev2 worktree's sparse checkout
+for the null-pointer patch — was added to the production area's sparse checkout
+first, so the two checkouts materialise the same set of packages.
+
+**The two areas now hold the same tree, byte for byte:**
+
+* `git diff cvh-exports-260906 --stat` in the production area is empty;
+* `diff -rq` of the two `src/` trees (excluding `.git` and `__pycache__`)
+  reports only six untracked leftovers in the production area (old
+  `globalcor_*.root`, `run.log`, two `debugG4e_*.log`, `toyPlanes_pt3.py`) —
+  no tracked file differs;
+* the production area was rebuilt (`cmsswlock.sh build scram b -j32`, 152 s,
+  0 errors) and re-gated on the three smokes: **every branch bit-identical to
+  the dev2 reference** (§7).
+
+| | |
+|---|---|
+| **run the next production from** | **`/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2`, branch `cvh-exports-260906`** |
+| why that one | it is the default of every *live* script — `condor_{jpsimc,dymc}_v2/config_*.sh`, `array_jpsimc_v2.sbatch`, `array_dymc_dev2.sbatch`, `resume_dy_dev2.sh`, `threadscan/run_scan.sh`, `repack_fix_260907/*` — and it is where new export work is committed |
+| the other area | `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev` @ the same commit, branch `WmassNanoProd_15_0_19_patch2_dev`. Identical and built; keep it as the spare / as the non-worktree checkout that owns the repo |
+| what this fixes | the v1 configs that still default to `..._dev` (`config_jpsimc20M.sh`, `config_dymc8p5M.sh`, `array_{jpsimc,dymc}.sbatch`, `profiling/run_profile.sh`) are **no longer wrong** — they now pick up the same binaries |
+
+**Keep them in step the same way.** Do the work on `cvh-exports-260906` in
+dev2; when it is validated, `git merge --ff-only cvh-exports-260906` in dev and
+rebuild. If that merge is ever *not* a fast-forward, the two have diverged and
+the divergence must be understood before either is used for a production.
+
+### What made the consolidation non-optional: the `ndof == 0` abort
+
+**A re-production from `157775e` would have lost ~13 % of its DY chunks
+outright.** The two-track maker's factored-Hessian rank report reads
 `eigvals(nparsfinal - nrank)` with `nrank = min(ndof, nParms)`, and `ndof` is
 an **unsigned** member equal to `nvalid + nvalidpixel - 10` summed over both
 legs. A Z pair whose two MiniAOD legs carry exactly ten valid-hit-equivalents
@@ -36,9 +72,8 @@ Fixed on `cvh-exports-260906` at **`fab515e`** ("A two-track fit with
 ndof == 0 must fail, not index past the eigenvalues"): `ndof` is computed
 signed and clamped, `ndof <= 0` is a counted fit failure (`fail[ndof]` in the
 per-job summary) dropped through the existing `valid` path, and the rank report
-is guarded. Bit-identical on all three smokes. **This commit must be
-cherry-picked onto `WmassNanoProd_15_0_19_patch2_dev` before any re-production
-is submitted from the production area.**
+is guarded. Bit-identical on all three smokes. It is now in **both** areas, so
+the cherry-pick this section used to demand is done.
 
 ---
 
@@ -295,18 +330,23 @@ and what every cache built before the hit blocks existed assumes.
 
 ## 6. Order of operations
 
-1. **Do not build in `CMSSW_15_0_19_patch2_dev` while `jpsimc20M_*` /
-   `dymc8p5M_*` are in `squeue`.** A `scram b` relinks the .so under the running
-   jobs and they segfault in the same second. The work is on a branch in a
-   second area precisely so that this decision can be taken later.
-2. When the productions finish: merge `cvh-exports-260906` into
-   `WmassNanoProd_15_0_19_patch2_dev` — **`fab515e` (the `ndof == 0` abort) is
-   the one commit that is not optional; see §0** — build the production area,
-   and re-run the smoke (`resolution/smoke_exports_260906.sh <area> <outdir>`)
-   there — it must reproduce `scratch_smoke_260906/v6_default` bit for bit.
+1. ~~Do not build in `CMSSW_15_0_19_patch2_dev` while `jpsimc20M_*` /
+   `dymc8p5M_*` are in `squeue`.~~ **Done 2026-09-07.** The rule still holds for
+   any future build in an area a production is running from — a `scram b`
+   relinks the .so under the running jobs and they segfault in the same second
+   — but the condition that forced the two-area split is gone: the slurm J/psi
+   leg finished, the slurm DY leg was cancelled, and the condor v2 recovery
+   jobs run from a payload tarball **pinned in the production's own output
+   tree** (`.../jpsimc_20M_260906_v2/payload/overlay_*_xrdfix.tgz`), so they
+   depend on neither area's live libraries.
+2. ~~Merge `cvh-exports-260906` into `WmassNanoProd_15_0_19_patch2_dev`.~~
+   **Done 2026-09-07** — clean fast-forward `157775e` -> `ca6058d` (17 commits),
+   sparse checkout aligned, area rebuilt in 152 s, and the smoke re-run there
+   reproduces the dev2 reference **bit for bit on all three samples** (§0, §7).
+   Nothing was pushed to any remote.
 3. Add `exportCfGroupExponents=True` to `config_jpsimc20M.sh` and
    `config_dymc8p5M.sh`, bump the tags, and resubmit with the existing
-   `submit_*.sh` / `resume.sh` machinery unchanged.
+   `submit_*.sh` / `resume.sh` machinery unchanged. **This is the next step.**
 4. Point `matres/extract_groups.py` at the new branches instead of the raw step
    records. That is where the 1.9 s/candidate offline extraction disappears:
    the per-group arrays are already in the file.
@@ -316,11 +356,22 @@ and what every cache built before the hit blocks existed assumes.
 ## 7. Provenance
 
 * branch `cvh-exports-260906` off `157775e`, area
-  `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2`
+  `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2`; **as of 2026-09-07 the
+  production area `..._dev` (branch `WmassNanoProd_15_0_19_patch2_dev`) is
+  fast-forwarded to the same commit `ca6058d` and holds an identical tree**
 * smoke driver `calibration_studies/resolution/smoke_exports_260906.sh`
   (three cmsRun jobs: J/psi-gun two-track, mu-gun single-track, 48 events of
   2016F Charmonium ALCARECO)
-* outputs and logs `/work/submit/david_w/ZMass/scratch_smoke_260906/`
+* outputs and logs `/work/submit/david_w/ZMass/scratch_smoke_260906/`. The
+  dev2 references are `v6_default` (build of `fab515e`) and `v7_xrdfix` (build
+  of `ca6058d`) — **bit-identical to each other**, i.e. `c2d74e3e647`
+  (XrdAdaptor) and `ca6058d96fc` (the Geant4e table mutex) are inert on a POSIX
+  input, as intended. The 2026-09-07 re-gate of the merged production area is
+  `v8_devmerged`: **all IDENTICAL** against both references —
+  gun_tt 246 branches (210 `tree` + 36 `runtree`) over 59 candidates,
+  gun_st 157 (121 + 36) over 120 tracks,
+  data_tt 264 (228 + 36) over 48 candidates, `runtree` 126 452 entries in every
+  file, and the three output files byte-for-byte the same size as the reference
 * validation report `calibration_studies/resolution/runs/exports260906/`
 * the export contract itself:
   `Analysis/HitAnalyzer/doc/resolution-cf-export.md`

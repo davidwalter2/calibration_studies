@@ -389,3 +389,48 @@ provenance blob, and the physics payload of the sample is sound. **Run both
 scans on any future repack before a production reads it** — together they cost
 minutes and they catch all three classes (NUL provenance, missing StreamerInfo,
 and any silent event-level damage, via the failure rate).
+
+## 2026-09-07 — the production area is consolidated onto `cvh-exports-260906`
+
+This production is finished, so the area it ran from is no longer pinned. The
+two CVH areas have been merged back into one tree.
+
+**Preconditions checked before touching anything** (all three, in this order):
+
+* `squeue -u david_w` — **no `jpsimc*` / `dymc*` job of any state**. The slurm
+  `jpsimc20M_*` arrays completed on the morning of 2026-09-07; the slurm DY leg
+  was cancelled on 2026-09-06 in favour of the condor v2 leg;
+* `condor_q -constraint 'Owner=="david_w"'` — **only cluster `3803425`**, the
+  16 repair chunks of §"the four bad inputs, repaired". Their `TransferInput`
+  is the payload tarball
+  `/ceph/.../cvh/jpsimc_20M_260906_v2/payload/overlay_jpsimc_20M_260906_v2_xrdfix.tgz`,
+  **pinned inside the production's own output tree**, so they carry their own
+  binaries and depend on neither area's `lib/`. Nothing was done to any condor
+  cluster;
+* `git status` clean in both areas.
+
+**What was done.**
+
+| step | result |
+|---|---|
+| sparse checkout of `..._dev` aligned to `..._dev2` | `/Utilities/XrdAdaptor/` added — it was added to the dev2 worktree for the null-pointer patch `c2d74e3e647`, and sparse-checkout files are **per-worktree** (`.git/info/` vs `.git/worktrees/src/info/`), so it did not propagate on its own. Both lists now identical, 18 patterns |
+| `git merge --ff-only cvh-exports-260906` | **clean fast-forward**, `157775e2f3a` -> `ca6058d96fc`, 17 commits, 20 files, +2755/-122. No merge commit |
+| tree equality | `git diff cvh-exports-260906 --stat` **empty**; `diff -rq` of the two `src/` trees (excluding `.git`, `__pycache__`) reports **no tracked difference** — only six untracked leftovers in `..._dev` (`globalcor_0.root`, `globalcor_resclosure_0.root`, `run.log`, `toyPlanes_pt3.py`, two `debugG4e_*.log`) |
+| `cmsswlock.sh build scram b -j32` | **rc=0 in 152 s**, 0 compiler errors; six libraries relinked, including the newly materialised `libUtilitiesXrdAdaptor.so` / `pluginUtilitiesXrdAdaptorPlugin.so` |
+| `resolution/smoke_exports_260906.sh` on `..._dev` | rc=0, entries **59 / 120 / 48** as asserted (an empty tree is a FAILED smoke, see the script's header) |
+| bit comparison | `v8_devmerged` vs the dev2 references `v7_xrdfix` **and** `v6_default`: **IDENTICAL on all three smokes**, 246 / 157 / 264 branches, `runtree` 126 452 entries, output files the same size to the byte |
+
+The two dev2 references were also compared to each other and are identical, so
+`c2d74e3e647` (XrdAdaptor) and `ca6058d96fc` (the Geant4e shared-table mutex)
+are confirmed inert on POSIX input — they only matter on the xrootd path and
+under multiple streams.
+
+**Which area to use.** `PRODUCTION_NEXT.md` §0 is the authority. Short version:
+run from **`/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2`, branch
+`cvh-exports-260906`** — every live script already defaults to it. `..._dev`
+(branch `WmassNanoProd_15_0_19_patch2_dev`) is now the identical, built spare,
+which is what makes this file's own v1 configs (`config_jpsimc20M.sh`,
+`array_jpsimc.sbatch`) safe again rather than a trap. Keep the two in step with
+`git merge --ff-only`; if that ever refuses, they have diverged and the reason
+must be understood before either runs a production. **Nothing was pushed to any
+remote.**
