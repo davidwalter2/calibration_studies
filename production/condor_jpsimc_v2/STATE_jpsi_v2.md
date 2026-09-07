@@ -421,3 +421,73 @@ Nothing else is an outlier — in particular the seven tasks reading the two
 NUL-carrying-but-runnable files sit at 0.000-0.020 %, dead in the baseline. So
 the memory corruption of §8.3 hit only the provenance blob in every case where
 it did not stop the job, and the physics payload of the sample is sound.
+
+### 8.7 The re-run: cluster `3803425`, 16/16, and the production is now complete
+
+Submitted 2026-09-07 with `recover_xrdfix.sh --only "<the 16>"` (the pinned
+`_xrdfix` payload, dev2 @ `ca6058d`, so the recovered tasks run the same binary
+as the other resumed ones). All 16 finished on the first start, at DESY, CIEMAT,
+TIFR, INFN and Caltech, in 2804-12747 s at 4 threads.
+
+| task | events | attempted | succeeded | cand/ev | fail % | `clampevents` |
+|---|---:|---:|---:|---:|---:|---:|
+| 1219 | 12808 | 12761 | 12760 | 0.9963 | 0.0078 | 30 |
+| 1220 | 12808 | 12769 | 12768 | 0.9969 | 0.0078 | 2 |
+| 1221 | 12808 | 12773 | 12772 | 0.9972 | 0.0078 | 27 |
+| 1222 | 12807 | 12766 | 12765 | 0.9967 | 0.0078 | 3 |
+| 1334 | 14067 | 14028 | 14027 | 0.9972 | 0.0071 | 9 |
+| 1335 | 14067 | 14024 | 14023 | 0.9969 | 0.0071 | 13 |
+| 1336 | 14067 | 14020 | 14019 | 0.9966 | 0.0071 | 12 |
+| 1337 | 14066 | 14027 | 14026 | 0.9972 | 0.0071 | 5 |
+| 1409 | 12156 | 12106 | 12104 | 0.9957 | 0.0165 | 11 |
+| 1410 | 12156 | 12113 | 12113 | 0.9965 | 0.0000 | 6 |
+| 1411 | 12156 | 12118 | 12118 | 0.9969 | 0.0000 | 13 |
+| 1412 | 12153 | 12119 | 12117 | 0.9970 | 0.0165 | 11 |
+| 1552 | 12379 | 12336 | 12336 | 0.9965 | 0.0000 | 1 |
+| 1553 | 12379 | 12342 | 12340 | 0.9968 | 0.0162 | 9 |
+| 1554 | 12379 | 12339 | 12338 | 0.9967 | 0.0081 | 5 |
+| 1555 | 12379 | 12331 | 12331 | 0.9961 | 0.0000 | 9 |
+| **total** | **205 635** | **204 972** | **204 957** | **0.9967** | **0.0073** | |
+
+against the control population's 0.9968 and 0.0067 %, and against the split-99
+runs' 0.8242 and 17.4 %. `clampevents[step]` is 1-30 per task where it was
+~29 000. **Every task has exactly 4 stream files and a `.complete`, and the
+production is now 1642/1642.**
+
+`attempted` is **identical, task by task, to the split-99 runs** (12761, 12769,
+12773, 12766, 14028, 14024, 14020, 14027, 12106, 12113, 12118, 12119, ...). The
+same muon pairs were found in both; only the fit outcome changed. That is the
+cleanest possible demonstration that this was a hit-content problem and not a
+selection or sample difference.
+
+Aggregate over all 16 recovered tasks against the 16 immediately-following
+control tasks:
+
+| | recovered (204 957) | control (212 886) |
+|---|---:|---:|
+| chi2/ndof median | 0.9531 | 0.9540 |
+| chi2/ndof p99 | 2.919 | 2.892 |
+| chi2/ndof p99.9 | 5.619 | 5.320 |
+| chi2/ndof > 10 | 0.0181 % (37) | 0.0103 % (22) |
+| `niter == 10` | 1.576 % | 1.491 % |
+| m(mumu) median | 3.09499 | 3.09488 |
+| m(mumu) in [2.9, 3.3] | 98.55 % | 98.50 % |
+| gen match lost | 0.015 % | 0.010 % |
+
+(The *mean* chi2/ndof is not a usable statistic on either population: a single
+candidate at ~1e8 sets it, and control tasks have such candidates too — 1 per
+task above 10 in both classes. Use the median and the quantiles.)
+
+### 8.8 The wall clock was a free detector, and nobody was looking at it
+
+The slurm v1 twin ran the same 12 split-99 chunks. All twelve took
+**10:14-12:00 h**, seven completing at 10.2-11.9 h and five hitting the 12 h
+limit — against a normal J/psi chunk's **~2.8 h**. A factor 3.8, which is
+exactly the 4.1x propagator-call excess the diverged fits generate (5.75 M
+calls vs 1.39 M for a comparable candidate count).
+
+So the corruption was visible in the job runtime from the first hour, with no
+knowledge of split levels or ROOT #19773 required. **`status_jpsimc_v2.sh`
+should flag per-task runtime outliers** (it already reads the `.complete`
+sentinels, which carry `seconds=`); a chunk taking 4x the median is either a
+sick node or a sick input, and both are worth an alert.

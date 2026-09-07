@@ -336,29 +336,43 @@ The full account, with every number, is in
   Not disk rot, not transfer damage — `edmProvDump` is clean on the central
   original and fails on our copy.
 * all four files were re-repacked to split-1 and validated; the 16 chunks were
-  re-run on condor as cluster **`3803425`**. New inputs:
+  re-run on condor as cluster **`3803425`** and all 16 succeeded on the first
+  start — **204 957 candidates from 205 635 events = 0.9967/event at 0.0073 %
+  failures**, chi2/ndof median 0.9531 against the controls' 0.9540, 4 streams
+  and a sentinel each. **`jpsimc_20M_260906_v2` is now 1642/1642.** New inputs:
   `/ceph/submit/data/user/d/david_w/ZMass/restaged/jpsimc_20M_260906_repack/`.
   The bad staged copies are kept as `restaged_split99_DO_NOT_USE/`.
 
 ### The slurm v1 leg `jpsimc_20M_260905` — 12 affected chunks, deliberately NOT repaired
 
 `chunks_jpsimc_20M_260905.txt` carries the same 12 repointed lines, so the same
-task indices are affected, and they were still running when this was written
-(they hold the split-99 files open, so renaming the directory did not disturb
-them; they will finish, and their output will be garbage):
+task indices are affected. The array has now drained: **1633 of 1642 tasks have
+a `.complete`**, and the 9 that do not are exactly these:
 
-```
-task_1219 task_1220 task_1221 task_1222      BDA060EF-B8F8-7349-9277-363C3AB7EA76
-task_1334 task_1335 task_1336 task_1337      0909778B-8728-764F-B41B-1C9DCE5C849E
-task_1409 task_1410 task_1411 task_1412      4B9D2D77-92ED-8440-8697-DD4AC560E61C
-task_1552 task_1553 task_1554 task_1555      03249796-...  (exit 91, no output)
-```
+| task | input | v1 outcome |
+|---|---|---|
+| 1219 1220 1221 | `BDA060EF-...` | COMPLETED 10:47-10:52 — **garbage, discard** |
+| **1222** | `BDA060EF-...` | **TIMEOUT at 12:00:02, no `.complete`** |
+| 1337 | `0909778B-...` | COMPLETED 11:56 — **garbage, discard** |
+| **1334 1335 1336** | `0909778B-...` | **TIMEOUT at 12:00, no `.complete`** |
+| 1409 1410 1412 | `4B9D2D77-...` | COMPLETED 10:15-10:19 — **garbage, discard** |
+| **1411** | `4B9D2D77-...` | **TIMEOUT at 12:00:24, no `.complete`** |
+| **1552 1553 1554 1555** | `03249796-...` | **exit 91, never produced output** |
 
-**DISCARD those 12 (and note 1552-1555 never produced anything).** v1 is a
-cross-check sample only, so it was left alone rather than repaired; a marker
-listing them sits in the output tree as `BAD_TASKS_split99_260907.txt`. If v1 is
-ever used quantitatively, either exclude the 12 or re-run them against
-`jpsimc_20M_260906_repack/`.
+So of the 12 split-99 chunks, 7 finished (with garbage) and 5 hit the 12 h wall
+limit. **DISCARD all 12.** v1 is a cross-check sample only, so it was left alone
+rather than repaired; a marker listing them sits in the output tree as
+`BAD_TASKS_split99_260907.txt`. If v1 is ever used quantitatively, either
+exclude the 12 or re-run them against `jpsimc_20M_260906_repack/`. **No re-run
+is needed** — this is a record, not an action item.
+
+**And the wall clock was a free corruption detector all along.** Every one of
+those 12 tasks ran **10:14-12:00** against a normal J/psi chunk's ~2.8 h — a
+factor ~3.8, which is exactly the 4.1x propagator-call excess the diverged fits
+generate (5.75 M calls vs 1.39 M). Nothing else in the array is remotely near
+the limit. **Adding a per-task runtime outlier check to the status script costs
+nothing and would have caught this on day one**, without knowing anything about
+split levels or ROOT #19773.
 
 ### Two further defects, both outside the 16 chunks
 
