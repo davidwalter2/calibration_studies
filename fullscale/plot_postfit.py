@@ -41,7 +41,7 @@ def parse_args():
     p.add_argument("--outpath", default=None)
     p.add_argument("--postfix", default="")
     p.add_argument("--title", default="CMS")
-    p.add_argument("--subtitle", default="Simulation, work in progress")
+    p.add_argument("--subtitle", default="work in progress")
     p.add_argument("--titlePos", type=int, default=2)
     p.add_argument("--nsub", type=int, default=2000)
     p.add_argument("--nbins", type=int, default=240)

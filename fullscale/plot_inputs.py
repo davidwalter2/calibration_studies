@@ -27,7 +27,7 @@ def parse_args():
     p.add_argument("--outpath", default=None)
     p.add_argument("--postfix", default="")
     p.add_argument("--title", default="CMS")
-    p.add_argument("--subtitle", default="Simulation, work in progress")
+    p.add_argument("--subtitle", default="work in progress")
     p.add_argument("--titlePos", type=int, default=2)
     p.add_argument("--max-sigma-rel", type=float, default=0.10)
     p.add_argument("--max-chi2-ndof", type=float, default=3.0)
