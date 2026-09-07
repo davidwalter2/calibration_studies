@@ -96,6 +96,25 @@ def parse_args(argv=None):
     p.add_argument("--max-chi2-ndof", type=float, default=3.0)
     p.add_argument("--max-sigma-rel", type=float, default=0.10,
                    help="drop candidates with sigma_m/m above this")
+    p.add_argument("--eta-lead", type=float, nargs=2, default=None,
+                   metavar=("LO", "HI"),
+                   help="keep only candidates whose LEADING muon (higher pT) "
+                        "has LO <= |eta| < HI. A bias localised in eta points "
+                        "at the field/alignment-like effects the joint fit can "
+                        "absorb; one that is flat in eta does not.")
+    p.add_argument("--lead-charge", choices=["any", "plus", "minus"],
+                   default="any",
+                   help="keep only candidates whose leading muon has this "
+                        "charge. A charge-ordered split isolates the "
+                        "charge-ODD (misalignment-like) part of a bias.")
+    p.add_argument("--vgf-range", type=float, nargs=2, default=None,
+                   metavar=("LO", "HI"),
+                   help="keep only LO <= vgf < HI. `vgf` is the GAUSSIAN "
+                        "(hit-resolution) share of sigma_m^2, so this splits "
+                        "hit-dominated from process-noise-dominated "
+                        "candidates. It is the proxy available in the FLAT "
+                        "cache; the true per-hit-class shares live in the "
+                        "per-group caches (`cf_inmaker.py --groups`).")
     p.add_argument("--min-sigma-rel", type=float, default=0.0,
                    help="drop candidates with sigma_m/m BELOW this. With "
                         "--max-sigma-rel this cuts a resolution slice, which "
@@ -226,6 +245,26 @@ def select(d, args, log=print):
     if args.min_sigma_rel > 0:
         keep &= srel >= args.min_sigma_rel
         steps.append((f"sigma_m/m >= {args.min_sigma_rel:g}", keep.copy()))
+    if args.eta_lead is not None or args.lead_charge != "any" or \
+            args.vgf_range is not None:
+        ptp = np.asarray(d["ptp"], dtype=np.float64)
+        ptm = np.asarray(d["ptm"], dtype=np.float64)
+        plus_leads = ptp >= ptm
+        if args.eta_lead is not None:
+            etal = np.abs(np.where(plus_leads, np.asarray(d["etap"], np.float64),
+                                   np.asarray(d["etam"], np.float64)))
+            lo_e, hi_e = args.eta_lead
+            keep &= (etal >= lo_e) & (etal < hi_e)
+            steps.append((f"{lo_e:g} <= |eta| lead < {hi_e:g}", keep.copy()))
+        if args.lead_charge != "any":
+            keep &= plus_leads if args.lead_charge == "plus" else ~plus_leads
+            steps.append((f"leading muon is mu{args.lead_charge[0]}",
+                          keep.copy()))
+        if args.vgf_range is not None:
+            v = np.asarray(d["vgf"], dtype=np.float64)
+            lo_v, hi_v = args.vgf_range
+            keep &= (v >= lo_v) & (v < hi_v)
+            steps.append((f"{lo_v:g} <= vgf < {hi_v:g}", keep.copy()))
     if args.max_sigma > 0:
         keep &= sigma < args.max_sigma
         steps.append((f"sigma_m < {args.max_sigma:g} GeV", keep.copy()))
