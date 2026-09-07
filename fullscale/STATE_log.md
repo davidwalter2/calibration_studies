@@ -366,3 +366,46 @@ ONE card (`fit.py --corr-clip`).
 Running: `22163315` the six variants UNCLIPPED at full scale (the problem at
 scale), `22163745` the clip scan 3/5/10/0, `22163752` the six variants at
 `corr_clip = 5`.
+
+---
+
+### 2026-09-06 20:00 → 2026-09-07 07:00 — the reformulation, and phase 1 finished
+
+**The corrections were reformulated** (rabbit `cd6c165`, `a3958f9`, `0b03d48`,
+`a4cd32b`, `3324ed0`). `corr_form="fluctuation"`: both MASSCFTERM_SPEC
+corrections as ONE deterministic per-candidate map of the resolution
+fluctuation, applied inside the convolution,
+`u_i(x) = sigma_i x + c_i x^2 + d_i` with the measure `p_x(x)(1 - a_i x)`,
+which in Fourier space is one multiplicative factor on the resolution CF plus a
+shift `d_i` of the residual. Derivation, the `(1 - a_i x)` measure term the task
+sketch omitted (worth 27 MeV at the Z), and every gate: `STATE.md` sec. 0 and
+`Documents/Resolution/NOTES.md` 2026-09-06.
+
+Order of operations, and what each step cost:
+
+| when | what | outcome |
+|---|---|---|
+| 20:00-20:30 | the refactor (`_chunk_resolution_parts`, cubic-spline `_dmat`) and the fluctuation form | all 7 pre-existing suites still pass; bit-identical at `upsample == 1` |
+| 20:30-20:45 | `tests/test_fluctuation.py`, 7 checks | the density's mean is the closed form to 1e-10 |
+| 20:42 | **GATE 1** on the real J/psi gun, 299 422 candidates | fluctuation vs residual **0.00087 / 0.00224 e-3** apart, both within 0.003 e-3 of the spec |
+| 20:44-21:26 | the fluctuation cards, the 300 k ladder, `corr_census.py` | census: `E[Delta_i]` median -12.14 MeV against the residual form's 57.72 MeV displacement |
+| 21:2x | `corr_coeff_max` | the `nojensen` arm put 19 of 300 000 densities negative; a bound on the COEFFICIENT (not the argument) at 0.08 fixes it and costs 0.049 MeV |
+| 21:43-22:19 | the clip scan completed | **GATE 2**: `m_Z` swings 130 MeV over `corr_clip` 3/5/10/none |
+| 22:19-23:00 | the 300 k fluctuation ladder | both corrections additive to 0.2 MeV |
+| 22:48-23:52 | the J/psi v2 quadratic term, twice (the second time excluding the 16 bad tasks) | 16 755 046 candidates |
+| 23:0x-23:40 | `fit_joint.py` and its three gates; the `--inject` closure re-measured | **12.14 % -> 0.0023 %** on `bfield_mode0` |
+| 01:28-06:32 | the full-scale fluctuation fit on a preemptable H200 | **`m_Z` -11.06 +- 2.27, `Gamma_Z` -5.26 +- 4.16 MeV** |
+| 01:39, 01:59 | the `--shape 7` and the 80-100 GeV window diagnostics | the K(m) basis is saturated; the window test is inconclusive |
+| 06:38 | `cards/joint_v2.hdf5` rebuilt against the x16 quadratic term | 10.7 GB |
+| 06:45 | **the Engaging SSH master expired** | needs `!eng-master` from a human |
+| 06:52 | phase 2 restarted on CPU at 300 k + 300 k | running |
+| 07:0x | phase 3's blocker identified | `extract_groups.py` needs `ioniurbanidx`, which `exportStepRecords=False` did not write; the per-group CF is in `cfmass_grp_*` instead and nothing reads it |
+
+Dead ends worth not repeating:
+* Sampling one candidate's density by making the plotting grid the `mobs`
+  column gives every grid point its OWN `c_i`, `d_i` — a 3e-5 normalisation
+  deficit that looks like a bug in the CF and is not (pitfall 10).
+* The uncorrected residual form does not converge at 3.68 M any more than at
+  300 k; job 22163315 spent 1:57 on its first variant and produced nothing.
+* `--corr-clip` on a fluctuation-form card is meaningless and `fit.py` now
+  refuses it.
