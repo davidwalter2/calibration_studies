@@ -98,7 +98,10 @@ def load_two_track(args):
     print(f"  {n} tasks / {len(files)} files")
     br = ["Muplus_pt", "Muminus_pt", "Muplus_eta", "Muminus_eta",
           "Muplusgen_pt", "Muminusgen_pt", "Muplusgen_eta", "Muminusgen_eta",
-          "Muplusgen_dr", "Muminusgen_dr", "chisqval", "ndof", "genweight"]
+          "Muplusgen_dr", "Muminusgen_dr", "chisqval", "ndof", "genweight",
+          # the maker's own per-leg relative momentum error, already mapped to
+          # plus/minus -- so the PULL needs no covariance unpacking here
+          "Jpsi_sigmarelplus", "Jpsi_sigmarelminus"]
     cols = {b: [] for b in br}
     for i, f in enumerate(files):
         try:
@@ -122,10 +125,12 @@ def load_two_track(args):
             & (d[f"Mu{s}gen_pt"] > 0) & (d[f"Mu{s}_pt"] > 0) \
             & (d[f"Mu{s}_pt"] >= args.pt_range[0]) \
             & (d[f"Mu{s}_pt"] < args.pt_range[1]) & np.isfinite(w)
+        sr = d.get(f"Jpsi_sigmarel{s}")
         legs.append(dict(
             dkk=d[f"Mu{s}gen_pt"][m] / d[f"Mu{s}_pt"][m] - 1.0,
             eta=np.abs(d[f"Mu{s}_eta"][m]), q=np.full(int(m.sum()), q),
-            pt=d[f"Mu{s}_pt"][m], w=np.clip(w[m], -100, 100)))
+            pt=d[f"Mu{s}_pt"][m], w=np.clip(w[m], -100, 100),
+            srel=(np.full(int(m.sum()), np.nan) if sr is None else sr[m])))
     return {k: np.concatenate([a[k] for a in legs]) for k in legs[0]}
 
 
@@ -137,9 +142,13 @@ def load_track_cache(args):
         m &= (d["chisqval"].astype(np.float64)
               / np.maximum(d["ndof"].astype(np.float64), 1.0)) < args.max_chi2_ndof
     print(f"  {int(m.sum())} of {gp.size} tracks")
+    # the single-track cache's `sigma` is sigma(kappa) with kappa = q/pT, i.e.
+    # in GeV^-1; the RELATIVE error is sigma(kappa)/kappa = sigma(kappa) * pT
+    srel = (d["sigma"].astype(np.float64)[m] * gp[m]
+            if "sigma" in d.files else np.full(int(m.sum()), np.nan))
     return dict(dkk=gp[m] / tp[m] - 1.0, eta=np.abs(d["eta"].astype(np.float64)[m]),
                 q=d["charge"].astype(np.float64)[m], pt=tp[m],
-                w=np.ones(int(m.sum())))
+                w=np.ones(int(m.sum())), srel=srel)
 
 
 def main(argv=None):
@@ -151,7 +160,7 @@ def main(argv=None):
           f"pT in [{args.pt_range[0]:g}, {args.pt_range[1]:g}]")
     print(f"\n  {'|eta|':>12s} {'n':>9s} {'<pT>':>7s} "
           f"{'A = charge-EVEN [1e-4]':>24s} {'M = charge-ODD [1e-4]':>23s} "
-          f"{'RMS(dk/k) [1e-3]':>17s}")
+          f"{'RMS(dk/k) [1e-3]':>17s} {'PULL width':>11s}")
     rows = []
     for i in range(len(e) - 1):
         k = (dat["eta"] >= e[i]) & (dat["eta"] < e[i + 1])
@@ -166,10 +175,16 @@ def main(argv=None):
         eM = eA
         pt = float(np.median(dat["pt"][k])) if k.any() else np.nan
         rms = 0.5 * (sp_ + sm_)
+        pull = dat["dkk"][k] / dat["srel"][k]
+        pw = np.nan
+        if np.isfinite(pull).any():
+            pu = pull[np.isfinite(pull)]
+            q1, q3 = np.quantile(pu, [0.25, 0.75])
+            pw = (q3 - q1) / 1.349            # robust sigma, tail-immune
         rows.append((e[i], e[i + 1], np_ + nm, pt, A, eA, M, eM, rms))
         print(f"  {e[i]:5.1f}-{e[i+1]:4.1f} {np_+nm:9d} {pt:7.1f} "
               f"{1e4*A:+12.3f} +- {1e4*eA:7.3f} "
-              f"{1e4*M:+11.3f} +- {1e4*eM:7.3f} {1e3*rms:17.3f}")
+              f"{1e4*M:+11.3f} +- {1e4*eM:7.3f} {1e3*rms:17.3f} {pw:11.4f}")
     allq = {}
     for q, tag in ((+1, "p"), (-1, "m")):
         s = (dat["q"] > 0 if q > 0 else dat["q"] < 0)

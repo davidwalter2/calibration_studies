@@ -364,35 +364,85 @@ fitted `m_Z` closure is **-11.06 +- 2.27 MeV** — the OPPOSITE sign. The two
 differ by ~17 MeV, and that difference is the likelihood's own modelling, not
 the reconstruction's momentum scale.
 
-### THE POST-FIT RESIDUAL IS A 2.8 % WIDTH DEFICIT PLUS A SHIFT — decomposed
+### THE PURE-DETECTOR TEST: the detector half CLOSES; the -11 MeV is the KERNEL
 
-`resid_decompose.py` projects `data/model - 1` onto two templates computed from
-the TERM itself (no analytic approximation): `model(m_Z + 20 MeV)/model - 1`,
-which is ODD about the pole, and `model(sigma x 1.01)/model - 1`, which is EVEN.
-**Sign convention**: a POSITIVE shift coefficient means the data prefers a
-LARGER `m_Z` than the fit returned; a POSITIVE width coefficient means the data
-is WIDER than the model. On the full-scale base fit, 240 bins over 60-120 GeV,
-30 000-candidate model ensemble:
+`make_card.py --residual-mode` models **`m_reco - m_gen` directly against the
+per-candidate resolution CF**: the observable is the residual, the physics
+kernel is a DELTA, and the FSR fold, the acceptance and K(m) are all dropped.
+Nothing of the mass model survives, so what is measured is the detector half
+alone. 297 557 candidates (`|m_reco - m_gen| < 10 GeV`, normalised),
+both corrections on:
+
+| free | fitted | in MeV |
+|---|---:|---:|
+| `alpha` only | **+0.00966 +- 0.02324** e-3 | **+0.88 +- 2.12** |
+| `alpha` + `k_hit` | `k_hit` = **1.0647 +- 0.0291** | 2.2 sigma |
+| `alpha` + `k_ms` | `k_ms` = **1.0298 +- 0.0042** | **7.0 sigma** |
+
+**With no kernel at all the detector half closes at +0.9 +- 2.1 MeV.** The
+`m_Z` closure of the full fit is **-11.06 +- 2.27 MeV**. The two are 4 sigma
+apart and the residual-mode number is compatible with zero, so **the -11 MeV
+lives on the KERNEL side** — the Z lineshape, the FSR fold, the acceptance and
+K(m) — and NOT in the resolution model, the corrections, or the reconstruction.
+
+### THE PULL WIDTH: the resolution CORE is right to 0.4 %, flat in `eta`
+
+The mass pull `(m_reco - m_gen)/sigma_m`, robust width IQR/1.349, on the full
+3 682 662-candidate selection — and the same with the TRUTH-REFERENCED
+`sigma_bar = sigma - a delta` (`x = z/(1 - a z)`), which is what keeps the
+pull-normalisation artefact out:
+
+| `\|eta\|` lead | n | `sigma_m/m` | `vgf` | width (`sigma_fit`) | width (`sigma_bar`) |
+|---|---:|---:|---:|---:|---:|
+| 0.0-0.4 | 712 630 | 0.01002 | 0.224 | 0.9901 | 0.9894 |
+| 0.4-0.8 | 692 709 | 0.01049 | 0.203 | 0.9907 | 0.9900 |
+| 0.8-1.2 | 654 293 | 0.01202 | 0.199 | 0.9924 | 0.9925 |
+| 1.2-1.6 | 597 606 | 0.01317 | 0.186 | 1.0005 | 1.0007 |
+| 1.6-2.0 | 533 756 | 0.01388 | 0.228 | 0.9981 | 0.9984 |
+| 2.0-2.6 | 491 668 | 0.02041 | 0.367 | 1.0027 | 1.0092 |
+| **inclusive** | 3 682 662 | 0.01228 | 0.217 | **0.9959** | **0.9962** |
+
+and in `sigma_m/m` tertiles: **0.9803 / 0.9895 / 1.0168**.
+
+**The per-candidate mass resolution is correct to 0.4 % and flat in `eta` to
++-0.7 %.** The truth-referenced correction moves it by less than 0.1 %
+(0.9959 -> 0.9962), so the pull-normalisation artefact is NOT contaminating it.
+The one residual structure is a **3.7 % swing across the `sigma_m/m` tertiles**
+(over-estimated for well-measured candidates, under-estimated for poorly
+measured ones) — real, but +-2 % about 1.00, not a uniform deficit. For
+comparison the private tight-stepper gun's own single-track pull
+(`cf_trackres_mugun_ul16_260830`, its validated `z`) is **0.94-0.96, also flat
+in `eta`**.
+
+### SO WHAT IS THE "2.8 % WIDTH DEFICIT"? A KERNEL-SIDE MISMODELLING IN DISGUISE
+
+`resid_decompose.py` projects the post-fit spectrum residual onto a SHIFT
+template (`model(m_Z + 20 MeV)/model - 1`, odd about the pole) and a WIDTH
+template (`model(sigma x 1.01)/model - 1`, even). On the full-scale fit,
+240 bins, positive shift = the data prefers a larger `m_Z`, positive width = the
+data is wider than the model:
 
 | | value |
 |---|---:|
 | raw residual | `chi2/ndf` = **1130.9/240 = 4.71** |
 | after shift + width | **825.1/237 = 3.48** |
-| **SHIFT** | **+18.79 +- 1.70 MeV** |
-| **WIDTH** | **+2.838 +- 0.222 %** on `sigma` |
-| constant | -0.00026 +- 0.00058 |
+| SHIFT | +18.79 +- 1.70 MeV |
+| WIDTH | +2.838 +- 0.222 % on `sigma` |
 
-**The modelled resolution is 2.8 +- 0.2 % too NARROW.** That is a real,
-9-sigma-significant core-width deficit, and it is exactly at the edge of what
-floating `k_ms` could have seen (it returned 1.001 +- 0.034 — a 3.4 % error, so
-a 2.8 % width error is invisible to it). It is what the parmtype-15 material
-amounts exist to absorb, and phase 3 is its test.
+**That +2.8 % is NOT a measurement of a resolution error.** The direct pull says
+the resolution is right to 0.4 %, and the no-kernel fit says `k_ms` wants only
++3.0 % of the MS FAMILY (which is a sub-percent effect on `sigma` itself). The
+width template is simply the closest available basis vector to a kernel-side
+mismodelling, and the giveaway is that with BOTH templates removed `chi2/ndf` is
+still **3.48** — they do not describe the residual. **Retract "the modelled
+resolution is 2.8 % too narrow" as a statement about the resolution.**
 
-The residual is therefore **not** "a shift" or "a width mismatch" but both, and
-even with both removed `chi2/ndf` is still 3.48 — a third component neither
-hypothesis covers, and one a floated 5-term K(m) has already failed to absorb.
+What survives of it: the model's TAILS are under-predicted at both window ends,
+and `k_ms` = 1.0298 +- 0.0042 at 7 sigma in the kernel-free fit says the
+multiple-scattering tail specifically is ~3 % short. That is real, it is the
+material, and phase 3 is its test — but it is not what moves `m_Z`.
 
-### The Z ALONE CANNOT SEPARATE THE RESOLUTION MODEL FROM `m_Z` — measured
+### The Z ALONE CANNOT SEPARATE THE RESOLUTION MODEL FROM `m_Z`### The Z ALONE CANNOT SEPARATE THE RESOLUTION MODEL FROM `m_Z` — measured
 
 Float ONE resolution knob at a time on the 300 k card, everything else as the
 base fit (the knobs' MC truth is 1.0):
