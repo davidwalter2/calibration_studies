@@ -26,7 +26,7 @@ in the fluctuation form. Errors are the x1.109 sandwich.
 |---|---:|---|
 | **`sigma(m_Z)`** | **2.27 MeV** | statistics + the floated K(m) (x1.5 over K(m) fixed) |
 | **`sigma(Gamma_Z)`** | **4.16 MeV** | statistics + the floated K(m) (x1.4) |
-| **`m_Z` closure** | **-11.06 +- 2.27 MeV** | **the detector-level resolution model** (sec. 0b) |
+| **`m_Z` closure** | **-11.06 +- 2.27 MeV** | **an `eta`-dependent momentum bias** — barrel to endcap it spans 40-57 MeV and the trend survives both K(m) treatments (sec. 0b). That is the field/alignment signature, and the joint fit absorbs it: phase 2 moves `m_Z` by +49 MeV with `rho(m_Z, bfield_mode0) = 0.21` |
 | **`Gamma_Z` closure** | **-5.26 +- 4.16 MeV** | closes at 1.3 sigma — **but see the K(m) caveat below: NOT yet a 4 MeV result** |
 | the two resolution corrections | +8.00 MeV on `m_Z`, additive to 0.2 MeV | done; inside the spec's own -5...-14 MeV prediction |
 | the momentum scale | phase 2 (running) | the J/psi transfers it through the field modes, not a free alpha |
@@ -35,9 +35,13 @@ in the fluctuation form. Errors are the x1.109 sandwich.
 
 **What limits it, in order.** (1) The `m_Z` closure: -11 MeV at 4.9 sigma, and
 it is NOT the corrections, NOT the Born lineshape, NOT K(m) and NOT the
-coefficient bound — all measured in sec. 0b. What is left is the per-candidate
-resolution CF, whose four scale knobs are held at the MC truth in phases 1-2 and
-which phase 3 replaces with the parmtype-15 material amounts.
+coefficient bound — all measured in sec. 0b. **It IS `eta`-dependent**, spanning
+40-57 MeV barrel to endcap with the trend stable under both K(m) treatments,
+which is the magnetic-field / alignment signature and is what the joint fit's 50
+field modes absorb. Phase 2 (sec. 0c) shows exactly that.
+(1b) Separately real but NOT what moves `m_Z`: the modelled resolution is
+**2.8 +- 0.2 % too narrow** and `k_hit` floats to **1.133 +- 0.039**; floating
+it moves `m_Z` by 0.5 MeV. Phase 3 is that one's test.
 (2) The K(m) shape costs a factor 1.5 on `sigma(m_Z)` and cannot be dropped
 (without it `Gamma_Z` carries +175 MeV of LO->MiNNLO K-factor). Five terms are
 saturated for `m_Z` (5 -> 7 moves it -1.3 MeV) but **NOT for `Gamma_Z`**, which
