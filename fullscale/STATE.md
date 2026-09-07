@@ -93,7 +93,10 @@ the NLL to `-inf`. Scanned on the 300 k Z card at five parameter points
 
 **0.08 is the default.** The 364 of 300 000 (0.12 %) it bounds in the physics
 configuration all have `sigma_m/m > 0.066`, i.e. a factor 40 less weight in the
-mass than a typical candidate. This bounds a per-candidate CONSTANT computed
+mass than a typical candidate — and **the bound is measured to cost 0.049 MeV
+on `m_Z` and 0.022 MeV on `Gamma_Z`** (the same 300 k fit with and without it:
+-20.616 +- 8.094 against -20.665 +- 8.093), i.e. 2 % of the statistical error
+even at the full 3.68 M. This bounds a per-candidate CONSTANT computed
 from observables — theta-independent, so it cannot deform the likelihood's
 dependence on the parameters. That is precisely what `corr_clip`, which bounded
 the ARGUMENT, could not say.
