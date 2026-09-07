@@ -275,73 +275,93 @@ must be: both are location effects.
   rather than exculpatory.
 * **Not the coefficient bound.** 0.049 MeV, measured.
 
-### LOCALISATION: the bias is ETA-DEPENDENT and that is the stable statement
+### THE DIRECT MEASUREMENT: the momentum scale is FLAT in eta; the FIT is not
 
-Each split was fitted twice — once with its OWN 5-term K(m) floated, once with
-K(m) FIXED at zero so every split shares one shape model. **Neither alone is
-clean**: floated, each subsample absorbs a different part of the mismodelling
-into its shape; fixed, each carries a different amount of the LO->MiNNLO shape
-error (`Gamma_Z` runs from +113 to +208 MeV across the splits, so it is
-demonstrably not common). What is trustworthy is what does NOT move between the
-two treatments.
+`qopbias.py` measures the per-leg curvature bias against GEN,
+`d kappa/kappa = pT_gen/pT_reco - 1` (so a POSITIVE value means the reco `pT` is
+too LOW), split into the charge-EVEN part `A` (field/scale-like) and the
+charge-ODD part `M` (misalignment-like), trimmed 5 % per tail because the
+residual has Landau-like tails. Three samples, `pT` matched where it matters:
 
-| split (300-400 k each) | `m_Z`, K(m) FLOATED | `m_Z`, K(m) FIXED | moves by |
+**Charge-EVEN `A(eta)` [1e-4]**
+
+| `\|eta\|` | DY v2 Z legs, `pT` 25-60 (OFFICIAL UL16 SIM, 10_6/106X) | J/psi v2 legs (private tight, 10_6/106X) | mu gun 20-60, `pT` 25-60 (private tight, **15_0/150X**) |
 |---|---:|---:|---:|
-| **leading-mu `\|eta\|` < 0.9** (42.7 %) | **-35.79 +- 7.13** | **-41.07 +- 5.34** | -5 |
-| **leading-mu `\|eta\|` 0.9-1.6** (29.5 %) | **+0.08 +- 7.89** | **-10.30 +- 5.93** | -10 |
-| **leading-mu `\|eta\|` > 1.6** (27.8 %) | **+4.07 +- 9.64** | **+16.31 +- 6.82** | +12 |
-| `sigma_m/m < 0.0110` (32.4 %) | -1.61 +- 5.90 | **-73.99 +- 4.48** | **-72** |
-| `sigma_m/m` 0.0110-0.0140 | -0.57 +- 6.72 | +8.18 +- 4.91 | +9 |
-| `sigma_m/m > 0.0140` | running | running | |
-| **`vgf < 0.19`** (hit-POOR, 33 %) | **-32.00 +- 7.60** | — | |
-| **`vgf > 0.26`** (hit-DOMINATED, 33 %) | **+31.78 +- 8.81** | — | |
-| leading `mu+` | -17.84 +- 7.83 | — | |
-| leading `mu-` | -8.52 +- 7.88 | — | |
-| inclusive, 300 k | -20.67 +- 8.09 | -27.44 +- 5.86 | -7 |
+| 0.0-0.4 | -0.45 +- 0.12 | -1.57 +- 0.10 | +1.22 +- 0.39 |
+| 0.4-0.8 | -0.53 +- 0.14 | -1.70 +- 0.12 | +2.62 +- 0.46 |
+| 0.8-1.2 | -0.80 +- 0.20 | -1.76 +- 0.16 | +4.15 +- 0.62 |
+| 1.2-1.6 | -0.82 +- 0.26 | -2.34 +- 0.15 | +6.66 +- 0.76 |
+| 1.6-2.0 | -0.41 +- 0.30 | -2.00 +- 0.17 | +9.00 +- 0.82 |
+| 2.0-2.4 | -0.72 +- 0.59 | -2.02 +- 0.27 | +17.92 +- 1.34 |
+| **inclusive** | **-0.682 +- 0.090** | **-1.838 +- 0.068** | **+6.266 +- 0.284** |
+| **`eta` SPREAD** | **0.41** | **0.77** | **16.70** |
 
-**The `vgf` split spans 64 MeV** (-32.0 hit-poor to +31.8 hit-dominated), the
-largest of any split — and `vgf` is itself strongly `eta`-correlated (its
-`> 0.85` tail has `|eta|` median 2.13). So `eta`, `vgf` and (with K(m) fixed)
-`sigma_m/m` all track ONE underlying correlate; `eta` is the label to give it,
-because that is how the field and the alignment are organised.
+**Residual RMS(`d kappa/kappa`) [1e-3]** — the width half
 
-**THE `eta` SPLIT IS STABLE AND MONOTONE.** Barrel -> transition -> endcap gives
--36 / 0 / +4 with K(m) floated and -41 / -10 / +16 with it fixed: the same
-ordering, a span of **40-57 MeV**, and each band moves by only 5-12 MeV between
-the two treatments — an order less than the span. That is a real, ~7 sigma,
-monotone `eta` dependence of the fitted `m_Z`.
+| `\|eta\|` | DY (`<pT>` 40) | J/psi (`<pT>` 5.3) | gun (`<pT>` 42) |
+|---|---:|---:|---:|
+| 0.0-0.4 | 8.12 | 5.87 | 7.88 |
+| 0.4-0.8 | 9.41 | 7.38 | 9.28 |
+| 0.8-1.2 | 12.76 | 10.29 | 12.59 |
+| 1.2-1.6 | 15.51 | 12.00 | 15.45 |
+| 1.6-2.0 | 16.62 | 12.72 | 16.54 |
+| 2.0-2.4 | 28.88 | 18.28 | 26.88 |
+| **inclusive** | **13.49** | 11.41 | **14.11** |
 
-**THE `sigma_m/m` SPLIT IS NOT STABLE and must not be read.** Its low tertile
-moves by **-72 MeV** between the two K(m) treatments — larger than any trend it
-could show — because that is the sharpest-peaked subsample, where `K(m)` and
-`m_Z` are most entangled. The earlier reading ("the bias scales with
-`sigma_m/m`, therefore it is the resolution model") came from the floated
-version alone and **does not survive the control**. Retracted.
+#### 1. The loose-SIM-stepper hypothesis is REJECTED for this sample
 
-**What an `eta`-dependent momentum bias is.** It is the signature of the
-magnetic field and of alignment — not of the resolution model, which would have
-to show up as a `sigma_rel` trend that survives the control and does not. It is
-exactly what the joint fit's 50 field modes exist to absorb, and phase 2 shows
-them doing it: the joint fit moves `m_Z` by **+49 MeV** relative to the Z alone,
-`rho(m_Z, bfield_mode0) = 0.213` is the only correlation above 0.05, and
-`rho(m_Z, material) = 0.006`.
+* **Premise**: this repo's own `resolution/simprod/step1_gensim.py` documents
+  that **the official UL16 SIM already sets `DeltaOneStep = 1e-5` /
+  `DeltaIntersection = 1e-6` globally**, and that CMSSW_10_6 has no
+  region-specific variants so those globals ARE what the tracker used. The
+  private guns set the same. The sample that genuinely ran 100x loose (1e-4) is
+  the **B->J/psi+X MC produced in 10_6_20**, not DY. (That is an assertion in
+  the driver, established earlier in this project; I did not re-verify the
+  official campaign's `cmsDriver`.)
+* **Bias test**: at matched `pT` the official DY's `eta` spread is **0.41e-4** —
+  flat — against **16.70e-4** for the private tight-stepper gun. A loose stepper
+  would make DY show MORE `eta` structure. It shows 40x LESS.
+* **Width test**: DY and the gun agree bin by bin to a few per cent at matched
+  `pT` (8.12/7.88, 9.41/9.28, 12.76/12.59, 15.51/15.45, 16.62/16.54,
+  28.88/26.88) and DY is **4 % NARROWER** inclusively (13.49 against 14.11), not
+  the ~12 % WIDER a loose stepper would give.
 
-**The charge-ordering split is a NULL**: leading `mu+` gives -17.84 +- 7.83 and
-leading `mu-` -8.52 +- 7.88, a difference of **-9.3 +- 11.1 MeV** (0.8 sigma) on
-independent subsamples. So the bias has no significant charge-ODD component,
-which disfavours a pure charge-dependent misalignment (the `M` term of
-AN-21-131) and leaves the charge-EVEN ones — the field scale `A`, and the
-material. **But the test is intrinsically weak**: a charge-odd curvature bias
-`q M` shifts the two muons of a pair oppositely and largely CANCELS in their
-invariant mass, surviving only through the pair's `pT` asymmetry, which is what
-"which charge leads" is a proxy for. Read the null as "no LARGE charge-odd
-term", not as an exclusion.
+**A private tight-stepper Z sample is therefore not needed**, and no cost
+estimate is offered for one.
 
-**A caveat that limits all of this**: at the Z, `|eta|` and `sigma_m/m` are
-strongly correlated (the three `eta` bands have `sigma_m/m` medians 0.0103 /
-0.0128 / 0.0166), so the two splits are not independent tests. Separating them
-properly needs a `sigma_rel`-MATCHED `eta` comparison, which is the obvious next
-diagnostic and has not been run.
+*Caveat*: the gun was simulated AND reconstructed in CMSSW_15_0 with GT
+`150X_mcRun2_asymptotic_v1` while DY and J/psi v2 both used 106X, so its
+ABSOLUTE bias (+6.3e-4, spread 16.7e-4) is a statement about the 150X alignment
+payload, not about the stepper. It is a valid control for the WIDTH, which is
+material- and hit-dominated. The comparable pair for the bias is DY vs J/psi v2,
+both 106X: spreads 0.41 and 0.77e-4, both small, and the J/psi's is the LARGER
+despite 7.5x lower `pT` — the opposite of a `pT`-proportional sagitta.
+
+#### 2. And it overturns the "eta = field/alignment" reading
+
+The TRUE per-leg momentum scale is **flat in `eta` to 0.41e-4**, which is
+**3.7 MeV** on the mass. The FITTED `m_Z` varies by **40-57 MeV** across the
+same `eta` bands. The `eta` dependence of the fitted `m_Z` is therefore an order
+of magnitude larger than the `eta` dependence of the momenta, so it is **NOT a
+field or alignment effect in the data** — it is the LIKELIHOOD's `eta`-dependent
+response. My earlier "an eta-dependent momentum bias is the field/alignment
+signature" is **retracted**; the eta dependence is real but it lives in the fit.
+
+That reconnects to the width story and closes it: the resolution RMS varies by
+**3.5x across `eta`** (8.1 -> 28.9e-3), the model is **2.8 +- 0.2 % too narrow**
+and `k_hit` floats to **1.133 +- 0.039**, so a width mis-scaling is necessarily
+`eta`-dependent and produces exactly an `eta`-dependent pull on `m_Z`. **Phase 3
+— floating the parmtype-15 material amounts and the hit-class parameters — is
+the direct fix for it**, and the hit-class parameters are the test of the
+hit-side half.
+
+#### 3. The absolute scale also does not explain `m_Z`
+
+DY inclusive `A = -0.682 +- 0.090e-4` means the reconstructed leg momenta are
+0.68e-4 too HIGH, i.e. the reconstructed masses are **+6.2 MeV** high. The
+fitted `m_Z` closure is **-11.06 +- 2.27 MeV** — the OPPOSITE sign. The two
+differ by ~17 MeV, and that difference is the likelihood's own modelling, not
+the reconstruction's momentum scale.
 
 ### THE POST-FIT RESIDUAL IS A 2.8 % WIDTH DEFICIT PLUS A SHIFT — decomposed
 
