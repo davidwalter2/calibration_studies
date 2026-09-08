@@ -54,7 +54,7 @@ def main():
 
     hdr = (
         f"{'engine':>7s} {'method':>16s} {'it':>4s} {'wall':>9s} {'x':>6s} "
-        f"{'t/it':>8s} {'grad':>5s} {'hvp':>6s} {'GPU%':>6s} {'p90':>6s} "
+        f"{'t/it':>8s} {'nfev':>5s} {'grad':>5s} {'hvp':>6s} {'GPU%':>6s} {'p90':>6s} "
         f"{'GPUmem':>8s} {'RSS':>7s} {'dNLL':>10s} {'max drel':>10s}"
     )
     print(hdr)
@@ -77,7 +77,7 @@ def main():
             f"{r.get('engine','?'):>7s} {r.get('method','?'):>16s} "
             f"{r.get('nit',-1):4d} {t:8.1f}s {tref/max(t,1e-9):5.1f}x "
             f"{t/max(r.get('nit',1),1):7.2f}s "
-            f"{nc.get('grad', 0):5d} {nc.get('hessp', 0):6d} "
+            f"{m.get('nfev', -1):5d} {nc.get('grad', 0):5d} {nc.get('hessp', 0):6d} "
             f"{g.get('util_mean', float('nan')):6.1f} "
             f"{g.get('util_p90', float('nan')):6.1f} "
             f"{r.get('minimizer',{}).get('gpu_peak_gb', float('nan')):7.2f}G "
@@ -85,6 +85,9 @@ def main():
             f"{dnll:+10.2e} {drel:10.2e}"
         )
 
+    print("\n  `hvp` counts python-side Hessian-vector calls; it is 0 for the "
+          "tf- methods\n  by construction -- their CG / Lanczos loop calls the "
+          "HVP inside its own graph.")
     print("\nfitted parameters")
     names = ref["params"]
     keep = names if args.params is None else [n for n in names if n in args.params]
