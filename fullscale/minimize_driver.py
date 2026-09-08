@@ -346,7 +346,23 @@ def timing_report(obj, res, t_fit, gpu=None, log=print):
     """One dict summarising the run, for the json and the report table."""
     import resource
 
+    # TF's own high-water mark on the device, which is the number that means
+    # something: `nvidia-smi` reports the arena TF preallocated (the whole
+    # card), not the working set.
+    tfpeak = float("nan")
+    try:
+        import tensorflow as tf
+
+        for d in tf.config.list_logical_devices("GPU"):
+            info = tf.config.experimental.get_memory_info(d.name)
+            tfpeak = max(
+                0.0 if tfpeak != tfpeak else tfpeak, info.get("peak", 0) / 1024.0**3
+            )
+    except Exception:
+        pass
+
     out = {
+        "gpu_peak_gb": tfpeak,
         "rss_gb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0**2,
         "nit": int(getattr(res, "nit", -1)),
         "nfev": int(getattr(res, "nfev", -1)),
@@ -372,7 +388,7 @@ def timing_report(obj, res, t_fit, gpu=None, log=print):
             )
     log(
         f"  minimiser: {out['nit']} iterations, {t_fit:.1f} s, peak host RSS "
-        f"{out['rss_gb']:.1f} GB"
+        f"{out['rss_gb']:.1f} GB, peak TF device {out['gpu_peak_gb']:.2f} GB"
         + (f", {out['ncall']}" if "ncall" in out else "")
     )
     return out
