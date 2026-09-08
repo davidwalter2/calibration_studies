@@ -694,3 +694,34 @@ squares, not the unbinned likelihood; and there is no FSR fold or acceptance in
 it (they cancel between the two spectra, which share the same `p(m')`). It is
 an order-of-magnitude-and-sign statement, and it lands within 2 sigma of the
 measurement.
+
+### The same prediction with the EMPIRICAL per-class residual kernels
+
+The Gaussian version above is crude: the model conditions on the whole
+per-candidate CF, not on `sigma` alone, and `vgf` (the Gaussian share of the
+variance) is itself mass-dependent — `<m_gen>` runs 87.35 -> 90.54 GeV across
+`vgf` octiles, `rho(vgf, m_gen) = 0.099`. So repeat it with classes in
+`sigma x vgf` and with each class's kernel taken as its OWN EMPIRICAL residual
+histogram `m_reco - m_gen` (which carries the real non-Gaussian shape), on a
+20 MeV grid over +-12 GeV:
+
+| band | 8 x 4 classes | 12 x 4 | 8 x 1 (`sigma` only) | fitted `m_Z` (300 k) |
+|---|---:|---:|---:|---:|
+| barrel | -4.85 | -4.45 | -7.53 | -35.79 +- 7.13 |
+| transition | -5.18 | -4.90 | -7.46 | +0.08 +- 7.89 |
+| endcap | -12.67 | -12.89 | -16.41 | +4.07 +- 9.64 |
+| **inclusive** | **-7.67** | **-7.49** | **-11.58** | **-11.06 +- 2.27** |
+
+So the mechanism predicts **-7.5 to -11.6 MeV inclusively** depending on how
+finely the conditioning is modelled, against a measured **-11.06 +- 2.27**, and
+the Gaussian version of the same calculation gave -15.3. Whichever way it is
+done the answer is "the right size and the right sign".
+
+**And the `eta` trend is wrong in every version**: the pairing always makes the
+ENDCAP the worst band (larger `sigma`, larger `sigma/m`) where the fit makes
+the BARREL the worst. That is now a firm statement, not a suspicion: the
+40 +- 12 MeV barrel-endcap difference is a SECOND effect and nothing measured so
+far explains it — not the momenta (flat in `eta` to 3.7 MeV), not the
+resolution width (pull flat to +-0.7 %), not the kernel (3 MeV of band-to-band
+spread at generator level), and not the sigma-mass pairing (which predicts the
+opposite ordering).
