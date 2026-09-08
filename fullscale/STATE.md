@@ -1528,3 +1528,48 @@ Two things this settles for the implementation:
    substitution absorbs it exactly — that is the coordinator's identity
    `k_obs = k_bar` when `a = (1+f) sigma/m`. Carrying it over would be the
    double count.
+
+---
+
+## 0g. THE DIAGNOSTICS ARE IN — THE MECHANISM IS PROVED (2026-09-08)
+
+All at FULL statistics (3.68 M) on the native minimiser, sandwich errors, MeV.
+
+| card | what it is | `m_Z` | `Gamma_Z` | nit |
+|---|---|---:|---:|---:|
+| `f380fl_base` | **the reference** | **-11.06 +- 2.27** | -5.26 +- 4.16 | 38 |
+| **`F_dc8`** | **the real data, reweighted so the true mass is independent of the `sigma` class** | **-0.12 +- 2.42** | -0.22 +- 4.44 | 76 |
+| `F_toy` | the assembly toy: `m_gen_i + sigma_i z_j`, `z_j` shuffled inside 20 `sigma/m` classes | -3.08 +- 2.19 | -2.31 +- 4.13 | 91 |
+| `F_toydc` | the same toy PLUS the reweighting | +3.80 +- 2.41 | -0.83 +- 4.41 | 61 |
+| `F_w70110` | the real data, window 70-110 | -1.87 +- 3.15 | -0.52 +- 5.01 | 90 |
+
+**`F_dc8` settles it. Removing the dependence of the true mass on the
+resolution class removes the ENTIRE -11 MeV**: -0.12 +- 2.42 against
+-11.06 +- 2.27, on the same candidates with the same model. The weights are
+`p(m_gen)/p(m_gen|class)` and nothing else changed.
+
+**And `F_toy` says where inside the mechanism it sits.** The toy keeps each
+candidate's `sigma_i` paired with its own `m_gen_i` and only redraws the
+residual from the class pool, so it removes the part of the effect that lives
+in the RESIDUAL — the width being wrong at the true mass — and keeps the part
+that lives in the class composition. It goes -11.06 -> **-3.08**, i.e.
+**~70 % of the bias is the residual-level part**, which is exactly what the
+v-formulation fixes and is why `F_toy` does not close on its own.
+
+`F_w70110` is consistent: a narrower window spans less mass range, so less of
+the effect, and it lands at -1.87 +- 3.15.
+
+### The `K(m)` ladder at FULL statistics — `Gamma_Z` is still NOT closed
+
+| terms | `m_Z` | `Gamma_Z` |
+|---|---:|---:|
+| 5 | -11.06 +- 2.27 | -5.26 +- 4.16 |
+| 6 | -14.01 +- 2.22 | **+27.11 +- 4.35** |
+| 7 | -7.81 +- 2.26 | **+1.14 +- 4.40** |
+
+`m_Z` moves over a 6.2 MeV range, comparable to its own error, so the earlier
+"the basis is saturated for `m_Z`" survives at full statistics. **`Gamma_Z`
+moves by 32 MeV between 6 and 7 terms with a 4.4 MeV statistical error.** The
+`Gamma_Z` closure is a TENS-OF-MeV statement and must be quoted as one until
+the shape basis is understood. This is unchanged by everything above — the
+ladder was run on the uncorrected term.
