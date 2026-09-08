@@ -646,3 +646,51 @@ at **420 GB per fit** (pitfall 12). Three at once took submit82 to 1.36 of
 (59 GB) or `--hess-mode hvp`. The `--engine device --method tf-trust-krylov`
 path the rabbit-native agent has just measured is 8x faster end to end and
 flat in memory; the full-statistics versions of all of this belong on a GPU.
+
+### A FIT-FREE PREDICTION: the sigma-mass pairing is worth -15 MeV
+
+No fit, no TensorFlow. Take the selected candidates' gen masses and their
+absolute `sigma`, bin the candidates into `NC` `sigma` classes, and build two
+observed spectra on a 20 MeV grid:
+
+    truth  =  sum_c P(c) [ p(m'|c) (x) N(0, sigma_c) ]
+    model  =  sum_c P(c) [ p(m')   (x) N(0, sigma_c) ]
+
+— the second is what the likelihood can produce, because it gives every
+candidate the same Born spectrum. Then ask for the mass shift that makes the
+model match the truth with a floated 5-term Legendre `K(m)`, over 60-120 GeV:
+
+| classes | shift the model needs |
+|---|---:|
+| 8 | -16.12 MeV |
+| 16 | -15.33 MeV |
+| 32 | -14.68 MeV |
+| 48 | -14.56 MeV |
+
+**-15 MeV, against the measured -11.06 +- 2.27.** `K(m)` alone (shift fixed at
+zero) removes only 30 % of the mismatch metric; with the shift free it removes
+45 %. The peak of the truth is 20 MeV BELOW the peak of the model, which is the
+whole story in one number.
+
+**But the `eta` trend is the other way and is NOT explained.**
+
+| band | predicted from the pairing | fitted `m_Z` (300 k) |
+|---|---:|---:|
+| barrel | -12.04 | -35.79 +- 7.13 |
+| transition | -16.50 | +0.08 +- 7.89 |
+| endcap | -25.61 | +4.07 +- 9.64 |
+| inclusive | **-15.33** | **-11.06 +- 2.27** |
+
+So there are TWO things, not one: the inclusive offset, which the sigma-mass
+pairing accounts for in size and sign, and a barrel-endcap swing of 40 +- 12 MeV
+which it predicts with the opposite sign. The `eta` band fits also all use the
+INCLUSIVE kernel and acceptance, whose own `<u>` differs by 1.1e-4 between
+bands (10 MeV), so part of that swing is self-inflicted and a per-band kernel
+is now available to test it (`zchannel/data/kern_sel_eta{B,T,E}.npz`).
+
+Caveats on the prediction, stated: the class kernels are GAUSSIAN with the
+class-mean sigma, not the per-candidate CF; the metric is a binned least
+squares, not the unbinned likelihood; and there is no FSR fold or acceptance in
+it (they cancel between the two spectra, which share the same `p(m')`). It is
+an order-of-magnitude-and-sign statement, and it lands within 2 sigma of the
+measurement.
