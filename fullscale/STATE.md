@@ -2306,6 +2306,7 @@ lesson generalises:
 **Use `tf-trust-krylov` when anything is frozen** (it is immune with no fix
 at all, and it pays ~5 HVPs per step where `trust-exact` pays `nfree`
 columns -- at the 99 parameters of a joint card that is the whole cost).
+**But read 7.9 before making it the default at full statistics.**
 
 ### 7.7b The standalone drivers are unchanged by any of this
 
@@ -2552,3 +2553,55 @@ frozen-diagonal fix, a combination not yet tried at full statistics. If
 `f380refX` returns -11.0643 at NLL 11075392.4657 with a small EDM, the answer
 for this campaign is **`tf-trust-exact` + `d83342e`** and the FIX rather than
 the method is what makes the migration usable here.
+
+
+### 7.9 A subproblem that cannot predict descent is not a converged fit
+
+`tf-trust-krylov` on the FULL-statistics card wrote a "converged" snapshot at
+a point **14.718 NLL units above the minimum**, with its own EDM reading
+**14.723** -- the two agreeing to three digits -- and the POIs barely moved
+from their starting values (`m_Z` -0.127 against a reference -11.064). That
+is the worst failure a minimizer can have, because the answer looks clean.
+
+The mechanism is in the outer loop, not only in GLTR. `base.py` had
+
+```python
+if predicted_reduction <= 0:
+    warnflag = 2
+    break
+```
+
+and logged `warnflag == 2` at DEBUG as "the standard end state of a converged
+fit". **That is a statement about the minimum only when the subproblem is
+solved accurately.** For a Krylov subproblem it is equally the signature of a
+model that has gone bad -- GLTR's Lanczos recurrence loses roughly twelve
+digits of orthogonality at this Hessian's 3.4e12 condition number, so its
+truncated model predicts no descent while the true objective still has a long
+way to fall. The loop could not distinguish "no descent exists" from "I
+cannot find it", and took the flattering reading.
+
+**Fixed in rabbit `c5f46f0`.** On a non-positive predicted reduction the loop
+now shrinks the radius and RE-SOLVES rather than concluding. At a small enough
+radius the model is the local quadratic and must predict descent whenever the
+gradient is non-zero, so a retry either recovers the fit or proves the point
+stationary. The Cauchy first-order gain `radius * |g|` against float noise on
+`fun` separates the two: below it no step can help and stopping is right
+(status 2, quiet, and unchanged for an accurately solved subproblem, so
+`trust-exact` behaves exactly as before); above it the model is wrong rather
+than the point, and the loop fails **loudly** with a new status 4 naming
+`|g|` and the radius it reached. GLTR reuses its radius-independent Krylov
+data, so a retry usually costs no new HVPs.
+
+**Consequence for the recommendation.** "Keep `tf-trust-krylov` as the
+default" was measured on `z_n300k` and does not transfer to full statistics
+on the OLD code. Whether it transfers on `c5f46f0` is an open question and
+needs one re-run before "krylov cannot be the campaign default" is recorded
+as a property of the objective -- that conclusion was drawn against a loop
+that mistook a solver failure for convergence.
+
+**And the general rule this is the second instance of:** every failure in
+this migration -- the three `--diagnostics` bugs, the frozen-row singularity,
+and this -- had the same shape. A numerical component could not do its job,
+and the surrounding code reported success instead of saying so. The EDM is
+the instrument that caught all of them, and here it did more than detect the
+failure: it MEASURED it, to three digits, before anyone knew there was one.
