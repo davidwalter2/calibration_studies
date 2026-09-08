@@ -3869,3 +3869,74 @@ that depends on cluster class (edge, single-column, N1 strip) is NOT absorbed
 by a rigid module shift, so it survives into the track fit as a charge-even
 curvature bias -- which is the hypothesis. The comment in the bank is an
 assumption, and it is the assumption under test.
+
+### 0f.39 (C) ON THE ACTUAL Z LEGS: the odd moment tracks the PIXEL influence
+### share, and in the endcap at 4.7 sigma (2026-09-08)
+
+`resolution/attribute_skew_mass.py` on `gzpairs_dyv2_n50.npz` -- **487 742 Z
+candidates, 6 234 742 hits** with their 18-class labels and per-hit influence
+weights `hit_v`, MiNNLO weights, truth-referenced `x = z/(1 - a z)` with the
+MEASURED `a = 1.211 sigma/m` of sec. 0f.33 (not the spec's `1 + vgf`). Units
+1e-3.
+
+**A. per `\|eta\|` band** (the DATA odd moment; the model side is not
+subtracted here, so read the TREND, not the offset):
+
+| band | n | u = 0.05 | u = 0.2 |
+|---|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | 91 718 | +15.58 +- 3.03 | +10.28 +- 2.49 |
+| `0.9-1.6` | 164 185 | +15.00 +- 2.56 | +8.18 +- 1.71 |
+| `1.6-3.0` | 225 875 | +10.86 +- 2.03 | +4.72 +- 1.61 |
+| inclusive | 481 778 | +13.20 +- 1.45 | +6.98 +- 0.98 |
+
+**B. hit composition — the pixel influence share, and it is the biggest effect
+in this study:**
+
+| band | pixel share LOW | pixel share HIGH | difference |
+|---|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | +9.87 +- 6.21 | +11.31 +- 6.11 | +1.4 +- 8.7 |
+| `0.9-1.6` | +5.93 +- 3.87 | +13.00 +- 3.91 | +7.1 +- 5.5 |
+| **`1.6-3.0`** | **-1.27 +- 3.87** | **+23.94 +- 3.73** | **+25.2 +- 5.4 (4.7 sigma)** |
+
+and the single-strip share:
+
+| band | N1 LOW | N1 HIGH | difference |
+|---|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | +10.04 +- 5.08 | +15.09 +- 9.83 | +5.1 +- 11.0 |
+| `0.9-1.6` | +6.51 +- 3.36 | +14.70 +- 8.63 | +8.2 +- 9.3 |
+| `1.6-3.0` | +8.60 +- 2.89 | -1.68 +- 7.08 | -10.3 +- 7.6 |
+
+**THE RESULT.** In the endcap, Z legs whose curvature is carried by PIXEL hits
+have an odd moment of **+23.9 +- 3.7** and those that are pixel-poor have
+**-1.3 +- 3.9** -- a **4.7 sigma** difference, and the dependence is monotone
+in `eta` (+1.4 barrel, +7.1 middle, +25.2 endcap). This is the first thing in
+the whole attribution above 2 sigma, and it is a HIT-COMPOSITION variable, not
+a material or field one.
+
+**It supports the coordinator's class of mechanism and contradicts their
+specific one.** The prediction was that the forward pixel disks are CLEAN
+(drift parallel to B) and the barrel carries the effect. Measured, it is the
+other way round: the barrel is flat in pixel share and **the endcap pixel hits
+carry the skew**. So the effect is in the pixel CPE, and it is the FORWARD
+disks -- where the incidence angle is large and shallow, the clusters are long
+in the local `y`, and the template/generic CPE has the least support -- rather
+than the barrel Lorentz drift.
+
+**The single-strip lead reverses sign in the endcap** (+5.1, +8.2, **-10.3**),
+so the two composition variables are not the same effect. At track level on the
+gun the N1 effect was negative in all three bands; here it is positive in the
+barrel and middle and negative in the endcap. It stays a ~1 sigma indication.
+
+**CAVEAT, and it must be checked before this is quoted as a class effect**: the
+pixel influence share correlates with the hit count, with `pT` and with `eta`
+WITHIN a band. A 4.7 sigma split on a correlated variable can be a proxy for
+any of them. The next step is the same split at fixed `pT` and fixed hit count,
+and the per-class breakdown (`pix_x_q*` against `pix_y_q*` -- the local `x` and
+`y` classes, which is exactly where a forward-disk incidence-angle effect must
+show up as `y` and not `x`).
+
+**And (C) as posed still cannot be closed**: the no-free-parameter prediction
+needs the per-class residual DENSITIES including their location, and
+`hitres_classes.py` centres every class on its median and does not store it
+(sec. 0f.38). The medians must be re-extracted from the 260807/260829/260831
+productions before the propagation through `hit_v` can be done.
