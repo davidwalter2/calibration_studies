@@ -41,7 +41,19 @@ if [ "${GATE:-1}" = "1" ]; then
         $( [ "$CHUNK" != "0" ] && echo --chunk $CHUNK ) ${GATEARGS:-} || exit 1
 fi
 
+# `mit_preemptable` requeues rather than kills, and a requeued job starts the
+# script again from the top -- so if a snapshot from the interrupted attempt is
+# there, resume from it instead of re-descending from the prefit point. This is
+# what makes a preemptable partition usable for a multi-hour fit.
+SNAP=$OUT/rabbit_${TAG}.snapshot.hdf5
+RESUME=""
+if [ -f "$SNAP" ] && [ "${FRESH:-0}" != "1" ]; then
+    echo "resuming from $SNAP"
+    RESUME="--externalPostfit $SNAP"
+fi
+
 python3 -u $ZMASS/rabbit_native/bin/rabbit_fit.py "$CARD" \
+    $RESUME \
     --paramModel "$MODEL" \
     --minimizerMethod "$METHOD" \
     ${FREEZE:+--freezeParameters $FREEZE} \
