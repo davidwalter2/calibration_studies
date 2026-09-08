@@ -273,7 +273,7 @@ def parse_args(argv=None):
     p.add_argument("--clip-vg-other", action="store_true",
                    help="clip the Gaussian remainder at 0. It is the exact "
                         "algebraic remainder vgf - sum_c v_c and is negative "
-                        "for 40 % of candidates at the 1e-7 level, so "
+                        "for 40 %% of candidates at the 1e-7 level, so "
                         "clipping breaks `sum = vgf` for those; off by default.")
     p.add_argument("--material-maxrows", type=int, default=0,
                    help="abort if the group block would exceed this many CSR "
