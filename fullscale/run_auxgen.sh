@@ -41,7 +41,7 @@ for spec in \
   tag=${spec%%:*}; rest=${spec#*:}; dir=${rest%%:*}; cache=${rest#*:}
   echo "=== $tag  $(date +%H:%M:%S)  $dir"
   python3 -u aux_gen.py --files "$dir" --cache "$cache" --nproc "$NPROC" \
-      -o "$OUT/auxgen_$tag.npz" 2>&1 | tee "$FS/logs/auxgen_$tag.log"
+      --out "$OUT/auxgen_$tag.npz" 2>&1 | tee "$FS/logs/auxgen_$tag.log"
 done
 echo "=== done $(date +%H:%M:%S)"
 echo "-> $OUT/auxgen_dyv2.npz  and  $OUT/auxgen_jpsiv2.npz"
