@@ -20,6 +20,15 @@
 # `--maxn 700000` per band: sigma(alpha) scales as the inclusive 2.12 MeV at
 # 297 557, so 700 k gives ~1.4 MeV -- ample against a 55 MeV spread, and it
 # keeps each card under 1 GB (submit's /work quota is the binding constraint).
+# `--floor-scale 1e-4`. At the default 1e-9 the softplus positivity floor
+# UNDERFLOWS and the NLL is `inf` before any minimiser runs: three candidates
+# in 695 757 have a NEGATIVE density from CF ringing (li = -5.7e-5, -2.4e-5,
+# -1.9e-5), all of them large-sigma (2.3-2.4 GeV), near-pure-Gaussian
+# (vgf 0.91-0.94) candidates at ~4 sigma, and `s*softplus(li/s)` with
+# s = 1e-9 is exactly 0 there. At s = 1e-4 the floor is a no-op for every
+# normal candidate (softplus(x) = x to machine precision for x >> 1, and a
+# typical li/s is 3e3) and finite for the three. `--floor clip` would NOT do:
+# max(li, 0) = 0 gives log 0 as well.
 set -uo pipefail
 FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
 export PYTHONPATH=/work/submit/david_w/ZMass/rabbit-vmass:/work/submit/david_w/WRemnants_dev/wums:$FS/../env_tf/pypath:$FS/../resolution
@@ -30,7 +39,7 @@ card () {  # tag  extra-args...
   [ -f "$FS/cards/z_$tag.hdf5" ] && { echo "[card] $tag exists"; return; }
   echo "[card] $tag  $(date +%H:%M:%S)"
   $P -u $FS/make_card.py --pairs $FS/runs/zpairs_dyv2_full.npz \
-      --residual-mode --maxn 700000 "$@" -o "$FS/cards/z_$tag.hdf5" \
+      --residual-mode --maxn 700000 --floor-scale 1e-4 "$@" -o "$FS/cards/z_$tag.hdf5" \
       2>&1 | tee $FS/logs/card_$tag.log | grep -E "RESIDUAL|candidates,|->|keeps"
 }
 # the three eta bands, the same cuts as z_M_eta* / z_V_eta*

@@ -3406,3 +3406,41 @@ mass-dependent width error the m form leaves behind, which is exactly what
 `K(m)` is the wrong tool for. The 15.2/13.0 sigma significance of terms 6 and 7
 is still there and still says the 5-term shape is insufficient; what changes is
 that in the v form the POIs no longer move with it.
+
+### 0f.31 THE eta PATTERN IS IN BOTH FORMULATIONS — IT IS NOT THE SUBSTITUTION
+
+With every band now converged (scipy `trust-exact` through `rabbit_fit.py`,
+EDM < 1e-3, NLL the best known for each card):
+
+| band | n | **m form** | **v form** | `sigma/m` |
+|---|---:|---:|---:|---:|
+| `\|eta_lead\| < 0.9` | 1 572 534 | **-26.60 +- 2.87** | **-21.08 +- 3.24** | 0.0097 |
+| `0.9 - 1.6` | 1 084 704 | **+3.87 +- 3.88** | **+12.39 +- 4.16** | 0.0125 |
+| `1.6 - 3.0` | 1 025 424 | **+16.55 +- 4.71** | **+34.22 +- 5.47** | 0.0151 |
+| span | | **43.2** | **55.3** | |
+| inverse-variance mean | | -9.5 | -0.80 | |
+| the inclusive fit | 3 682 662 | **-11.06 +- 2.27** | **-1.54 +- 2.08** | |
+
+**The m-form band numbers of sec. 0b were all unconverged** (-15.96 / +0.01 /
++7.46, POI steps of 4.0 / 1.1 / 2.2 sigma) and every one of them moves away
+from zero once converged, the sec. 0f.19 pattern for the sixth time.
+
+**Read together, this is the cleanest statement of what the v substitution does
+and does not do.** It removes ~9.5 MeV of the INCLUSIVE offset
+(-11.06 -> -1.54) and leaves the `eta` spread essentially untouched
+(43.2 -> 55.3 MeV, if anything slightly larger). In both formulations the
+inclusive number is just the inverse-variance mean of the bands, so:
+
+* the `eta`/`sigma-m` structure is **NOT** a property of the v formulation —
+  it is there in the m form at the same size and with the same sign structure,
+  and it was hidden before only because those band fits had not converged;
+* the v substitution's achievement is real but narrower than
+  "the -11 MeV closes": it re-centres the band average, it does not flatten
+  the bands.
+
+**And the per-band FSR kernel is not the cause either.** `VK_etaB` = -17.54
++- 2.87 against `V_etaB` = -21.08 (+3.5 MeV) and `VK_etaT` = +17.24 +- 3.93
+against `V_etaT` = +12.39 (+4.9 MeV): giving each band the FSR kernel measured
+on its own selected candidates moves it by ~4 MeV in the SAME direction in both
+bands, against a 33 MeV difference BETWEEN the bands. The kernel is worth its
+4 MeV and is not the pattern.
