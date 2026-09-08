@@ -2019,3 +2019,46 @@ soft ones, exactly as sec. 0f.11 says.
 The diagonal extrapolations above are indicative only: the POIs correlate with
 the shapes, so the true displacement is larger, and none of them is a number to
 quote. The re-runs are the answer.
+
+### 0f.13 EDM IS THE CRITERION — and the re-runs MOVED
+
+**Why the diagonal proxy was inadequate.** `g_i sigma_i` is a coordinate-wise
+Newton step: it assumes `H` is diagonal. On this objective it is not — the
+Hessian's condition number is ~1e6 and the POIs are strongly correlated with
+the `K(m)` shapes, so the displacement along a POI is driven by the OFF-diagonal
+block and the proxy misses it. Proof from the re-runs below: `F_w70110_cv` and
+`f380fl_s7_cv` were marked "converged" by the proxy (POI diagonal steps 0.000)
+while still carrying `|grad|inf` of 12.3 and 39.6.
+
+**The criterion is now rabbit's own EDM**, `0.5 g^T H^-1 g`
+(`rabbit.tfhelpers.edmval`), computed with the FULL Hessian at every stop —
+free in `fit.py`, because `C = H^-1` is already inverted for the errors.
+rabbit's fitter has **no `edmtol`**: it runs to `gtol = 0`, terminating when the
+quadratic model predicts no further improvement, and reports EDM as a
+diagnostic. So the threshold is ours and is chosen to mean something: a
+displacement of `d` sigma in the worst direction costs `d^2/2`, so
+**EDM < 1e-3 is `d` < 0.045 sigma**. The full Newton step `-H^-1 g` per
+parameter, in units of its own error, is kept as the interpretable column.
+
+**The re-runs from each stored point with `trust-exact`** — and they moved:
+
+| fit | `m_Z` before | `m_Z` after | `Gamma_Z` before | after | `\|g\|inf` after |
+|---|---:|---:|---:|---:|---:|
+| `F_dc8` | -0.117 | **-2.035** | -0.220 | -10.997 | 0.010 |
+| `F_toy` | -3.082 | -3.752 | -2.308 | -4.730 | 0.006 |
+| `F_toydc` | +3.796 | +8.734 | -0.829 | -5.256 | 2.0e-4 |
+| `F_w70110` | -1.873 | **-13.618** | -0.518 | -13.441 | **12.3** |
+| `f380fl_s6` | -14.006 | -13.981 | +27.113 | +27.161 | 0.029 |
+| `f380fl_s7` | -7.812 | **-17.235** | +1.140 | +8.956 | **39.6** |
+
+`f380fl_s6` moved by 0.025 MeV in one iteration — it WAS essentially at its
+minimum. The others moved by 0.7 to 12 MeV. Two are still not converged.
+
+**And `V_traj` reproduces `V_full` EXACTLY** (-0.000 +- 2.32, `|g|inf` 1.42, 68
+iterations, same NLL): the stop is deterministic, so **check (2) is answered —
+`m_Z` and `Gamma_Z` never left their starting values.** That is not a closure,
+it is a fit that never took a POI step.
+
+**Nothing in the full-likelihood table is quotable yet.** Six re-runs are in
+flight with `--gtol 0` and EDM reporting (`22292576-87`), and the EDM audit of
+every stored result is running.
