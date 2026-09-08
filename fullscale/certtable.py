@@ -146,6 +146,9 @@ def main():
     ap.add_argument("--edm-tol", type=float, default=1e-3)
     ap.add_argument("--nll-tol", type=float, default=0.01)
     ap.add_argument("--summary", action="store_true")
+    ap.add_argument("--needs-sandwich", action="store_true",
+                    help="print the tags whose quoted row still carries only "
+                         "the inverse-Hessian error, for submit_sandwich.sh")
     a = ap.parse_args()
 
     R = rows()
@@ -260,6 +263,19 @@ def main():
               f"{pick['nll']:18.4f} {pick['edm'] if pick['edm'] is not None else np.nan:9.2e} "
               f"{(f'{st:9.1e}' if st is not None else '        -')}  "
               f"{'QUOTABLE' if vd == 'QUOTE' else 'NOT QUOTABLE (' + why + ')'}")
+    if a.needs_sandwich:
+        need = []
+        for card in ORDER:
+            if card not in by:
+                continue
+            ok = [r for r in by[card] if verdict(r)[0] == "QUOTE"]
+            if not ok:
+                continue
+            pick = min(ok, key=lambda x: x["nll"])
+            if pick.get("errkind") == "H":
+                need.append(pick["tag"])
+        print("\nSANDWICH STILL OWED: " + (" ".join(need) if need else "(none)"))
+        return
     print("\nOffsets in MeV from the generator: m_Z = 91.153509740726733 GeV, "
           "Gamma_Z = 2.4932018986110700 GeV.")
     print("Error column: `s` = the measured sandwich; `~` = the sandwich RATIO "
