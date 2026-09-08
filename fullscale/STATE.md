@@ -4624,3 +4624,57 @@ measurement (`a = d ln sigma/dx` regressed on the data) and it uses only
 `vgf`, which is an exact Gaussian variance and has no tail problem. It stays
 open at **2-4 %**: measured 1.2110 +- 0.0004 against `1 + vgf = 1.2625`, with
 the per-leg term and the ionisation term both excluded as the explanation.
+
+### 0f.49 GEN LEG KINEMATICS + `hit_s`/`hit_detid` — WRITTEN, NOT RUN, and why
+
+**`fullscale/run_auxgen.sh`** drives the existing
+`resolution/oddmoment/aux_gen.py` on **both** v2 productions against the
+in-order caches:
+
+| production | cache | output |
+|---|---|---|
+| `dymc_8p5M_260906_v2` | `runs/zpairs_dyv2_full.npz` | `runs/auxgen_dyv2.npz` |
+| `jpsimc_20M_260906_v2` | `runs/jpairs_v2_n600.npz` | `runs/auxgen_jpsiv2.npz` |
+
+Per cache row: `Mu{plus,minus}gen_pt/eta/phi` (charge is the +/- label),
+`Jpsigen_pt/eta/phi/mass`, the reco leg `pt`/`eta`/`nvalid`, and
+`fhit`/`fms`/`fioni`/`fother`.
+
+**The alignment is validated, not assumed.** `aux_gen.py` matches row by row on
+`z` and asserts that `z` AND `sigma` come back BIT-IDENTICAL -- a stronger
+contract than a run/lumi/event join, which cannot detect a reordering within an
+event. It requires the cache to be an in-order SUBSEQUENCE of the tree, which
+the two above are; a cache built with a random `--maxn` is not, and it fails
+loudly rather than mis-joining.
+
+**And it reopens `e = f_hit - f_ioni` on a proper footing.** `aux_gen`'s
+`fioni` is `sum_{parmtype==11} resinfvarv / sigma_m^2` -- from the fit's own **Q
+matrix**, not from the CF exponent. That is exactly the quantity sec. 0f.47b
+showed does NOT exist as a second derivative of a Moliere/Landau exponent. So
+the question sec. 0f.45 closed on the wrong input can be asked again on the
+right one, and `aux_gen` even carries the closed form already:
+`a_m = (1 + f_hit - f_ioni) sigma_m/m`, which is precisely the coefficient
+measured at 1.2110 +- 0.0004 against `1 + vgf = 1.2625`. **That is the first
+thing to do when the file lands.**
+
+**`cf_inmaker.py pairs --groups` now also exports** `hit_s` (the SIGNED
+mass-projected influence weight, from `resinfv`) and `hit_detid`, both optional
+so an older production still builds. `hit_v` is a variance and is unsigned, so
+it cannot say which way a hit's displacement pushes the curvature -- a location
+bias is a shift and a shift needs a direction; `hit_detid` is what turns a
+class label into subdetector / layer / disk / +-z. **The branch names
+`{prefix}_hits` and `{prefix}_hitdetid` are GUESSED** and must be confirmed
+against a production tree; absent, the fields are skipped silently, and present
+with a mismatched layout the builder fails loudly.
+
+**NEITHER HAS BEEN RUN.** `/ceph` is permission-denied from a Claude Code
+sandbox shell (top level, not just the leaf) and the local `slurm.conf` is
+missing, so `sbatch` cannot be used either. Both need an ordinary submit login
+shell:
+
+```bash
+cd /work/submit/david_w/ZMass/calibration_studies/fullscale && ./run_auxgen.sh
+```
+
+The hit-class agent has been told the paths, the alignment contract, the
+`fioni` caveat and the guessed branch names.
