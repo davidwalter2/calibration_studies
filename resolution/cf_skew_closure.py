@@ -554,7 +554,16 @@ def boot(s, nboot, rng, chunk=25):
 
 
 def make_bins(d, mode, nbin):
-    """(binid, labels, edges) for 'sigma' quantiles or 'pt' quantiles."""
+    """(binid, labels, edges) for 'sigma' / 'pt' quantiles or '|eta|' bands."""
+    if mode == "abseta":
+        # FIXED edges, the Z analysis's own leading-muon bands, so a track-level
+        # number can be put next to a mass-level one without re-binning either
+        v = np.abs(d["eta"])
+        e = np.array([0.0, 0.9, 1.6, 2.4]) if nbin == 3 else \
+            np.quantile(v, np.linspace(0., 1., nbin + 1))
+        lab = [rf"$|\eta|\in[{e[i]:.1f},{e[i+1]:.1f}]$" for i in range(len(e) - 1)]
+        b = np.clip(np.digitize(v, e[1:-1]), 0, len(e) - 2)
+        return b, lab, e
     if mode == "pt":
         v = d["genpt"]
         e = np.quantile(v, np.linspace(0., 1., nbin + 1))
@@ -894,11 +903,15 @@ def analyse(args, outdir):
          ""]
 
     havept = "genpt" in d
+    bineta = bool(getattr(args, "bin_eta", False))
     binnings = []
-    if havept:
+    if bineta:
+        binnings.append(("|eta|", *make_bins(d, "abseta", args.nbins)))
+    elif havept:
         binnings.append(("pt", *make_bins(d, "pt", args.nbins)))
     binnings.append(("sigma", *make_bins(d, "sigma", args.nbins)))
-    ptb, ptlab = (binnings[0][1], binnings[0][2]) if havept else (None, None)
+    outer = bineta or havept
+    ptb, ptlab = (binnings[0][1], binnings[0][2]) if outer else (None, None)
 
     # ---- model, ONCE, on the OUTER PRODUCT of the two binnings, so that the
     # per-bin mean phi of either binning is a count-weighted sum of cells.
@@ -1062,7 +1075,7 @@ def analyse(args, outdir):
              "sigma_pred")
     zg = np.arange(-args.zmax, args.zmax + 1e-9, args.dz)
     dens = {}
-    order = ([(k, ptlab[k]) for k in range(args.nbins)] if havept
+    order = ([(k, ptlab[k]) for k in range(args.nbins)] if outer
              else [(k, binnings[0][2][k]) for k in range(args.nbins)])
     for ih, hb in enumerate(args.hbw):
         L.append(f"   -- KDE bandwidth h = {hb} --")
@@ -1263,6 +1276,16 @@ def parse_args():
     p.add_argument("--tag", default="run")
     p.add_argument("--probes", type=float, nargs="+", default=list(PROBES))
     p.add_argument("--nbins", type=int, default=4)
+    p.add_argument("--bin-eta", dest="bin_eta", action="store_true",
+                   help="bin in |eta| instead of pT, with the Z analysis's own "
+                        "leading-muon band edges (0, 0.9, 1.6, 2.4) when "
+                        "--nbins 3. The inclusive odd-moment ratio was never "
+                        "checked per eta, and if the TRACK-level skew closure "
+                        "is eta-dependent then the CF family model (Moliere / "
+                        "Urban / radiative content against material and "
+                        "E = pT cosh eta) is wrong per region -- a "
+                        "first-principles fix in the model tables, not in the "
+                        "likelihood.")
     p.add_argument("--nboot", type=int, default=500)
     p.add_argument("--max-tracks", type=int, default=0)
     p.add_argument("--charge", type=int, default=0, choices=[-1, 0, 1],

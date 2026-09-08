@@ -3646,3 +3646,58 @@ odd-moment closure on the tight-stepper 20-60 GeV gun at TRACK level
 (`cf_skew_closure.py --cache runs/cf_trackres_mugun_ul16_*`), whose inclusive
 1.05 ratio was never checked per `eta` and which would say whether the CF
 family model itself is wrong per region.
+
+### 0f.35 ITEM (4): THE TRACK-LEVEL SKEW CLOSURE **IS** eta-DEPENDENT, AND THE
+### RADIATIVE FAMILY IS NOT THE CAUSE (2026-09-08)
+
+`cf_skew_closure.py --bin-eta --nbins 3` (new: `make_bins(d, "abseta", 3)` uses
+the Z analysis's own leading-muon edges 0 / 0.9 / 1.6 / 2.4, so a track-level
+number sits next to a mass-level one with no re-binning). Tight-stepper 20-60
+GeV muon gun, `cf_trackres_mugun_ul16_260903x_m0_k0.npz`, truth-referenced
+`sigma_bar`, 319 854 tracks, bootstrap 200.
+
+**`<z e^{-u z^2}>` DATA - MODEL, per band:**
+
+| band | n | u = 0.05 | u = 0.2 |
+|---|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | 120 063 | **-0.0050 +- 0.0025** | **-0.0036 +- 0.0018** |
+| `0.9 - 1.6` | 93 615 | -0.0036 +- 0.0029 | -0.0024 +- 0.0022 |
+| `1.6 - 2.4` | 106 176 | **+0.0001 +- 0.0027** | **+0.0007 +- 0.0020** |
+| TOTAL | 319 854 | -0.0029 +- 0.0011 | -0.0018 +- 0.0011 |
+
+**Monotone in `\|eta\|`: -0.0050 -> -0.0036 -> +0.0001.** The barrel misses
+closure by 2.0 sigma and the ENDCAP CLOSES EXACTLY. The barrel-to-endcap trend
+is +0.0051 +- 0.0037 (u=0.05) and +0.0043 +- 0.0027 (u=0.2) -- 1.4-1.6 sigma
+each, but the same sign and the same ordering at every probe, on 320 k tracks.
+**The inclusive 1.05-style number hid this**: the total, -0.0029, is the
+average of a band that misses and a band that does not.
+
+**The radiative family is NOT the cause.** `--krad 0` changes the model column
+by <= 1e-5 and leaves `data - model` identical to four decimals in every band.
+On a 20-60 GeV gun the radiative block contributes essentially nothing to the
+odd moment, so it cannot carry an `eta` dependence.
+
+**And the model has almost NO skew here at all**: its own `<z e^{-uz^2}>` is
++0.00005 / -0.00000 / +0.00000 across the bands, against a DATA value of
+-0.0049 in the barrel. So the gap is not "the model's skew is mis-sized", it is
+**"the data is skewed and the model is not"** -- in the barrel. By elimination
+the only remaining odd channel in the model is `Im S_ioni`, which the model
+puts at ~0 at these momenta.
+
+**The single ionisation scale cannot close it, and it wants OPPOSITE signs.**
+The `k_hat` that would close each band runs **-2.00 / +6.00 / +6.00** -- the
+barrel pinned at the scan's lower limit and the other two at its upper limit.
+One number cannot do it, which is what "the family model is wrong per region"
+looks like from inside the fit.
+
+**This is the first-principles finding the coordinator was after**: the CF
+family model's odd content is wrong per detector region at TRACK level, before
+any mass likelihood, any kernel and any pair. The fix belongs in the model
+tables (Moliere / Urban / radiative content against material and
+`E = pT cosh eta`), not in the likelihood. And the sign matches the mass-level
+pattern -- the barrel is the most negative in both.
+
+**Statistics caveat**: 2.0 sigma per band. The gun cache is what it is; a
+larger one, or the same test on the J/psi and Z legs, would settle the
+significance. The MONOTONICITY across three bands and two probes is what makes
+it worth acting on, not any single band's pull.
