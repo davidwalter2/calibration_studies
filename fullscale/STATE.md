@@ -2630,3 +2630,28 @@ and this -- had the same shape. A numerical component could not do its job,
 and the surrounding code reported success instead of saying so. The EDM is
 the instrument that caught all of them, and here it did more than detect the
 failure: it MEASURED it, to three digits, before anyone knew there was one.
+### 0f.19 THE FAILURE MODE, AND WHY THE ACCEPTANCE TEST IS PERMANENT
+
+Five separate defects were found in one day (three `--diagnostics` bugs, the
+singular frozen Hessian, the outer loop reading a solver failure as
+convergence). **Every one of them produced a number rather than an error**, and
+— this is the part that matters for a physics analysis — **every one produced a
+number that FLATTERED the hypothesis.**
+
+That is not a coincidence. A fit that stops early sits near its starting point,
+and the starting point of every closure test here is the MC TRUTH. So an
+under-converged closure test reads as "closes beautifully". The three numbers
+retracted today:
+
+| reported | what it actually was |
+|---|---|
+| `V_full` `m_Z = -0.0002 +- 2.32` | a fit that never took a POI step |
+| `F_dc8` `m_Z = -0.12 +- 2.42` | 2.44 sigma from its minimum |
+| `f380ref` `m_Z = -0.127` | 14.7 NLL units above the true -11.064 |
+
+All three said "the closure is perfect". None would have been caught by a test
+that asserts a fit RUNS; every one is caught by asserting something about WHERE
+IT ARRIVED. **That is why sec. 0f.16's three-part test (value AND NLL AND EDM)
+is a permanent fixture and not this week's remedy** — the bias is towards the
+answer one is hoping for, which is exactly when a check is least likely to be
+demanded and most needed.
