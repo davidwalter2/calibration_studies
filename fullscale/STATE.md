@@ -1693,3 +1693,25 @@ pairing, which predicts the OPPOSITE ordering (-12 barrel, -26 endcap).
 
 `fullscale/vtable.py` assembles the gate-4 table from `results/` and
 `results/eng/` as the fits land, with the fit-free prediction alongside.
+
+### 0f.5 GATE 2b — the off switch reproduces the m formulation
+
+`v(m) = Int dm/m^p -> m` as `p -> 0`, and every coefficient follows:
+`k -> sigma`, `a^v -> a`, `g^v -> -a + sigma/m` (the m form's), `d^v -> m s^2/2`
+(the m form's), and the provider's v grid becomes the mass grid. So a card
+built with `--vpow 1e-9` must reproduce one built without `--vpow` at all.
+Measured on 50 000 candidates (`gate_fd.py --compare`,
+`results/gate2b_offswitch.json`):
+
+| displacement | `--vpow 1e-9` | no `--vpow` | \|diff\| |
+|---|---:|---:|---:|
+| `m_Z` + 5 MeV | +0.70821371 | +0.70821370 | 9.6e-9 |
+| `Gamma_Z` + 10 MeV | -3.06461914 | -3.06461932 | 1.8e-7 |
+| `shape1` + 0.05 | +10.80402919 | +10.80402913 | 5.9e-8 |
+| `k_ms` + 0.02 | -1.28164596 | -1.28164613 | 1.7e-7 |
+
+**PASS at 1.8e-7 against a 1e-5 requirement.** The ABSOLUTE NLL differs by
++0.000227 out of 150 665 — the sum of the per-candidate Jacobians, a constant
+the fit cannot see.
+
+Gate 2 also passes on this card (worst relative gradient error 1.5e-6).
