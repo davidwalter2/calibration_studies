@@ -171,6 +171,20 @@ def parse_args(argv=None):
                    help="seed for the --maxn subsample (a HEAD slice would be "
                         "the first tasks, i.e. one contiguous run range)")
     # ---- weights ---------------------------------------------------------
+    p.add_argument("--decorrelate-sigma", type=int, default=0,
+                   metavar="NCLASS",
+                   help="DIAGNOSTIC. Reweight the candidates so that the true "
+                        "mass is INDEPENDENT of the per-candidate resolution, "
+                        "using NCLASS quantile classes of the absolute "
+                        "sigma_m: w_i *= p(m_gen_i) / p(m_gen_i | class_i). "
+                        "The likelihood assumes exactly that independence and "
+                        "it is badly violated (<m_gen> runs 84.9 -> 91.3 GeV "
+                        "across sigma octiles), so if the -11 MeV closure "
+                        "failure is this mis-specification the reweighted fit "
+                        "must close. It uses the MC truth and is a diagnostic, "
+                        "not a correction.")
+    p.add_argument("--decorr-clip", type=float, default=5.0,
+                   help="cap on the --decorrelate-sigma weight ratio")
     p.add_argument("--wclip", type=float, default=100.0,
                    help="clip |genweight| at this multiple of the modal |w|; "
                         "0 = no clip; -1 = unweighted")
@@ -339,6 +353,36 @@ def select(d, args, log=print):
     return idx, m, sigma, w, srel
 
 
+def decorrelation_weights(mgen, sigma, w, nclass, clip, log=print):
+    """`p(m_gen) / p(m_gen | sigma class)`, per candidate.
+
+    Breaks the correlation between the per-candidate resolution and the true
+    mass, which the likelihood assumes is absent.  The marginal spectrum is
+    untouched by construction -- the class-conditional densities average to it
+    -- so the model does not have to change; only the pairing of kernel width
+    with mass does.
+    """
+    e = np.linspace(60.0, 120.0, 61)
+    q = np.quantile(sigma, np.linspace(0.0, 1.0, nclass + 1))
+    q[0], q[-1] = -np.inf, np.inf
+    cls = np.clip(np.searchsorted(q, sigma, "right") - 1, 0, nclass - 1)
+    b = np.clip(np.searchsorted(e, mgen, "right") - 1, 0, len(e) - 2)
+    tot = np.bincount(b, w, len(e) - 1)
+    tot = tot / max(tot.sum(), 1e-30)
+    r = np.ones(len(mgen))
+    for c in range(nclass):
+        s_ = cls == c
+        h = np.bincount(b[s_], w[s_], len(e) - 1)
+        h = h / max(h.sum(), 1e-30)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            ratio = np.where(h > 0, tot / np.maximum(h, 1e-30), 1.0)
+        r[s_] = np.clip(ratio[b[s_]], 1.0 / clip, clip)
+    log(f"  --decorrelate-sigma {nclass}: weight ratio median "
+        f"{np.median(r):.3f}, p1 {np.percentile(r, 1):.3f}, "
+        f"p99 {np.percentile(r, 99):.3f}, {100.0 * np.mean((r <= 1.0 / clip) | (r >= clip)):.2f} % at the cap")
+    return r
+
+
 def build_weights(w, idx, args, log=print):
     """Clipped, mean-1 MiNNLO weights, and the effective statistics."""
     if args.wclip < 0:
@@ -374,6 +418,12 @@ def build(args, log=print):
     nt = len(tgrid)
 
     idx, m_all, sig_all, w_all, srel_all = select(d, args, log)
+    if args.decorrelate_sigma:
+        mg_all = d["eta"].astype(np.float64)
+        w_all = w_all.copy()
+        w_all[idx] = w_all[idx] * decorrelation_weights(
+            mg_all[idx], sig_all[idx], w_all[idx],
+            args.decorrelate_sigma, args.decorr_clip, log)
     n = len(idx)
     if not n:
         raise SystemExit("the selection kept nothing")

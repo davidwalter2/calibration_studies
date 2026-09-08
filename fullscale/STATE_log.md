@@ -556,3 +556,34 @@ spectrum differs from the marginal by a SMOOTH function of `m`, which five
 floated Legendre terms can absorb; inclusively one `K(m)` has to serve every
 class at once and cannot. So the prediction is that the slices close and the
 inclusive fit does not.
+
+**The size of the mis-specification.** `p(m_gen | sigma class) / p(m_gen)`,
+sextiles of the absolute `sigma_m`, normalised to 1 at the peak bin:
+
+| `m_gen` | cls1 | cls2 | cls3 | cls4 | cls5 | cls6 |
+|---|---:|---:|---:|---:|---:|---:|
+| 60.5 | 5.18 | 0.81 | 0.32 | 0.25 | 0.18 | 0.15 |
+| 75.5 | 2.67 | 1.51 | 0.70 | 0.59 | 0.53 | 0.43 |
+| 90.5 | 1.07 | 1.06 | 1.00 | 0.97 | 0.96 | 0.96 |
+| 105.5 | 0.16 | 0.68 | 0.52 | 1.13 | 1.58 | 1.73 |
+| 117.5 | 0.00 | 0.23 | 0.52 | 0.72 | 1.78 | 2.48 |
+
+(class edges in `sigma_m` [GeV]: 0.332, 0.827, 0.982, 1.103, 1.278, 1.601,
+11.9.) The lowest-`sigma` class is a factor 5000 tilt across the window and is
+essentially EMPTY above 110 GeV; the highest is a factor 16 the other way. The
+model gives every one of them the same Born spectrum.
+
+Two consequences, and both are testable:
+
+1. **Inside a class the tilt is smooth.** Fitting `log` of the ratio with the
+   same 5-term Legendre `K(m)` leaves an RMS residual of 0.03-0.07 for classes
+   2-6 (1.0 for class 1, whose ratio hits zero). So a per-class fit with a
+   floated `K(m)` should very nearly close.
+2. **Inclusively it cannot be absorbed at all.** The class-averaged Born
+   spectrum IS the marginal — `sum_c P(c) p(m'|c) = p(m')` — but the observed
+   spectrum is `sum_c P(c) [p(m'|c) (x) K_c]`, and the model can only produce
+   `sum_c P(c) [p(m') (x) K_c]`. Low true masses get NARROW kernels and high
+   ones WIDE kernels; the model gives every mass the average mixture. That is
+   an asymmetric smearing across the peak and there is no `K(m)` that repairs
+   it, because `K(m)` multiplies the Born spectrum before the convolution and
+   the defect is in the pairing of kernel width with mass.

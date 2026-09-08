@@ -26,23 +26,29 @@ in the fluctuation form. Errors are the x1.109 sandwich.
 |---|---:|---|
 | **`sigma(m_Z)`** | **2.27 MeV** | statistics + the floated K(m) (x1.5 over K(m) fixed) |
 | **`sigma(Gamma_Z)`** | **4.16 MeV** | statistics + the floated K(m) (x1.4) |
-| **`m_Z` closure** | **-11.06 +- 2.27 MeV** | **the KERNEL: the Z lineshape, the FSR fold, the acceptance and K(m)** (sec. 0b). Measured directly: with NO kernel at all — `m_reco - m_gen` against the resolution CF — the detector half closes at **+0.9 +- 2.1 MeV**, and the mass pull width is **0.996, flat in `eta`**, so the resolution model is right to 0.4 %. Phase 3 cannot fix this one. |
+| **`m_Z` closure** | **-11.06 +- 2.27 MeV** | **the COMBINATION of the kernel and the resolution — neither alone** (sec. 0b, 0c). BOTH halves close in isolation: with no kernel at all (`m_reco - m_gen` against the resolution CF) the detector half gives **+0.9 +- 2.1 MeV** and the mass pull width is 0.996 flat in `eta`; with no detector at all (the selected candidates' own GEN masses against the full lineshape (x) A (x) FSR (x) K chain) the kernel half gives **+0.8 +- 1.4 MeV**. The leading candidate for what only exists in the combination is that **the per-candidate resolution is not independent of the mass**: `<m_gen>` runs from 84.94 GeV in the lowest absolute-`sigma` octile to 91.28 in the highest, and the likelihood gives every candidate the same Born spectrum. Phase 3 cannot fix this one either. |
 | **`Gamma_Z` closure** | **-5.26 +- 4.16 MeV** | closes at 1.3 sigma — **but see the K(m) caveat below: NOT yet a 4 MeV result** |
 | the two resolution corrections | +8.00 MeV on `m_Z`, additive to 0.2 MeV | done; inside the spec's own -5...-14 MeV prediction |
 | the momentum scale | phase 2 (running) | the J/psi transfers it through the field modes, not a free alpha |
 | the material amounts | phase 3 (blocked on one reader) | they are what would float the resolution model |
 | the post-fit spectrum | `chi2/ndof = 4.75` over 240 bins | genuine few-% shape mismodelling; unchanged when the model subsample is grown 6.7x |
 
-**What limits it, in order.** (1) The `m_Z` closure: -11 MeV at 4.9 sigma. Six
-things are excluded by direct measurement — the two corrections, the Born
-lineshape, K(m), the coefficient bound, a loose SIM stepper, the
+**What limits it, in order.** (1) The `m_Z` closure: -11 MeV at 4.9 sigma.
+SEVEN things are now excluded by direct measurement — the two corrections, the
+Born lineshape, K(m), the coefficient bound, a loose SIM stepper, the
 reconstruction's momentum scale (which gives masses +6.2 MeV HIGH, the opposite
-sign, and is flat in `eta` to 3.7 MeV) and **the resolution model** (the mass
-pull is 0.996 and flat in `eta`; with the kernel removed entirely the detector
-half closes at +0.9 +- 2.1 MeV). **What is left is the KERNEL** — the Z
-lineshape, the FSR fold, the acceptance and their interplay with K(m) — which is
-also where the +42 MeV `Gamma_Z` shape sensitivity lives. **Phase 3 does not
-address it**; `zchannel`'s generator-level chain does.
+sign, and is flat in `eta` to 3.7 MeV), **the resolution model** (the mass pull
+is 0.996 and flat in `eta`; with the kernel removed entirely the detector half
+closes at +0.9 +- 2.1 MeV) and, since 2026-09-07, **the KERNEL** (with the
+detector removed entirely — the selected candidates' own gen masses against the
+same lineshape (x) A (x) FSR (x) K chain — the kernel half closes at
++0.76 +- 1.36 MeV inclusively and at +0.6 / +4.2 / -2.7 per `eta` band, against
+a detector-level barrel-endcap difference of 40 +- 12 MeV; sec. 0c).
+**What is left is the COMBINATION**, and there is one concrete mechanism that
+lives only there: the likelihood evaluates `p(m_i | sigma_i)` with the SAME
+Born spectrum for every candidate, and on this sample the true mass and the
+per-candidate resolution are strongly dependent (sec. 0c). **Phase 3 does not
+address it**; nor does `zchannel`'s generator-level chain, which closes.
 (1b) Real but separate: `k_ms` = 1.0298 +- 0.0042 in the kernel-free fit — the
 multiple-scattering TAIL is ~3 % short. That IS the material and phase 3 is its
 test; it moves `m_Z` by 0.5 MeV.
@@ -367,7 +373,9 @@ fitted `m_Z` closure is **-11.06 +- 2.27 MeV** — the OPPOSITE sign. The two
 differ by ~17 MeV, and that difference is the likelihood's own modelling, not
 the reconstruction's momentum scale.
 
-### THE PURE-DETECTOR TEST: the detector half CLOSES; the -11 MeV is the KERNEL
+### THE PURE-DETECTOR TEST: the detector half CLOSES
+   (the conclusion drawn here — "so it is the KERNEL" — is RETRACTED in sec. 0c:
+   the kernel half closes too)
 
 `make_card.py --residual-mode` models **`m_reco - m_gen` directly against the
 per-candidate resolution CF**: the observable is the residual, the physics
@@ -417,7 +425,9 @@ comparison the private tight-stepper gun's own single-track pull
 (`cf_trackres_mugun_ul16_260830`, its validated `z`) is **0.94-0.96, also flat
 in `eta`**.
 
-### SO WHAT IS THE "2.8 % WIDTH DEFICIT"? A KERNEL-SIDE MISMODELLING IN DISGUISE
+### SO WHAT IS THE "2.8 % WIDTH DEFICIT"? NOT THE RESOLUTION — see sec. 0c
+   (read here as "kernel-side"; sec. 0c shows the kernel closes, so the width
+   template is absorbing the sigma-mass dependence, not an FSR defect)
 
 `resid_decompose.py` projects the post-fit spectrum residual onto a SHIFT
 template (`model(m_Z + 20 MeV)/model - 1`, odd about the pole) and a WIDTH
@@ -474,6 +484,94 @@ Read off three things.
 the -11 MeV, it inflates the error — which is the physics case for phases 2 and
 3 in one table: the J/psi and the hit-chi2 term are what constrain the
 resolution model INDEPENDENTLY of `m_Z`, and the Z alone never can.
+
+## 0c. THE KERNEL SIDE CLOSES TOO — THE -11 MeV IS IN THE COMBINATION
+   (2026-09-07 21:00)
+
+Two retractions first, both mine, both from today.
+
+**RETRACTED: "the FSR fold describes a sample radiating 1.66x more than the
+candidates".** The comparison was wrong. `<u> = <-ln(m_post/m_pre)>` is 0.0240
+in the kernel and 0.0144 in the selected sample because the kernel is
+deliberately built with NO mass cut — the fold has to be able to move a Born
+mass anywhere, and the window is what the truncation normalisation implements.
+The model's prediction for the selected sample is the same gen sample
+restricted to the window: **0.014234, against 0.014447 measured, 1.5 %**.
+
+**RETRACTED: "what is left is the KERNEL".** It closes. Fitting the SELECTED
+candidates' own GEN masses with exactly the detector-level chain (no detector
+anywhere), `zchannel/fit_gensel.py`, `shape 5`, window 60-120:
+
+| `\|eta_lead\|` | (a) pre-FSR, no fold | (b) post-FSR, FULL fold | (b)-(a) | detector-level `m_Z` |
+|---|---:|---:|---:|---:|
+| barrel | -3.28 +- 1.90 | **+0.61 +- 2.05** | +3.89 | -35.79 +- 7.13 |
+| transition | +1.01 +- 2.31 | **+4.16 +- 2.51** | +3.15 | +0.08 +- 7.89 |
+| endcap | -2.99 +- 2.42 | **-2.70 +- 2.63** | +0.29 | +4.07 +- 9.64 |
+| inclusive | -1.94 +- 1.25 | **+0.76 +- 1.36** | +2.69 | -11.06 +- 2.27 |
+
+The fold is worth **+2.7 MeV with a 3.6 MeV `eta` spread**, against a
+detector-level barrel-endcap difference of 40 +- 12 MeV. Rebuilding BOTH the
+kernel and the acceptance from the selected candidates themselves
+(`zchannel/kern_from_selected.py`; the acceptance has to be a `grid` because
+`P(selected \| m_pre)` is a top-hat that no degree-8 Bernstein fits) moves `m_Z`
+by **+1.5 MeV** and leaves the `eta` pattern alone. `nm` 32768 -> 8192 moves it
+by 0.01 MeV.
+
+So the detector half closes at +0.9 +- 2.1 and the kernel half at
++0.8 +- 1.4, and the whole is -11.06 +- 2.27.
+
+### What lives only in the combination: the resolution is not independent of the mass
+
+The likelihood is `prod_i p(m_i \| sigma_i)` and the model computes
+`int p(m') K_{sigma_i}(m_i - m') dm' / Z_i` — the SAME Born spectrum `p(m')`
+for every candidate whatever its `sigma_i`. On this sample that is badly false.
+Octiles of the absolute `sigma_m`:
+
+| `sigma_m` [GeV] | `<sigma>` | **`<m_gen>`** | `<sigma/m>` |
+|---|---:|---:|---:|
+| 0.332 - 0.783 | 0.699 | **84.94** | 0.0083 |
+| 0.914 - 1.012 | 0.965 | 89.21 | 0.0109 |
+| 1.103 - 1.227 | 1.161 | 90.50 | 0.0129 |
+| 1.403 - 1.758 | 1.553 | 91.12 | 0.0171 |
+| 1.758 - 11.9 | 2.597 | **91.28** | 0.0285 |
+
+`rho(sigma, m_gen) = 0.168` and the conditional mean of the TRUE mass runs over
+**6.3 GeV**; `sigma` grows with `pT` and `pT` with the mass. In `sigma/m`
+classes the same quantity moves only 1.1 GeV (`rho = 0.035`), which is why the
+`sigma_rel` splits looked mild and the absolute-`sigma` structure did not show
+up.
+
+`p(m_gen \| class)/p(m_gen)` is a factor 5000 tilt in the lowest class (empty
+above 110 GeV) and a factor 16 the other way in the highest.
+
+**Why it is invisible to both closure tests.** The generator-level fit has no
+`sigma`. The kernel-free residual fit has a DELTA lineshape — every candidate's
+true mass is identically zero — so there is no true-mass distribution left to
+correlate with `sigma`.
+
+**Why `K(m)` cannot absorb it.** The class-conditional spectra average to the
+marginal, `sum_c P(c) p(m'\|c) = p(m')`, but the observed spectrum is
+`sum_c P(c) [p(m'\|c) (x) K_c]` and the model can only produce
+`sum_c P(c) [p(m') (x) K_c]`. Low true masses get NARROW kernels and high ones
+WIDE kernels; the model gives every mass the average mixture. `K(m)` multiplies
+the Born spectrum BEFORE the convolution and cannot repair a pairing of kernel
+width with mass.
+
+**Two tests are running** (`--sigma-range`, `--decorrelate-sigma`, both added
+to `make_card.py` today):
+1. six narrow absolute-`sigma` slices at 400 k each with `K(m)` floated —
+   inside a slice the tilt is smooth (log-residual to five Legendre terms
+   0.03-0.07 for classes 2-6), so the slices should close and the inclusive fit
+   should not;
+2. the same 400 k sample reweighted by `p(m_gen)/p(m_gen\|class)` so that the
+   true mass and `sigma` ARE independent — if that closes, the mechanism is
+   proved.
+
+**If confirmed, the fix is a per-resolution-class Born reweighting**
+`w_c(m) = p(m\|c)/p(m)`, exactly analogous to the acceptance and measurable
+from MC. The class machinery already exists in the term for `_norm_z`.
+
+---
 
 ### What it might be
 
