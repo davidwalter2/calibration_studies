@@ -2062,3 +2062,190 @@ it is a fit that never took a POI step.
 **Nothing in the full-likelihood table is quotable yet.** Six re-runs are in
 flight with `--gtol 0` and EDM reporting (`22292576-87`), and the EDM audit of
 every stored result is running.
+
+---
+
+## 7. BACK INSIDE `rabbit_fit.py`  (added 2026-09-08; APPEND ONLY)
+
+### 7.1 Why the standalone drivers existed, and why they no longer have to
+
+`fit.py` / `fit_joint.py` / `chunkfit.py` / `devobj.py` were written for ONE
+reason: an unbinned term evaluated inside `Fitter` built the whole sample's
+forward tape, and the `pfor` Hessian kept `nparams` copies of it — **116 GB at
+300 000 candidates and 5 parameters**, i.e. unrunnable at the 3.68 M of the
+real sample. Everything else about them was a consequence, and the price was
+everything rabbit already had: the **EDM**, the termination convention, the
+snapshots, the standard result file, the impacts, the scans, the plotting —
+and the convergence trap that cost two fits.
+
+That reason is gone. The candidate loop is now the **term's own
+implementation** (`rabbit/unbinned.py`), so an unbinned term is an ordinary
+differentiable function of its parameters with a memory footprint of one
+chunk, and `Fitter.minimize` / `rabbit_fit.py` need to know nothing about it.
+
+### 7.2 What moved into rabbit
+
+| piece | what it does |
+|---|---|
+| `UnbinnedTerm._chunk_loop` | `tf.while_loop` over the candidate chunks, `parallel_iterations=1` — which is what bounds the live memory to one chunk, not a tuning knob |
+| `UnbinnedTerm._nll_graph` | `tf.custom_gradient` twice over: the forward pass is the value loop, its VJP is the **gradient** loop (gradient taken in the body and accumulated), and the gradient's own VJP is the forward-over-reverse **HVP** loop. So `loss_val`, `loss_val_grad` and the revrev `loss_val_grad_hessp` work unchanged and nothing outside ever differentiates *through* a chunk |
+| `MassCFTerm._chunk_contribution` | one chunk's `-sum log L`, self-contained so the same body serves a python and a traced chunk index |
+| `UnbinnedTerm.chunk_mode` | `graph` (default) or `eager` — the original python loop, kept as the reference the graph path is checked against and as the fallback for a term whose slicing needs a python index |
+| `UnbinnedTerm.rechunk` | the chunk size as a fit-time knob (`--unbinnedChunk`), refusing a card whose sparse `D` blocks were sliced at write time |
+| `Fitter` | with unbinned terms present the Hessian is assembled **column by column from HVPs** (`hessian_from_hvps`, PR #154) instead of `t2.jacobian`, one at a time, and `fwdrev` falls back to `revrev` (forward mode does not traverse a registered VJP). Both automatic — an unbinned card must never take the pfor route and the user should not have to know that |
+
+### 7.3 How to run a fit now
+
+```bash
+RABBIT=/work/submit/david_w/ZMass/rabbit-native \
+./run_tf.sh python3 -u $RABBIT/bin/rabbit_fit.py cards/z_full380_fl.hdf5 \
+    --paramModel UnbinnedParams \
+    --minimizerMethod tf-trust-exact \
+    --freezeParameters k_hit k_ms k_ioni k_rad \
+    -t 0 --unblind --diagnostics \
+    --snapshotFile results/f380.snapshot.hdf5 --snapshotInterval 0.25 \
+    --outpath results --outname rabbit_f380.hdf5
+```
+
+- `--freezeParameters` is `fit.py`'s `--fix`.
+- `--minimizerMethod tf-trust-exact` or `tf-trust-krylov` (section 6); the
+  scipy methods work too.
+- `--diagnostics` prints the **EDM** every iteration — the thing the
+  standalone drivers never had, and the reason the convergence trap went
+  unseen.
+- `--unbinnedChunk N` retunes the chunk without rebuilding the card.
+- The result is an ordinary rabbit fit file: `io_tools.get_fitresult` gives
+  `parms` (values and variances), `cov`, `edmval`, `nllvalreduced`,
+  `epoch_loss`, `postfit_profile`.
+- `engaging/rabbit_native.sbatch` runs the gate and then the fit on an H200,
+  and resumes from its own snapshot if the job is requeued.
+- **The sandwich still comes from the standalone driver.** rabbit does not
+  compute it, and it is not optional (the MiNNLO weights alone are a flat
+  x1.109 on every error). `rabbit_to_json.py` is the link:
+
+  ```bash
+  python3 rabbit_to_json.py results/rabbit_f380.hdf5 -o results/f380_start.json
+  python3 fit.py --card ... --no-fit --start-from results/f380_start.json
+  ```
+
+  so the sandwich is evaluated at rabbit's minimum rather than at wherever
+  another minimiser stopped. The EDM travels with the json.
+
+### 7.4 The gates
+
+`fullscale/test_rabbit_path.py`, run by `engaging/rabbit_native.sbatch`
+before every fit. Relative differences:
+
+| gate | `smoke_zls` (50 k) | `joint_smoke` (2 terms, 120 k, 99 free, sparse D + external quadratic) | `z_n300k` (300 k, H200) |
+|---|---|---|---|
+| graph vs eager chunk loop — value | **0** | **0** (both terms) | **0** |
+| — gradient | 1.9e-16 | 1.6e-16 / 1.1e-16 | 5.0e-14 |
+| — HVP | 2.3e-18 | 5.8e-16 / 1.8e-16 | 5.0e-14 |
+| the term vs `ChunkedObjective` — value | **0** | **0** | **0** |
+| — gradient / HVP | 3.1e-15 / 1.7e-16 | 3.5e-19 / 1.9e-18 | 5.0e-17 / 1.3e-16 |
+| the term vs `DeviceChunkedObjective` | **0** | 3.5e-16 / 6.6e-16 | 4.0e-16 |
+| the Fitter's HVP Hessian vs the standalone `pfor` Hessian | 4.6e-17 | — | **2.4e-15** / 3.1e-15 |
+| the Fitter's gradient vs central finite differences | 3.6e-7 | 1.0e-12 | 1.1e-7 |
+
+and end to end, `rabbit_fit.py` against the standalone `fit.py` on
+`smoke_zls` from the same start, all six parameters free:
+
+| | `rabbit_fit.py` | standalone `fit.py` | rel |
+|---|---:|---:|---:|
+| `m_Z` | -177.934677801 | -177.934634181 | 2.5e-7 |
+| `Gamma_Z` | +153.835324960 | +153.835303478 | 1.4e-7 |
+| `k_hit` | +1.160845148 | +1.160845176 | 2.3e-8 |
+| `k_ms` | +0.674593691 | +0.674593584 | 1.6e-7 |
+| `k_ioni` | -30.611844062 | -30.611850249 | 2.0e-7 |
+| `k_rad` | +203.561926297 | +203.561897317 | 1.4e-7 |
+
+with the errors identical to six decimals and the same NLL
+(149975.618606). The 2.5e-7 is not a disagreement about the objective — the
+gates above say that is exact — it is two minimisers stopping at slightly
+different points: the standalone one at `gtol 1e-6`, rabbit at `tol 0.0`,
+which took it to **EDM 2.1e-24**.
+
+### 7.4b Three upstream bugs this turned up, all pre-existing on `main`
+
+They matter here because every one of them is on the path this migration
+puts the fits back onto, and none is reachable from the standalone drivers.
+
+1. **`tfhelpers.tf_edmval` returned the function `edmval`, not the value.**
+   It is the GPU branch and the only one, so `--diagnostics` on a GPU printed
+   `<function edmval at 0x...>` where the EDM should be. The CPU branch goes
+   through `scipy_edmval` and was always right.
+2. **`tfhelpers.cond_number`'s GPU branch called `tf.linalg.cond`, which is
+   not a TF symbol.** The first `--diagnostics` iteration on a GPU therefore
+   raised `AttributeError`, which the fitter reports as *"Minimizer raised"*
+   and turns into a fit that stops where it stands. Replaced by the ratio of
+   the extreme singular values.
+3. **The `--diagnostics` line did not mask frozen parameters.** A frozen
+   parameter contributes an exactly zero row and column to the Hessian, so the
+   full matrix is singular as soon as anything is frozen and the EDM solve
+   raised *"Input matrix is not invertible"* -- again reported as *"Minimizer
+   raised"*. `edmval_cov` had always masked them; the diagnostics line had
+   not. So `--diagnostics --freezeParameters` was a failed fit, on GPU and
+   CPU alike.
+
+`Fitter.log_diagnostics` now does the masking and swallows anything left with
+a warning: a diagnostic must never be able to fail a fit.
+
+### 7.5 Features verified through the card → `rabbit_fit.py` path
+
+| feature | where it is exercised |
+|---|---|
+| the **external quadratic** term (`hitchi2`, 92 parameters) | `joint_smoke` gate: it dominates the loss (3.4e8) and the Fitter's gradient matches central finite differences to **1.0e-12** |
+| **`scale_param=None` J/psi delta-kernel** | `joint_smoke` gate, the `jpsi` term: graph vs eager **0** on the value |
+| **`norm_window`** (60-120 GeV) and **`upsample`** (4) | `z_n300k` gate: `nt` 64 -> integration 253 |
+| the **per-candidate sparse `D`** (92 jac params) | `joint_smoke` gate, both terms |
+| the **fluctuation-form corrections** and **`corr_mass`** | `z_n300k_fl` gate |
+| **`vpow`** | as written today it has no rabbit code path: `make_card.py --vpow` is a change of variable applied to the STORED `sigma`, `mobs`, `m_ref` and window, so the term sees ordinary arrays. Verified by reading the writer, not by a run. (The `vmass-conditioning` branch makes `MassCFTerm(vpow=p)` a real path; this row needs redoing when that lands) |
+| **frozen parameters** (`--freezeParameters` = `fit.py --fix`) | the 300 k fit; and see bug 3 above, which this is what found |
+
+### 7.5b Two things the migration had to learn
+
+1. **The graph chunk loop bounds memory only inside a `tf.function`.**
+   `tf.while_loop` executes as a plain python loop in eager mode, so calling
+   `term.nll` at the prompt is correct but holds the whole sample -- an H200
+   OOM at 3.68 M candidates. Every path the Fitter uses (`loss_val`,
+   `loss_val_grad`, `loss_val_grad_hessp`) is a `tf.function`, so this never
+   bites a fit; it bit the gate, which now wraps its comparisons the same way
+   and says so.
+2. **`mit_preemptable` requeues a job by re-running the script from the top.**
+   `rabbit_native.sbatch` therefore resumes from the snapshot when one is
+   there (`--externalPostfit`), which is what makes that partition usable for
+   a multi-hour fit at all. `FRESH=1` overrides.
+
+### 7.6 What the standalone drivers are still for
+
+Nothing that a fit needs. They stay as the **reference implementation** the
+rabbit path is checked against (`test_rabbit_path.py` compares against them
+directly) and for the diagnostics built on them (the sandwich covariance,
+`report_cov`, the `--ares` / `--jensen` / `--corr-clip` model switches that
+turn one card into a scan). New fits should go through `rabbit_fit.py`.
+
+### 7.7 The full-scale runs
+
+`cards/z_n300k.hdf5` and `cards/z_full380.hdf5` through `rabbit_fit.py` on an
+H200, gate first, snapshots on. The gates pass on both. **One finding worth
+having before you run the full card:**
+
+`--minimizerMethod tf-trust-exact` in RAW parameter coordinates **crawls** on
+this problem. Measured on the 300 k card, the EDM goes
+16495 -> 1150 -> 421 -> 227 -> 210 and then moves about 1 % per iteration:
+208.9, 207.0, 203.0, 201.0, 197.1, 195.2, 191.4, 189.4. That is the trust
+region failing to grow where the curvatures span the **3.4e12** condition
+number of this Hessian (the soft end is `1/sigma^2` for `m_Z` and `Gamma_Z`,
+the stiff end is the K(m) shape block): a radius of 1 is enormous for the
+shapes and negligible for the POIs, so steps are rejected or clipped and the
+radius never doubles. It is the same disease as an unscaled gradient-norm
+stop, one level down.
+
+**Use `--precondition`** (off by default). It reparameterises a block so the
+reference Hessian is the identity there -- a pure change of variables, so the
+minimum is unchanged -- and the trust region then measures distance in units
+of the local curvature instead of GeV-versus-dimensionless.
+
+`--diagnostics` is not free: it builds the full Hessian every iteration for
+the EDM, which is `nfree` HVP columns. Worth it while establishing that these
+fits converge; afterwards read the final `edmval` out of the result file.
