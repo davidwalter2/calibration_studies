@@ -457,17 +457,36 @@ def _grp_block(t, stop, idx, prefix, nt, push, stats, fn):
     have_clo = f"{prefix}_grp_closure" in t.keys()
     if have_clo:
         br.append(f"{prefix}_grp_closure")
-    # `hit_v` is the per-hit VARIANCE contribution and is unsigned, so it
-    # cannot say which way a hit's displacement pushes the curvature. `hit_s`
-    # is the SIGNED mass-projected influence weight (from `resinfv`), which is
-    # what a per-class LOCATION bias has to be propagated through: a bias is a
-    # shift, and a shift needs a direction. `hit_detid` is what turns a class
-    # label into a subdetector / layer / disk / +-z. Both are optional so an
-    # older production still builds; the fields simply do not appear.
+    # Extra per-hit columns. `hit_v` is a VARIANCE contribution and is
+    # unsigned, so it cannot say which way a hit's displacement pushes the
+    # curvature -- a per-class LOCATION bias is a shift and a shift needs a
+    # direction -- and a class label alone cannot say WHICH module a hit was
+    # on.
+    #
+    # The branch names below are the ones CHECKED in a two-track v2 output
+    # (DY v2, 2026-09-09), not guessed: the per-hit arrays are `reshitidx` and
+    # `reshitcls` (UNPREFIXED, they belong to the res block) alongside the
+    # prefixed `{prefix}_hitcls` / `{prefix}_hitv` already read above, plus
+    # `resinfcovhit`. **There is NO detid branch**: `reshitidx` is the hit's
+    # INDEX and the module is reached through the runtree, so `hit_idx` is what
+    # gets exported and the detid mapping is a downstream join, not a column.
+    #
+    # NOTE, and it is a real gap: nothing in this output is a SIGNED
+    # mass-projected per-hit weight. `resinfcovhit` is exported here as
+    # `hit_cov` because it is the only remaining per-hit influence quantity,
+    # but whether it carries a sign is UNVERIFIED. Propagating a location bias
+    # therefore needs the sign from the local-to-global rotation via the
+    # runtree geometry, not from a stored column.
     _keys = set(t.keys())
-    hit_extra = [(k, f"{prefix}_{b}") for k, b in
-                 (("hit_s", "hits"), ("hit_detid", "hitdetid"))
-                 if f"{prefix}_{b}" in _keys]
+    hit_extra = [(k, b) for k, b in
+                 (("hit_idx", "reshitidx"),
+                  ("hit_rescls", "reshitcls"),
+                  ("hit_cov", "resinfcovhit"),
+                  # present on the SINGLE-track path (see the `cls` list in
+                  # `pairs`), absent from the two-track v2 output; taken if it
+                  # is there so the detid join is free where it exists
+                  ("hit_detid", "hitDetId"))
+                 if b in _keys]
     br += [b for _, b in hit_extra]
     a = t.arrays(br, library="ak", entry_stop=stop)
     a = a[idx]
@@ -490,11 +509,17 @@ def _grp_block(t, stop, idx, prefix, nt, push, stats, fn):
     for key, brname in hit_extra:
         v = ak.to_numpy(ak.flatten(a[brname]))
         if v.size != int(nh.sum()):
+            # the res-block per-hit arrays need not share the cfmass block's
+            # jagged layout; say so rather than mis-align them silently
             raise SystemExit(
                 f"{fn}: {brname} has {v.size} values against "
-                f"{int(nh.sum())} hits from {prefix}_hitcls -- they must share "
-                "the same per-candidate jagged layout")
-        push(key, v.astype(np.uint32 if key == "hit_detid" else np.float64))
+                f"{int(nh.sum())} hits from {prefix}_hitcls. They must share "
+                "the same per-candidate jagged layout for hit_ptr to index "
+                "both; if the res block is laid out per LEG instead, export it "
+                "with its own pointer rather than forcing it onto this one")
+        push(key, v.astype(np.uint32 if key == "hit_detid"
+                           else np.int32 if key in ("hit_idx", "hit_rescls")
+                           else np.float64))
     if have_clo:
         c = ak.to_numpy(a[f"{prefix}_grp_closure"]).astype(np.float64)
         push("grp_closure", c)
@@ -544,11 +569,12 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
             v = np.concatenate(v, axis=0)
         if k in _MASS_AUX_INT:
             out[k] = np.asarray(v, dtype=np.int64)
-        elif k in ("hitcls", "grp_id", "hit_cls", "hit_detid"):
+        elif k in ("hitcls", "grp_id", "hit_cls", "hit_idx", "hit_rescls",
+                   "hit_detid"):
             out[k] = np.asarray(v, dtype=np.int16)
         elif k in ("grp_cnt", "hit_cnt"):
             out[k] = np.asarray(v, dtype=np.int64)
-        elif k in ("hit_v", "hit_s"):
+        elif k in ("hit_v", "hit_cov"):
             out[k] = np.asarray(v, dtype=np.float32)
         elif k in ("hitamp2",):
             out[k] = np.asarray(v, dtype=np.float32)
