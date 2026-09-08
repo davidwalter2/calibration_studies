@@ -54,6 +54,9 @@ import sys
 import time
 
 import numpy as np
+
+# the parameters whose convergence decides whether a result may be quoted
+POI_GATE = ("m_Z", "Gamma_Z", "alpha", "k_ms", "k_hit", "k_ioni", "k_rad")
 import tensorflow as tf
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -110,6 +113,10 @@ def parse_args(argv=None):
     md.add_arguments(p)
     p.add_argument("--maxiter", type=int, default=200)
     p.add_argument("--gtol", type=float, default=1e-6)
+    p.add_argument("--conv-tol", type=float, default=0.05,
+                   help="a result is marked `converged` only if every "
+                        "POI's diagonal Newton step at the stop, in "
+                        "units of its own error, is below this")
     p.add_argument("--start-from", default=None)
     p.add_argument("--project", type=float, nargs="+", default=[])
     p.add_argument("-o", "--output", default=None)
@@ -655,7 +662,31 @@ def main(argv=None):
                     "argmax": obj.freenames[blk[k]],
                     "rms": float(np.sqrt((rho ** 2).mean()))}
 
+    # THE CONVERGENCE GATE (see fit.py for why |grad|inf is not the test:
+    # the Hessian's condition number is ~1e6 and an infinity-norm rule
+    # converges the stiff K(m) shapes while leaving the POIs a sigma or two
+    # out -- measured, on a fit that then looked like a perfect closure).
+    _errq = errs if "errs" in dir() else err
+    step = (np.asarray(r.jac) * _errq).tolist()
+    pois = [nm for nm in obj.freenames if nm in POI_GATE]
+    worst = max((abs(step[obj.freenames.index(nm)]) for nm in pois), default=0.0)
+    converged = bool(worst < args.conv_tol)
+    print(f"\n    convergence, the DIAGONAL NEWTON STEP at the stop:")
+    for nm in pois:
+        i_ = obj.freenames.index(nm)
+        print(f"      {nm:>12s} grad {r.jac[i_]:+12.5g}  "
+              f"step {step[i_]:+9.4f} sigma")
+    print(f"      worst POI step {worst:.4f} sigma (requirement < "
+          f"{args.conv_tol:g}) -> {'CONVERGED' if converged else 'NOT CONVERGED'}")
+    if not converged:
+        print("      *** THIS RESULT MUST NOT BE QUOTED. Re-run with "
+              "--start-from this json and a trust-exact subproblem. ***")
     res.update({"fitted": r.x.tolist(), "err": err.tolist(),
+                "grad": np.asarray(r.jac).tolist(),
+                "newton_step_sigma": step,
+                "worst_poi_step_sigma": float(worst),
+                "conv_tol": float(args.conv_tol),
+                "converged": converged,
                 "nll": float(r.fun), "nit": int(r.nit), "t_fit": t_fit,
                 "gradmax": float(np.max(np.abs(r.jac))),
                 "corr": corr.tolist() if len(free) <= 200 else None,
