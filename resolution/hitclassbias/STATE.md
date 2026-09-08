@@ -222,3 +222,144 @@ sign, and the orientation-group key needs the DetId. The two-track maker's
 `resinfv` already holds the SIGNED mass-projected weights
 (`cf_mass_likelihood.build_pairs_tt` docstring), so this is a pairs-cache
 RE-EXTRACTION -- add `hit_s` and `hit_detid` -- not a production.
+
+---
+
+# PART 2 — WHICH TRACKS carry the charge-even shift? (2026-09-08)
+
+Scripts `s1_trim.py` .. `s7_figs.py`, output `out_quality.txt`, figures
+`skew_trimscan`, `skew_mixture`, `skew_partial_slopes` in the same directory.
+Sample: the same 319 850 tight-gun tracks; statistic: charge-even
+`<x>` with the truth-referenced pull `x = z/(1 - a q z)`.
+
+## (1) TRIM SCAN — it is a CORE SHIFT, not a one-sided tail
+
+`m_implied(T) = <x>_even,|x|<T / f(T)` with `f(T) = 1 - 2 T q(T)/Q(T)` taken
+from the charge-SYMMETRISED data itself (the model's own odd content is
++5e-5 here, so no model is needed):
+
+| band | T=1 | T=2 | T=3 | T=5 | T=10 | T=inf |
+|---|---:|---:|---:|---:|---:|---:|
+| barrel | -7.74 | -4.44 | -5.68 | -5.73 | -4.84 | **-5.21** |
+| middle | -2.34 | -6.52 | -3.53 | -4.43 | -5.06 | **-4.36** |
+| endcap | +3.05 | +3.32 | +0.85 | +0.07 | -1.02 | **-1.97** |
+
+Flat from T = 2 within +-2.8e-3. **A one-sided tail is not what this is.**
+The `|x|` shells confirm it: in the barrel the -5.2e-3 is built as
+-0.20 / -1.55 / -1.79 / +0.21 / -2.12 / -0.26 / +0.87 / -0.37 over
+|x| = 0-0.5 / 0.5-1 / 1-1.5 / 1.5-2 / 2-3 / 3-5 / 5-10 / >10, i.e. two thirds
+of it inside |x| < 2.
+
+## (2) STEP CONTROL IS NOT THE MECHANISM — it never fires
+
+| variable | census on this sample |
+|---|---|
+| `nChargeFlipProtect` | **0 for 319 849 / 319 850 tracks** (one track has 1) |
+| `chargeHypFlipped` | **0 for every track** |
+| `niter` | 2: 81.4 %, 3: 18.5 %, >=4: 0.10 % |
+
+The asymmetric momentum clamp (`clampMomentumFloor` = 2 GeV) and the
+two-hypothesis refit never engage on a 20-60 GeV gun -- the floor is 10-30x
+away. The per-STEP clamp/backtrack counters (`fitStepClamped_`,
+`stepBacktrackEvents_`) are JOB-level in this release, NOT per track, so
+`nChargeFlipProtect`, `niter` and the iteration-0-to-final step are the
+per-track proxies; all three say the same thing. **An estimator pathology
+driven by the step control cannot be the explanation here.** (It is not
+excluded at LOW pT, where the 2 GeV floor is close.)
+
+## (3) THE ONE VARIABLE THAT ORDERS IT, AND THE CONDITIONING TRAP
+
+`corr(v, x)` for every conditioning variable (binning rule):
+
+| variable | corr(v,x) | corr(v,\|x\|) |
+|---|---:|---:|
+| **seed->final dq/p, SIGNED** | **+0.1132** | +0.0018 |
+| niter | +0.0052 | +0.0558 |
+| \|seed->final dq/p\| | +0.0061 | +0.0537 |
+| chi2/ndof | +0.0022 | +0.0935 |
+| nValidPixelHits | -0.0041 | -0.0005 |
+| nValidHits / n layers / vgf / sigma_rel | <0.001 | <0.007 |
+
+**The SIGNED seed-to-final step is a trap** (`corr = +0.113`; its tertiles run
+-169 / -7 / +163 in the barrel, a 332e-3 artefact). The ABSOLUTE step is not.
+
+Charge-even slopes AT FIXED |eta| (v centred in 12 fine |eta| bins),
+combined over the three bands:
+
+| variable | barrel | middle | endcap | combined | chi2/2 |
+|---|---:|---:|---:|---:|---:|
+| nValidPixelHits | -8.28+-3.44 | -1.83+-4.13 | -5.30+-3.05 | **-5.50+-2.00 (2.7s)** | 1.4 |
+| n pixel layers | -8.96+-3.61 | -0.55+-4.22 | -3.53+-3.33 | -4.64+-2.12 (2.2s) | 2.5 |
+| niter | +13.53+-11.60 | +12.14+-10.21 | +14.59+-7.35 | +13.71+-5.30 (2.6s) | 0.0 |
+| \|seed->final dq/p\| | -158+-1694 | +1354+-845 | +442+-215 | +488+-207 (2.4s) | 1.2 |
+| n layers / nValidHits / chi2ndof / vgf / sigma_rel | | | | all < 1.2s | |
+
+Joint fit (all six together, per standardised unit, 1e-3): nValidPixelHits
+**-4.98+-2.37**, |seed->final| **+6.38+-2.95**, niter +3.06+-2.11, chi2/ndof
++1.40+-3.28, nValidHits +1.91+-2.19, vgf -3.48+-2.16. **Nothing reaches 3
+sigma.**
+
+## (4) THE RESULT: the eta dependence is a MIXTURE, not a region effect
+
+Split on `|seed->final dq/p|` at its 90th percentile:
+
+| | barrel | middle | endcap | combined | chi2/2 |
+|---|---:|---:|---:|---:|---:|
+| **IN** (top 10 %) | +21.28+-29.41 (2.4 %) | +20.69+-15.98 (7.0 %) | +20.53+-7.26 (21.2 %) | **+20.59+-6.45** | 0.0 |
+| **OUT** (rest) | -5.03+-2.95 | -6.64+-3.29 | -7.68+-3.37 | **-6.33+-1.84** | 0.4 |
+
+**Both components are flat in |eta|; only their MIXING FRACTION runs
+(2.4 % -> 7.0 % -> 21.2 %)**, and the mixture reproduces the band values
+exactly: 0.024(+21.28) + 0.976(-5.03) = **-4.40** against -4.42+-3.09;
+-4.73 against -4.72; -1.70 against -1.65.
+
+ROBUST: the same at the 80th and 95th percentile (OUT -6.79+-2.03 and
+-5.17+-1.83, always chi2 <= 0.6/2), on the RAW `z` instead of the
+truth-referenced `x` (OUT -6.16+-1.88, IN +20.90+-6.69), and with the same
+sign on the CVH-INTERNAL `|iter0->final|` step, whose exposure to the residual
+is smaller still (`corr(v,x) = -0.0016`): OUT -4.64+-1.85 flat, IN +7.03+-7.40.
+
+**What the IN population is**: 2.1x the `sigma_rel` (0.0385 vs 0.0182), 2.72
+GN iterations against 2.13, chi2/ndof 1.098 against 0.988, **fewer pixel hits
+(1.67 vs 2.30)** at the same total hit count (17.0 vs 17.2), and rms(x) 1.22
+against 1.02. It is the high-curvature-error, pixel-poor, hard-to-fit tail --
+the same kind of track the mass-level result names, though the two
+observables' signs are not directly comparable.
+
+**So the answer to "which tracks":** a ~10 % pixel-poor / high-sigma
+subpopulation at **+21e-3** and the remaining ~90 % at **-6.3+-1.8e-3**
+(3.4 sigma from zero), BOTH eta-independent. The "eta-dependent charge-even
+skew" is better described as an eta-INDEPENDENT bulk shift of -6.3e-3 plus a
+subpopulation whose fraction grows with |eta|.
+
+**A single relative curvature bias cannot describe both components**: at
+`sigma_rel` 0.0182 the OUT shift is `beta = -1.15e-4` and at 0.0385 the IN
+shift is `beta = +7.9e-4`.
+
+**Removing the track-quality variables does NOT flatten the eta pattern**: the
+global joint model predicts only -0.84 / -0.38 / +1.29 per band and the
+residual is -3.58 / -4.34 / -2.93 -- i.e. flatter, but by construction of the
+mixture, not by explaining the bulk. The bulk -6.3e-3 remains.
+
+## CAVEATS
+* `|seed->final dq/p|` is RECONSTRUCTED, `corr(.,|x|) = +0.054`. The
+  charge-even average is protected to first order against the
+  `sigma = sigma_bar(1 + a q x)` selection (the induced term is charge-ODD),
+  and the raw-`z` and `|iter0->final|` cross-checks agree, but this is a
+  2.4 sigma ordering on a correlated variable: HYPOTHESIS, not established.
+* Everything here is 2-3 sigma. The gun is 320 k tracks; the same
+  decomposition on the Z and J/psi legs is what would settle it.
+
+## FOR THE OTHER AGENT'S `hit_s` / `hit_detid` WORK — the branch names
+Checked directly on `dymc_8p5M_260906_v2` and `jpsimc_20M_260906_v2`:
+**`resinfv`, `resinfbv` and `hitDetId` are NOT in those trees at all** (213 and
+228 branches; the hit-related ones are `cfmass_hitcls`, `cfmass_hitv`,
+`reshitcls`, `reshitidx`, `resinfcovhit`, `resinfvarv`). `resinfv`/`resinfbv`
+are booked under `if (exportStepRecords_)` in
+`ResidualGlobalCorrectionMakerBase.cc:547-549`, which was OFF for the slim
+v2 productions. So a guessed `{prefix}_hits` / `{prefix}_hitdetid` will
+silently skip, and the SIGN is not recoverable from these files: it needs a
+re-production with `exportStepRecords=True` (the 430 kB/candidate path) or a
+small maker change exporting just an int8 sign per block plus `hitDetId`.
+Given PART 1's result (the location channel is >= 5.3 sigma from what is
+needed), that re-production is probably not worth doing.
