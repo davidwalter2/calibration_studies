@@ -725,3 +725,61 @@ far explains it — not the momenta (flat in `eta` to 3.7 MeV), not the
 resolution width (pull flat to +-0.7 %), not the kernel (3 MeV of band-to-band
 spread at generator level), and not the sigma-mass pairing (which predicts the
 opposite ordering).
+
+### 2026-09-08 00:20 — the design's premise, TESTED and CONFIRMED, with the exponent
+
+The conditional-kernel design (sec. 0e) rests on one claim: at fixed OBSERVED
+`(y, cos theta*)` the true mass and the per-candidate resolution are linked
+only through `p ~ m`, which the `a` correction already models. Tested on the
+3 682 662 selected candidates, with `y` from `(Jpsi_pt, Jpsi_eta, m)` and
+`cos theta* = tanh((eta_minus - eta_plus)/2)` (the `pT_Z ~ 0` Collins-Soper
+angle).
+
+**The naive form of the claim FAILS**, and it fails in the informative
+direction: conditioning on the cell makes the raw dependence WORSE, because at
+fixed `(y, cos theta*)` and `pT_Z ~ 0` the mass DETERMINES both muon `pT`s
+(`pT = (m/2) sin theta*`), so `sigma` becomes a near-deterministic function of
+`m` inside a cell.
+
+| conditioning | `rho(sigma, m_gen)` | `rho(sigma/m, m_gen)` |
+|---|---:|---:|
+| none | +0.1680 | +0.0350 |
+| `(y, cos t*)` 5 x 5 | +0.2139 | +0.0466 |
+| `(y, cos t*)` 10 x 10 | +0.2327 | +0.0515 |
+| `(y, cos t*)` 14 x 14 | +0.2404 | +0.0536 |
+
+**The correct form of the claim HOLDS, and it fixes the exponent.** The link is
+not `sigma ~ m` but `sigma ~ m^{1+f}` — a track's curvature resolution is what
+is constant, so `sigma_pT/pT ~ pT`. Scanning
+`rho(log sigma - p log m_obs, log m_gen)`:
+
+| `p` | inclusive | 5 x 5 | 10 x 10 |
+|---:|---:|---:|---:|
+| 0.00 | +0.2532 | +0.3876 | +0.4374 |
+| 1.00 | +0.0458 | +0.0757 | +0.0879 |
+| **1.25** | **-0.0082** | **-0.0107** | **-0.0119** |
+| 1.50 | -0.0621 | -0.0966 | -0.1110 |
+| 2.00 | -0.1674 | -0.2588 | -0.2948 |
+
+**It crosses zero at `p = 1.25`, and the `a` correction's own exponent is
+`1 + <vgf> = 1.2640`.** They agree to 1 %. So the quantity
+`k_i = sigma_i / m_i^{1+f_i}` — the resolution CONSTANT the `a` correction
+already defines — is independent of the true mass to `rho = -0.01`, inside a
+cell and inclusively.
+
+That is the design validated, and it says something sharper than "condition on
+the cell": **the mis-specification is that the kernel width is held FIXED at
+`sigma_i` across the convolution, when it should scale as `k_i m'^{1+f_i}` with
+the integration variable.** The `a` correction applies that scaling only to
+first order in the FLUCTUATION (over the few GeV of the kernel's own support);
+what is missing is the same scaling across the mass range the Born spectrum
+actually populates. The size is right: `sigma d sigma/dm = 1.1 x 1.264 x
+1.1/91 = 17 MeV`, against the measured -11.06 +- 2.27 and the -7.5...-15.3 of
+the class calculation.
+
+An immediate consequence for the plumbing: the class variable that matters
+first is NOT `(y, cos theta*)` but the resolution constant `k_i`, and the
+`(y, cos theta*)` cells are needed for the BORN spectrum `p(m'|cell)` and the
+acceptance `A(m|cell)` — which is what the coordinator's design says. But the
+`k_i` normalisation can be checked, and possibly fixed, without any cell
+machinery at all.
