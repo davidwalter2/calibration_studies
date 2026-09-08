@@ -2444,3 +2444,31 @@ without any fix, and it pays ~5 HVPs per step where `trust-exact` pays `nfree`
 HVP columns. At 7 free parameters they are close; on the **99-parameter joint
 cards of phase 2** krylov should win by a wide margin. Reach for `trust-exact`
 only when the Hessian at every step is wanted anyway.
+
+### 0f.15 EDM CERTIFIES STATIONARITY, NOT OPTIMALITY
+
+A caveat that arrived before it could cost anything, and it changes how the
+control is read. The agent compared two CONVERGED rabbit fits of the same card
+(`z_n300k`, same freezing, same start):
+
+| | NLL | EDM | `Gamma_Z` |
+|---|---:|---:|---:|
+| `fit.py` | 874734.9966056045 | — | -421.03 |
+| `tf-trust-krylov` | **874734.9966056045** | 4.98e-13 | -421.03 |
+| `tf-trust-exact` + the frozen fix | **874816.6155744941** | **1.04e-15** | -368.17 |
+
+**81.6 NLL units apart, and the one with the SMALLER EDM is the WORSE point.**
+Both are genuine stationary points: an EDM of 1e-15 is not a convergence
+failure, it is a converged fit at a DIFFERENT LOCAL MINIMUM. (`z_n300k` is the
+residual-form stopgap card that sec. 0 records running away to
+`Gamma_Z = -421`, so multi-modality there is expected and nothing physical
+should be read into it.)
+
+**So the acceptance test is EDM AND NLL, not EDM alone.** EDM answers "did this
+fit stop early" — the failure that cost four numbers today — and says nothing
+about "is this the right minimum". Two converged fits of the same card whose
+NLL differs by more than float noise is an alarm, not a rounding difference.
+
+**The control's target**: `f380fl_base` sits at `m_Z = -11.064299431899864`,
+`Gamma_Z = -5.264591805106016`, **NLL = 11075392.465686228**. `22301214
+f380ref` passes only if it returns that `m_Z` at a small EDM AND at that NLL.
