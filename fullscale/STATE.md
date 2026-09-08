@@ -3283,3 +3283,35 @@ because the bias is gone. **The v formulation fixes the INCLUSIVE closure and
 leaves an `eta`-dependent residual as large as the effect it removed.** A Z
 mass measurement that fits `eta` bands separately, or that weights them
 differently from this MC, does not inherit the inclusive closure.
+
+### 0f.28 QUEUE AUDIT (2026-09-08 15:05, at David's request)
+
+Every job in the queue was submitted by THIS agent after 14:00. **Nothing was
+left over from the account swap**: the previous agents' jobs are `22292576-87`
+(the `--gtol 0` re-runs), `22301214-20`, `22303682-4` and `22304228`, and all
+of them COMPLETED before 13:45. The ~25 cancellations between 14:20 and 14:31
+were mine: I submitted the 19-row suite one job per row, then re-submitted it
+in priority order, then re-submitted it again warm-started and BATCHED (a warm
+row converges in 3-5 iterations but pays ~5 min of card load and TF start-up,
+so one process per row spent the 4-GPU allowance on start-up).
+
+| job | card / variant | purpose | keep |
+|---|---|---|---|
+| `22311742 f380refS` | `z_full380_fl`, COLD | the cold minimiser control | **CANCELLED** — `f380refW` (warm) already returned the reference EXACTLY: `m_Z` -11.06, NLL 11075392.4657, EDM 1.78e-18, in 2 iterations. The cold run was at EDM 8e3 after 57 min and tests only "no other minimum from a cold start", which no local method proves anyway |
+| `22311743 SVfull` | `z_V_full`, COLD | cold twin + the sec. 0f.15 two-minima question | **CANCELLED** — `SVfullW` settled it: NLL -9827101.7477 at EDM 6.4e-12, BELOW both the krylov stall (-9827099.7568) and `RvfullX` (-9827069.1806). The two points are real and the better one is found |
+| `22313540 f380refP` | `z_full380_fl`, COLD, `--precondition` | is the trust-radius scaling the cure? | **CANCELLED** — answered: EDM 7210 -> 8351 -> 476464, i.e. it wanders exactly as the unpreconditioned cold run does. Preconditioning buys nothing here, confirming sec. 0f.14 for the scipy subproblem too |
+| `22312979 zrabbitvb` | v-form rows: `SVs6 SVs7 SVetaT SVetaE SVtoy SVKetaB SVKetaT` | step 2's deliverable | **KEEP** |
+| `22312980 zrabbitvb` | m-form rows: `Ss6 Ss7 SMetaB SMetaT SMetaE Stoy Stoydc Sw70110` | step 1's table | **KEEP** |
+| `22312981 zrabbitvb` | `f380refW SVfullW Sdc8W` | the warm controls | **KEEP** — on its last row |
+| `22312984 P2K` | `joint_ok_full`, `trust-krylov` | **phase 2**, stage 1 | **KEEP** |
+| `22314264 P2smoke` | `joint_ok_n500k`, `trust-exact` | phase 2's path check after the dense-`D` fix | **KEEP** — cheap, and it must pass before the 1.5-day job burns time |
+| `22314340 zrabbitvb` | the extended `K(m)` ladder `Ss9 SVs9 Ss12 SVs12` | the `Gamma_Z` truncation question | **CANCELLED and queued in this plan instead** — it is the lowest-priority row set and it was holding a pending slot against the GPU cap. Resubmit with `FRESH=1 ./submit_scipy_suite.sh` (or the batch sbatch) when `22312979`/`22312980` finish; the cards are built and staged |
+| local `rabbit_fit.py cards/joint_mat_smoke.hdf5` | phase-3 smoke | requirement-6 demonstration | **KILLED** — it had already shown the card loads, declares 117 parameters through the bundle and enters `trust-krylov`; it was 65 min of CPU on a node at load 180 |
+
+Cancelling the three frees three of the four `mit_preemptable` GPUs, which is
+what `22312984 P2K` and `22314264 P2smoke` were blocked on.
+
+**Rule adopted**: at most 4 `mit_preemptable` + 2 `mit_normal_gpu` jobs live at
+a time, and rows are BATCHED (`rabbit_vmass_batch.sbatch ROWS="a b c"`) rather
+than one job per row. Anything beyond the cap is written into this plan
+instead of held pending.
