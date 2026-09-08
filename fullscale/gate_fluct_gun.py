@@ -43,6 +43,15 @@ def parse_args(argv=None):
     p.add_argument("--maxn", type=int, default=0)
     p.add_argument("--chunk", type=int, default=16384)
     p.add_argument("--krad", type=float, default=1.0)
+    p.add_argument("--vpow", type=float, default=0.0,
+                   help="also build the v-formulation term (`sigma -> "
+                        "k = sigma/m^p`, `mobs -> v(m) - v(M)`, the FSR kernel "
+                        "mapped to v). At a DELTA kernel the true mass is a "
+                        "single point, so the m and v formulations must "
+                        "coincide up to the few-per-cent spread the FSR kernel "
+                        "itself puts on `m_true` -- which is exactly what "
+                        "makes this the gate: the v form must reproduce the "
+                        "spec's alpha shifts, not improve on them.")
     p.add_argument("--fbkg", type=float, default=FBKG)
     p.add_argument("--halfwidth", type=float, default=2.0,
                    help="alpha scan half-width, in 1e-3")
@@ -106,6 +115,37 @@ def build_terms(args, log=print):
 
     terms = {}
     terms["uncorrected"] = unbinned.MassCFTerm("gun_none", **common)
+    if args.vpow:
+        pw = float(args.vpow)
+        vmap = (lambda x: np.log(x)) if pw == 1.0 else \
+            (lambda x: x ** (1.0 - pw) / (1.0 - pw))
+        m_phys = mobs + MJPSI
+        vref = float(vmap(np.array(MJPSI)))
+        # the FSR kernel is a distribution of the mass SHIFT; in v it is the
+        # distribution of v(M + dm) - v(M), which is dm/M^p to first order
+        dmv = vmap(MJPSI + dm) - vref
+        phiv = np.concatenate(
+            [np.mean(np.exp(1j * np.outer(tabs[i:i + blk] * MJPSI ** pw, dmv)),
+                     axis=1) for i in range(0, len(tabs), blk)])
+        wv_lo = float(vmap(np.array(MJPSI - 0.5 * WIN))) - vref
+        wv_hi = float(vmap(np.array(MJPSI + 0.5 * WIN))) - vref
+        mref_v = MJPSI ** (1.0 - pw)
+        cv = dict(common)
+        cv.update(sigma=sig / m_phys ** pw,
+                  mobs=vmap(m_phys) - vref,
+                  phik=(tabs * MJPSI ** pw, phiv.real.copy(), phiv.imag.copy()),
+                  background=unbinned.UniformBackground(
+                      (wv_lo + mref_v, wv_hi + mref_v)),
+                  m_ref=mref_v, corr_mass=m_phys)
+        terms["v_fluctuation"] = unbinned.MassCFTerm(
+            "gun_v", a_res=a_res, jensen_s2=s2, jensen_mode="exact",
+            corr_form="fluctuation", vpow=pw, **cv)
+        terms["v_ares_only"] = unbinned.MassCFTerm(
+            "gun_v_a", a_res=a_res, jensen_mode="off",
+            corr_form="fluctuation", vpow=pw, **cv)
+        terms["v_uncorrected"] = unbinned.MassCFTerm("gun_v_none", **cv)
+        log(f"  --vpow {pw:g}: k median {np.median(sig/m_phys**pw):.6g}, "
+            f"v window [{wv_lo:.6g}, {wv_hi:.6g}]")
     terms["residual"] = unbinned.MassCFTerm(
         "gun_res", a_res=a_res, jensen_s2=s2, jensen_mode="exact",
         corr_clip=0.0, corr_form="residual", **common)
@@ -162,8 +202,11 @@ def main(argv=None):
     print(f"=== gate 1: the fluctuation form on the J/psi gun ===")
     terms, n = build_terms(args)
     out = {}
-    for name in ("uncorrected", "res_ares_only", "flu_ares_only",
-                 "residual", "fluctuation"):
+    names = ["uncorrected", "res_ares_only", "flu_ares_only",
+             "residual", "fluctuation"]
+    if args.vpow:
+        names += ["v_uncorrected", "v_ares_only", "v_fluctuation"]
+    for name in names:
         t0 = time.time()
         a, e, v = fit_alpha(terms[name], args.halfwidth)
         out[name] = {"alpha": a, "err": e, "nll": v, "seconds": time.time() - t0}
@@ -187,6 +230,25 @@ def main(argv=None):
     print(f"\n  GATE: |fluctuation - residual|  a_res only {abs(d_a):.5f} e-3, "
           f"both {abs(d_b):.5f} e-3   (requirement < 0.01 e-3)")
     ok = abs(d_a) < 0.01 and abs(d_b) < 0.01
+    if args.vpow:
+        vref_a = out["v_uncorrected"]["alpha"]
+        d_va = out["v_ares_only"]["alpha"] - vref_a
+        d_vb = out["v_fluctuation"]["alpha"] - vref_a
+        print(f"  {'a_res only, v form':22s} {d_va:+12.5f}  {+0.1457:+10.4f}")
+        print(f"  {'both, v form':22s} {d_vb:+12.5f}  {+0.0559:+10.4f}")
+        e_a = abs(d_va - (out["flu_ares_only"]["alpha"] - ref))
+        e_b = abs(d_vb - (out["fluctuation"]["alpha"] - ref))
+        print(f"\n  GATE (v): |v - m| shift  a_res only {e_a:.5f} e-3, "
+              f"both {e_b:.5f} e-3   (requirement < 0.01 e-3)")
+        # the ABSOLUTE alpha may legitimately move: at a delta kernel the true
+        # mass is one point, but the FSR kernel gives it a few-per-cent spread
+        # and the v form treats the width across THAT correctly
+        print(f"  absolute alpha: m form {out['fluctuation']['alpha']:+.5f}, "
+              f"v form {out['v_fluctuation']['alpha']:+.5f} e-3 "
+              f"(difference {out['v_fluctuation']['alpha'] - out['fluctuation']['alpha']:+.5f})")
+        ok = ok and e_a < 0.01 and e_b < 0.01
+        out["_vgate"] = {"d_ares": d_va, "d_both": d_vb,
+                         "e_ares": e_a, "e_both": e_b}
     print(f"  -> {'PASS' if ok else 'FAIL'}")
     out["_gate"] = {"n": n, "d_ares": d_a, "d_both": d_b, "pass": bool(ok)}
     if args.output:
