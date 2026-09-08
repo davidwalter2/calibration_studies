@@ -2267,7 +2267,7 @@ parameters frozen:
 |---|---|
 | `tf-trust-exact` | **51 iterations, EDM 111.5, still crawling** |
 | **`tf-trust-krylov`** | **converged, EDM 4.98e-13, 135 s total** |
-| `tf-trust-exact` + `Fitter.hess_for_minimizer` (rabbit `d83342e`) | see below |
+| `tf-trust-exact` + `Fitter.hess_for_minimizer` (rabbit `d83342e`) | **18 iterations, EDM 1.0e-15** |
 
 GLTR is immune because Lanczos never explores the null space — the frozen
 directions carry no gradient, so they are never in the Krylov subspace.
@@ -2276,7 +2276,33 @@ the subproblem, which is EXACT rather than a regularisation (the frozen
 gradient components are zero, so `p_frozen = -0/1 = 0` for any positive value
 there) and simply makes the matrix invertible.
 
-**Use `tf-trust-krylov` when anything is frozen.**
+The fixed `trust-exact` EDM ends 222 -> 46.2 -> 0.179 -> 3.0e-6 -> **1.0e-15**
+-- textbook quadratic convergence, which is what a Newton-type method does
+once its subproblem is not singular. Against the unfixed run's 66 iterations
+at EDM 83 and still falling 1 % per iteration.
+
+**Use `tf-trust-krylov` when anything is frozen** (it is immune with no fix
+at all, and it pays ~5 HVPs per step where `trust-exact` pays `nfree`
+columns -- at the 99 parameters of a joint card that is the whole cost).
+
+### 7.7b The standalone drivers are unchanged by any of this
+
+`fit.py --card cards/smoke_zls.hdf5 --chunk 8192 --maxiter 20`, the
+pre-change drivers on `rabbit-material` against the current drivers on
+`rabbit-native`:
+
+| | |
+|---|---|
+| reference-point NLL | **identical** (150039.08298253382) |
+| final NLL | **identical** (149975.61860577622) |
+| iterations | **identical** (10) |
+| fitted parameters | 1.8e-15 |
+| errors | 1.0e-15 |
+
+So the graph chunk loop becoming the default, `ChunkTable`, the
+`MaterialCFTerm` CSR change and the Fitter's new Hessian route leave the
+standalone path bit-equivalent. The 1e-15 is multithreaded-reduction
+round-off, not a code difference.
 
 ### 7.8 The 300 k card, end to end
 
