@@ -54,7 +54,7 @@ fi
 
 python3 -u $ZMASS/rabbit-vmass/bin/rabbit_fit.py "$CARD" \
     $RESUME \
-    --paramModel "$MODEL" \
+    --paramModel $MODEL \
     --minimizerMethod "$METHOD" \
     ${FREEZE:+--freezeParameters $FREEZE} \
     $( [ "$CHUNK" != "0" ] && echo --unbinnedChunk $CHUNK ) \
