@@ -1285,3 +1285,70 @@ inside every chunk's tape: 4 ms/chunk today (14 % of a gradient at
 **And `w_c` is MC input**, the same status as the FSR kernel and the
 acceptance: `w_c(m) = p(m | class c) / p(m)` measured on simulation. Say so
 when quoting the result.
+
+---
+
+## 0e. THE FIX, AS INSTRUCTED (2026-09-08) — Punzi's variable-resolution problem
+
+The coordinator has accepted the diagnosis and named it: this is **Punzi's
+variable-resolution likelihood problem**, `p(m_true | sigma_i) != p(m_true)`.
+The instruction has two parts and the second is the design.
+
+### (a) The MC per-class reweighting is the DIAGNOSTIC ONLY
+
+`w_c(m) = p(m|c)/p(m)` measured on simulation closes the loop — do it with the
+`F_toy` family, show the -11 MeV goes away, and report what it does to the
+`eta` pattern — but it is **not** the model, because it imports the MC's mass
+spectrum per class into the physics.
+
+### (b) The design: condition the kernel on the OBSERVED angular variables
+
+`sigma_i` is a deterministic function of the candidate's kinematics (the muon
+`eta`s, `pT`s and hit pattern). At fixed **observed** `(y, cos theta*, phi)` —
+equivalently `(eta1, eta2, dphi)`, all measured with smearing negligible
+against their own structure — the true mass and the resolution are linked ONLY
+through `p ~ m`, which the `a` correction already models. So the kernel must be
+the CONDITIONAL spectrum `p(m_true | y, cos theta*, ...)`:
+
+* the **LO differential cross section** `dsigma/(dm dy dcos theta*)` = the Born
+  helicity structure times the luminosity `L(x1, x2)` with
+  `x1,2 = (m/sqrt(s)) e^{+-y}` — **not** the `y`-integrated `L(m)` in use;
+* times the smooth `K` (global 5 terms, or per-`y`-band nuisances if the data
+  demand it);
+* times the acceptance `A(m | cell)`, which at fixed `(y, cos theta*,
+  pT_Z ~ 0)` is an **analytic threshold in `m`** from the muon `pT` cuts — to be
+  checked against the selected candidates' gen record;
+* times the FSR fold banded in `m_pre` as now — with the gen record used to
+  verify whether the fold itself needs a `y` / `cos theta*` dependence.
+
+This is the multi-dimensional cross section David asked for in the
+`sin^2 theta_W` context. **The 1D mass fit with a per-candidate resolution is
+only consistent when conditioned this way.**
+
+### Plumbing, in order
+
+1. The class axis on the kernel CF, ONCE: class = a `(y, cos theta*)` cell,
+   ~10 x 10; a per-class `rfft` of the hat-basis spectrum;
+   `MassCFTerm._prologue(values)` hoisted out of the chunk loop; the class
+   column a length-`n` tensor so `candidate_slice` shards it; the
+   normalisation `Z` per class. The hook design agreed with the rabbit-native
+   agent is in sec. 0d.1 and is unchanged by this.
+2. On a **branch of `material-resolution-native`**, with a **finite-difference
+   gradient gate** on `m_Z`, `Gamma_Z`, `K` and one class weight, BEFORE any
+   fit uses it.
+3. Provider changes belong in the rabbit lineshape module: `ZGammaLineshape`
+   gains the `(y, cos theta*)` differential form, and `make_lumi_table.py`
+   gains `L(m, y)`.
+4. Report (a) and (b) each with `m_Z`, `Gamma_Z` inclusive and per `eta` band,
+   plus the `K(m)` 5/6/7 ladder for `Gamma_Z`.
+
+### What can be checked before any code is written
+
+`sigma_i` and `m_gen` must decorrelate inside a `(y, cos theta*)` cell — that
+is the claim the whole design rests on. `rho(sigma, m_gen) = 0.168`
+inclusively; if it does not fall to ~0 inside a cell, the cell variables are
+not the right conditioning and the design has to change. Both variables are
+computable from the cache: `y` from `Jpsi_pt`, `Jpsi_eta` and the mass, and
+`cos theta*` from the two legs' `(pT, eta)` (`cos dphi = cosh d_eta -
+m^2/(2 pT1 pT2)` for massless muons, and at `pT_Z ~ 0`,
+`cos theta* ~ tanh(d_eta/2)`).
