@@ -2959,8 +2959,19 @@ at WRITE time (sec. 5, the `_jac_chunks` caveat), so the fit must use the same
 ```bash
 rabbit_fit.py $FS/cards/joint_mat_v3.hdf5 -o out/ -t 0 --unblind \
   --paramModel ExternalParams bundle:global_params \
+  --minimizerMethod trust-exact \
   --freezeParameters material_pp1_cables material_support_tube material_thermal_screen
 ```
+
+`--minimizerMethod trust-exact` is NOT optional either -- it is sec. 0f.20's
+decision, and the default is `trust-krylov`, which stopped 14.7 NLL units above
+the reference at full statistics on the Z-only card. **But it wants a dense
+Hessian, and this card is where that hurts**: the Fitter assembled the smoke
+card's 117 x 117 Hessian from HVP columns in **862 s** at 40 k candidates and
+chunk 8192. The cost is ~linear in the candidate count at fixed chunk, so the
+full card (1.127 M candidates, 28x) is **~6.7 h per Hessian on this CPU** --
+sec. 2's problem, inherited, with 14 more parameters than phase 2. That is the
+number the GPU queue has to be planned against, not the card build.
 
 ### SIZE, MEASURED AND EXTRAPOLATED
 
