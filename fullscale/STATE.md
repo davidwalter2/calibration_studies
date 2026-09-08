@@ -4517,3 +4517,62 @@ trust-region subproblem is badly conditioned in the POI directions -- which is
 exactly why `trust-exact` and not krylov -- but its message is wrong. It should
 compare against a per-BLOCK scale, or against the parameter's own prior width,
 not against the global maximum.
+
+### 0f.47 THE VARIANCE-SHARE NORMALISATION IS NOT GOOD ENOUGH TO EXTRACT
+### `f_ioni` — the excess is in `Sms`, and it is 2.5x `f_ioni` itself
+
+Asked which family is over-counted. Answer, with the estimator fixed first.
+
+**The estimator.** `Re S(t)` is EVEN in `t` (because `phi(-t) = phi(t)*`) and
+`tgrid` starts at 0 and is UNIFORM (`h = 0.125280`, 64 points to 7.8926 --
+checked, not assumed). So the second derivative at 0 must use a MIRRORED
+central stencil, `S''(0) = (2 S(h) - 2 S(0))/h^2`, not the forward difference
+`(S(2h) - 2S(h) + S(0))/h^2` I used in sec. 0f.45 -- that one estimates
+`S''(h)`. `S(0) = 0` exactly for every family, as it must be.
+
+| family | 3-point (mirrored) | 5-point (mirrored, O(h^4)) |
+|---|---:|---:|
+| `Sms` | **0.83288** | **0.83588** |
+| `Sio_re` | 0.01676 | 0.01864 |
+| `Srad_re` | 0.00816 | 0.00948 |
+| hit (`vgf`) | 0.21734 | 0.21734 |
+| **SUM** | **1.07443** | **1.08071** |
+
+The 3- and 5-point stencils agree to 0.6 %, so **this is not truncation
+error**: the shares genuinely do not sum to 1, and the excess is **7.4 %**
+(sec. 0f.45's 3.8 % was the forward-stencil artefact and is superseded).
+
+**Which family**: if the other three are right, `Sms` must be 0.7577 for the
+sum to close and it measures 0.8329 -- **9.9 % high**. `vgf` would have to be
+34 % wrong to carry it instead, which the pull width (0.9959, sec. 0b)
+excludes. So the excess sits in the multiple-scattering block, and the likely
+cause is a normalisation convention on `Sms` -- whether it is tabulated against
+the standardized `t` or against an absolute `tau` -- which is a question for
+`cf_inmaker`'s export, not for the fit.
+
+**THE CONSEQUENCE, and it is the point.** The quantity being extracted,
+`f_ioni = 0.0168`, is **four times smaller than the 0.074 the normalisation is
+off by**. So these shares cannot measure `f_ioni` at the level `e = f_hit -
+f_ioni` needs, and sec. 0f.45's conclusion must rest on the DIRECT measurement
+of `a` (1.2110 +- 0.0004 against `1 + vgf = 1.2625`) and not on them. That
+conclusion is unchanged -- `e = f_hit - f_ioni` closes at most a quarter of the
+deficit -- and it now has a second, independent reason not to be implemented:
+**the input it would need is not measurable to the required precision from what
+is exported.**
+
+### 0f.48 `warn_unconstrained` FIXED — it tests the ROW (rabbit `e006795`)
+
+"Nothing in the likelihood depends on it" means the parameter's entire Hessian
+ROW vanishes, and that is scale-free; testing the DIAGONAL against the global
+maximum is not. On the phase-2 joint card the hit-chi2 block sits at 7.12e13
+and `m_Z` at 0.0608, so every mass parameter fell below `rtol * max(diag)` and
+was named as unconstrained while its error was a sensible 5.78 MeV
+(sec. 0f.46). With the row test `m_Z`'s row maximum is ~2e4 against a threshold
+of 71.2 -- five orders clear -- because the mass term couples it to the field
+modes, while a material group no candidate touches still has an exactly zero
+row and is still caught.
+
+**Not a complete fix, and the docstring says so**: a whole BLOCK whose
+curvature sits below `rtol * max|H|` is still flagged (the `K(m)` shapes are
+the candidate on this card). The complete answer is a per-block scale from the
+terms' own `param_names`, left for the branch.
