@@ -4460,3 +4460,60 @@ the term's own variance before `f_ioni` is put in the card builder.
 **So `e = f_hit - f_ioni` is NOT implemented in the card builder.** It would
 buy a quarter of a 2-4 % coefficient error and it is not what the measurement
 asks for. What the measurement asks for is whatever accounts for the other 75 %.
+
+### 0f.46 PHASE 2 RUNS, CONVERGES AND PRODUCES A NUMBER (2026-09-08)
+
+**`22314264 P2smoke`** -- `joint_ok_n500k` (500 000 J/psi + 500 000 Z + the
+hit-chi2 external quadratic over 20 706 999 candidates), scipy `trust-exact`
+through `rabbit_fit.py`, 3 h 39 m, **EDM 6.2e-19**. The first phase-2 fit that
+has ever run end to end. It needed the dense-`D` fix (sec. 0f.24) to start at
+all.
+
+| | |
+|---|---:|
+| `m_Z` | **+31.86 +- 5.78 MeV** |
+| `Gamma_Z` | +8.75 +- 10.32 |
+| EDM | 6.2e-19 |
+| NLL (unbinned terms) | 615177.106228 |
+| free | 95 (50 field + 42 material - 4 frozen + 2 POI + 5 shapes) |
+| `bfield` pulls | RMS 5.45, max 32.7 |
+| `material` pulls | RMS 61.0, max 325 |
+
+**Do NOT read `m_Z = +31.9` as a closure.** Two reasons, both already in this
+file: it is a 500 k subsample, and **`theta = 0` is not the hit-chi2 minimum on
+this MC**, so the enormous pulls are the quadratic term pulling the calibration
+parameters off their MC-truth zero -- which is a property of the input, not of
+the fit. The number is the demonstration that the machinery closes the loop:
+card -> `rabbit_fit.py` -> converged joint minimum with an EDM.
+
+**`22312984 P2K`** -- the SAME card family at FULL size (`joint_ok_full`) with
+`trust-krylov` -- **FAILED**, at the postfit:
+
+```
+File "rabbit/tfhelpers.py", line 54, in tf_edmval_cov
+ValueError: Cholesky decomposition failed, Hessian is not positive-definite
+```
+
+i.e. krylov stopped somewhere the Hessian is INDEFINITE, which is not a
+minimum. That is sec. 0f.18's failure again and it is now a hard error rather
+than a flattering number, which is the better outcome. **`P2X` (the same card,
+scipy `trust-exact`) is submitted**; `P2smoke` shows that combination converges.
+The same error killed `z_V_etaE_slo`, also resubmitted.
+
+**A `warn_unconstrained` FALSE POSITIVE worth fixing.** On the joint card the
+warning fires on the POIs:
+
+```
+WARNING:fitter.py: 2 floating parameter(s) have an essentially zero Hessian
+diagonal (0.0608 against a scale of 7.12e+13): [m_Z, Gamma_Z]. Nothing in the
+likelihood constrains them ...
+```
+
+`m_Z`'s error is 5.78 MeV -- finite and sensible. The check is RELATIVE to the
+largest diagonal, and the hit-chi2 term's curvature is **7.12e13**, so on a
+card mixing that with mass POIs at 0.06 every normal parameter looks
+unconstrained at a 1e-12 relative threshold. The warning is right that the
+trust-region subproblem is badly conditioned in the POI directions -- which is
+exactly why `trust-exact` and not krylov -- but its message is wrong. It should
+compare against a per-BLOCK scale, or against the parameter's own prior width,
+not against the global maximum.
