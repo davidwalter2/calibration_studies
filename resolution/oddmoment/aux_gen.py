@@ -44,7 +44,8 @@ if _PARENT not in sys.path:
 import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
 
 MJPSI = 3.0969
-BR = ["Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass",
+BR = ["run", "lumi", "event",
+      "Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass",
       "Jpsigen_pt", "Jpsigen_eta", "Jpsigen_phi",
       "Muplusgen_pt", "Muplusgen_eta", "Muplusgen_phi",
       "Muminusgen_pt", "Muminusgen_eta", "Muminusgen_phi",
@@ -81,6 +82,10 @@ def one(fn):
     with np.errstate(divide="ignore", invalid="ignore"):
         fhit = (s * s - a["resinfcov"].astype(np.float64)) / (s * s)
     return dict(
+        # the join keys: `run`/`lumi`/`event` make the alignment
+        # order-independent, which a cache built by `append_pairs.py` requires
+        run=a["run"].astype(np.int64), lumi=a["lumi"].astype(np.int64),
+        event=a["event"].astype(np.int64),
         z=z, sigma=s, mgen=mg, fhit=fhit, fms=fms, fioni=fio, fother=fother,
         gpt_p=a["Muplusgen_pt"].astype(np.float64),
         gpt_m=a["Muminusgen_pt"].astype(np.float64),
@@ -118,16 +123,57 @@ def main():
     d = np.load(a.cache)
     zc = d["z"].astype(np.float64)
     n = len(zc)
-    idx = np.empty(n, dtype=np.int64)
-    j = 0
     zt = A["z"]
-    for i in range(n):
-        while j < len(zt) and not (zt[j] == zc[i]):
+
+    # ORDER-INDEPENDENT JOIN. The original sequential scan assumed the cache is
+    # an in-order subsequence of the tree. That is false for any cache built by
+    # `fullscale/append_pairs.py` (base + a later tail) or from a different file
+    # ordering, and it fails hundreds of thousands of rows in --
+    # measured, `zpairs_dyv2_full.npz` breaks at row 986 433 of 3 733 323.
+    # `run`/`lumi`/`event` are cached precisely so this join can be done on a
+    # key (that is what `append_pairs.py`'s disjointness check uses), and `z`
+    # disambiguates the several candidates an event can carry.
+    have_key = all(k in d.files for k in ("run", "lumi", "event")) and \
+        all(k in A for k in ("run", "lumi", "event"))
+    if have_key:
+        def mkkey(src):
+            return (np.asarray(src["run"], dtype=np.int64).astype(np.uint64) << np.uint64(44)) \
+                 ^ (np.asarray(src["lumi"], dtype=np.int64).astype(np.uint64) << np.uint64(24)) \
+                 ^ np.asarray(src["event"], dtype=np.int64).astype(np.uint64)
+        kt, kc = mkkey(A), mkkey(d)
+        table = {}
+        for j, (k, z) in enumerate(zip(kt.tolist(), zt.tolist())):
+            table.setdefault((k, z), j)
+        idx = np.empty(n, dtype=np.int64)
+        miss = 0
+        for i, (k, z) in enumerate(zip(kc.tolist(), zc.tolist())):
+            j = table.get((k, z))
+            if j is None:
+                if miss < 5:
+                    print(f"  unmatched cache row {i}: run/lumi/event key "
+                          f"{k}, z={z!r}", flush=True)
+                miss += 1
+                idx[i] = -1
+            else:
+                idx[i] = j
+        if miss:
+            sys.exit(f"alignment failed: {miss} of {n} cache rows have no "
+                     "(run, lumi, event, z) match in the tree")
+        print(f"joined on (run, lumi, event, z): {n} rows, order-independent",
+              flush=True)
+    else:
+        print("cache or tree lacks run/lumi/event; falling back to the "
+              "in-order scan (valid only if the cache is an in-order "
+              "subsequence of the tree)", flush=True)
+        idx = np.empty(n, dtype=np.int64)
+        j = 0
+        for i in range(n):
+            while j < len(zt) and not (zt[j] == zc[i]):
+                j += 1
+            if j >= len(zt):
+                sys.exit(f"alignment failed at cache row {i} (z={zc[i]!r})")
+            idx[i] = j
             j += 1
-        if j >= len(zt):
-            sys.exit(f"alignment failed at cache row {i} (z={zc[i]!r})")
-        idx[i] = j
-        j += 1
     out = {k: v[idx] for k, v in A.items()}
     assert np.array_equal(out["z"], zc), "post-check failed"
     assert np.array_equal(out["sigma"], d["sigma"]), "sigma mismatch"
