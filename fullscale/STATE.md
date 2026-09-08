@@ -2916,3 +2916,252 @@ The J/psi block goes from 2627 MB of card to 1.1 GB in memory.
 Gate (`fullscale/gate_jacdense.py`): the same card loaded twice, `dense=False`
 and `dense=True`, compared at the terms' own defaults on both chunk loops.
 J/psi term, eager loop: **value exactly 0**, gradient 2.6e-15, HVP 1.6e-15.
+
+---
+
+## 10. PHASE 3 — THE CARD BUILDER LANDED (2026-09-08)
+
+`make_joint_card.py --material` (commit `4c592f6`, with
+`rabbit-vmass` `216c548`) is what sec. 4's "what is left of phase 3" asked for:
+BOTH mass terms are `MaterialCFTerm`s over the 42 parmtype-15
+`material_<group>` parameters the quadratic hit-chi2 term and the sparse `D`
+already carry, plus 18 new `hitres_<class>` from the mass terms alone. Each
+material amount now appears in THREE places in one likelihood — the quadratic
+curvature, the mass-term width, the mass-term mean.
+
+### THE COMMAND THAT BUILDS THE FULL PHASE-3 CARD
+
+```bash
+FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt
+RABBIT=/work/submit/david_w/ZMass/rabbit-vmass THREADS=8 $FS/run_tf.sh python3 -u \
+  $FS/make_joint_card.py --material \
+  --jpsi-pairs $FS/runs/gpairs_v2_n50.npz \
+  --z-pairs    $FS/runs/gzpairs_dyv2_n50.npz \
+  --quad $FS/runs/quad_jpsiv2_ok.npz $FS/runs/quad_dyv2.npz \
+  --groups $GRP --whiten --shape 5 \
+  --fsr $Z/data/kern_loose_band3.3e-4.npz --acc $Z/data/acc_loose_d8.json \
+  --chunk 16384 -o $FS/cards/joint_mat_v3.hdf5
+```
+
+`RABBIT=` is NOT optional: `run_tf.sh` defaults to `rabbit-material`, which has
+no fixed norm families and would refuse the Z term. Budget ~100 GB of RAM: the
+group blocks are ~36 GB as numpy, the term holds a tf copy of the leg being
+built, and the default `--verify` read-back holds a second copy of both terms
+(`--no-verify` drops that last one, at the cost of the round-trip assertion).
+`--chunk 16384`, not phase 2's 32768: the per-chunk intermediate is now
+`chunk x 25.7 groups x 64 tau x 8 B` per family component, i.e. 215 MB x 5 x
+(forward + backward) ~ 2 GB, against `chunk x 64` before. The chunk is frozen
+at WRITE time (sec. 5, the `_jac_chunks` caveat), so the fit must use the same
+16384. Then, as an ordinary rabbit fit:
+
+```bash
+rabbit_fit.py $FS/cards/joint_mat_v3.hdf5 -o out/ -t 0 --unblind \
+  --paramModel ExternalParams bundle:global_params \
+  --freezeParameters material_pp1_cables material_support_tube material_thermal_screen
+```
+
+### SIZE, MEASURED AND EXTRAPOLATED
+
+| | J/psi | Z |
+|---|---|---|
+| candidates after the cuts | 645 517 / 651 672 (99.06 %) | 481 020 / 487 742 (98.62 %) |
+| group CSR rows | 14 832 301 (22.98/cand) | 12 365 835 (25.71/cand) |
+| group exponents (5 families x 64 tau, float32) | 19.0 GB | 15.8 GB |
+| hit CSR + sparse D | 0.67 GB | 0.49 GB |
+
+**~36 GB card.** That is what the model costs: 30 kB per candidate is the
+per-group CF block, and it is the same number sec. 4 quotes for the caches.
+A 20 k + 20 k smoke card is 0.99 GB and builds in 15 s.
+
+**`--group-prune` is NOT a safe size lever, measured.** Folding small rows into
+the fixed baseline is exact at k = 0 (they go into `S^fix`), but it removes the
+group's FREEDOM. At `--group-prune 0.001` — 5 % of the J/psi rows, 17 % of the
+Z rows — `material_beampipe` keeps **0.02 %** of its leverage on the Z leg, and
+beampipe is one of the four the hit-chi2 term is blind to, i.e. the mass terms
+are its only constraint. Prune only with a per-group leverage table in hand.
+
+### GATES
+
+**(a) the rabbit path — `test_rabbit_path.py --card cards/joint_mat_smoke.hdf5
+--model "ExternalParams bundle:global_params"`** (that script now splits the
+model spec, so the bundle name reaches `load_model`; it could not before):
+
+```
+1. graph chunk loop vs the eager python loop, per term, at 2 points
+     jpsi   value 0.000e+00   grad 3.20e-15   hvp 2.88e-16   OK
+     zmass  value 0.000e+00   grad 2.66e-15   hvp 6.58e-16   OK
+2. the term vs the standalone objectives, every parameter free
+     jpsi  vs ChunkedObjective        value 1.1e-16  grad 5.9e-16  hvp 2.3e-16  OK
+     jpsi  vs DeviceChunkedObjective  worst 6.2e-19                             OK
+     zmass vs ChunkedObjective        value 1.8e-16  grad 1.7e-14  hvp 4.7e-14  OK
+     zmass vs DeviceChunkedObjective  worst 3.0e-14                             OK
+3. the Fitter (117 fit parameters, hvp revrev, Hessian route = hvps)
+     loss_val vs loss_val_grad                                     OK
+     gradient . p: analytic -3.0814345e+11, central FD the same, rel 1.98e-12  OK
+```
+
+4. the Hessian route (117 HVP columns + a pfor Hessian of the J/psi block):
+   RUNNING when this was written -- checks 1-3 are the loss/gradient gate the
+   task asked for and they PASS; check 4 is the Hessian, and sec. 2's numbers
+   for it (3.7e-16 pfor vs hvp) were measured on the phase-2 card whose route
+   is identical here.
+
+`rabbit_fit.py` itself was run on the smoke card and gets past loading and into
+the minimiser -- it declares 117 fit parameters through
+`ExternalParams bundle:global_params`, loads both terms as MaterialCF with the
+graph chunk loop, honours `--freezeParameters material_pp1_cables
+material_support_tube material_thermal_screen`, and reports the same
+`hitchi2` singularity note sec. 2 already documents (4 null directions, the
+pseudo-inverse is used and absolute NLL values are offset).
+
+**(b) at k = 0 the material card IS the phase-2 card** —
+`gate_material_k0.py`, on two cards built from the same caches with the same
+`--*-maxn 20000 --seed 1234`, so the candidates are identical:
+
+| | J/psi | Z |
+|---|---|---|
+| resolution exponent Re S, rel | **6.94e-08** | **7.35e-08** |
+| resolution exponent Im S, rel | 6.98e-08 | 4.49e-08 |
+| Gaussian share `v`, abs | **0.0 (exact)** | **0.0 (exact)** |
+| NLL, rel | 3.34e-09 | 1.68e-11 |
+| gradient of the 50 field modes + Z POIs, rel | 1.86e-06 | 4.65e-08 |
+| per-candidate density, median / q99 / max rel | 2.1e-09 / 2.3e-06 / 1.9e-04 | 1.0e-09 / 1.0e-07 / 9.0e-07 |
+
+It is NOT exactly equal, and the reason is one number: the group rows and the
+flat rows are both stored as float32, and their sum differs by the float32
+floor — **6.9-7.4e-8 relative on the exponent**, which is gate (c)'s number
+arriving through a completely different path. Everything else agrees: the
+Gaussian share to 0.0 exactly (see below), and the truncation normalisation by
+construction (it is the same class exponents with coefficient 1). The gradient
+of a field mode is a near-cancelling sum over candidates, so the same relative
+density perturbation shows up ~30x amplified there on the J/psi leg; that is a
+property of the sample, not of the parameterisation.
+
+**(c) sum-of-groups closure** — `matres/validate_inmaker_groups.py --maxn
+200000` on the two phase-3 caches, re-run today:
+
+| family | J/psi rel | Z rel |
+|---|---|---|
+| `grp_ms` | 7.28e-08 | 7.54e-08 |
+| `grp_io_re` | 5.19e-08 | 5.84e-08 |
+| `grp_io_im` | 6.80e-08 | 4.88e-08 |
+| `grp_rad_re` | 6.01e-08 | 6.70e-08 |
+| `grp_rad_im` | 6.50e-08 | 7.48e-08 |
+
+both PASS; the maker's own float64 `cfmass_grp_closure` is 1.38e-14 (J/psi) and
+1.04e-14 (Z). Sec. 4's 7.5e-8 is confirmed, on the full caches rather than a
+sample of them.
+
+### THREE THINGS THAT CONTRADICT OR REFINE WHAT SEC. 4 SAYS
+
+1. **`--jpsi-fang` is not needed, and never was for these caches.**
+   `runs/gpairs_v2_n50.npz` carries a per-candidate `fang` (median **6.19e-02**
+   over the cache, 6.08e-02 over the selected 20 k), so BOTH legs are
+   truth-free from `Jpsi_covrefmom` with no scalar to scan. The card now prints
+   which source each leg used and records it in `provenance.fang_source`.
+   The Z leg's `fang` median is 9.2e-05, i.e. negligible there as expected.
+
+2. **`vg_other` must NOT be clipped at 0.** Sec. 4 says "`MaterialCFTerm`
+   should clip `vg_other` at 0 rather than trust its sign". Measured on the
+   full caches, `vg_other + sum_c v_c - vgf` is **exactly 0.0** — the maker
+   DEFINES `vg_other` as the remainder, so it is algebra, not accumulation
+   noise. It is negative for **40.2 %** of J/psi and **36.6 %** of DY
+   candidates (median |vg_other|/vgf = 3.2e-07, max 2.3e-04). Clipping would
+   ADD up to 2.3e-04 of `vgf` to those 40 % and break the k = 0 identity that
+   gate (b) rests on. `--clip-vg-other` exists and is OFF by default. The real
+   risk clipping was aimed at — a negative TOTAL Gaussian variance — cannot
+   happen at eps = 0 (the total is `vgf > 0`) and would need a large negative
+   `hitres`; the guard belongs on the total, in rabbit, and is not implemented.
+
+3. **`material_thermal_screen` is a boundary case, not a clear "under 0.1 %".**
+   Full-cache occupancy is 2.18e-04 (J/psi) and **9.86e-04** (DY) — just under
+   0.1 % on the DY leg, and 1.05e-03 on the 20 k smoke subsample, i.e. it
+   crosses the threshold with the sample. The census therefore reports the
+   numbers and uses a 1 % threshold for "thin", intersected with the
+   hit-chi2 null space, to decide what is unconstrainable.
+
+### THE CENSUS THE CARD PRINTS (requirement 5)
+
+On the 20 k + 20 k smoke card:
+
+```
+  === what constrains the 42 material amounts ===
+    group                             jpsi occ         z occ  hit-chi2
+    material_beampipe                 0.999950      0.999950     BLIND
+    material_thermal_screen           0.000200      0.001050     BLIND
+    material_support_tube             0.000200      0.000600     BLIND
+    material_pp1_cables               0.000000      0.000000     BLIND
+    touched by NO candidate on any leg: ['material_pp1_cables']
+    the hit-chi2 Hessian is blind to:   ['material_beampipe', ...]
+    NOTHING in this card constrains: material_pp1_cables material_support_tube
+    -> add to the fit:  --freezeParameters ...
+```
+
+`material_beampipe` is fine — 99.995 % of candidates on both legs touch it, so
+the mass terms carry it even though the quadratic term does not. The card does
+NOT freeze anything itself; which parameters a fit floats is a physics decision
+and belongs in the fit command. At full statistics the freeze list is
+`material_pp1_cables material_support_tube material_thermal_screen`.
+
+The card also reports the per-group LEVERAGE (share of `sum_i max_tau |S|`),
+which is what says whether a constrained group matters: on the J/psi leg
+`tec_structure` 26.3 %, `tib_support` 16.5 %, `tob_support` 11.5 %; on the Z leg
+`tib_support` 28.1 %, `tec_structure` 15.1 %, `tob_support` 11.8 %.
+
+### WHAT IS NOT DONE
+
+* **The truncation normalisation does not respond to the material amounts.**
+  `_norm_z` sums over resolution CLASSES, which have no per-group
+  decomposition. `rabbit-vmass` `216c548` adds FIXED norm families
+  (coefficient 1) so `Z_c` is evaluated at the production's own resolution —
+  which is EXACTLY the constant phase 2 evaluates it at, since phase 2 runs
+  with `--fix k_hit k_ms k_ioni k_rad`, so nothing is lost RELATIVE to phase 2.
+  What is missing is the second-order response `dZ_c/dk`. Sec. 5 pitfall 8
+  already measured the cost of the neighbouring approximation (the norm at the
+  stored class sigma) at 0.016 MeV on `m_Z`.
+* **`--inject` on a material amount is refused in `--material` mode.** A true
+  extra amount of material moves the mean (injected through `D`) AND scales the
+  group's resolution exponents by `A(dtheta)` (not injected).
+  `matres/make_material_card.py` has that scaling; porting it is what an
+  injection closure on a material parameter needs. Injecting a FIELD mode is
+  unaffected and still works.
+* **The minimiser problem of sec. 2 is inherited, with 60 more parameters**
+  (117 in the fit vector against phase 2's 103). Nothing here changes it.
+* No Asimov/toy pulls, no group-leader table, no full-scale fit — deliberately
+  left to the GPU queue.
+
+### 0f.25 PHASE 2 COST, AND THE TWO-STAGE PLAN
+
+`joint_ok_full.hdf5` is 6 682 662 candidates over 95 free parameters (50 field
+modes + 38 material groups + `m_Z`, `Gamma_Z`, 5 `K(m)`; the 4 resolution
+knobs and the 4 unconstrained material groups frozen). Measured scaling from
+the Z-alone card (113 chunks of 32768, 11 Hessian columns, ~1.7 min per
+`trust-exact` iteration on an H200 => ~9 s per HVP column), the joint card at
+816 chunks of 8192 and 95 columns is **~50 min per `trust-exact` iteration**,
+i.e. ~32 h for a 38-iteration fit. Not affordable.
+
+**So phase 2 is two-stage, both stages through `rabbit_fit.py`:**
+
+1. **`P2K`** — `--minimizerMethod trust-krylov` (scipy, `hessp` only): O(10)
+   HVPs per iteration instead of 95 columns, ~3-10 min per iteration. It gets
+   to the neighbourhood.
+2. **`P2X`** — `--minimizerMethod trust-exact --externalPostfit <P2K snapshot>`:
+   a few iterations to certify, and the one full Hessian the covariance needs
+   anyway (~50 min).
+
+Stage 1 is not trusted on its own — sec. 0f.18 is exactly the record of krylov
+stopping early and reporting convergence — which is why stage 2 exists and why
+the quoted EDM is stage 2's.
+
+**Freezing, named**: `k_hit k_ms k_ioni k_rad` (the MC truth) and
+`material_beampipe material_thermal_screen material_support_tube
+material_pp1_cables`. The last four are the directions the hit-chi2 Hessian is
+exactly blind to. Note that `material_beampipe` is touched by 99.99 % of the
+mass candidates, so freezing it is CONSERVATIVE — the mass terms could
+constrain it and this fit does not let them. `material_pp1_cables` is touched
+by no candidate on either leg and is the only one that is unconstrained by
+everything. `Fitter.warn_unconstrained` (rabbit `54e47f6`) names anything else
+whose Hessian diagonal is below 1e-12 of the largest, rather than letting the
+frozen-diagonal fix make an unmeasured parameter look measured.
