@@ -71,6 +71,14 @@ def add_arguments(p, default_method="trust-exact"):
         "device for a `tf-` method and host otherwise (the reference path).",
     )
     p.add_argument(
+        "--devices",
+        type=int,
+        default=1,
+        help="number of GPUs to shard the CANDIDATES over (`shardobj`, the "
+        "unbinned counterpart of rabbit PR #154's bins sharding). >1 requires "
+        "--engine device and that many visible GPUs.",
+    )
+    p.add_argument(
         "--check-device",
         action="store_true",
         help="before fitting, assert the device objective reproduces the host "
@@ -336,7 +344,10 @@ def minimize(obj, x0, args, snapshotter=None, log=print, log_every=1):
 
 def timing_report(obj, res, t_fit, gpu=None, log=print):
     """One dict summarising the run, for the json and the report table."""
+    import resource
+
     out = {
+        "rss_gb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0**2,
         "nit": int(getattr(res, "nit", -1)),
         "nfev": int(getattr(res, "nfev", -1)),
         "nhev": int(getattr(res, "nhev", -1)),
@@ -360,7 +371,8 @@ def timing_report(obj, res, t_fit, gpu=None, log=print):
                 f"{s['mem_max_mb']/1024:.1f} GB ({s['n_samples']} samples)"
             )
     log(
-        f"  minimiser: {out['nit']} iterations, {t_fit:.1f} s"
+        f"  minimiser: {out['nit']} iterations, {t_fit:.1f} s, peak host RSS "
+        f"{out['rss_gb']:.1f} GB"
         + (f", {out['ncall']}" if "ncall" in out else "")
     )
     return out

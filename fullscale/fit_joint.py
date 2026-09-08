@@ -195,7 +195,7 @@ class JointObjective:
     """`ChunkedObjective` over several mass terms + the external quadratic."""
 
     def __init__(self, terms, external, free=None, hess_mode="hvp",
-                 chunk=None, log=print, engine="host"):
+                 chunk=None, log=print, engine="host", devices=1):
         # `device` is the same objective with the candidate loop as a
         # tf.while_loop inside a tf.function (see devobj.py); the external
         # quadratic then goes INSIDE that objective so its contribution to the
@@ -203,12 +203,15 @@ class JointObjective:
         # numpy step would force the native Krylov solve back onto the host,
         # which is the whole thing being avoided.
         self.engine = engine
-        self.inner = (
-            ChunkedObjective(terms, free, hess_mode=hess_mode, chunk=chunk,
-                             log=log)
-            if engine == "host"
-            else DeviceChunkedObjective(terms, free, chunk=chunk, log=log)
-        )
+        if engine == "host":
+            self.inner = ChunkedObjective(terms, free, hess_mode=hess_mode,
+                                          chunk=chunk, log=log)
+        elif devices > 1:
+            from shardobj import ShardedChunkedObjective
+            self.inner = ShardedChunkedObjective(terms, free, chunk=chunk,
+                                                 log=log, devices=devices)
+        else:
+            self.inner = DeviceChunkedObjective(terms, free, chunk=chunk, log=log)
         self.names = self.inner.names
         self.free = self.inner.free
         self.freenames = self.inner.freenames
@@ -474,7 +477,7 @@ def main(argv=None):
 
     engine = md.resolve_engine(args)
     obj = JointObjective(terms, external, free, hess_mode=args.hess_mode,
-                         chunk=None, engine=engine)
+                         chunk=None, engine=engine, devices=args.devices)
     nglob_free = sum(1 for nm in obj.freenames if nm in set(globals_))
     print(f"      {len(free)} free ({nglob_free} of them calibration "
           f"parameters), {len(fixed)} fixed; {obj.nchunk} chunks")

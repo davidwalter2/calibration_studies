@@ -181,7 +181,11 @@ def main():
         raise SystemExit(f"--fix names not in the card: {sorted(unknown)}")
     free = [i for i, nm in enumerate(names) if nm not in fixed]
     engine = md.resolve_engine(args)
-    if engine == "device":
+    if engine == "device" and getattr(args, "devices", 1) > 1:
+        from shardobj import ShardedChunkedObjective
+        obj = ShardedChunkedObjective([term], free, chunk=args.chunk or None,
+                                      devices=args.devices)
+    elif engine == "device":
         obj = DeviceChunkedObjective([term], free, chunk=args.chunk or None)
     else:
         obj = ChunkedObjective([term], free, hess_mode=args.hess_mode,
