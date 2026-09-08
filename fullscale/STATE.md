@@ -2472,3 +2472,44 @@ NLL differs by more than float noise is an alarm, not a rounding difference.
 **The control's target**: `f380fl_base` sits at `m_Z = -11.064299431899864`,
 `Gamma_Z = -5.264591805106016`, **NLL = 11075392.465686228**. `22301214
 f380ref` passes only if it returns that `m_Z` at a small EDM AND at that NLL.
+
+### 0f.16 THE ACCEPTANCE TEST FOR EVERY FIT IN THIS CAMPAIGN
+
+Three parts, and each failure mode is separately diagnosable:
+
+1. **the value** — does it return the number the card is known to give?
+2. **the NLL** — is it the SAME minimum? Two converged fits of one card whose
+   NLL differs by more than float noise are at different stationary points
+   (measured: 81.6 units apart on `z_n300k`, sec. 0f.15).
+3. **the EDM** — did it stop early? `0.5 g^T H^-1 g`, small.
+
+EDM alone is not enough (it certifies stationarity, not optimality) and the
+value alone is not enough (a fit that never moves reproduces its start
+perfectly -- that is exactly what `V_full` did). **Both of the failures that
+cost numbers today are caught by this and neither is caught by `|grad|inf`.**
+
+### 0f.17 SINGULAR HESSIANS: TWO KINDS, AND THEY MUST BE TREATED DIFFERENTLY
+
+* **A FROZEN parameter** has an exactly zero Hessian row because `get_x`
+  stop-gradients it. That is an ARTEFACT of the parameterisation and it made
+  every `trust-exact` fit in this campaign converge linearly (sec. 0f.13).
+  `Fitter.hess_for_minimizer` puts 1 on the frozen diagonal -- exact, since the
+  frozen gradient components are zero.
+* **An UNCONSTRAINED BUT FLOATING parameter** also has a zero row, and that one
+  is PHYSICS: nothing in the likelihood measures it. It must be caught and
+  named, not regularised.
+
+The fix applies its unit diagonal on the frozen mask only, so the second case
+stays singular by construction rather than by luck, and rabbit `54e47f6` adds
+`Fitter.warn_unconstrained`: any floating parameter whose Hessian diagonal is
+below 1e-12 of the largest is named once, with the message that nothing
+constrains it and that this is deliberately not regularised away.
+
+**This matters for phase 2 before it is run.** The joint card's Hessian is
+singular in four directions BY CONSTRUCTION: the occupancy census
+(sec. "PHASE 3") found `material_pp1_cables` touched by **no candidate on
+either leg** and `material_thermal_screen` / `material_support_tube` by under
+0.1 %, and the hit-chi2 term is blind to the same ones. **Freeze them
+explicitly, or give them a prior, and say which in the result** -- do not let
+the frozen-diagonal fix absorb them, because then an unmeasured parameter would
+look measured.
