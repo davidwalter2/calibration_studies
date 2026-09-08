@@ -4576,3 +4576,51 @@ row and is still caught.
 curvature sits below `rtol * max|H|` is still flagged (the `K(m)` shapes are
 the candidate on this card). The complete answer is a per-block scale from the
 terms' own `param_names`, left for the branch.
+
+### 0f.47b RESOLVED — the "shares" are NOT variance fractions, and that is
+### physics, not an export bug (2026-09-08, coordinator's diagnosis, confirmed)
+
+**Do not chase an export normalisation.** The Moliere exponent is not analytic
+at `t = 0`: the single-scattering tail gives `S(t) ~ -t^2 (A - B ln t)`, so a
+finite-difference `S''(0)` returns `2(A - B ln(step))` -- a CUT-DEPENDENT
+number, not a variance. The Moliere second moment is formally tail-dominated,
+and `sigma_m` (the standardisation) comes from the fit's **Q matrix**, not from
+that moment. This is the recorded Q-vs-Moliere difference
+(`resolution/qmsmodel/`, NOTES 2026-09-06: `R_2nd = 1.01-1.13`,
+`R_core = 0.87-0.97`).
+
+**Confirmed operationally.** The mirrored central estimator at step `j h`:
+
+| family | step 1h | 2h | 4h | 8h | slope per `ln(step)` |
+|---|---:|---:|---:|---:|---:|
+| `Sms` | 0.83288 | 0.82388 | 0.80038 | **0.75785** | **-0.0359** |
+| `Sio_re` | 0.01676 | 0.01110 | 0.00653 | 0.00359 | -0.0064 |
+| `Srad_re` | 0.00816 | 0.00426 | 0.00198 | 0.00094 | -0.0035 |
+
+`Sms` falls by 0.0359 per doubling-in-log, i.e. `B ~ 0.018` -- the predicted
+`2 B ln 2` behaviour, measured. **There is no step at which the shares are
+"right"**: their SUM runs 1.0751 / 1.0566 / 1.0262 / 0.9797 across the four
+steps and crosses 1 between 4h and 8h at no privileged scale.
+
+**And it is not only the MS family.** `Sio_re` and `Srad_re` show the same
+signature (slopes -0.0064 and -0.0035): the ionisation Landau tail and the
+radiative tail are heavy-tailed too, with formally divergent second moments.
+So `f_ioni` is **also** not a variance fraction -- it reads 0.0168 at one step
+and 0.0036 at eight, a factor 4.7.
+
+**Consequence.** Sec. 0f.45's decision not to implement `e = f_hit - f_ioni`
+now rests on three independent grounds: it closes at most a quarter of the
+deficit; the input is not measurable from the exported shares; and **the input
+is not a well-defined quantity in the first place** -- `f_ioni` as "the
+ionisation variance share" does not exist for a Landau tail. If the correction
+is wanted it must come from the CF's behaviour at the scale the fit actually
+uses, not from a second moment.
+
+**The MS normalisation is separately fine**: `k_ms = 1.001 +- 0.034` from the
+fit says the exponent matches the data at the 3 % level.
+
+**The `a`-coefficient deficit is untouched by all of this** -- it is a DIRECT
+measurement (`a = d ln sigma/dx` regressed on the data) and it uses only
+`vgf`, which is an exact Gaussian variance and has no tail problem. It stays
+open at **2-4 %**: measured 1.2110 +- 0.0004 against `1 + vgf = 1.2625`, with
+the per-leg term and the ionisation term both excluded as the explanation.
