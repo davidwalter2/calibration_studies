@@ -131,10 +131,30 @@ class ChunkedObjective:
     def _rechunk(term, chunk):
         term.chunk = int(min(chunk, term.n)) if term.n else 1
         term.nchunk = int(np.ceil(term.n / term.chunk)) if term.n else 0
-        term._chunks = [
-            (i * term.chunk, min(term.n, (i + 1) * term.chunk))
-            for i in range(term.nchunk)
-        ]
+        if getattr(term, "_jac_chunks", None) is not None:
+            # the per-chunk sparse D blocks were sliced at write time and are
+            # NOT rebuilt here, so a different chunking would pair chunk `ci`
+            # of the candidates with block `ci` of a different chunking
+            raise ValueError(
+                f"term '{term.name}' carries a per-candidate sparse D whose "
+                "per-chunk blocks were built at write time; re-chunking it "
+                "would silently mis-align them")
+        # `ChunkTable` (rabbit >= the native-minimizer merge) is a list of
+        # (lo, hi) pairs that ALSO accepts a traced chunk index, which is what
+        # lets `devobj`'s tf.while_loop reuse the term's own `arr[lo:hi]`
+        # slicing. An older rabbit has no such class and only ever runs the
+        # host loop, so the plain list is the right thing there.
+        try:
+            from rabbit.unbinned import ChunkTable
+        except ImportError:
+            ChunkTable = None
+        if ChunkTable is not None:
+            term._chunks = ChunkTable(term.chunk, term.n, term.nchunk)
+        else:
+            term._chunks = [
+                (i * term.chunk, min(term.n, (i + 1) * term.chunk))
+                for i in range(term.nchunk)
+            ]
 
     def full(self, xf):
         """The whole parameter vector, with the free entries embedded in."""

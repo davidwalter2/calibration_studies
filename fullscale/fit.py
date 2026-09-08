@@ -32,13 +32,15 @@ import time
 
 import numpy as np
 import tensorflow as tf
-from scipy.optimize import minimize
+# scipy.optimize.minimize is reached through minimize_driver (see --method)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+import minimize_driver as md  # noqa: E402
 from chunkfit import ChunkedObjective, report_cov  # noqa: E402
+from devobj import DeviceChunkedObjective, check_against_host  # noqa: E402
 
 # the generator's own EW inputs, constant-width scheme
 GEN_MZ = 91.153509740726733
@@ -76,15 +78,7 @@ def parse_args():
                         "whole scan runs off one card.")
     p.add_argument("--no-fit", action="store_true")
     p.add_argument("--no-sandwich", action="store_true")
-    p.add_argument("--method",
-                   choices=["trust-exact", "trust-krylov", "trust-ncg"],
-                   default="trust-exact",
-                   help="`trust-exact` builds the FULL Hessian every "
-                        "iteration; the Krylov methods ask for Hessian-VECTOR "
-                        "products instead (`ChunkedObjective.hessp`), which is "
-                        "what makes a 99-parameter joint fit affordable. One "
-                        "full Hessian is still built after the fit for the "
-                        "covariance.")
+    md.add_arguments(p)
     p.add_argument("--maxiter", type=int, default=200)
     p.add_argument("--start-from", default=None,
                    help="a previous fit.py json whose fitted values seed this "
@@ -186,8 +180,12 @@ def main():
     if unknown:
         raise SystemExit(f"--fix names not in the card: {sorted(unknown)}")
     free = [i for i, nm in enumerate(names) if nm not in fixed]
-    obj = ChunkedObjective([term], free, hess_mode=args.hess_mode,
-                           chunk=args.chunk or None)
+    engine = md.resolve_engine(args)
+    if engine == "device":
+        obj = DeviceChunkedObjective([term], free, chunk=args.chunk or None)
+    else:
+        obj = ChunkedObjective([term], free, hess_mode=args.hess_mode,
+                               chunk=args.chunk or None)
     x0 = obj.x0[free]
     if args.start_from:
         with open(args.start_from) as fh:
@@ -199,8 +197,17 @@ def main():
                 x0[i] = float(pv[nm])
                 moved.append(nm)
         print(f"      seeded from {args.start_from}: {moved}")
+    if args.resume:
+        x0 = md.load_snapshot(args.resume, obj.freenames, x0,
+                              log=lambda m: print("     " + m))
     print(f"      {len(free)} free, {len(fixed)} fixed{' ' + str(sorted(fixed)) if fixed else ''};"
           f" {obj.nchunk} chunks of {term.chunk}")
+
+    if args.check_device and engine == "device":
+        ref = ChunkedObjective([term], free, hess_mode="hvp",
+                              chunk=args.chunk or None)
+        check_against_host(obj, ref, x0, log=lambda m: print("   " + m))
+        del ref
 
     truth = truth_offsets(term)
     proj = args.project or [float(term.n)]
@@ -235,22 +242,23 @@ def main():
            "asimov_err": np.sqrt(np.diag(np.linalg.inv(H0))).tolist()}
 
     if not args.no_fit:
+        # A Krylov trust-region step never forms the Hessian: it asks for O(10)
+        # Hessian-VECTOR products, each ~2 gradients and INDEPENDENT of the
+        # parameter count.  `trust-exact` needs the full matrix at EVERY
+        # iteration, which at 99 free parameters OOMs an H200 at chunk 32768 and
+        # is ~105 h where it fits.  One full Hessian is still built AFTER the
+        # fit, for the covariance.  The `tf-` methods keep the trust-region
+        # subproblem on the device as well (rabbit/minimizer/, PR #153).
+        snap = md.make_snapshotter(args, obj.freenames,
+                                   log=lambda m: print("   " + m))
         t0 = time.time()
-        if args.method == "trust-exact":
-            r = minimize(obj.value_grad, x0, jac=True, hess=obj.hess,
-                         method="trust-exact",
-                         options={"maxiter": args.maxiter, "gtol": args.gtol})
-        else:
-            # A Krylov trust-region step never forms the Hessian: it asks for O(10)
-            # Hessian-VECTOR products, each ~2 gradients and INDEPENDENT of the
-            # parameter count.  `trust-exact` needs the full matrix at EVERY
-            # iteration, which at 99 free parameters OOMs an H200 at chunk 32768 and
-            # is ~105 h where it fits.  One full Hessian is still built AFTER the
-            # fit, for the covariance.
-            r = minimize(obj.value_grad, x0, jac=True, hessp=obj.hessp,
-                         method=args.method,
-                         options={"maxiter": args.maxiter, "gtol": args.gtol})
+        with md.GpuMonitor(args.gpu_monitor) as gpu:
+            r = md.minimize(obj, x0, args, snapshotter=snap,
+                            log=lambda m: print("   " + m))
         t_fit = time.time() - t0
+        res["minimizer"] = md.timing_report(obj, r, t_fit, gpu=gpu,
+                                            log=lambda m: print("   " + m))
+        res["method"], res["engine"] = args.method, engine
         H = obj.hess(r.x)
         C = np.linalg.inv(H)
         err = np.sqrt(np.diag(C))

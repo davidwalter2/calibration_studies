@@ -55,13 +55,14 @@ import time
 
 import numpy as np
 import tensorflow as tf
-from scipy.optimize import minimize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+import minimize_driver as md                     # noqa: E402
 from chunkfit import ChunkedObjective, report_cov  # noqa: E402
+from devobj import DeviceChunkedObjective, check_against_host  # noqa: E402
 from fit import GEN_MZ, GEN_GZ, truth_offsets      # noqa: E402
 
 DTYPE = tf.float64
@@ -106,15 +107,7 @@ def parse_args(argv=None):
                    help="the three plumbing gates; implies --no-fit")
     p.add_argument("--fd-params", nargs="*", default=None,
                    help="parameters to finite-difference in --selftest")
-    p.add_argument("--method",
-                   choices=["trust-exact", "trust-krylov", "trust-ncg"],
-                   default="trust-exact",
-                   help="`trust-exact` builds the FULL Hessian every "
-                        "iteration; the Krylov methods ask for Hessian-VECTOR "
-                        "products instead (`ChunkedObjective.hessp`), which is "
-                        "what makes a 99-parameter joint fit affordable. One "
-                        "full Hessian is still built after the fit for the "
-                        "covariance.")
+    md.add_arguments(p)
     p.add_argument("--maxiter", type=int, default=200)
     p.add_argument("--gtol", type=float, default=1e-6)
     p.add_argument("--start-from", default=None)
@@ -202,9 +195,20 @@ class JointObjective:
     """`ChunkedObjective` over several mass terms + the external quadratic."""
 
     def __init__(self, terms, external, free=None, hess_mode="hvp",
-                 chunk=None, log=print):
-        self.inner = ChunkedObjective(terms, free, hess_mode=hess_mode,
-                                      chunk=chunk, log=log)
+                 chunk=None, log=print, engine="host"):
+        # `device` is the same objective with the candidate loop as a
+        # tf.while_loop inside a tf.function (see devobj.py); the external
+        # quadratic then goes INSIDE that objective so its contribution to the
+        # Hessian-vector product is a tf matvec rather than a numpy one -- a
+        # numpy step would force the native Krylov solve back onto the host,
+        # which is the whole thing being avoided.
+        self.engine = engine
+        self.inner = (
+            ChunkedObjective(terms, free, hess_mode=hess_mode, chunk=chunk,
+                             log=log)
+            if engine == "host"
+            else DeviceChunkedObjective(terms, free, chunk=chunk, log=log)
+        )
         self.names = self.inner.names
         self.free = self.inner.free
         self.freenames = self.inner.freenames
@@ -216,12 +220,21 @@ class JointObjective:
         if external is not None:
             self.ext = ExternalQuadratic(external, self.names, self.free,
                                          self.x0.copy(), log=log)
+            if engine != "host":
+                self.inner.attach_external(self.ext)
         self.nbad_ext = 0
+        self.ncall = getattr(self.inner, "ncall", None)
+        # the native minimizers talk to the inner objective directly: on the
+        # device path it already carries the external quadratic
+        for nm in ("native_fun", "native_closure", "native_closure_hess",
+                   "native_set_point", "native_hessp"):
+            if hasattr(self.inner, nm):
+                setattr(self, nm, getattr(self.inner, nm))
 
     # -- the three things scipy and the report need ----------------------
     def value_grad(self, xf):
         v, g = self.inner.value_grad(xf)
-        if self.ext is not None:
+        if self.ext is not None and self.engine == "host":
             ev, eg = self.ext.value_grad(xf)
             if v >= 1e29:          # the inner objective steered back
                 return v, g
@@ -231,7 +244,7 @@ class JointObjective:
 
     def hess(self, xf, mode=None):
         H = self.inner.hess(xf, mode=mode)
-        if self.ext is not None:
+        if self.ext is not None and self.engine == "host":
             H = H + self.ext.Hfree
         return H
 
@@ -243,7 +256,7 @@ class JointObjective:
         forward-over-reverse product per chunk.
         """
         out = self.inner.hessp(xf, p)
-        if self.ext is not None:
+        if self.ext is not None and self.engine == "host":
             out = out + self.ext.Hfree @ np.asarray(p, np.float64)
         return out
 
@@ -459,8 +472,9 @@ def main(argv=None):
     if not free:
         raise SystemExit("every parameter is fixed")
 
+    engine = md.resolve_engine(args)
     obj = JointObjective(terms, external, free, hess_mode=args.hess_mode,
-                         chunk=None)
+                         chunk=None, engine=engine)
     nglob_free = sum(1 for nm in obj.freenames if nm in set(globals_))
     print(f"      {len(free)} free ({nglob_free} of them calibration "
           f"parameters), {len(fixed)} fixed; {obj.nchunk} chunks")
@@ -480,6 +494,14 @@ def main(argv=None):
             if nm in pv:
                 x0[i] = float(pv[nm])
         print(f"      seeded from {args.start_from}: {len(moved)} parameters")
+    if args.resume:
+        x0 = md.load_snapshot(args.resume, obj.freenames, x0,
+                              log=lambda m: print("     " + m))
+    if args.check_device and engine == "device":
+        ref = JointObjective(terms, external, free, hess_mode="hvp",
+                             chunk=None, engine="host", log=lambda *a: None)
+        check_against_host(obj, ref, x0, log=lambda m: print("   " + m))
+        del ref
 
     truth = {}
     for t in terms:
@@ -537,22 +559,21 @@ def main(argv=None):
         return 0
 
     # ---- fit --------------------------------------------------------------
+    # A Krylov trust-region step never forms the Hessian: it asks for O(10)
+    # Hessian-VECTOR products, each ~2 gradients and INDEPENDENT of the
+    # parameter count.  `trust-exact` needs the full matrix at EVERY iteration,
+    # which at 99 free parameters OOMs an H200 at chunk 32768 and is ~105 h
+    # where it fits.  The `tf-` methods additionally keep the trust-region
+    # subproblem on the device (rabbit/minimizer/, PR #153).
+    snap = md.make_snapshotter(args, obj.freenames, log=lambda m: print("   " + m))
     t0 = time.time()
-    if args.method == "trust-exact":
-        r = minimize(obj.value_grad, x0, jac=True, hess=obj.hess,
-                     method="trust-exact",
-                     options={"maxiter": args.maxiter, "gtol": args.gtol})
-    else:
-        # A Krylov trust-region step never forms the Hessian: it asks for O(10)
-        # Hessian-VECTOR products, each ~2 gradients and INDEPENDENT of the
-        # parameter count.  `trust-exact` needs the full matrix at EVERY
-        # iteration, which at 99 free parameters OOMs an H200 at chunk 32768 and
-        # is ~105 h where it fits.  One full Hessian is still built AFTER the
-        # fit, for the covariance.
-        r = minimize(obj.value_grad, x0, jac=True, hessp=obj.hessp,
-                     method=args.method,
-                     options={"maxiter": args.maxiter, "gtol": args.gtol})
+    with md.GpuMonitor(args.gpu_monitor) as gpu:
+        r = md.minimize(obj, x0, args, snapshotter=snap,
+                        log=lambda m: print("   " + m))
     t_fit = time.time() - t0
+    res["minimizer"] = md.timing_report(obj, r, t_fit, gpu=gpu,
+                                        log=lambda m: print("   " + m))
+    res["method"], res["engine"] = args.method, engine
     H = obj.hess(r.x)
     C = np.linalg.inv(H)
     err = np.sqrt(np.diag(C))
