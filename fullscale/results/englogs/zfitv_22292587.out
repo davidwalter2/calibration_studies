@@ -1,0 +1,109 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788877915.700539 3688881 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788877917.123567 3688881 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] f380fl_s7_cv: 3682662 candidates, nt 64 (integration 253), loaded in 14 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5', 'shape6', 'shape7']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form fluctuation, background uniform
+  minimiser: method trust-exact, engine device
+      seeded from /home/david_w/orcd/pool/zmass/fitresults/fit_f380fl_s7.json: ['m_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5', 'shape6', 'shape7']
+      9 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 113 chunks of 32768
+
+  reference point: NLL 11075204.575440, |grad|inf 57.47   [value+grad 8.1 s, Hessian 79.3 s (pfor), peak RSS 16.8 GB]
+  Hessian eigenvalues [5.5065e-02 2.3009e-01 5.7566e+02 2.7730e+04 3.0626e+04 7.0274e+04
+ 1.2744e+05 3.6722e+07 1.0108e+14] (cond 1.84e+15)
+
+  --- expected (Asimov) errors from the reference-point information (n = 3682662) ---
+    parameter        error   N=3.68e+06
+         m_Z       2.0851       2.0851
+     Gamma_Z       4.0893       4.0893
+      shape1       0.0239       0.0239
+      shape2       0.0290       0.0290
+      shape3       0.0207       0.0207
+      shape4       0.0106       0.0106
+      shape5       0.0056       0.0056
+      shape6       0.0027       0.0027
+      shape7       0.0003       0.0003
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5    shape6    shape7
+         m_Z    1.0000   -0.0153    0.2101    0.2245    0.3212    0.2595   -0.3115    0.0615    0.0058
+     Gamma_Z   -0.0153    1.0000    0.0928    0.0803    0.1268    0.3951    0.2635   -0.3658    0.3648
+      shape1    0.2101    0.0928    1.0000    0.9766    0.9587    0.7776    0.0712   -0.5707    0.6700
+      shape2    0.2245    0.0803    0.9766    1.0000    0.9546    0.8182    0.1178   -0.6189    0.7144
+      shape3    0.3212    0.1268    0.9587    0.9546    1.0000    0.7900    0.1652   -0.6484    0.7388
+      shape4    0.2595    0.3951    0.7776    0.8182    0.7900    1.0000    0.1592   -0.6719    0.7579
+      shape5   -0.3115    0.2635    0.0712    0.1178    0.1652    0.1592    1.0000   -0.8209    0.7269
+      shape6    0.0615   -0.3658   -0.5707   -0.6189   -0.6484   -0.6719   -0.8209    1.0000   -0.9884
+      shape7    0.0058    0.3648    0.6700    0.7144    0.7388    0.7579    0.7269   -0.9884    1.0000
+       it    1     143.3 s
+       it    2     214.2 s
+       it    3     284.8 s
+       it    4     355.7 s
+       it    5     424.8 s
+       it    6     493.9 s
+       it    7     493.9 s
+       it    8     493.9 s
+       it    9     493.9 s
+       it   10     493.9 s
+       it   11     493.9 s
+       it   12     493.9 s
+       it   13     493.9 s
+       it   14     493.9 s
+       it   15     565.1 s
+       it   16     636.4 s
+       it   17     707.0 s
+     minimiser: 17 iterations, 778.1 s, peak host RSS 16.8 GB, peak TF device 15.65 GB, {'value': 0, 'grad': 12, 'hessp': 0}
+
+  fit: 17 iterations, 778 s, NLL 11075192.781677, |grad|inf 39.6
+  sandwich in 208 s: error ratio [1.081  1.0768 0.7383 0.7143 0.685  0.7505 0.876  0.6812 0.6407]
+
+  --- fitted values / observed information (n = 3682662) ---
+    parameter        error   N=3.68e+06
+         m_Z       2.0954       2.0954
+     Gamma_Z       4.1052       4.1052
+      shape1       0.0240       0.0240
+      shape2       0.0291       0.0291
+      shape3       0.0208       0.0208
+      shape4       0.0107       0.0107
+      shape5       0.0056       0.0056
+      shape6       0.0027       0.0027
+      shape7       0.0003       0.0003
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5    shape6    shape7
+         m_Z    1.0000   -0.0228    0.2184    0.2331    0.3283    0.2634   -0.3147    0.0607    0.0079
+     Gamma_Z   -0.0228    1.0000    0.0829    0.0704    0.1171    0.3864    0.2627   -0.3606    0.3586
+      shape1    0.2184    0.0829    1.0000    0.9768    0.9589    0.7798    0.0650   -0.5689    0.6693
+      shape2    0.2331    0.0704    0.9768    1.0000    0.9547    0.8202    0.1104   -0.6162    0.7131
+      shape3    0.3283    0.1171    0.9589    0.9547    1.0000    0.7913    0.1596   -0.6468    0.7382
+      shape4    0.2634    0.3864    0.7798    0.8202    0.7913    1.0000    0.1529   -0.6699    0.7571
+      shape5   -0.3147    0.2627    0.0650    0.1104    0.1596    0.1529    1.0000   -0.8190    0.7241
+      shape6    0.0607   -0.3606   -0.5689   -0.6162   -0.6468   -0.6699   -0.8190    1.0000   -0.9883
+      shape7    0.0079    0.3586    0.6693    0.7131    0.7382    0.7571    0.7241   -0.9883    1.0000
+
+    fitted values (sandwich errors where available):
+      parameter        fitted       error       truth    fit-truth    pull
+           m_Z     -17.23545     2.26518    +0.00000    -17.23545   -7.61
+       Gamma_Z      +8.95623     4.42053    +0.00190     +8.95433    2.03
+        shape1      -0.69672     0.01771           -            -       -
+        shape2      -0.32047     0.02076           -            -       -
+        shape3      -0.36279     0.01424           -            -       -
+        shape4      -0.27837     0.00805           -            -       -
+        shape5      +0.13635     0.00494           -            -       -
+        shape6      -0.00748     0.00182           -            -       -
+        shape7      -0.00077     0.00017           -            -       -
+
+    convergence: EDM = 0.5 g^T H^-1 g = 8.136e-10 (requirement < 0.001) -> CONVERGED
+      |grad|inf = 39.6 is NOT the test: the Hessian's condition number is ~1e6 here
+      parameter      gradient  FULL step [sig]   diag proxy
+           m_Z   +1.3704e-07         -0.00001     +0.00000  <-- POI
+       Gamma_Z   +6.9753e-07         -0.00001     +0.00000  <-- POI
+        shape1    +0.0019639         -0.00005     +0.00003
+        shape2    +0.0080036         -0.00005     +0.00017
+        shape3     +0.037015         -0.00006     +0.00053
+        shape4      +0.20296         -0.00005     +0.00163
+        shape5       +1.1563         -0.00002     +0.00572
+        shape6       +6.7119         +0.00005     +0.01219
+        shape7       +39.578         -0.00006     +0.00678
+      worst POI displacement 0.0000 sigma (the diagonal proxy said 0.0000)
+
+  -> /home/david_w/orcd/pool/zmass/fitresults/fit_f380fl_s7_cv.json

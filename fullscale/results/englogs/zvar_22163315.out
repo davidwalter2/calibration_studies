@@ -1,0 +1,35 @@
+############ base  19:37:34
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788737874.367918 2617924 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788737948.796514 2617924 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] f380_base: 3682662 candidates, nt 64 (integration 253), loaded in 75 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, background uniform
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 113 chunks of 32768
+WARNING:tensorflow:5 out of the last 5 calls to <function pfor.<locals>.f at 0x14f94c54e2a0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+WARNING:tensorflow:6 out of the last 6 calls to <function pfor.<locals>.f at 0x14f94c54e840> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+
+  reference point: NLL 10801394.906601, |grad|inf 5.316e+04   [value+grad 43.4 s, Hessian 334.2 s (pfor), peak RSS 20.4 GB]
+  Hessian eigenvalues [6.2004e-02 2.7009e-01 1.8666e+04 3.8321e+04 5.4532e+04 1.1736e+05
+ 1.0997e+07] (cond 1.77e+08)
+
+  --- expected (Asimov) errors from the reference-point information (n = 3682662) ---
+    parameter        error   N=3.68e+06
+         m_Z       1.9603       1.9603
+     Gamma_Z       3.9984       3.9984
+      shape1       0.0063       0.0063
+      shape2       0.0054       0.0054
+      shape3       0.0052       0.0052
+      shape4       0.0075       0.0075
+      shape5       0.0014       0.0014
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000   -0.1676   -0.3657    0.1868    0.5172   -0.2338    0.1562
+     Gamma_Z   -0.1676    1.0000    0.3550   -0.5542   -0.2124    0.5932   -0.5621
+      shape1   -0.3657    0.3550    1.0000   -0.4532   -0.0848    0.6323   -0.6395
+      shape2    0.1868   -0.5542   -0.4532    1.0000    0.1624   -0.4206    0.3680
+      shape3    0.5172   -0.2124   -0.0848    0.1624    1.0000   -0.3549    0.2092
+      shape4   -0.2338    0.5932    0.6323   -0.4206   -0.3549    1.0000   -0.9637
+      shape5    0.1562   -0.5621   -0.6395    0.3680    0.2092   -0.9637    1.0000
+[2026-09-06T21:35:04.621] error: *** JOB 22163315 ON node2433 CANCELLED AT 2026-09-06T21:35:04 DUE to SIGNAL Terminated ***

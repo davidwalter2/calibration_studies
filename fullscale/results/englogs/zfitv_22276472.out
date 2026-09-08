@@ -1,0 +1,86 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788862143.285624 3855540 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788862144.812229 3855540 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] F_w70110_cv: 3537827 candidates, nt 64 (integration 253), loaded in 41 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [70.0, 110.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form fluctuation, background uniform
+  minimiser: method trust-exact, engine device
+      seeded from /home/david_w/orcd/pool/zmass/fitresults/fit_F_w70110.json: ['m_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 108 chunks of 32768
+
+  reference point: NLL 10063956.350229, |grad|inf 43.1   [value+grad 8.1 s, Hessian 59.8 s (pfor), peak RSS 16.4 GB]
+  Hessian eigenvalues [4.7509e-02 1.4889e-01 8.7699e+02 2.5088e+04 4.8975e+04 1.1870e+05
+ 1.1865e+13] (cond 2.5e+14)
+
+  --- expected (Asimov) errors from the reference-point information (n = 3537827) ---
+    parameter        error   N=3.54e+06
+         m_Z       2.6319       2.6319
+     Gamma_Z       4.5825       4.5825
+      shape1       0.0189       0.0189
+      shape2       0.0302       0.0302
+      shape3       0.0192       0.0192
+      shape4       0.0110       0.0110
+      shape5       0.0013       0.0013
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000    0.1438    0.4947    0.5233    0.6571    0.5519   -0.5878
+     Gamma_Z    0.1438    1.0000    0.1350    0.0783    0.1060    0.4295   -0.3843
+      shape1    0.4947    0.1350    1.0000    0.9545    0.9531    0.7798   -0.8412
+      shape2    0.5233    0.0783    0.9545    1.0000    0.9321    0.8024   -0.8583
+      shape3    0.6571    0.1060    0.9531    0.9321    1.0000    0.7578   -0.8290
+      shape4    0.5519    0.4295    0.7798    0.8024    0.7578    1.0000   -0.9931
+      shape5   -0.5878   -0.3843   -0.8412   -0.8583   -0.8290   -0.9931    1.0000
+       it    1     102.5 s
+       it    2     153.8 s
+       it    3     205.0 s
+       it    4     256.3 s
+       it    5     307.6 s
+       it    6     358.9 s
+       it    7     410.1 s
+     minimiser: 7 iterations, 461.4 s, peak host RSS 16.4 GB, peak TF device 15.32 GB, {'value': 0, 'grad': 10, 'hessp': 0}
+
+  fit: 7 iterations, 461 s, NLL 10063943.158164, |grad|inf 12.3
+  sandwich in 155 s: error ratio [1.1325 1.0861 1.1604 1.1357 1.1722 1.0588 1.0815]
+
+  --- fitted values / observed information (n = 3537827) ---
+    parameter        error   N=3.54e+06
+         m_Z       2.5423       2.5423
+     Gamma_Z       4.5464       4.5464
+      shape1       0.0165       0.0165
+      shape2       0.0255       0.0255
+      shape3       0.0169       0.0169
+      shape4       0.0104       0.0104
+      shape5       0.0012       0.0012
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000    0.1071    0.4357    0.4684    0.6298    0.5033   -0.5424
+     Gamma_Z    0.1071    1.0000    0.0828    0.0177    0.0494    0.4106   -0.3642
+      shape1    0.4357    0.0828    1.0000    0.9362    0.9377    0.7357   -0.8026
+      shape2    0.4684    0.0177    0.9362    1.0000    0.9057    0.7679   -0.8273
+      shape3    0.6298    0.0494    0.9377    0.9057    1.0000    0.7063   -0.7854
+      shape4    0.5033    0.4106    0.7357    0.7679    0.7063    1.0000   -0.9929
+      shape5   -0.5424   -0.3642   -0.8026   -0.8273   -0.7854   -0.9929    1.0000
+
+    fitted values (sandwich errors where available):
+      parameter        fitted       error       truth    fit-truth    pull
+           m_Z     -13.61811     2.87913    +0.00000    -13.61811   -4.73
+       Gamma_Z     -13.44068     4.93767    +0.00190    -13.44257   -2.72
+        shape1      -0.34968     0.01918           -            -       -
+        shape2      -0.20755     0.02893           -            -       -
+        shape3      -0.23486     0.01978           -            -       -
+        shape4      -0.14988     0.01103           -            -       -
+        shape5      +0.01843     0.00132           -            -       -
+
+    convergence, the DIAGONAL NEWTON STEP at the stop (|grad|inf = 12.3 is not the test):
+      parameter      gradient  step [sigma]
+           m_Z    +1.411e-07      +0.00000  <-- POI
+       Gamma_Z   +6.1616e-07      +0.00000  <-- POI
+        shape1    +0.0020623      +0.00004
+        shape2     +0.015281      +0.00044
+        shape3      +0.13176      +0.00261
+        shape4       +1.2546      +0.01384
+        shape5       +12.303      +0.01629
+      worst POI step 0.0000 sigma (requirement < 0.05) -> CONVERGED
+
+  -> /home/david_w/orcd/pool/zmass/fitresults/fit_F_w70110_cv.json

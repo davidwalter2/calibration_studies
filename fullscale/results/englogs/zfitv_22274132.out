@@ -1,0 +1,185 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788860506.558661  879334 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788860508.031409  879334 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] M_etaB: 1572534 candidates, nt 64 (integration 253), loaded in 20 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form fluctuation, background uniform
+  minimiser: method tf-trust-krylov, engine device
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 48 chunks of 32768
+
+  reference point: NLL 4660243.368712, |grad|inf 9367   [value+grad 5.9 s, Hessian 32.6 s (pfor), peak RSS 11.3 GB]
+  Hessian eigenvalues [-1.1656e+07 -4.3271e-03  1.1948e-01  2.0111e+03  9.8798e+03  2.7574e+04
+  4.6458e+04] (cond 4.65e+304)
+/orcd/pool/005/david_w/zmass/fullscale/chunkfit.py:416: RuntimeWarning: invalid value encountered in sqrt
+  err = np.sqrt(np.diag(C))
+
+  --- expected (Asimov) errors from the reference-point information (n = 1572534) ---
+    parameter        error   N=1.57e+06
+         m_Z          nan          nan
+     Gamma_Z          nan          nan
+      shape1          nan          nan
+      shape2          nan          nan
+      shape3       0.0073       0.0073
+      shape4          nan          nan
+      shape5          nan          nan
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z       nan       nan       nan       nan       nan       nan       nan
+     Gamma_Z       nan       nan       nan       nan       nan       nan       nan
+      shape1       nan       nan       nan       nan       nan       nan       nan
+      shape2       nan       nan       nan       nan       nan       nan       nan
+      shape3       nan       nan       nan       nan    1.0000       nan       nan
+      shape4       nan       nan       nan       nan       nan       nan       nan
+      shape5       nan       nan       nan       nan       nan       nan       nan
+/orcd/pool/005/david_w/zmass/fullscale/fit.py:258: RuntimeWarning: invalid value encountered in sqrt
+  "asimov_err": np.sqrt(np.diag(np.linalg.inv(H0))).tolist()}
+       it    1      22.4 s  NLL 4660243.368712  radius 0.25
+       it    2      22.9 s  NLL 4660243.368712  radius 0.0625
+       it    3      23.3 s  NLL 4660243.368712  radius 0.0156
+       it    4      23.8 s  NLL 4660243.368712  radius 0.00391
+       it    5      24.2 s  NLL 4660243.368712  radius 0.000977
+       it    6      25.9 s  NLL 4660225.415436  radius 0.00195
+       it    7      32.5 s  NLL 4660225.415436  radius 0.000488
+       it    8      34.2 s  NLL 4660187.471905  radius 0.000977
+       it    9      40.7 s  NLL 4660187.471905  radius 0.000244
+       it   10      42.4 s  NLL 4660126.291557  radius 0.000488
+       it   11      50.2 s  NLL 4659893.283469  radius 0.000488
+       it   12      55.0 s  NLL 4659889.155439  radius 0.000488
+       it   13      59.8 s  NLL 4659889.075946  radius 0.000488
+       it   14      67.7 s  NLL 4659883.348666  radius 0.000977
+       it   15      72.5 s  NLL 4659871.912430  radius 0.00195
+       it   16      80.3 s  NLL 4659849.110128  radius 0.00391
+       it   17      88.2 s  NLL 4659803.787020  radius 0.00781
+       it   18      96.1 s  NLL 4659714.273305  radius 0.0156
+       it   19     103.9 s  NLL 4659539.829524  radius 0.0312
+       it   20     111.7 s  NLL 4659209.729409  radius 0.0625
+       it   21     119.5 s  NLL 4658628.674389  radius 0.125
+       it   22     124.4 s  NLL 4658628.513991  radius 0.125
+       it   23     135.5 s  NLL 4657811.275871  radius 0.25
+       it   24     140.3 s  NLL 4657807.163075  radius 0.25
+       it   25     145.1 s  NLL 4657807.017112  radius 0.25
+       it   26     152.9 s  NLL 4657537.933155  radius 0.25
+       it   27     157.7 s  NLL 4657536.741531  radius 0.25
+       it   28     162.4 s  NLL 4657536.704111  radius 0.25
+       it   29     170.2 s  NLL 4657514.857935  radius 0.25
+       it   30     174.9 s  NLL 4657514.857643  radius 0.25
+       it   31     182.8 s  NLL 4657513.620955  radius 0.25
+       it   32     193.6 s  NLL 4657513.275921  radius 0.25
+       it   33     198.4 s  NLL 4657513.274751  radius 0.25
+       it   34     214.0 s  NLL 4657513.274751  radius 0.0625
+       it   35     214.5 s  NLL 4657513.274751  radius 0.0156
+       it   36     216.1 s  NLL 4657512.762605  radius 0.0312
+       it   37     220.8 s  NLL 4657512.718707  radius 0.0312
+       it   38     225.6 s  NLL 4657512.718653  radius 0.0312
+       it   39     242.4 s  NLL 4657512.214575  radius 0.0312
+       it   40     247.2 s  NLL 4657511.655945  radius 0.0312
+       it   41     252.1 s  NLL 4657511.652237  radius 0.0312
+       it   42     269.1 s  NLL 4657510.877416  radius 0.0625
+       it   43     273.9 s  NLL 4657510.624558  radius 0.0625
+       it   44     278.6 s  NLL 4657510.624039  radius 0.0625
+       it   45     294.6 s  NLL 4657510.624039  radius 0.0156
+       it   46     296.6 s  NLL 4657510.142609  radius 0.0312
+       it   47     301.8 s  NLL 4657510.134293  radius 0.0312
+       it   48     306.8 s  NLL 4657510.134293  radius 0.0312
+       it   49     324.4 s  NLL 4657509.338066  radius 0.0625
+       it   50     329.6 s  NLL 4657509.225964  radius 0.0625
+       it   51     334.8 s  NLL 4657509.225902  radius 0.0625
+       it   52     351.2 s  NLL 4657509.225902  radius 0.0156
+       it   53     353.2 s  NLL 4657508.819532  radius 0.0312
+       it   54     358.4 s  NLL 4657508.815137  radius 0.0312
+       it   55     363.7 s  NLL 4657508.815137  radius 0.0312
+       it   56     381.8 s  NLL 4657508.163294  radius 0.0625
+       it   57     386.9 s  NLL 4657508.101970  radius 0.0625
+       it   58     392.2 s  NLL 4657508.101958  radius 0.0625
+       it   59     413.2 s  NLL 4657507.824592  radius 0.0625
+       it   60     418.4 s  NLL 4657507.200824  radius 0.0625
+       it   61     423.6 s  NLL 4657507.200074  radius 0.0625
+       it   62     441.7 s  NLL 4657507.094002  radius 0.0625
+       it   63     446.8 s  NLL 4657507.030245  radius 0.0625
+       it   64     452.0 s  NLL 4657507.030239  radius 0.0625
+       it   65     473.4 s  NLL 4657506.821810  radius 0.125
+       it   66     478.6 s  NLL 4657506.821789  radius 0.125
+       it   67     499.8 s  NLL 4657506.418938  radius 0.25
+       it   68     521.3 s  NLL 4657505.619409  radius 0.5
+       it   69     526.6 s  NLL 4657505.619408  radius 0.5
+       it   70     545.0 s  NLL 4657504.043501  radius 1
+       it   71     550.2 s  NLL 4657504.043494  radius 1
+       it   72     571.9 s  NLL 4657500.984253  radius 2
+       it   73     577.3 s  NLL 4657500.984092  radius 2
+       it   74     598.9 s  NLL 4657495.236624  radius 4
+       it   75     604.2 s  NLL 4657495.234536  radius 4
+       it   76     609.6 s  NLL 4657495.234536  radius 4
+       it   77     631.3 s  NLL 4657485.236059  radius 8
+       it   78     636.6 s  NLL 4657485.207880  radius 8
+       it   79     642.1 s  NLL 4657485.207879  radius 8
+       it   80     663.8 s  NLL 4657471.336919  radius 16
+       it   81     669.1 s  NLL 4657471.010437  radius 16
+       it   82     674.5 s  NLL 4657471.010342  radius 16
+       it   83     683.2 s  NLL 4657471.008163  radius 16
+       it   84     686.9 s  NLL 4657471.008163  radius 4
+       it   85     687.4 s  NLL 4657471.008163  radius 1
+       it   86     687.9 s  NLL 4657471.008163  radius 0.25
+       it   87     688.3 s  NLL 4657471.008163  radius 0.0625
+       it   88     688.8 s  NLL 4657471.008163  radius 0.0156
+       it   89     689.3 s  NLL 4657471.008163  radius 0.00391
+       it   90     689.8 s  NLL 4657471.008163  radius 0.000977
+       it   91     690.3 s  NLL 4657471.008163  radius 0.000244
+       it   92     690.8 s  NLL 4657471.008163  radius 6.1e-05
+       it   93     691.2 s  NLL 4657471.008163  radius 1.53e-05
+       it   94     691.7 s  NLL 4657471.008163  radius 3.81e-06
+       it   95     692.2 s  NLL 4657471.008163  radius 9.54e-07
+       it   96     692.7 s  NLL 4657471.008163  radius 2.38e-07
+       it   97     693.1 s  NLL 4657471.008163  radius 5.96e-08
+       it   98     693.6 s  NLL 4657471.008163  radius 1.49e-08
+       it   99     694.1 s  NLL 4657471.008163  radius 3.73e-09
+       it  100     694.6 s  NLL 4657471.008163  radius 9.31e-10
+       it  101     695.1 s  NLL 4657471.008163  radius 2.33e-10
+       it  102     695.5 s  NLL 4657471.008163  radius 5.82e-11
+     minimiser: 102 iterations, 699.2 s, peak host RSS 11.3 GB, peak TF device 13.92 GB, {'value': 103, 'grad': 74, 'hessp': 0}
+
+  fit: 102 iterations, 699 s, NLL 4657471.008163, |grad|inf 8.06
+  sandwich in 69 s: error ratio [1.0921 1.0906 1.0905 1.0837 1.0896 1.0526 1.0633]
+
+  --- fitted values / observed information (n = 1572534) ---
+    parameter        error   N=1.57e+06
+         m_Z       2.8640       2.8640
+     Gamma_Z       5.2990       5.2990
+      shape1       0.0331       0.0331
+      shape2       0.0395       0.0395
+      shape3       0.0277       0.0277
+      shape4       0.0134       0.0134
+      shape5       0.0028       0.0028
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000    0.0508    0.3456    0.3759    0.4856    0.4094   -0.4507
+     Gamma_Z    0.0508    1.0000    0.0019   -0.0372   -0.0015    0.2979   -0.2183
+      shape1    0.3456    0.0019    1.0000    0.9762    0.9600    0.7374   -0.8565
+      shape2    0.3759   -0.0372    0.9762    1.0000    0.9512    0.7662   -0.8769
+      shape3    0.4856   -0.0015    0.9600    0.9512    1.0000    0.7260   -0.8558
+      shape4    0.4094    0.2979    0.7374    0.7662    0.7260    1.0000   -0.9768
+      shape5   -0.4507   -0.2183   -0.8565   -0.8769   -0.8558   -0.9768    1.0000
+
+    fitted values (sandwich errors where available):
+      parameter        fitted       error       truth    fit-truth    pull
+           m_Z     -15.96115     3.12790    +0.00000    -15.96115   -5.10
+       Gamma_Z      -0.93335     5.77928    +0.00190     -0.93525   -0.16
+        shape1      -0.48733     0.03608           -            -       -
+        shape2      -0.05589     0.04285           -            -       -
+        shape3      -0.20098     0.03013           -            -       -
+        shape4      -0.18787     0.01405           -            -       -
+        shape5      +0.03695     0.00297           -            -       -
+
+    convergence, the DIAGONAL NEWTON STEP at the stop (|grad|inf = 8.06 is not the test):
+      parameter      gradient  step [sigma]
+           m_Z       +1.2847      +4.01836  <-- POI
+       Gamma_Z      +0.16349      +0.94483  <-- POI
+        shape1       -1.4506      -0.05234
+        shape2      +0.95385      +0.04087
+        shape3      -0.80245      -0.02418
+        shape4       +2.1743      +0.03056
+        shape5        +8.057      +0.02393
+      worst POI step 4.0184 sigma (requirement < 0.05) -> NOT CONVERGED
+      *** THIS RESULT MUST NOT BE QUOTED. Re-run with --start-from this json and --method trust-exact. ***
+
+  -> /home/david_w/orcd/pool/zmass/fitresults/fit_M_etaB.json

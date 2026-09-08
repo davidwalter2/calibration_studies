@@ -1,0 +1,41 @@
+NVIDIA H200 NVL, 143771 MiB, 590.48.01
+############ probe 20:17:52  card /home/david_w/orcd/pool/zmass/cards/z_n300k.hdf5  chunks 8192 32768 131072 300000
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788826675.638574 2323838 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788826680.832568 2323838 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+GPUs: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[probe] zmass: n 300000, nt 64 (integration 253), card chunk 32768, loaded in 5 s
+        7 free: ['m_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+
+==== chunk 8192 ====
+  device :   37 chunks | trace     4.9 s | value+grad   0.407 s | hessp   0.801 s | GPU  25.3 % (p90  88.0 %) | + 0.07 GB
+    device vs host: value 0.000e+00, grad 1.209e-15, hessp 1.343e-14
+  host   :   37 chunks |               | value+grad   2.169 s | hessp  11.383 s | GPU  14.0 % (p90  25.0 %)
+  SPEEDUP: value+grad    5.3 x, hessp   14.2 x
+
+==== chunk 32768 ====
+  device :   10 chunks | trace     1.2 s | value+grad   0.301 s | hessp   0.543 s | GPU  31.8 % (p90  85.0 %) | + 0.00 GB
+    device vs host: value 0.000e+00, grad 1.209e-15, hessp 1.183e-14
+  host   :   10 chunks |               | value+grad   1.043 s | hessp   4.001 s | GPU  33.2 % (p90  42.1 %)
+  SPEEDUP: value+grad    3.5 x, hessp    7.4 x
+
+==== chunk 131072 ====
+  device :    3 chunks | trace     0.9 s | value+grad   0.269 s | hessp   0.478 s | GPU  29.2 % (p90  81.5 %) | + 0.00 GB
+    device vs host: value 0.000e+00, grad 3.364e-15, hessp 1.759e-15
+  host   :    3 chunks |               | value+grad   0.725 s | hessp   1.984 s | GPU  44.6 % (p90  62.0 %)
+  SPEEDUP: value+grad    2.7 x, hessp    4.1 x
+
+==== chunk 300000 ====
+  device :    1 chunks | trace     0.9 s | value+grad   0.260 s | hessp   0.452 s | GPU  28.3 % (p90  82.5 %) | + 0.01 GB
+    device vs host: value 0.000e+00, grad 9.934e-15, hessp 9.770e-14
+  host   :    1 chunks |               | value+grad   0.630 s | hessp   1.419 s | GPU  55.9 % (p90  72.5 %)
+  SPEEDUP: value+grad    2.4 x, hessp    3.1 x
+
+==== summary ====
+   chunk  nchunk    trace   dev v+g   dev hvp  host v+g  host hvp   x v+g   x hvp  GPU dev  GPU host     RSS
+    8192      37      4.9     0.407     0.801     2.169    11.383     5.3    14.2    25.3%     14.0%    9.7G
+   32768      10      1.2     0.301     0.543     1.043     4.001     3.5     7.4    31.8%     33.2%   11.2G
+  131072       3      0.9     0.269     0.478     0.725     1.984     2.7     4.1    29.2%     44.6%   14.0G
+  300000       1      0.9     0.260     0.452     0.630     1.419     2.4     3.1    28.3%     55.9%   22.3G
+############ done 20:21:05

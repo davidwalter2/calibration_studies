@@ -1,0 +1,37 @@
+############ s6  10:42:12
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788792139.662917 2888965 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788792162.768183 2888965 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] f380fl_s6: 3682662 candidates, nt 64 (integration 253), loaded in 34 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5', 'shape6']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form fluctuation, background uniform
+      8 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 113 chunks of 32768
+WARNING:tensorflow:5 out of the last 5 calls to <function pfor.<locals>.f at 0x148d9a6828e0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+WARNING:tensorflow:6 out of the last 6 calls to <function pfor.<locals>.f at 0x148d9a682980> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+
+  reference point: NLL 11082081.115688, |grad|inf 1.183e+05   [value+grad 22.5 s, Hessian 388.5 s (pfor), peak RSS 21.0 GB]
+  Hessian eigenvalues [-1.1922e+09 -5.6757e+05  7.6832e-02  2.5423e-01  1.8677e+04  2.6702e+04
+  6.3472e+04  1.1968e+05] (cond 1.2e+305)
+
+  --- expected (Asimov) errors from the reference-point information (n = 3682662) ---
+    parameter        error   N=3.68e+06
+         m_Z       1.9920       1.9920
+     Gamma_Z       3.6029       3.6029
+      shape1       0.0050       0.0050
+      shape2       0.0053       0.0053
+      shape3       0.0059       0.0059
+      shape4       0.0064       0.0064
+      shape5       0.0024       0.0024
+      shape6       0.0001       0.0001
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5    shape6
+         m_Z    1.0000    0.0781   -0.0517    0.0342    0.4871    0.1990   -0.3346    0.5475
+     Gamma_Z    0.0781    1.0000    0.0814   -0.2675   -0.0541    0.4279   -0.4670    0.7418
+      shape1   -0.0517    0.0814    1.0000   -0.1612    0.3884    0.2008   -0.3019    0.4825
+      shape2    0.0342   -0.2675   -0.1612    1.0000   -0.2080    0.3132   -0.3579    0.5883
+      shape3    0.4871   -0.0541    0.3884   -0.2080    1.0000   -0.1877   -0.1251    0.3719
+      shape4    0.1990    0.4279    0.2008    0.3132   -0.1877    1.0000   -1.1086    1.7586
+      shape5   -0.3346   -0.4670   -0.3019   -0.3579   -0.1251   -1.1086    1.0000   -1.2525
+      shape6    0.5475    0.7418    0.4825    0.5883    0.3719    1.7586   -1.2525    1.0000
+[2026-09-07T16:27:39.012] error: *** JOB 22199336 ON node4400 CANCELLED AT 2026-09-07T16:27:39 DUE TO TIME LIMIT ***

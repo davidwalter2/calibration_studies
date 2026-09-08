@@ -1,0 +1,93 @@
+############ n300kpre  11:28:57  card /home/david_w/orcd/pool/zmass/cards/z_n300k.hdf5  method tf-trust-exact
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881338.159427 4135808 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881339.729042 4135808 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 300000 candidates, 10 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 300000 candidates in 10 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[33;21mWARNING:preconditioner.py: Auto-blocking at |rho| > 0.1 produced a component with 7 of 7 parameters: the threshold is probably below the percolation point, so the blocks are not really separated.[0m
+[38;21mINFO:preconditioner.py: Auto-blocking 7 parameters at |rho| > 0.1: 1 block(s), largest 7, median 7[0m
+[38;21mINFO:preconditioner.py: Preconditioned 1 of 1 block(s), 7 parameters; correlation condition number median 98.1, worst 98.1 -> 1 at the reference point[0m
+[38;21mINFO:fitter.py: [minimize] method=tf-trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 144455306.9534836[0m
+[38;21mINFO:fitter.py:   - edmval: 16495.334777032374[0m
+[38;21mINFO:fitter.py:   - Condition number: 1224377500.4904964[0m
+[38;21mINFO:fitter.py:   - edmval: 10291.730267099836[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_n300kpre.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_n300kpre.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 6440811021.057043[0m
+[38;21mINFO:fitter.py:   - edmval: 9148.541400659458[0m
+[38;21mINFO:fitter.py:   - Condition number: 86932847928.43758[0m
+[38;21mINFO:fitter.py:   - edmval: 6223.5425717049075[0m
+[38;21mINFO:fitter.py:   - Condition number: 60997953756.475006[0m
+[38;21mINFO:fitter.py:   - edmval: 6470.140931048396[0m
+[38;21mINFO:fitter.py:   - Condition number: 50531653247.55902[0m
+[38;21mINFO:fitter.py:   - edmval: 5177.505569107552[0m
+[38;21mINFO:fitter.py:   - Condition number: 31750417344.218952[0m
+[38;21mINFO:fitter.py:   - edmval: 2701.800085514279[0m
+[38;21mINFO:fitter.py:   - Condition number: 30841610444.53393[0m
+[38;21mINFO:fitter.py:   - edmval: 2678.773859452718[0m
+[38;21mINFO:fitter.py:   - Condition number: 30498374919.131573[0m
+[38;21mINFO:fitter.py:   - edmval: 2667.05718447861[0m
+[38;21mINFO:fitter.py:   - Condition number: 30028928892.97767[0m
+[38;21mINFO:fitter.py:   - edmval: 2643.2576919282055[0m
+[38;21mINFO:fitter.py:   - Condition number: 29846296862.872322[0m
+[38;21mINFO:fitter.py:   - edmval: 2631.317426857624[0m
+[38;21mINFO:fitter.py:   - Condition number: 29569022605.05825[0m
+[38;21mINFO:fitter.py:   - edmval: 2607.4189431315835[0m
+[38;21mINFO:fitter.py:   - Condition number: 29457536846.48984[0m
+[38;21mINFO:fitter.py:   - edmval: 2595.496095547058[0m
+[38;21mINFO:fitter.py:   - Condition number: 29266636029.459282[0m
+[38;21mINFO:fitter.py:   - edmval: 2571.780340519823[0m
+[38;21mINFO:fitter.py:   - Condition number: 29187287657.056625[0m
+[38;21mINFO:fitter.py:   - edmval: 2559.976513574954[0m
+[38;21mINFO:fitter.py:   - Condition number: 29035598483.166054[0m
+[38;21mINFO:fitter.py:   - edmval: 2536.563161656205[0m
+[38;21mINFO:fitter.py:   - Condition number: 28970839325.9992[0m
+[38;21mINFO:fitter.py:   - edmval: 2524.921308291561[0m
+[38;21mINFO:fitter.py:   - Condition number: 28836926804.588314[0m
+[38;21mINFO:fitter.py:   - edmval: 2501.860061403857[0m
+[38;21mINFO:fitter.py:   - Condition number: 28778747566.50623[0m
+[38;21mINFO:fitter.py:   - edmval: 2490.3975839226723[0m
+[38;21mINFO:fitter.py:   - Condition number: 28652781541.707138[0m
+[38;21mINFO:fitter.py:   - edmval: 2467.7072940005337[0m
+[38;21mINFO:fitter.py:   - Condition number: 28597502090.602383[0m
+[38;21mINFO:fitter.py:   - edmval: 2456.4302961658873[0m
+[38;21mINFO:fitter.py:   - Condition number: 28474954734.930023[0m
+[38;21mINFO:fitter.py:   - edmval: 2434.1161167903683[0m
+[38;21mINFO:fitter.py:   - Condition number: 28420878729.30134[0m
+[38;21mINFO:fitter.py:   - edmval: 2423.0256897315203[0m
+[38;21mINFO:fitter.py:   - Condition number: 28299658937.98674[0m
+[38;21mINFO:fitter.py:   - edmval: 2401.086707728911[0m
+[38;21mINFO:fitter.py:   - Condition number: 28246002398.46568[0m
+[38;21mINFO:fitter.py:   - edmval: 2390.181733113695[0m
+[38;21mINFO:fitter.py:   - Condition number: 28125141138.85911[0m
+[38;21mINFO:fitter.py:   - edmval: 2368.614386340127[0m
+[38;21mINFO:fitter.py:   - Condition number: 28071540648.041748[0m
+[38;21mINFO:fitter.py:   - edmval: 2357.8927920507253[0m
+[38;21mINFO:fitter.py:   - Condition number: 27950586144.12675[0m
+[38;21mINFO:fitter.py:   - edmval: 2336.6924034418075[0m
+[38;21mINFO:fitter.py:   - Condition number: 27896872103.09908[0m
+[38;21mINFO:fitter.py:   - edmval: 2326.151726673943[0m
+[38;21mINFO:fitter.py:   - Condition number: 27775610971.2682[0m
+[38;21mINFO:fitter.py:   - edmval: 2305.3131924798677[0m
+[38;21mINFO:fitter.py:   - Condition number: 27721703117.20609[0m
+[38;21mINFO:fitter.py:   - edmval: 2294.950831842446[0m
+[38;21mINFO:fitter.py:   - Condition number: 27600032066.182564[0m
+[38;21mINFO:fitter.py:   - edmval: 2274.4689294752593[0m
+[38;21mINFO:fitter.py:   - Condition number: 27545891322.39748[0m
+[38;21mINFO:fitter.py:   - edmval: 2264.2822573702247[0m
+[38;21mINFO:fitter.py:   - Condition number: 27423757906.697163[0m
+[38;21mINFO:fitter.py:   - edmval: 2244.1517820995305[0m
+[38;21mINFO:fitter.py:   - Condition number: 27369364421.361256[0m
+[38;21mINFO:fitter.py:   - edmval: 2234.1381942530984[0m
+[38;21mINFO:fitter.py:   - Condition number: 27246739643.073364[0m
+[38;21mINFO:fitter.py:   - edmval: 2214.354018883823[0m
+[38;21mINFO:fitter.py:   - Condition number: 27192082499.309937[0m
+[38;21mINFO:fitter.py:   - edmval: 2204.510955670175[0m
+[2026-09-08T11:36:23.206] error: *** JOB 22299438 ON node4500 CANCELLED AT 2026-09-08T11:36:23 DUE to SIGNAL Terminated ***

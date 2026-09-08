@@ -1,0 +1,50 @@
+############ joint500k  23:34:57  card /home/david_w/orcd/pool/zmass/cards/joint_v2_n500k.hdf5
+NVIDIA H200, 143771 MiB, 590.48.01
+GPUs: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+
+======== joint500k_device_tf-trust-krylov  23:35:58
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788838559.104982  541676 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788838560.162917  541676 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit_joint] joint500k_device_tf-trust-krylov: 2 mass term(s) ['zmass', 'jpsi'], 1000000 candidates, loaded in 59 s
+      zmass: 500000 candidates, nt 64 (integration 253), 103 params, chunk 8192, kernel tabulated, corr_form fluctuation, jensen exact, scale_param None
+      jpsi: 500000 candidates, nt 64 (integration 64), 96 params, chunk 8192, kernel delta, corr_form fluctuation, jensen exact, scale_param None
+  minimiser: method tf-trust-krylov, engine device
+External likelihood term 'hitchi2': the Hessian is singular and the gradient has a component outside its range, so the term is unbounded below and cannot be centered. Using the pseudo-inverse for the in-range part; absolute NLL values remain offset.
+  external term 'hitchi2': 92 parameters, 92 of them free; const 0, lognorm -784.129
+      99 free (92 of them calibration parameters), 4 fixed; 124 chunks
+
+  reference point: NLL 616346.411285, |grad|inf 8.946e+06   [value+grad 19.2 s, Hessian 238.3 s (hvp), peak RSS 12.7 GB]
+/orcd/pool/005/david_w/zmass/fullscale_native/fit_joint.py:531: RuntimeWarning: overflow encountered in scalar divide
+  f"cond {ev[-1]/max(ev[0], 1e-300):.4g}, "
+  Hessian eigenvalues [-4.816e+06, 7.243e+13], cond inf, 2 non-positive
+/orcd/pool/005/david_w/zmass/fullscale_native/fit_joint.py:549: RuntimeWarning: invalid value encountered in sqrt
+  res["asimov_err"] = np.sqrt(
+     snapshots -> /home/david_w/orcd/pool/zmass/fitresults/native/joint500k_device_tf-trust-krylov.snapshot.hdf5 (every 0.05 h, plus interrupt / failure / convergence)
+       it    1      55.4 s  NLL 514063.172632
+       it    2      90.3 s  NLL 504508.509187
+       it    3     138.6 s  NLL 497644.129584
+       it    4     216.7 s  NLL 492643.502503
+       it    5     297.0 s  NLL 491494.709799
+       it    6     429.5 s  NLL 491494.709799
+       it    7     429.9 s  NLL 491494.709799
+       it    8     430.3 s  NLL 491494.709799
+       it    9     430.8 s  NLL 491494.709799
+       it   10     431.2 s  NLL 491494.709799
+       it   11     432.5 s  NLL 491344.620243
+       it   12     512.0 s  NLL 491344.620243
+       it   13     513.3 s  NLL 491231.352449
+       it   14     547.3 s  NLL 491231.352449
+       it   15     548.6 s  NLL 491157.064685
+       it   16     592.4 s  NLL 491136.279236
+       it   17     665.9 s  NLL 491098.367215
+       it   18     748.5 s  NLL 491031.782328
+       it   19     842.6 s  NLL 490923.080575
+       it   20     959.9 s  NLL 490778.785719
+       it   21    1116.1 s  NLL 490686.448967
+       it   22    1302.5 s  NLL 490637.826940
+       it   23    1312.7 s  NLL 490637.816282
+       it   24    1496.5 s  NLL 490550.717812
+       it   25    1506.7 s  NLL 490550.621228
+[2026-09-08T00:07:03.228] error: *** JOB 22253478 ON node4301 CANCELLED AT 2026-09-08T00:07:03 DUE TO PREEMPTION ***

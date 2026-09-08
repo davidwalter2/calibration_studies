@@ -1,0 +1,38 @@
+############ f380  11:24:34  card /home/david_w/orcd/pool/zmass/cards/z_full380.hdf5  method tf-trust-krylov
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881090.575330 2327829 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881152.223417 2327829 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[gate] /home/david_w/orcd/pool/zmass/cards/z_full380.hdf5: 1 unbinned term(s), loaded in 79 s
+        zmass: n 3682662, 113 chunk(s) of 32768, 11 params, graph_chunkable True
+
+=== 1. graph chunk loop vs the eager python loop (same term) ===
+  zmass: 3682662 candidates > --max-eager-n 400000, the eager arm would OOM; checks 2-4 carry the comparison
+
+=== 2. rabbit's term vs the standalone chunked objectives ===
+  zmass vs ChunkedObjective : value 0.000e+00, grad 1.272e-15, hvp 4.217e-16   OK
+  zmass vs DeviceChunkedObjective: worst 6.326e-16   OK
+
+=== 3. the Fitter's loss / gradient / HVP ===
+  11 fit parameters, jit_compile False, hvp revrev, hessian route hvps
+  loss 14620326.893553289  [value 1.94 s, value+grad 5.60 s, +hvp 25.43 s]
+  loss_val vs loss_val_grad: 0.000e+00   OK
+  gradient . p: analytic -22210357, central FD -22210361, rel 1.76e-07   OK
+
+ALL GATES PASSED
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881549.756793 2405134 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881551.268235 2405134 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 3682662 candidates, 113 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 3682662 candidates in 113 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=tf-trust-krylov options={}[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380.snapshot.hdf5[0m
+[2026-09-08T11:36:37.354] error: *** JOB 22297923 ON node3300 CANCELLED AT 2026-09-08T11:36:37 DUE to SIGNAL Terminated ***

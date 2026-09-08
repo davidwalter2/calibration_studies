@@ -77,5 +77,14 @@ fullscale/logs/
 # number that matters is in fullscale/STATE.md and fullscale/PHASE1.md
 fullscale/results/*.json
 !fullscale/results/gate_*.json
+# the convergence verdicts (EDM + the full Newton step per POI) are 1.5 kB each
+# and they are the certification of every quoted number -- keep them
+!fullscale/results/conv_*.json
 fullscale/results/*.hdf5
 fullscale/results/*.txt
+# rabbit_fit.py results: 77 kB each, and they carry the value, the NLL and the
+# EDM the acceptance test of STATE sec. 0f.16 is made of
+!fullscale/results/native/rabbit_*.hdf5
+fullscale/results/native/*.snapshot.hdf5
+fullscale/results/eng/
+fullscale/results/nativejson/

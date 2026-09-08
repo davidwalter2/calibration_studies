@@ -1,0 +1,35 @@
+############ jointsmoke  11:11:19  card /home/david_w/orcd/pool/zmass/cards/joint_smoke.hdf5  method tf-trust-krylov
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788880280.378542 3917134 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788880281.866486 3917134 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+calib_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[gate] /home/david_w/orcd/pool/zmass/cards/joint_smoke.hdf5: 2 unbinned term(s), loaded in 10 s
+        jpsi: n 60000, 4 chunk(s) of 16384, 96 params, graph_chunkable True
+        zmass: n 60000, 4 chunk(s) of 16384, 103 params, graph_chunkable True
+
+=== 1. graph chunk loop vs the eager python loop (same term) ===
+  jpsi point 0: value 0.000e+00, grad 9.789e-16, hvp 1.674e-15   OK
+  jpsi point 1: value 1.588e-16, grad 1.283e-15, hvp 2.302e-15   OK
+  zmass point 0: value 0.000e+00, grad 2.057e-15, hvp 1.698e-15   OK
+  zmass point 1: value 0.000e+00, grad 2.403e-15, hvp 2.800e-15   OK
+
+=== 2. rabbit's term vs the standalone chunked objectives ===
+  jpsi vs ChunkedObjective : value 0.000e+00, grad 1.062e-15, hvp 2.181e-15   OK
+  jpsi vs DeviceChunkedObjective: worst 1.947e-15   OK
+  zmass vs ChunkedObjective : value 0.000e+00, grad 2.795e-15, hvp 1.584e-15   OK
+  zmass vs DeviceChunkedObjective: worst 1.584e-15   OK
+
+=== 3. the Fitter's loss / gradient / HVP ===
+External likelihood term 'hitchi2': the Hessian is singular and the gradient has a component outside its range, so the term is unbounded below and cannot be centered. Using the pseudo-inverse for the in-range part; absolute NLL values remain offset.
+  103 fit parameters, jit_compile False, hvp revrev, hessian route hvps
+  loss 342280254.366583407  [value 2.24 s, value+grad 4.23 s, +hvp 34.34 s]
+  loss_val vs loss_val_grad: 0.000e+00   OK
+  gradient . p: analytic 5.213433e+10, central FD 5.213433e+10, rel 2.18e-12   OK
+
+=== 4. the Hessian route (HVP columns) and the EDM ===
+  Hessian in 29.4 s, asymmetry 0.00e+00, eigenvalues [-0.0004389, 7.243e+13], EDM 3.423e+08
+  Fitter Hessian block vs ChunkedObjective.hess (pfor) (96x96): 7.115e+05   MISMATCH
+
+SOME GATES FAILED

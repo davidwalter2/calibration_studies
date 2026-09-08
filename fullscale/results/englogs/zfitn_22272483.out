@@ -1,0 +1,17 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788856855.077827 3927567 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788856871.190434 3927567 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+Traceback (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale/fit.py", line 313, in <module>
+    main()
+    ~~~~^^
+  File "/orcd/pool/005/david_w/zmass/fullscale/fit.py", line 119, in main
+    terms = unbinned.read_unbinned_terms_from_h5(f["unbinned_terms"])
+  File "/home/david_w/orcd/pool/zmass/rabbit-native/rabbit/unbinned.py", line 2731, in read_unbinned_terms_from_h5
+    term = _TERM_KINDS[kind](
+        name,
+    ...<21 lines>...
+        **cfg,
+    )
+TypeError: MassCFTerm.__init__() got an unexpected keyword argument 'vpow'

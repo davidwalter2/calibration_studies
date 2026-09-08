@@ -1,0 +1,63 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788855853.848985 1123103 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788855855.321761 1123103 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] V_s6: 3682662 candidates, nt 64 (integration 253), loaded in 43 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5', 'shape6']
+      norm_window [0.1693408015212322, 0.3842541276500674], upsample 4, self_consistent_sigma True, jensen exact, corr_form fluctuation, background uniform
+  minimiser: method tf-trust-krylov, engine device
+      8 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 113 chunks of 32768
+
+  reference point: NLL -12164281.424718, |grad|inf 2.488e+06   [value+grad 21.7 s, Hessian 290.8 s (pfor), peak RSS 16.8 GB]
+  Hessian eigenvalues [-1.7222e+10 -1.3626e+07 -2.1331e+06 -2.1051e+05 -1.7272e+05 -1.4060e+05
+ -4.0176e+00  5.9142e-01] (cond 5.91e+299)
+/orcd/pool/005/david_w/zmass/fullscale/chunkfit.py:416: RuntimeWarning: invalid value encountered in sqrt
+  err = np.sqrt(np.diag(C))
+
+  --- expected (Asimov) errors from the reference-point information (n = 3682662) ---
+    parameter        error   N=3.68e+06
+         m_Z          nan          nan
+     Gamma_Z       1.2998       1.2998
+      shape1          nan          nan
+      shape2          nan          nan
+      shape3          nan          nan
+      shape4          nan          nan
+      shape5          nan          nan
+      shape6          nan          nan
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5    shape6
+         m_Z       nan       nan       nan       nan       nan       nan       nan       nan
+     Gamma_Z       nan    1.0000       nan       nan       nan       nan       nan       nan
+      shape1       nan       nan       nan       nan       nan       nan       nan       nan
+      shape2       nan       nan       nan       nan       nan       nan       nan       nan
+      shape3       nan       nan       nan       nan       nan       nan       nan       nan
+      shape4       nan       nan       nan       nan       nan       nan       nan       nan
+      shape5       nan       nan       nan       nan       nan       nan       nan       nan
+      shape6       nan       nan       nan       nan       nan       nan       nan       nan
+/orcd/pool/005/david_w/zmass/fullscale/fit.py:247: RuntimeWarning: invalid value encountered in sqrt
+  "asimov_err": np.sqrt(np.diag(np.linalg.inv(H0))).tolist()}
+     snapshots -> /home/david_w/orcd/pool/zmass/fitresults/V_s6.snap.hdf5 (every 0.25 h, plus interrupt / failure / convergence)
+       it    1     132.9 s  NLL -12164281.424718  radius 0.25
+       it    2     134.0 s  NLL -12164281.424718  radius 0.0625
+       it    3     135.1 s  NLL -12164281.424718  radius 0.0156
+       it    4     136.3 s  NLL -12164281.424718  radius 0.00391
+       it    5     137.4 s  NLL -12164281.424718  radius 0.000977
+       it    6     138.5 s  NLL -12164281.424718  radius 0.000244
+       it    7     157.3 s  NLL -12174489.966471  radius 0.000488
+       it    8     194.0 s  NLL -12174489.966471  radius 0.000122
+       it    9     212.8 s  NLL -12442551.918715  radius 0.000244
+       it   10     249.4 s  NLL -12442551.918715  radius 6.1e-05
+       it   11     268.3 s  NLL -13564878.376528  radius 0.000122
+       it   12     304.9 s  NLL -13564878.376528  radius 3.05e-05
+       it   13     323.8 s  NLL -14989858.874049  radius 6.1e-05
+       it   14     378.2 s  NLL -20712533.427496  radius 0.000122
+       it   15     414.9 s  NLL -20712533.427496  radius 3.05e-05
+       it   16     416.0 s  NLL -20712533.427496  radius 7.63e-06
+       it   17     434.8 s  NLL -21960555.970102  radius 1.53e-05
+       it   18     471.4 s  NLL -21960555.970102  radius 3.81e-06
+       it   19     490.3 s  NLL -22745780.286769  radius 7.63e-06
+       it   20     526.9 s  NLL -22745780.286769  radius 1.91e-06
+       it   21     545.7 s  NLL -23217208.939295  radius 3.81e-06
+       it   22     582.3 s  NLL -23217208.939295  radius 9.54e-07
+       it   23     601.2 s  NLL -23486314.863631  radius 1.91e-06
+[2026-09-08T04:40:38.053] error: *** JOB 22272249 ON node5105 CANCELLED AT 2026-09-08T04:40:38 DUE to SIGNAL Terminated ***

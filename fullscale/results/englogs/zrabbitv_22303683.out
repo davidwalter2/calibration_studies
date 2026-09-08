@@ -1,0 +1,109 @@
+############ Rdc8X  12:09:01  card /home/david_w/orcd/pool/zmass/cards/z_F_dc8.hdf5  method tf-trust-exact
+NVIDIA H200 NVL, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788883741.307504 2053259 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788883742.515326 2053259 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: unbinned term 'zmass': 4445 of 3682662 candidates (0.1207 %) have |c_i/sigma_i| above corr_coeff_max = 0.08; the quadratic coefficient is bounded there[0m
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 3682662 candidates, 113 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 3682662 candidates in 113 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=tf-trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 162244765.41518497[0m
+[38;21mINFO:fitter.py:   - edmval: 7462.9188295499125[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 1080367219.8431563[0m
+[38;21mINFO:fitter.py:   - edmval: 8626.732417210276[0m
+[38;21mINFO:fitter.py:   - Condition number: 1826546283.610308[0m
+[38;21mINFO:fitter.py:   - edmval: -579.6058402292765[0m
+[38;21mINFO:fitter.py:   - Condition number: 3585513505.324604[0m
+[38;21mINFO:fitter.py:   - edmval: 3819.1044428297528[0m
+[38;21mINFO:fitter.py:   - Condition number: 112127198454.26578[0m
+[38;21mINFO:fitter.py:   - edmval: 6382.651975209008[0m
+[38;21mINFO:fitter.py:   - Condition number: 70934832437.23337[0m
+[38;21mINFO:fitter.py:   - edmval: 6995.411697930378[0m
+[38;21mINFO:fitter.py:   - Condition number: 59888404668.356895[0m
+[38;21mINFO:fitter.py:   - edmval: 7542.51164193638[0m
+[38;21mINFO:fitter.py:   - Condition number: 58349690205.59751[0m
+[38;21mINFO:fitter.py:   - edmval: 7547.252581520767[0m
+[38;21mINFO:fitter.py:   - Condition number: 57549348362.56977[0m
+[38;21mINFO:fitter.py:   - edmval: 7307.71680439149[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 55899649789.21571[0m
+[38;21mINFO:fitter.py:   - edmval: 6837.091085819485[0m
+[38;21mINFO:fitter.py:   - Condition number: 52290365659.82885[0m
+[38;21mINFO:fitter.py:   - edmval: 5978.683351763877[0m
+[38;21mINFO:fitter.py:   - Condition number: 44076523974.08547[0m
+[38;21mINFO:fitter.py:   - edmval: 4561.624774128217[0m
+[38;21mINFO:fitter.py:   - Condition number: 27719235274.49455[0m
+[38;21mINFO:fitter.py:   - edmval: 2644.8439567079236[0m
+[38;21mINFO:fitter.py:   - Condition number: 10446132427.403368[0m
+[38;21mINFO:fitter.py:   - edmval: 644.4956092060688[0m
+[38;21mINFO:fitter.py:   - Condition number: 7335622277.436049[0m
+[38;21mINFO:fitter.py:   - edmval: 88.75147306246186[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 7440988217.090911[0m
+[38;21mINFO:fitter.py:   - edmval: 89.12818452256509[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 7494990504.718647[0m
+[38;21mINFO:fitter.py:   - edmval: 89.32655820512561[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 79159465290.82684[0m
+[38;21mINFO:fitter.py:   - edmval: 83.05909636680337[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 106741056055.08109[0m
+[38;21mINFO:fitter.py:   - edmval: 82.48891314859486[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 256683976013.95895[0m
+[38;21mINFO:fitter.py:   - edmval: 86.13197787987292[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 328975359748.30334[0m
+[38;21mINFO:fitter.py:   - edmval: 1621.2018693108985[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 318061565369.4411[0m
+[38;21mINFO:fitter.py:   - edmval: 1403.877634899959[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 315716935793.69025[0m
+[38;21mINFO:fitter.py:   - edmval: 1328.695524066826[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 524247058886.91486[0m
+[38;21mINFO:fitter.py:   - edmval: 90.6831447524919[0m
+[33;21mWARNING:exact.py: trust-region subproblem lambda search hit maxiter=50; returning safeguarded step[0m
+[38;21mINFO:fitter.py:   - Condition number: 1071090034603.908[0m
+[38;21mINFO:fitter.py:   - edmval: 69.74974143911822[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 1843233870394.4365[0m
+[38;21mINFO:fitter.py:   - edmval: 39.5250295012811[0m
+[38;21mINFO:fitter.py:   - Condition number: 2391947463223.726[0m
+[38;21mINFO:fitter.py:   - edmval: 9.098106703602525[0m
+[38;21mINFO:fitter.py:   - Condition number: 2752348032161.482[0m
+[38;21mINFO:fitter.py:   - edmval: 1.549375008241384[0m
+[38;21mINFO:fitter.py:   - Condition number: 2838557128708.214[0m
+[38;21mINFO:fitter.py:   - edmval: 0.25238154656919676[0m
+[38;21mINFO:fitter.py:   - Condition number: 2861367060002.473[0m
+[38;21mINFO:fitter.py:   - edmval: 3.3388102752596877e-05[0m
+[38;21mINFO:fitter.py:   - Condition number: 2861351130377.9883[0m
+[38;21mINFO:fitter.py:   - edmval: 3.769586960238492e-12[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (converged) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.snapshot.hdf5[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 3.769586960184932e-12[0m
+[38;21mINFO:rabbit_fit.py: edmvalbeta: (np.float64(0.0), <tf.Tensor: shape=(0, 0), dtype=float64, numpy=array([], shape=(0, 0), dtype=float64)>)[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute 11014819.079300 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -10[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 0.0[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Rdc8X.hdf5
+[38;21mINFO:rabbit_fit.py: 3731.34 seconds total time[0m
+############ done 13:11:17

@@ -1,0 +1,124 @@
+############ n300k  11:23:27  card /home/david_w/orcd/pool/zmass/cards/z_n300k.hdf5  method tf-trust-exact
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881021.356700 2083091 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881071.343915 2083091 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[gate] /home/david_w/orcd/pool/zmass/cards/z_n300k.hdf5: 1 unbinned term(s), loaded in 37 s
+        zmass: n 300000, 10 chunk(s) of 32768, 11 params, graph_chunkable True
+
+=== 1. graph chunk loop vs the eager python loop (same term) ===
+  zmass point 0: value 1.323e-16, grad 4.877e-14, hvp 2.766e-14   OK
+  zmass point 1: value 0.000e+00, grad 4.588e-14, hvp 8.741e-14   OK
+
+=== 2. rabbit's term vs the standalone chunked objectives ===
+WARNING:tensorflow:5 out of the last 5 calls to <function vgh_fn.<locals>._vgh at 0x1472481b8680> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+  zmass vs ChunkedObjective : value 0.000e+00, grad 1.992e-16, hvp 2.648e-16   OK
+  zmass vs DeviceChunkedObjective: worst 3.310e-17   OK
+
+=== 3. the Fitter's loss / gradient / HVP ===
+  11 fit parameters, jit_compile False, hvp revrev, hessian route hvps
+  loss 879731.996302115  [value 1.62 s, value+grad 1.82 s, +hvp 17.02 s]
+  loss_val vs loss_val_grad: 0.000e+00   OK
+  gradient . p: analytic -335.38273, central FD -335.38276, rel 1.06e-07   OK
+
+=== 4. the Hessian route (HVP columns) and the EDM ===
+  Hessian in 9.1 s, asymmetry 0.00e+00, eigenvalues [-0.03631, 6.214e+04], EDM -4461
+WARNING:tensorflow:5 out of the last 5 calls to <function pfor.<locals>.f at 0x144e47ab6020> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+WARNING:tensorflow:6 out of the last 6 calls to <function pfor.<locals>.f at 0x144e47ab5080> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+  Fitter Hessian block vs ChunkedObjective.hess (pfor) (11x11): 6.702e-16   OK
+
+ALL GATES PASSED
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881371.905726 2177635 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788881373.284915 2177635 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 300000 candidates, 10 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 300000 candidates in 10 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=tf-trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 144455306.9534836[0m
+[38;21mINFO:fitter.py:   - edmval: 16495.334777032374[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_n300k.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_n300k.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 2585986595.794121[0m
+[38;21mINFO:fitter.py:   - edmval: 9348.575234622213[0m
+[38;21mINFO:fitter.py:   - Condition number: 1645132240.1645339[0m
+[38;21mINFO:fitter.py:   - edmval: 10529.33402381703[0m
+[38;21mINFO:fitter.py:   - Condition number: 1709992904.6915903[0m
+[38;21mINFO:fitter.py:   - edmval: 9589.8799200599[0m
+[38;21mINFO:fitter.py:   - Condition number: 1942009930.8229403[0m
+[38;21mINFO:fitter.py:   - edmval: 6394.442363336234[0m
+[38;21mINFO:fitter.py:   - Condition number: 2323141263.924321[0m
+[38;21mINFO:fitter.py:   - edmval: 3015.5302825737344[0m
+[38;21mINFO:fitter.py:   - Condition number: 3659503451.3919544[0m
+[38;21mINFO:fitter.py:   - edmval: 1150.4651452385797[0m
+[38;21mINFO:fitter.py:   - Condition number: 2344839574.446377[0m
+[38;21mINFO:fitter.py:   - edmval: 421.46743605696014[0m
+[38;21mINFO:fitter.py:   - Condition number: 1378109687.8831418[0m
+[38;21mINFO:fitter.py:   - edmval: 227.5747697472414[0m
+[38;21mINFO:fitter.py:   - Condition number: 1129417846.7745683[0m
+[38;21mINFO:fitter.py:   - edmval: 210.74059558455022[0m
+[38;21mINFO:fitter.py:   - Condition number: 1432682046.865999[0m
+[38;21mINFO:fitter.py:   - edmval: 210.4418272536082[0m
+[38;21mINFO:fitter.py:   - Condition number: 1406730777.3054523[0m
+[38;21mINFO:fitter.py:   - edmval: 209.94430600768513[0m
+[38;21mINFO:fitter.py:   - Condition number: 1405846459.1652553[0m
+[38;21mINFO:fitter.py:   - edmval: 208.93944161113342[0m
+[38;21mINFO:fitter.py:   - Condition number: 1404529341.2672043[0m
+[38;21mINFO:fitter.py:   - edmval: 206.98661080547564[0m
+[38;21mINFO:fitter.py:   - Condition number: 1401785876.3263228[0m
+[38;21mINFO:fitter.py:   - edmval: 203.01808517996278[0m
+[38;21mINFO:fitter.py:   - Condition number: 1400421649.3991137[0m
+[38;21mINFO:fitter.py:   - edmval: 201.03625794742254[0m
+[38;21mINFO:fitter.py:   - Condition number: 1397629138.6844656[0m
+[38;21mINFO:fitter.py:   - edmval: 197.13387592975192[0m
+[38;21mINFO:fitter.py:   - Condition number: 1396238784.9579365[0m
+[38;21mINFO:fitter.py:   - edmval: 195.18420107585592[0m
+[38;21mINFO:fitter.py:   - Condition number: 1393399982.8303983[0m
+[38;21mINFO:fitter.py:   - edmval: 191.35040539558258[0m
+[38;21mINFO:fitter.py:   - Condition number: 1391983829.4822648[0m
+[38;21mINFO:fitter.py:   - edmval: 189.4325523111595[0m
+[38;21mINFO:fitter.py:   - Condition number: 1389099491.4889858[0m
+[38;21mINFO:fitter.py:   - edmval: 185.6663999173422[0m
+[38;21mINFO:fitter.py:   - Condition number: 1387657789.3658001[0m
+[38;21mINFO:fitter.py:   - edmval: 183.77988091738752[0m
+[38;21mINFO:fitter.py:   - Condition number: 1384728743.8292136[0m
+[38;21mINFO:fitter.py:   - edmval: 180.0804476345853[0m
+[38;21mINFO:fitter.py:   - Condition number: 1383261755.823429[0m
+[38;21mINFO:fitter.py:   - edmval: 178.22478938546595[0m
+[38;21mINFO:fitter.py:   - Condition number: 1380288838.348433[0m
+[38;21mINFO:fitter.py:   - edmval: 174.591180210119[0m
+[38;21mINFO:fitter.py:   - Condition number: 1378796851.0242069[0m
+[38;21mINFO:fitter.py:   - edmval: 172.76592398102645[0m
+[38;21mINFO:fitter.py:   - Condition number: 1375780939.6267087[0m
+[38;21mINFO:fitter.py:   - edmval: 169.1972733958231[0m
+[38;21mINFO:fitter.py:   - Condition number: 1374264260.5044663[0m
+[38;21mINFO:fitter.py:   - edmval: 167.40197466484196[0m
+[38;21mINFO:fitter.py:   - Condition number: 1371206268.575399[0m
+[38;21mINFO:fitter.py:   - edmval: 163.8974468365572[0m
+[38;21mINFO:fitter.py:   - Condition number: 1369665211.915944[0m
+[38;21mINFO:fitter.py:   - edmval: 162.1316747772349[0m
+[38;21mINFO:fitter.py:   - Condition number: 1366566065.1150951[0m
+[38;21mINFO:fitter.py:   - edmval: 158.69046362543443[0m
+[38;21mINFO:fitter.py:   - Condition number: 1365000952.2338214[0m
+[38;21mINFO:fitter.py:   - edmval: 156.95380046360552[0m
+[38;21mINFO:fitter.py:   - Condition number: 1361861635.398262[0m
+[38;21mINFO:fitter.py:   - edmval: 153.5751295999167[0m
+[38;21mINFO:fitter.py:   - Condition number: 1360272794.8344886[0m
+[38;21mINFO:fitter.py:   - edmval: 151.86716984026347[0m
+[38;21mINFO:fitter.py:   - Condition number: 1357094295.2685063[0m
+[38;21mINFO:fitter.py:   - edmval: 148.5502923885853[0m
+[38;21mINFO:fitter.py:   - Condition number: 1355482063.4186742[0m
+[38;21mINFO:fitter.py:   - edmval: 146.87064191290833[0m
+[38;21mINFO:fitter.py:   - Condition number: 1352265393.1992197[0m
+[38;21mINFO:fitter.py:   - edmval: 143.61484019562099[0m
+[38;21mINFO:fitter.py:   - Condition number: 1350630114.2660801[0m
+[38;21mINFO:fitter.py:   - edmval: 141.96311520504514[0m
+[38;21mINFO:fitter.py:   - Condition number: 1347376312.6185267[0m
+[38;21mINFO:fitter.py:   - edmval: 138.76770030137263[0m
+[2026-09-08T11:36:23.206] error: *** JOB 22297922 ON node3101 CANCELLED AT 2026-09-08T11:36:23 DUE to SIGNAL Terminated ***

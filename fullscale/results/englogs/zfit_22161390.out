@@ -1,0 +1,48 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788735192.216429 3668557 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788735222.883785 3668557 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] base: 3613320 candidates, nt 64 (integration 253), loaded in 44 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, background uniform
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 14 chunks of 262144
+Traceback (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale/fit.py", line 251, in <module>
+    main()
+    ~~~~^^
+  File "/orcd/pool/005/david_w/zmass/fullscale/fit.py", line 178, in main
+    H0 = obj.hess(x0)
+  File "/orcd/pool/005/david_w/zmass/fullscale/chunkfit.py", line 314, in hess
+    H = H + piece(v, it, t, ci)
+            ~~~~~^^^^^^^^^^^^^^
+  File "/orcd/pool/005/david_w/zmass/fullscale/chunkfit.py", line 284, in _hess_piece_pfor
+    return t2.jacobian(g, v).numpy()
+           ~~~~~~~~~~~^^^^^^
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/eager/backprop.py", line 1170, in jacobian
+    output = pfor_ops.pfor(loop_fn, target_size,
+                           parallel_iterations=parallel_iterations)
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/ops/parallel_for/control_flow_ops.py", line 228, in pfor
+    outputs = f()
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/util/traceback_utils.py", line 167, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/eager/execute.py", line 59, in quick_execute
+    except TypeError as e:
+    ...<5 lines>...
+      raise e
+tensorflow.python.framework.errors_impl.ResourceExhaustedError: Graph execution error:
+
+Detected at node gradient_tape/GatherV2_36/pfor/Tile defined at (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale/fit.py", line 251, in <module>
+
+  File "/orcd/pool/005/david_w/zmass/fullscale/fit.py", line 178, in main
+
+  File "/orcd/pool/005/david_w/zmass/fullscale/chunkfit.py", line 314, in hess
+
+  File "/orcd/pool/005/david_w/zmass/fullscale/chunkfit.py", line 284, in _hess_piece_pfor
+
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/ops/parallel_for/control_flow_ops.py", line 212, in f
+
+OOM when allocating tensor with shape[7,66322432] and type int64 on /job:localhost/replica:0/task:0/device:GPU:0 by allocator GPU_0_bfc
+	 [[{{node gradient_tape/GatherV2_36/pfor/Tile}}]]
+Hint: If you want to see a list of allocated tensors when OOM happens, add report_tensor_allocations_upon_oom to RunOptions for current allocation info. This isn't available when running in Eager mode.
+ [Op:__inference_f_36388]

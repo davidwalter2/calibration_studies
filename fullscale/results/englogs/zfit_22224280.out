@@ -1,0 +1,42 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788823984.940640 3294374 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788824019.295676 3294374 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] f380fl_s7: 3682662 candidates, nt 64 (integration 253), loaded in 36 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5', 'shape6', 'shape7']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form fluctuation, background uniform
+      9 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 113 chunks of 32768
+WARNING:tensorflow:5 out of the last 5 calls to <function pfor.<locals>.f at 0x1515ff13a840> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+WARNING:tensorflow:6 out of the last 6 calls to <function pfor.<locals>.f at 0x1515ff13a8e0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+
+  reference point: NLL 11082081.115688, |grad|inf 5.545e+05   [value+grad 32.2 s, Hessian 438.4 s (pfor), peak RSS 21.5 GB]
+  Hessian eigenvalues [-4.3432e+10 -1.2830e+07 -3.7385e+03  1.3670e-01  3.3588e-01  1.9482e+04
+  2.6990e+04  7.9109e+04  1.2074e+05] (cond 1.21e+305)
+/orcd/pool/005/david_w/zmass/fullscale/chunkfit.py:396: RuntimeWarning: invalid value encountered in sqrt
+  err = np.sqrt(np.diag(C))
+
+  --- expected (Asimov) errors from the reference-point information (n = 3682662) ---
+    parameter        error   N=3.68e+06
+         m_Z       1.9428       1.9428
+     Gamma_Z       2.5531       2.5531
+      shape1       0.0049       0.0049
+      shape2       0.0036       0.0036
+      shape3       0.0054       0.0054
+      shape4       0.0022       0.0022
+      shape5          nan          nan
+      shape6          nan          nan
+      shape7          nan          nan
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5    shape6    shape7
+         m_Z    1.0000    0.3387   -0.0797    0.2983    0.6531    1.2147       nan       nan       nan
+     Gamma_Z    0.3387    1.0000    0.2315   -1.6411   -0.5400   -0.9655       nan       nan       nan
+      shape1   -0.0797    0.2315    1.0000   -0.1132    0.4834    0.9074       nan       nan       nan
+      shape2    0.2983   -1.6411   -0.1132    1.0000   -0.8363   -1.6289       nan       nan       nan
+      shape3    0.6531   -0.5400    0.4834   -0.8363    1.0000   -1.8548       nan       nan       nan
+      shape4    1.2147   -0.9655    0.9074   -1.6289   -1.8548    1.0000       nan       nan       nan
+      shape5       nan       nan       nan       nan       nan       nan       nan       nan       nan
+      shape6       nan       nan       nan       nan       nan       nan       nan       nan       nan
+      shape7       nan       nan       nan       nan       nan       nan       nan       nan       nan
+/orcd/pool/005/david_w/zmass/fullscale/fit.py:235: RuntimeWarning: invalid value encountered in sqrt
+  "asimov_err": np.sqrt(np.diag(np.linalg.inv(H0))).tolist()}
+[2026-09-07T23:46:55.862] error: *** JOB 22224280 ON node4900 CANCELLED AT 2026-09-07T23:46:55 DUE to SIGNAL Terminated ***

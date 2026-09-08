@@ -1,0 +1,78 @@
+NVIDIA H200, 143771 MiB, 590.48.01
+############ probe 20:15:27  card /home/david_w/orcd/pool/zmass/cards/z_n300k.hdf5  chunks 8192 32768 131072 300000
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788826530.615516 3944301 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788826542.926635 3944301 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+GPUs: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+[probe] zmass: n 300000, nt 64 (integration 253), card chunk 32768, loaded in 11 s
+        7 free: ['m_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+
+==== chunk 8192 ====
+Traceback (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/probe_native.py", line 172, in <module>
+    main()
+    ~~~~^^
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/probe_native.py", line 107, in main
+    tf_first, t_vg = timeit(lambda: dev.value_grad(x0), args.repeat)
+                     ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/probe_native.py", line 54, in timeit
+    fn()
+    ~~^^
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/probe_native.py", line 107, in <lambda>
+    tf_first, t_vg = timeit(lambda: dev.value_grad(x0), args.repeat)
+                                    ~~~~~~~~~~~~~~^^^^
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/devobj.py", line 236, in value_grad
+    v, g = self._f_value_grad(self._tf(xf))
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/util/traceback_utils.py", line 167, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_file6r2d3ve2.py", line 50, in tf___value_grad_impl
+    ag__.for_stmt(ag__.converted_call(ag__.ld(range), (ag__.converted_call(ag__.ld(len), (ag__.ld(self).terms,), None, fscope),), None, fscope), None, loop_body, get_state, set_state, ('grad', 'tot'), {'iterate_names': 'it'})
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_file6r2d3ve2.py", line 44, in loop_body
+    v, g = ag__.converted_call(ag__.ld(self)._term_loop, (ag__.ld(it), ag__.ld(xf), (ag__.converted_call(ag__.ld(tf).zeros, ([], ag__.ld(DTYPE)), None, fscope), ag__.ld(zero_g)), ag__.ld(piece)), None, fscope)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_filek6_qhdej.py", line 73, in tf___term_loop
+    ag__.if_stmt(ag__.ld(nch) == 0, if_body, else_body, get_state, set_state, ('do_return', 'retval_'), 2)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_filek6_qhdej.py", line 63, in else_body
+    out = ag__.converted_call(ag__.ld(tf).while_loop, (ag__.ld(cond), ag__.ld(body), (ag__.converted_call(ag__.ld(tf).constant, (0, ag__.ld(tf).int32), None, fscope),) + ag__.converted_call(ag__.ld(tuple), (ag__.ld(init),), None, fscope)), dict(parallel_iterations=1, swap_memory=False, maximum_iterations=ag__.ld(nch)), fscope)
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_filek6_qhdej.py", line 55, in body
+    piece = ag__.converted_call(ag__.ld(body_piece), (ag__.ld(ci), ag__.ld(xf)), None, fscope_2)
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_file6r2d3ve2.py", line 35, in piece
+    f = ag__.converted_call(ag__.ld(self)._chunk_value, (ag__.ld(it), ag__.ld(ci), ag__.ld(x)), None, fscope_1)
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_filerxp8qxl2.py", line 18, in tf___chunk_value
+    raise
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_filem6ktq112.py", line 11, in tf___chunk_nll
+    li = ag__.converted_call(ag__.ld(term)._chunk_li, (ag__.ld(values), ag__.ld(ci)), None, fscope)
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_file5qx075qa.py", line 12, in tf___chunk_li
+    delta = ag__.converted_call(ag__.ld(self)._chunk_residual, (ag__.ld(values), ag__.ld(ci)), None, fscope)
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_fileowkql7s2.py", line 63, in tf___chunk_residual
+    raise
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_filewds8yopq.py", line 67, in tf___jensen_exact
+    ag__.if_stmt(ag__.or_(lambda: ag__.not_(ag__.ld(self)._jensen), lambda: ag__.ld(self).jensen_mode != 'exact'), if_body, else_body, get_state, set_state, ('do_return', 'retval_', 'self._jensen_clipped[ci]', 'self._jensen_u[ci]'), 4)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/tmp/__autograph_generated_filewds8yopq.py", line 51, in else_body
+    ag__.ld(self)._jensen_u[ag__.ld(ci)] = ag__.ld(u)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TypeError: in user code:
+
+    File "/orcd/pool/005/david_w/zmass/fullscale_native/devobj.py", line 189, in piece  *
+        f = self._chunk_value(it, ci, x)
+    File "/orcd/pool/005/david_w/zmass/fullscale_native/devobj.py", line 145, in body  *
+        piece = body_piece(ci, xf)
+    File "/orcd/pool/005/david_w/zmass/fullscale_native/devobj.py", line 162, in _chunk_value  *
+        return self._chunk_nll(t, vals, ci)
+    File "/orcd/pool/005/david_w/zmass/fullscale_native/chunkfit.py", line 169, in _chunk_nll  *
+        li = term._chunk_li(values, ci)
+    File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 1825, in _chunk_li  *
+        delta = self._chunk_residual(values, ci)
+    File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 1255, in _chunk_residual  *
+        return self._jensen_exact(delta, ci)
+    File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 1507, in _jensen_exact  *
+        self._jensen_u[ci] = u
+
+    TypeError: Tensor is unhashable. Instead, use tensor.ref() as the key.
+
+############ done 20:16:20

@@ -2682,3 +2682,75 @@ IT ARRIVED. **That is why sec. 0f.16's three-part test (value AND NLL AND EDM)
 is a permanent fixture and not this week's remedy** — the bias is towards the
 answer one is hoping for, which is exactly when a check is least likely to be
 demanded and most needed.
+
+### 0f.20 THE MINIMISER DECISION — BOTH TF PORTS FAIL THE SUBPROBLEM AT FULL
+### STATISTICS; SCIPY `trust-exact` IS THE CAMPAIGN MINIMISER (2026-09-08 14:00)
+
+All the controls of sec. 0f.18 are in. **`22304185 f380refK2` never ran** (it
+was CANCELLED while PENDING); the native agent's `22304228` is the krylov +
+loop-fix control and it is the one that answers the question.
+
+Every one of these is `z_full380_fl`, four frozen, from the prefit point. The
+reference is the standalone `fit.py` (host `trust-exact`), `f380fl_base`.
+
+| run | method | branch | `m_Z` | NLL | EDM |
+|---|---|---|---:|---:|---:|
+| `f380fl_base` (reference) | scipy `trust-exact`, standalone | — | **-11.064** | **11075392.4657** | 1.8e-18 |
+| `22301214 f380ref` | `tf-trust-krylov` | pre-`c5f46f0` | -0.127 | 11075407.1841 | 14.72 |
+| **`22304228 f380krylovfix`** | `tf-trust-krylov` | **`c5f46f0` (loop fix)** | **-0.127** | **11075407.1841** | **14.72** |
+| `22303682 f380refX` | `tf-trust-exact` + frozen fix | `a8b2bbc` | +0.233 | 11075420.3476 | 16.79 |
+
+**The loop fix changes nothing here: `f380krylovfix` is BIT-IDENTICAL to
+`f380ref`** (`m_Z`, NLL and EDM agree to every digit stored). So krylov's stop
+on this card is NOT through `predicted_reduction <= 0` — the fix is right and
+necessary, but this failure is a different one, and the retraction of 7.9 is
+therefore itself retracted: **`tf-trust-krylov` cannot be the campaign
+default at full statistics**, now measured against the fixed loop.
+
+**And `tf-trust-exact` + the frozen-diagonal fix is WORSE**, not better: NLL
+27.88 above the reference against krylov's 14.72, and again with the POIs
+sitting at their start (+0.233 against -11.064). Its EDM trajectory
+7210 -> 46.3 -> 224 -> 94 -> 33 -> 19 -> 16.93 -> 16.9439 -> ... -> 16.7943880899
+is a plateau, not a descent: the last eight iterations move the EDM in the
+sixth decimal. And the log names the cause 20 times:
+
+```
+WARNING:exact.py: trust-region subproblem lambda search hit maxiter=50;
+                  returning safeguarded step
+```
+
+**Both TF ports fail the SUBPROBLEM at this conditioning, in their own way.**
+GLTR loses Lanczos orthogonality (sec. 7.9); the TF More-Sorensen port hits its
+lambda-search iteration cap. The second is documented in `exact.py`'s own
+docstring as a deliberate omission: LAPACK's `potrf` returns the index `k` of
+the first non-positive-definite leading minor, scipy feeds it to
+`singular_leading_submatrix` to tighten `lambda_lb` below the critical damping,
+and `tf.linalg.cholesky` cannot report `k`. Without that accelerated bound the
+safeguarded bisection needs more than 50 iterations here. **This is exactly the
+difference between the TF port and the scipy original, and it is exactly the
+difference between the runs that stall and the run that converges.**
+
+**The decision: `--minimizerMethod trust-exact` (scipy, explicit Hessian)
+through `rabbit_fit.py`.** It is the reference algorithm, it is inside rabbit
+(so the standing rule holds and the EDM, the snapshots and the result file come
+with it), `scipy_hess` already applies `hess_for_minimizer` so the frozen rows
+are handled, and its per-iteration cost is the same `nfree` HVP columns
+`tf-trust-exact` already pays.
+
+**It is NOT free of the sec. 0f.15 caveat.** On two other cards
+`tf-trust-exact` + the fix DID converge, and to two different verdicts:
+
+| card | krylov | `tf-trust-exact` + fix | which is lower |
+|---|---:|---:|---|
+| `z_F_dc8` | 11014854.5548 (EDM 4.44) | **11014819.0793** (EDM 3.8e-12) | trust-exact, by 35.5 |
+| `z_V_full` | **-9827099.7568** (EDM 1.98) | -9827069.1806 (EDM 1.6e-12) | krylov, by 30.6 |
+
+so on `z_V_full` a fit that converged to EDM 1.6e-12 sits 30.6 NLL units ABOVE
+a fit that did not converge at all. Every row of the table needs BOTH numbers.
+
+**The suite that decides it** (all `rabbit_fit.py`, `--minimizerMethod
+trust-exact`, `GATE=0 FRESH=1`, four frozen; `engaging/submit_scipy_suite.sh`):
+`22311742 f380refS` is the control and passes only at `m_Z = -11.0643`,
+NLL `11075392.4657`, small EDM. `22311743-63` are the other 18 rows of the
+certified table (m form: `Sdc8 Stoy Stoydc Sw70110 Ss6 Ss7 SMetaB/T/E`;
+v form: `SVfull SVtoy SVs6 SVs7 SVetaB/T/E SVKetaB/T`).

@@ -1,0 +1,32 @@
+############ n300k  10:59:29  card /home/david_w/orcd/pool/zmass/cards/z_n300k.hdf5  method tf-trust-exact
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788879569.685478 3902150 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788879571.137553 3902150 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[gate] /home/david_w/orcd/pool/zmass/cards/z_n300k.hdf5: 1 unbinned term(s), loaded in 8 s
+        zmass: n 300000, 10 chunk(s) of 32768, 11 params, graph_chunkable True
+
+=== 1. graph chunk loop vs the eager python loop (same term) ===
+  zmass point 0: value 0.000e+00, grad 5.256e-14, hvp 1.368e-14   OK
+  zmass point 1: value 0.000e+00, grad 5.004e-14, hvp 1.576e-14   OK
+
+=== 2. rabbit's term vs the standalone chunked objectives ===
+  zmass vs ChunkedObjective : value 0.000e+00, grad 3.983e-16, hvp 2.648e-16   OK
+  zmass vs DeviceChunkedObjective: worst 5.975e-16   OK
+
+=== 3. the Fitter's loss / gradient / HVP ===
+  11 fit parameters, jit_compile False, hvp revrev, hessian route hvps
+  loss 879731.996302115  [value 1.98 s, value+grad 2.16 s, +hvp 19.77 s]
+  loss_val vs loss_val_grad: 0.000e+00   OK
+  gradient . p: analytic -335.38273, central FD -335.38276, rel 1.06e-07   OK
+
+=== 4. the Hessian route (HVP columns) and the EDM ===
+Traceback (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/test_rabbit_path.py", line 280, in <module>
+    main()
+    ~~~~^^
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/test_rabbit_path.py", line 255, in main
+    edmval = float(np.asarray(tfh.edmval(gh, tf.constant(H, f.x.dtype))))
+TypeError: float() argument must be a string or a real number, not 'function'

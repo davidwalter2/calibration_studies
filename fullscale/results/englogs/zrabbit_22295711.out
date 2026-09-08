@@ -1,0 +1,52 @@
+############ f380  11:03:27  card /home/david_w/orcd/pool/zmass/cards/z_full380.hdf5  method tf-trust-krylov
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788879807.559805 3906714 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788879808.900076 3906714 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[gate] /home/david_w/orcd/pool/zmass/cards/z_full380.hdf5: 1 unbinned term(s), loaded in 47 s
+        zmass: n 3682662, 113 chunk(s) of 32768, 11 params, graph_chunkable True
+
+=== 1. graph chunk loop vs the eager python loop (same term) ===
+Traceback (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/test_rabbit_path.py", line 280, in <module>
+    main()
+    ~~~~^^
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/test_rabbit_path.py", line 136, in main
+    v = t.nll(xt)
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 2395, in nll
+    li = self._chunk_li(values, ci)
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 2139, in _chunk_li
+    return self._density(
+           ~~~~~~~~~~~~~^
+        values,
+        ^^^^^^^
+    ...<10 lines>...
+        corr_w=self._fluct_w(values, ci) if self._fluct_active else None,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 2049, in _density
+    k_re, k_im = self.kernel.log_cf(values, t_abs)
+                 ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 447, in log_cf
+    return self.provider(values, t_abs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/lineshapes/zgamma.py", line 964, in log_cf
+    re, im = self._interp(tab_re, tab_im, t_abs)
+             ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/lineshapes/zgamma.py", line 959, in _interp
+    return take(tab_re), take(tab_im)
+                         ~~~~^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/lineshapes/zgamma.py", line 953, in take
+    w_m1 * tf.gather(tab, idx - 1)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + w_0 * tf.gather(tab, idx)
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/util/traceback_utils.py", line 167, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/framework/ops.py", line 6027, in raise_from_not_ok_status
+    raise core._status_to_exception(e) from None  # pylint: disable=protected-access
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tensorflow.python.framework.errors_impl.ResourceExhaustedError: {{function_node __wrapped__AddV2_device_/job:localhost/replica:0/task:0/device:GPU:0}} failed to allocate memory [Op:AddV2] name: 

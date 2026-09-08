@@ -1,0 +1,799 @@
+############ n300k  20:21:52  card /home/david_w/orcd/pool/zmass/cards/z_n300k.hdf5
+NVIDIA H200, 143771 MiB, 590.48.01
+GPUs: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+
+======== n300k_host_trust-exact  20:22:01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788826921.737934  462682 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788826922.759186  462682 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] n300k_host_trust-exact: 300000 candidates, nt 64 (integration 253), loaded in 8 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form residual, background uniform
+  minimiser: method trust-exact, engine host
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 10 chunks of 32768
+WARNING:tensorflow:5 out of the last 5 calls to <function pfor.<locals>.f at 0x14e5c4e7be20> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+WARNING:tensorflow:6 out of the last 6 calls to <function pfor.<locals>.f at 0x14e5c4e58f40> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+
+  reference point: NLL 879751.158119, |grad|inf 4326   [value+grad 5.0 s, Hessian 32.6 s (pfor), peak RSS 14.0 GB]
+  Hessian eigenvalues [4.8659e-03 2.2129e-02 1.4226e+03 3.1110e+03 4.3666e+03 9.4783e+03
+ 7.0290e+05] (cond 1.44e+08)
+
+  --- expected (Asimov) errors from the reference-point information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.8371       6.8371
+     Gamma_Z      14.2813      14.2813
+      shape1       0.0226       0.0226
+      shape2       0.0191       0.0191
+      shape3       0.0182       0.0182
+      shape4       0.0276       0.0276
+      shape5       0.0053       0.0053
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000   -0.1610   -0.3540    0.1823    0.5142   -0.2205    0.1441
+     Gamma_Z   -0.1610    1.0000    0.3803   -0.5587   -0.2055    0.6115   -0.5790
+      shape1   -0.3540    0.3803    1.0000   -0.4565   -0.0760    0.6547   -0.6612
+      shape2    0.1823   -0.5587   -0.4565    1.0000    0.1579   -0.4234    0.3683
+      shape3    0.5142   -0.2055   -0.0760    0.1579    1.0000   -0.3322    0.1894
+      shape4   -0.2205    0.6115    0.6547   -0.4234   -0.3322    1.0000   -0.9617
+      shape5    0.1441   -0.5790   -0.6612    0.3683    0.1894   -0.9617    1.0000
+     snapshots -> /home/david_w/orcd/pool/zmass/fitresults/native/n300k_host_trust-exact.snapshot.hdf5 (every 0.05 h, plus interrupt / failure / convergence)
+       it    1      71.4 s
+       it    2     107.4 s
+       it    3     142.6 s
+       it    4     177.4 s
+       it    5     212.8 s
+       it    6     247.7 s
+       it    7     283.3 s
+       it    8     318.6 s
+       it    9     354.2 s
+       it   10     389.0 s
+       it   11     423.9 s
+       it   12     459.7 s
+       it   13     495.5 s
+       it   14     531.3 s
+       it   15     566.9 s
+       it   16     602.5 s
+       it   17     637.2 s
+       it   18     672.5 s
+       it   19     707.5 s
+       it   20     743.1 s
+     GPU over the fit: mean 9.1 %, median 0.0 %, p90 32.9 %, peak mem 138.1 GB (732 samples)
+     minimiser: 20 iterations, 776.7 s, peak host RSS 19.1 GB
+
+  fit: 20 iterations, 777 s, NLL 874734.996606, |grad|inf 0.00174
+
+  --- fitted values / observed information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.0069       6.0069
+     Gamma_Z      11.1916      11.1916
+      shape1       0.0226       0.0226
+      shape2       0.0307       0.0307
+      shape3       0.0263       0.0263
+      shape4       0.0243       0.0243
+      shape5       0.0043       0.0043
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000    0.0324    0.2228    0.2852    0.4788    0.3088   -0.3560
+     Gamma_Z    0.0324    1.0000    0.0015   -0.0266    0.0407    0.4176   -0.3723
+      shape1    0.2228    0.0015    1.0000    0.7562    0.8201    0.5022   -0.6022
+      shape2    0.2852   -0.0266    0.7562    1.0000    0.6606    0.7674   -0.8167
+      shape3    0.4788    0.0407    0.8201    0.6606    1.0000    0.5040   -0.6247
+      shape4    0.3088    0.4176    0.5022    0.7674    0.5040    1.0000   -0.9847
+      shape5   -0.3560   -0.3723   -0.6022   -0.8167   -0.6247   -0.9847    1.0000
+
+    fitted values (sandwich errors where available):
+      parameter        fitted       error       truth    fit-truth    pull
+           m_Z     -35.50532     6.00694    +0.00000    -35.50532   -5.91
+       Gamma_Z    -421.02879    11.19157    +0.00190   -421.03069  -37.62
+        shape1      -1.06186     0.02264           -            -       -
+        shape2      -0.83013     0.03066           -            -       -
+        shape3      -0.60830     0.02633           -            -       -
+        shape4      -1.84636     0.02432           -            -       -
+        shape5      +0.30591     0.00428           -            -       -
+
+  -> /home/david_w/orcd/pool/zmass/fitresults/native/fit_n300k_host_trust-exact.json
+-------- n300k_host_trust-exact done 20:36:18
+
+======== n300k_host_trust-krylov  20:36:18
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788827778.778540  398215 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788827780.164763  398215 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] n300k_host_trust-krylov: 300000 candidates, nt 64 (integration 253), loaded in 4 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form residual, background uniform
+  minimiser: method trust-krylov, engine host
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 10 chunks of 32768
+WARNING:tensorflow:5 out of the last 5 calls to <function pfor.<locals>.f at 0x1547ba56be20> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+WARNING:tensorflow:6 out of the last 6 calls to <function pfor.<locals>.f at 0x1547ba548f40> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+
+  reference point: NLL 879751.158119, |grad|inf 4326   [value+grad 4.9 s, Hessian 32.4 s (pfor), peak RSS 18.2 GB]
+  Hessian eigenvalues [4.8659e-03 2.2129e-02 1.4226e+03 3.1110e+03 4.3666e+03 9.4783e+03
+ 7.0290e+05] (cond 1.44e+08)
+
+  --- expected (Asimov) errors from the reference-point information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.8371       6.8371
+     Gamma_Z      14.2813      14.2813
+      shape1       0.0226       0.0226
+      shape2       0.0191       0.0191
+      shape3       0.0182       0.0182
+      shape4       0.0276       0.0276
+      shape5       0.0053       0.0053
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000   -0.1610   -0.3540    0.1823    0.5142   -0.2205    0.1441
+     Gamma_Z   -0.1610    1.0000    0.3803   -0.5587   -0.2055    0.6115   -0.5790
+      shape1   -0.3540    0.3803    1.0000   -0.4565   -0.0760    0.6547   -0.6612
+      shape2    0.1823   -0.5587   -0.4565    1.0000    0.1579   -0.4234    0.3683
+      shape3    0.5142   -0.2055   -0.0760    0.1579    1.0000   -0.3322    0.1894
+      shape4   -0.2205    0.6115    0.6547   -0.4234   -0.3322    1.0000   -0.9617
+      shape5    0.1441   -0.5790   -0.6612    0.3683    0.1894   -0.9617    1.0000
+     snapshots -> /home/david_w/orcd/pool/zmass/fitresults/native/n300k_host_trust-krylov.snapshot.hdf5 (every 0.05 h, plus interrupt / failure / convergence)
+       it    1      29.2 s
+       it    2      37.0 s
+       it    3      44.9 s
+       it    4      52.9 s
+       it    5      72.6 s
+       it    6      92.3 s
+       it    7     112.4 s
+       it    8     132.1 s
+       it    9     151.7 s
+       it   10     177.3 s
+       it   11     209.6 s
+       it   12     229.8 s
+       it   13     268.1 s
+       it   14     282.0 s
+       it   15     302.0 s
+       it   16     333.4 s
+       it   17     384.7 s
+       it   18     436.9 s
+       it   19     476.5 s
+       it   20     528.5 s
+       it   21     580.9 s
+       it   22     633.0 s
+       it   23     685.1 s
+       it   24     699.5 s
+       it   25     720.0 s
+       it   26     771.9 s
+       it   27     786.3 s
+       it   28     807.1 s
+       it   29     846.3 s
+       it   30     897.8 s
+       it   31     912.3 s
+       it   32     932.9 s
+       it   33     953.9 s
+       it   34     993.6 s
+       it   35    1045.5 s
+       it   36    1060.0 s
+       it   37    1112.1 s
+       it   38    1126.4 s
+       it   39    1184.8 s
+       it   40    1199.3 s
+       it   41    1238.1 s
+       it   42    1299.0 s
+     GPU over the fit: mean 15.6 %, median 14.0 %, p90 29.0 %, peak mem 138.1 GB (1232 samples)
+     minimiser: 42 iterations, 1299.0 s, peak host RSS 18.2 GB
+
+  fit: 42 iterations, 1299 s, NLL 874734.996606, |grad|inf 4.19e-07
+
+  --- fitted values / observed information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.0069       6.0069
+     Gamma_Z      11.1916      11.1916
+      shape1       0.0226       0.0226
+      shape2       0.0307       0.0307
+      shape3       0.0263       0.0263
+      shape4       0.0243       0.0243
+      shape5       0.0043       0.0043
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000    0.0324    0.2228    0.2852    0.4788    0.3088   -0.3560
+     Gamma_Z    0.0324    1.0000    0.0015   -0.0266    0.0407    0.4176   -0.3723
+      shape1    0.2228    0.0015    1.0000    0.7562    0.8201    0.5022   -0.6022
+      shape2    0.2852   -0.0266    0.7562    1.0000    0.6606    0.7674   -0.8167
+      shape3    0.4788    0.0407    0.8201    0.6606    1.0000    0.5040   -0.6247
+      shape4    0.3088    0.4176    0.5022    0.7674    0.5040    1.0000   -0.9847
+      shape5   -0.3560   -0.3723   -0.6022   -0.8167   -0.6247   -0.9847    1.0000
+
+    fitted values (sandwich errors where available):
+      parameter        fitted       error       truth    fit-truth    pull
+           m_Z     -35.50532     6.00694    +0.00000    -35.50532   -5.91
+       Gamma_Z    -421.02877    11.19157    +0.00190   -421.03067  -37.62
+        shape1      -1.06186     0.02264           -            -       -
+        shape2      -0.83013     0.03066           -            -       -
+        shape3      -0.60830     0.02633           -            -       -
+        shape4      -1.84636     0.02432           -            -       -
+        shape5      +0.30591     0.00428           -            -       -
+
+  -> /home/david_w/orcd/pool/zmass/fitresults/native/fit_n300k_host_trust-krylov.json
+-------- n300k_host_trust-krylov done 20:59:13
+
+======== n300k_device_trust-krylov  20:59:13
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788829153.873572  419422 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788829155.240940  419422 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] n300k_device_trust-krylov: 300000 candidates, nt 64 (integration 253), loaded in 4 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form residual, background uniform
+  minimiser: method trust-krylov, engine device
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 10 chunks of 32768
+
+  reference point: NLL 879751.158119, |grad|inf 4326   [value+grad 5.3 s, Hessian 14.2 s (pfor), peak RSS 10.0 GB]
+  Hessian eigenvalues [4.8659e-03 2.2129e-02 1.4226e+03 3.1110e+03 4.3666e+03 9.4783e+03
+ 7.0290e+05] (cond 1.44e+08)
+
+  --- expected (Asimov) errors from the reference-point information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.8371       6.8371
+     Gamma_Z      14.2813      14.2813
+      shape1       0.0226       0.0226
+      shape2       0.0191       0.0191
+      shape3       0.0182       0.0182
+      shape4       0.0276       0.0276
+      shape5       0.0053       0.0053
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000   -0.1610   -0.3540    0.1823    0.5142   -0.2205    0.1441
+     Gamma_Z   -0.1610    1.0000    0.3803   -0.5587   -0.2055    0.6115   -0.5790
+      shape1   -0.3540    0.3803    1.0000   -0.4565   -0.0760    0.6547   -0.6612
+      shape2    0.1823   -0.5587   -0.4565    1.0000    0.1579   -0.4234    0.3683
+      shape3    0.5142   -0.2055   -0.0760    0.1579    1.0000   -0.3322    0.1894
+      shape4   -0.2205    0.6115    0.6547   -0.4234   -0.3322    1.0000   -0.9617
+      shape5    0.1441   -0.5790   -0.6612    0.3683    0.1894   -0.9617    1.0000
+     snapshots -> /home/david_w/orcd/pool/zmass/fitresults/native/n300k_device_trust-krylov.snapshot.hdf5 (every 0.05 h, plus interrupt / failure / convergence)
+       it    1       2.0 s
+       it    2       2.8 s
+       it    3       3.6 s
+       it    4       4.4 s
+       it    5       6.1 s
+       it    6       7.9 s
+       it    7       9.6 s
+       it    8      11.4 s
+       it    9      13.2 s
+       it   10      15.5 s
+       it   11      18.3 s
+       it   12      20.1 s
+       it   13      23.4 s
+       it   14      24.6 s
+       it   15      26.3 s
+       it   16      29.1 s
+       it   17      33.4 s
+       it   18      37.7 s
+       it   19      41.0 s
+       it   20      45.3 s
+       it   21      49.5 s
+       it   22      53.8 s
+       it   23      58.1 s
+       it   24      59.3 s
+       it   25      61.1 s
+       it   26      65.4 s
+       it   27      66.7 s
+       it   28      68.4 s
+       it   29      71.7 s
+       it   30      76.0 s
+       it   31      77.3 s
+       it   32      79.1 s
+       it   33      80.8 s
+       it   34      84.1 s
+       it   35      88.4 s
+       it   36      89.6 s
+       it   37      93.9 s
+       it   38      95.2 s
+       it   39     100.0 s
+       it   40     101.2 s
+       it   41     104.5 s
+       it   42     109.9 s
+     GPU over the fit: mean 90.8 %, median 91.5 %, p90 94.0 %, peak mem 138.1 GB (104 samples)
+     minimiser: 42 iterations, 109.9 s, peak host RSS 10.0 GB, peak TF device 8.88 GB, {'value': 0, 'grad': 44, 'hessp': 196}
+
+  fit: 42 iterations, 110 s, NLL 874734.996606, |grad|inf 4.19e-07
+
+  --- fitted values / observed information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.0069       6.0069
+     Gamma_Z      11.1916      11.1916
+      shape1       0.0226       0.0226
+      shape2       0.0307       0.0307
+      shape3       0.0263       0.0263
+      shape4       0.0243       0.0243
+      shape5       0.0043       0.0043
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000    0.0324    0.2228    0.2852    0.4788    0.3088   -0.3560
+     Gamma_Z    0.0324    1.0000    0.0015   -0.0266    0.0407    0.4176   -0.3723
+      shape1    0.2228    0.0015    1.0000    0.7562    0.8201    0.5022   -0.6022
+      shape2    0.2852   -0.0266    0.7562    1.0000    0.6606    0.7674   -0.8167
+      shape3    0.4788    0.0407    0.8201    0.6606    1.0000    0.5040   -0.6247
+      shape4    0.3088    0.4176    0.5022    0.7674    0.5040    1.0000   -0.9847
+      shape5   -0.3560   -0.3723   -0.6022   -0.8167   -0.6247   -0.9847    1.0000
+
+    fitted values (sandwich errors where available):
+      parameter        fitted       error       truth    fit-truth    pull
+           m_Z     -35.50532     6.00694    +0.00000    -35.50532   -5.91
+       Gamma_Z    -421.02877    11.19157    +0.00190   -421.03067  -37.62
+        shape1      -1.06186     0.02264           -            -       -
+        shape2      -0.83013     0.03066           -            -       -
+        shape3      -0.60830     0.02633           -            -       -
+        shape4      -1.84636     0.02432           -            -       -
+        shape5      +0.30591     0.00428           -            -       -
+
+  -> /home/david_w/orcd/pool/zmass/fitresults/native/fit_n300k_device_trust-krylov.json
+-------- n300k_device_trust-krylov done 21:01:34
+
+======== n300k_device_tf-trust-krylov  21:01:34
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788829294.496711  423856 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788829295.895840  423856 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] n300k_device_tf-trust-krylov: 300000 candidates, nt 64 (integration 253), loaded in 4 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form residual, background uniform
+  minimiser: method tf-trust-krylov, engine device
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 10 chunks of 32768
+
+  reference point: NLL 879751.158119, |grad|inf 4326   [value+grad 5.1 s, Hessian 14.4 s (pfor), peak RSS 10.0 GB]
+  Hessian eigenvalues [4.8659e-03 2.2129e-02 1.4226e+03 3.1110e+03 4.3666e+03 9.4783e+03
+ 7.0290e+05] (cond 1.44e+08)
+
+  --- expected (Asimov) errors from the reference-point information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.8371       6.8371
+     Gamma_Z      14.2813      14.2813
+      shape1       0.0226       0.0226
+      shape2       0.0191       0.0191
+      shape3       0.0182       0.0182
+      shape4       0.0276       0.0276
+      shape5       0.0053       0.0053
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000   -0.1610   -0.3540    0.1823    0.5142   -0.2205    0.1441
+     Gamma_Z   -0.1610    1.0000    0.3803   -0.5587   -0.2055    0.6115   -0.5790
+      shape1   -0.3540    0.3803    1.0000   -0.4565   -0.0760    0.6547   -0.6612
+      shape2    0.1823   -0.5587   -0.4565    1.0000    0.1579   -0.4234    0.3683
+      shape3    0.5142   -0.2055   -0.0760    0.1579    1.0000   -0.3322    0.1894
+      shape4   -0.2205    0.6115    0.6547   -0.4234   -0.3322    1.0000   -0.9617
+      shape5    0.1441   -0.5790   -0.6612    0.3683    0.1894   -0.9617    1.0000
+     snapshots -> /home/david_w/orcd/pool/zmass/fitresults/native/n300k_device_tf-trust-krylov.snapshot.hdf5 (every 0.05 h, plus interrupt / failure / convergence)
+       it    1      13.2 s  NLL 879751.158119
+       it    2      13.3 s  NLL 879751.158119
+       it    3      13.4 s  NLL 879751.158119
+       it    4      13.8 s  NLL 879665.303619
+       it    5      15.1 s  NLL 879494.308404
+       it    6      16.5 s  NLL 879159.207988
+       it    7      17.9 s  NLL 878519.246417
+       it    8      19.8 s  NLL 877414.108581
+       it    9      21.7 s  NLL 876155.958546
+       it   10      23.0 s  NLL 875532.882198
+       it   11      24.4 s  NLL 875477.767106
+       it   12      26.8 s  NLL 875369.377429
+       it   13      28.2 s  NLL 875365.734331
+       it   14      30.0 s  NLL 875360.436561
+       it   15      32.4 s  NLL 875357.438691
+       it   16      33.3 s  NLL 875357.437871
+       it   17      34.6 s  NLL 875357.382204
+       it   18      38.0 s  NLL 875354.596029
+       it   19      41.4 s  NLL 875349.061264
+       it   20      44.9 s  NLL 875338.063078
+       it   21      48.3 s  NLL 875316.351516
+       it   22      51.7 s  NLL 875274.063800
+       it   23      55.1 s  NLL 875194.008323
+       it   24      58.5 s  NLL 875051.951960
+       it   25      59.3 s  NLL 875051.951947
+       it   26      60.7 s  NLL 875051.950219
+       it   27      64.6 s  NLL 874841.938730
+       it   28      65.4 s  NLL 874841.938510
+       it   29      66.8 s  NLL 874841.915915
+       it   30      69.2 s  NLL 874841.910752
+       it   31      72.6 s  NLL 874736.307693
+       it   32      73.9 s  NLL 874736.177682
+       it   33      75.3 s  NLL 874736.168270
+       it   34      78.1 s  NLL 874736.147538
+       it   35      79.0 s  NLL 874736.147538
+       it   36      82.8 s  NLL 874734.996699
+       it   37      83.7 s  NLL 874734.996698
+       it   38      85.1 s  NLL 874734.996689
+       it   39      87.4 s  NLL 874734.996685
+       it   40      89.3 s  NLL 874734.996685
+       it   41      93.2 s  NLL 874734.996606
+     GPU over the fit: mean 80.1 %, median 91.0 %, p90 93.0 %, peak mem 138.1 GB (90 samples)
+     minimiser: 41 iterations, 95.8 s, peak host RSS 10.1 GB, peak TF device 9.85 GB, {'value': 42, 'grad': 40, 'hessp': 0}
+
+  fit: 41 iterations, 96 s, NLL 874734.996606, |grad|inf 7.94e-05
+
+  --- fitted values / observed information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.0069       6.0069
+     Gamma_Z      11.1916      11.1916
+      shape1       0.0226       0.0226
+      shape2       0.0307       0.0307
+      shape3       0.0263       0.0263
+      shape4       0.0243       0.0243
+      shape5       0.0043       0.0043
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000    0.0324    0.2228    0.2852    0.4788    0.3088   -0.3560
+     Gamma_Z    0.0324    1.0000    0.0015   -0.0266    0.0407    0.4176   -0.3723
+      shape1    0.2228    0.0015    1.0000    0.7562    0.8201    0.5022   -0.6022
+      shape2    0.2852   -0.0266    0.7562    1.0000    0.6606    0.7674   -0.8167
+      shape3    0.4788    0.0407    0.8201    0.6606    1.0000    0.5040   -0.6247
+      shape4    0.3088    0.4176    0.5022    0.7674    0.5040    1.0000   -0.9847
+      shape5   -0.3560   -0.3723   -0.6022   -0.8167   -0.6247   -0.9847    1.0000
+
+    fitted values (sandwich errors where available):
+      parameter        fitted       error       truth    fit-truth    pull
+           m_Z     -35.50532     6.00694    +0.00000    -35.50532   -5.91
+       Gamma_Z    -421.02878    11.19157    +0.00190   -421.03068  -37.62
+        shape1      -1.06186     0.02264           -            -       -
+        shape2      -0.83013     0.03066           -            -       -
+        shape3      -0.60830     0.02633           -            -       -
+        shape4      -1.84636     0.02432           -            -       -
+        shape5      +0.30591     0.00428           -            -       -
+
+  -> /home/david_w/orcd/pool/zmass/fitresults/native/fit_n300k_device_tf-trust-krylov.json
+-------- n300k_device_tf-trust-krylov done 21:03:40
+
+======== n300k_device_tf-trust-ncg  21:03:40
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788829421.183963  425820 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788829422.542547  425820 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] n300k_device_tf-trust-ncg: 300000 candidates, nt 64 (integration 253), loaded in 4 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form residual, background uniform
+  minimiser: method tf-trust-ncg, engine device
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 10 chunks of 32768
+
+  reference point: NLL 879751.158119, |grad|inf 4326   [value+grad 5.2 s, Hessian 14.3 s (pfor), peak RSS 10.0 GB]
+  Hessian eigenvalues [4.8659e-03 2.2129e-02 1.4226e+03 3.1110e+03 4.3666e+03 9.4783e+03
+ 7.0290e+05] (cond 1.44e+08)
+
+  --- expected (Asimov) errors from the reference-point information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.8371       6.8371
+     Gamma_Z      14.2813      14.2813
+      shape1       0.0226       0.0226
+      shape2       0.0191       0.0191
+      shape3       0.0182       0.0182
+      shape4       0.0276       0.0276
+      shape5       0.0053       0.0053
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000   -0.1610   -0.3540    0.1823    0.5142   -0.2205    0.1441
+     Gamma_Z   -0.1610    1.0000    0.3803   -0.5587   -0.2055    0.6115   -0.5790
+      shape1   -0.3540    0.3803    1.0000   -0.4565   -0.0760    0.6547   -0.6612
+      shape2    0.1823   -0.5587   -0.4565    1.0000    0.1579   -0.4234    0.3683
+      shape3    0.5142   -0.2055   -0.0760    0.1579    1.0000   -0.3322    0.1894
+      shape4   -0.2205    0.6115    0.6547   -0.4234   -0.3322    1.0000   -0.9617
+      shape5    0.1441   -0.5790   -0.6612    0.3683    0.1894   -0.9617    1.0000
+     snapshots -> /home/david_w/orcd/pool/zmass/fitresults/native/n300k_device_tf-trust-ncg.snapshot.hdf5 (every 0.05 h, plus interrupt / failure / convergence)
+       it    1      13.5 s  NLL 879751.158119
+       it    2      14.1 s  NLL 879751.158119
+       it    3      14.7 s  NLL 879751.158119
+       it    4      15.3 s  NLL 879751.158119
+       it    5      16.2 s  NLL 879729.538379
+       it    6      17.1 s  NLL 879686.483371
+       it    7      17.9 s  NLL 879601.257641
+       it    8      18.5 s  NLL 879601.257641
+       it    9      19.4 s  NLL 879568.482025
+       it   10      20.3 s  NLL 879562.351002
+       it   11      21.1 s  NLL 879559.523104
+       it   12      22.5 s  NLL 879473.579948
+       it   13      23.4 s  NLL 879312.775288
+       it   14      24.0 s  NLL 879312.775288
+       it   15      24.8 s  NLL 879226.941141
+       it   16      26.2 s  NLL 879062.211516
+       it   17      26.8 s  NLL 879062.211516
+       it   18      27.4 s  NLL 879062.211516
+       it   19      28.3 s  NLL 879045.454040
+       it   20      29.2 s  NLL 879042.606795
+       it   21      30.6 s  NLL 879000.956318
+       it   22      31.5 s  NLL 878923.529423
+       it   23      32.1 s  NLL 878923.529423
+       it   24      33.0 s  NLL 878886.431526
+       it   25      33.9 s  NLL 878883.181866
+       it   26      35.2 s  NLL 878801.990145
+       it   27      36.6 s  NLL 878645.739160
+       it   28      37.2 s  NLL 878645.739160
+       it   29      37.8 s  NLL 878645.739160
+       it   30      38.7 s  NLL 878625.865709
+       it   31      40.0 s  NLL 878586.900589
+       it   32      40.6 s  NLL 878586.900589
+       it   33      41.5 s  NLL 878582.698599
+       it   34      42.4 s  NLL 878572.869929
+       it   35      43.2 s  NLL 878569.104983
+       it   36      44.1 s  NLL 878567.359437
+       it   37      45.0 s  NLL 878562.980142
+       it   38      45.8 s  NLL 878553.944409
+       it   39      47.2 s  NLL 878534.177714
+       it   40      48.1 s  NLL 878500.226842
+       it   41      49.0 s  NLL 878496.778628
+       it   42      50.4 s  NLL 878419.340606
+       it   43      51.8 s  NLL 878270.220854
+       it   44      52.4 s  NLL 878270.220854
+       it   45      53.0 s  NLL 878270.220854
+       it   46      53.6 s  NLL 878270.220854
+       it   47      54.4 s  NLL 878265.237526
+       it   48      55.3 s  NLL 878257.165285
+       it   49      56.7 s  NLL 878237.815263
+       it   50      58.0 s  NLL 878202.993167
+       it   51      58.6 s  NLL 878202.993167
+       it   52      59.5 s  NLL 878193.387429
+       it   53      60.4 s  NLL 878187.267043
+       it   54      61.3 s  NLL 878184.947293
+       it   55      62.6 s  NLL 878166.205129
+       it   56      63.5 s  NLL 878129.950564
+       it   57      64.4 s  NLL 878061.537995
+       it   58      65.0 s  NLL 878061.537995
+       it   59      65.6 s  NLL 878061.537995
+       it   60      66.5 s  NLL 878051.632985
+       it   61      67.1 s  NLL 878051.632985
+       it   62      68.0 s  NLL 878046.794356
+       it   63      68.8 s  NLL 878039.790451
+       it   64      69.7 s  NLL 878038.063738
+       it   65      71.1 s  NLL 878020.344528
+       it   66      71.7 s  NLL 878020.344528
+       it   67      72.6 s  NLL 878013.180200
+       it   68      73.5 s  NLL 878011.550686
+       it   69      74.8 s  NLL 877994.118236
+       it   70      75.4 s  NLL 877994.118236
+       it   71      76.3 s  NLL 877987.437208
+       it   72      77.2 s  NLL 877985.608345
+       it   73      78.6 s  NLL 877967.916645
+       it   74      79.2 s  NLL 877967.916645
+       it   75      80.0 s  NLL 877960.234715
+       it   76      81.4 s  NLL 877942.005727
+       it   77      82.8 s  NLL 877909.258907
+       it   78      83.4 s  NLL 877909.258907
+       it   79      84.0 s  NLL 877909.258907
+       it   80      84.9 s  NLL 877904.436926
+       it   81      85.8 s  NLL 877897.527904
+       it   82      86.7 s  NLL 877895.891890
+       it   83      88.1 s  NLL 877878.777505
+       it   84      88.7 s  NLL 877878.777505
+       it   85      89.5 s  NLL 877872.560491
+       it   86      90.4 s  NLL 877870.616917
+       it   87      91.7 s  NLL 877853.245429
+       it   88      92.3 s  NLL 877853.245429
+       it   89      93.2 s  NLL 877845.136102
+       it   90      94.5 s  NLL 877827.951375
+       it   91      95.1 s  NLL 877827.951375
+       it   92      96.0 s  NLL 877820.348474
+       it   93      97.4 s  NLL 877802.830708
+       it   94      98.2 s  NLL 877772.642899
+       it   95      98.8 s  NLL 877772.642899
+       it   96      99.7 s  NLL 877761.296865
+       it   97     100.6 s  NLL 877756.938217
+       it   98     101.5 s  NLL 877755.278534
+       it   99     102.9 s  NLL 877738.627279
+       it  100     103.5 s  NLL 877738.627279
+       it  101     104.3 s  NLL 877732.436510
+       it  102     105.2 s  NLL 877730.654029
+       it  103     106.6 s  NLL 877713.977053
+       it  104     107.2 s  NLL 877713.977053
+       it  105     108.0 s  NLL 877706.749353
+       it  106     109.4 s  NLL 877689.641661
+       it  107     110.8 s  NLL 877658.772180
+       it  108     111.4 s  NLL 877658.772180
+       it  109     112.0 s  NLL 877658.772180
+       it  110     112.9 s  NLL 877654.191808
+       it  111     113.8 s  NLL 877650.618717
+       it  112     114.6 s  NLL 877647.410023
+       it  113     115.5 s  NLL 877646.084258
+       it  114     116.9 s  NLL 877638.912349
+       it  115     117.5 s  NLL 877638.912349
+       it  116     118.4 s  NLL 877634.739630
+       it  117     119.2 s  NLL 877626.787467
+       it  118     119.8 s  NLL 877626.787467
+       it  119     120.7 s  NLL 877622.932058
+       it  120     122.1 s  NLL 877615.770008
+       it  121     122.7 s  NLL 877615.770008
+       it  122     123.5 s  NLL 877611.655684
+       it  123     124.4 s  NLL 877603.881993
+       it  124     125.0 s  NLL 877603.881993
+       it  125     125.9 s  NLL 877600.154887
+       it  126     127.2 s  NLL 877592.451864
+       it  127     127.8 s  NLL 877592.451864
+       it  128     128.7 s  NLL 877588.719192
+       it  129     130.1 s  NLL 877581.095018
+       it  130     130.7 s  NLL 877581.095018
+       it  131     131.5 s  NLL 877577.363217
+       it  132     132.9 s  NLL 877569.797834
+       it  133     133.5 s  NLL 877569.797834
+       it  134     134.4 s  NLL 877566.073099
+       it  135     135.8 s  NLL 877558.545293
+       it  136     136.3 s  NLL 877558.545293
+       it  137     137.2 s  NLL 877554.837593
+       it  138     138.6 s  NLL 877547.313047
+       it  139     139.2 s  NLL 877547.313047
+       it  140     140.1 s  NLL 877543.639897
+       it  141     141.5 s  NLL 877536.066837
+       it  142     142.1 s  NLL 877536.066837
+       it  143     143.0 s  NLL 877532.447746
+       it  144     144.3 s  NLL 877524.789409
+       it  145     144.9 s  NLL 877524.789409
+       it  146     145.8 s  NLL 877521.212136
+       it  147     147.1 s  NLL 877513.514772
+       it  148     147.7 s  NLL 877513.514772
+       it  149     148.6 s  NLL 877509.949225
+       it  150     149.9 s  NLL 877502.280020
+       it  151     150.5 s  NLL 877502.280020
+       it  152     151.4 s  NLL 877498.735737
+       it  153     152.7 s  NLL 877491.075434
+       it  154     153.3 s  NLL 877491.075434
+       it  155     154.2 s  NLL 877487.545206
+       it  156     155.5 s  NLL 877479.909296
+       it  157     156.1 s  NLL 877479.909296
+       it  158     157.0 s  NLL 877476.398289
+       it  159     158.4 s  NLL 877468.777049
+       it  160     159.0 s  NLL 877468.777049
+       it  161     159.8 s  NLL 877465.279847
+       it  162     161.2 s  NLL 877457.684428
+       it  163     161.8 s  NLL 877457.684428
+       it  164     162.7 s  NLL 877454.206323
+       it  165     164.0 s  NLL 877446.627090
+       it  166     164.6 s  NLL 877446.627090
+       it  167     165.5 s  NLL 877443.161496
+       it  168     166.9 s  NLL 877435.611308
+       it  169     167.5 s  NLL 877435.611308
+       it  170     168.4 s  NLL 877432.166288
+       it  171     169.7 s  NLL 877424.630697
+       it  172     170.3 s  NLL 877424.630697
+       it  173     171.2 s  NLL 877421.194907
+       it  174     172.6 s  NLL 877413.694961
+       it  175     173.2 s  NLL 877413.694961
+       it  176     174.0 s  NLL 877410.284750
+       it  177     175.4 s  NLL 877402.791648
+       it  178     176.0 s  NLL 877402.791648
+       it  179     176.9 s  NLL 877399.381418
+       it  180     178.2 s  NLL 877391.940825
+       it  181     178.8 s  NLL 877391.940825
+       it  182     179.7 s  NLL 877388.572166
+       it  183     181.0 s  NLL 877381.112582
+       it  184     181.6 s  NLL 877381.112582
+       it  185     182.5 s  NLL 877377.713985
+       it  186     183.8 s  NLL 877370.360629
+       it  187     184.4 s  NLL 877370.360629
+       it  188     185.3 s  NLL 877367.058595
+       it  189     186.7 s  NLL 877359.600416
+       it  190     187.2 s  NLL 877359.600416
+       it  191     188.1 s  NLL 877356.163928
+       it  192     189.5 s  NLL 877349.032069
+       it  193     190.0 s  NLL 877349.032069
+       it  194     190.9 s  NLL 877345.847461
+       it  195     192.3 s  NLL 877338.346461
+       it  196     193.2 s  NLL 877327.375916
+       it  197     194.1 s  NLL 877324.697968
+       it  198     195.5 s  NLL 877295.412140
+       it  199     196.9 s  NLL 877240.231639
+       it  200     198.0 s  NLL 877240.231639
+     GPU over the fit: mean 84.6 %, median 89.0 %, p90 94.0 %, peak mem 138.1 GB (187 samples)
+     minimiser: 200 iterations, 198.0 s, peak host RSS 10.2 GB, peak TF device 9.98 GB, {'value': 200, 'grad': 142, 'hessp': 0}
+
+  fit: 200 iterations, 198 s, NLL 877240.231639, |grad|inf 2.93e+03
+
+  --- fitted values / observed information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.3324       6.3324
+     Gamma_Z      13.2562      13.2562
+      shape1       0.0138       0.0138
+      shape2       0.0155       0.0155
+      shape3       0.0169       0.0169
+      shape4       0.0189       0.0189
+      shape5       0.0032       0.0032
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000   -0.0005   -0.0912    0.0794    0.4562    0.1453   -0.2017
+     Gamma_Z   -0.0005    1.0000    0.0716   -0.2818   -0.0391    0.4947   -0.4421
+      shape1   -0.0912    0.0716    1.0000    0.2655    0.4011    0.2693   -0.3122
+      shape2    0.0794   -0.2818    0.2655    1.0000    0.2208    0.3097   -0.3323
+      shape3    0.4562   -0.0391    0.4011    0.2208    1.0000    0.1241   -0.2464
+      shape4    0.1453    0.4947    0.2693    0.3097    0.1241    1.0000   -0.9396
+      shape5   -0.2017   -0.4421   -0.3122   -0.3323   -0.2464   -0.9396    1.0000
+
+    fitted values (sandwich errors where available):
+      parameter        fitted       error       truth    fit-truth    pull
+           m_Z      +0.00013     6.33242    +0.00000     +0.00013    0.00
+       Gamma_Z      +0.00006    13.25623    +0.00190     -0.00184   -0.00
+        shape1      -0.27286     0.01385           -            -       -
+        shape2      +0.12550     0.01545           -            -       -
+        shape3      +0.04159     0.01688           -            -       -
+        shape4      -0.43106     0.01890           -            -       -
+        shape5      +0.06575     0.00319           -            -       -
+
+  -> /home/david_w/orcd/pool/zmass/fitresults/native/fit_n300k_device_tf-trust-ncg.json
+-------- n300k_device_tf-trust-ncg done 21:07:29
+
+======== n300k_device_tf-trust-exact  21:07:29
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788829649.846663  429173 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788829651.252108  429173 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] n300k_device_tf-trust-exact: 300000 candidates, nt 64 (integration 253), loaded in 4 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form residual, background uniform
+  minimiser: method tf-trust-exact, engine device
+      7 free, 4 fixed ['k_hit', 'k_ioni', 'k_ms', 'k_rad']; 10 chunks of 32768
+
+  reference point: NLL 879751.158119, |grad|inf 4326   [value+grad 5.0 s, Hessian 14.8 s (pfor), peak RSS 10.0 GB]
+  Hessian eigenvalues [4.8659e-03 2.2129e-02 1.4226e+03 3.1110e+03 4.3666e+03 9.4783e+03
+ 7.0290e+05] (cond 1.44e+08)
+
+  --- expected (Asimov) errors from the reference-point information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.8371       6.8371
+     Gamma_Z      14.2813      14.2813
+      shape1       0.0226       0.0226
+      shape2       0.0191       0.0191
+      shape3       0.0182       0.0182
+      shape4       0.0276       0.0276
+      shape5       0.0053       0.0053
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000   -0.1610   -0.3540    0.1823    0.5142   -0.2205    0.1441
+     Gamma_Z   -0.1610    1.0000    0.3803   -0.5587   -0.2055    0.6115   -0.5790
+      shape1   -0.3540    0.3803    1.0000   -0.4565   -0.0760    0.6547   -0.6612
+      shape2    0.1823   -0.5587   -0.4565    1.0000    0.1579   -0.4234    0.3683
+      shape3    0.5142   -0.2055   -0.0760    0.1579    1.0000   -0.3322    0.1894
+      shape4   -0.2205    0.6115    0.6547   -0.4234   -0.3322    1.0000   -0.9617
+      shape5    0.1441   -0.5790   -0.6612    0.3683    0.1894   -0.9617    1.0000
+     snapshots -> /home/david_w/orcd/pool/zmass/fitresults/native/n300k_device_tf-trust-exact.snapshot.hdf5 (every 0.05 h, plus interrupt / failure / convergence)
+       it    1       5.9 s  NLL 879751.158119
+       it    2       6.0 s  NLL 879751.158119
+       it    3       6.1 s  NLL 879751.158119
+       it    4       9.9 s  NLL 879666.196833
+       it    5      13.9 s  NLL 879506.724355
+       it    6      17.9 s  NLL 879145.898864
+       it    7      21.8 s  NLL 878556.106619
+       it    8      25.7 s  NLL 877484.998113
+       it    9      29.7 s  NLL 876172.456952
+       it   10      33.6 s  NLL 875442.298154
+       it   11      37.5 s  NLL 875353.422866
+       it   12      41.4 s  NLL 875339.931637
+       it   13      45.3 s  NLL 875317.916816
+       it   14      49.3 s  NLL 875274.621942
+       it   15      53.3 s  NLL 875191.053894
+       it   16      57.3 s  NLL 875037.497055
+       it   17      61.2 s  NLL 874833.127048
+       it   18      65.1 s  NLL 874735.964270
+       it   19      69.0 s  NLL 874734.996695
+       it   20      73.0 s  NLL 874734.996606
+     GPU over the fit: mean 88.3 %, median 91.0 %, p90 94.0 %, peak mem 138.5 GB (69 samples)
+     minimiser: 20 iterations, 73.1 s, peak host RSS 10.0 GB, peak TF device 8.93 GB, {'value': 21, 'grad': 19, 'hessp': 0}
+
+  fit: 20 iterations, 73 s, NLL 874734.996606, |grad|inf 0.00112
+
+  --- fitted values / observed information (n = 300000) ---
+    parameter        error      N=3e+05
+         m_Z       6.0069       6.0069
+     Gamma_Z      11.1916      11.1916
+      shape1       0.0226       0.0226
+      shape2       0.0307       0.0307
+      shape3       0.0263       0.0263
+      shape4       0.0243       0.0243
+      shape5       0.0043       0.0043
+    correlations:
+                   m_Z   Gamma_Z    shape1    shape2    shape3    shape4    shape5
+         m_Z    1.0000    0.0324    0.2228    0.2852    0.4788    0.3088   -0.3560
+     Gamma_Z    0.0324    1.0000    0.0015   -0.0266    0.0407    0.4176   -0.3723
+      shape1    0.2228    0.0015    1.0000    0.7562    0.8201    0.5022   -0.6022
+      shape2    0.2852   -0.0266    0.7562    1.0000    0.6606    0.7674   -0.8167
+      shape3    0.4788    0.0407    0.8201    0.6606    1.0000    0.5040   -0.6247
+      shape4    0.3088    0.4176    0.5022    0.7674    0.5040    1.0000   -0.9847
+      shape5   -0.3560   -0.3723   -0.6022   -0.8167   -0.6247   -0.9847    1.0000
+
+    fitted values (sandwich errors where available):
+      parameter        fitted       error       truth    fit-truth    pull
+           m_Z     -35.50532     6.00694    +0.00000    -35.50532   -5.91
+       Gamma_Z    -421.02879    11.19157    +0.00190   -421.03068  -37.62
+        shape1      -1.06186     0.02264           -            -       -
+        shape2      -0.83013     0.03066           -            -       -
+        shape3      -0.60830     0.02633           -            -       -
+        shape4      -1.84636     0.02432           -            -       -
+        shape5      +0.30591     0.00428           -            -       -
+
+  -> /home/david_w/orcd/pool/zmass/fitresults/native/fit_n300k_device_tf-trust-exact.json
+-------- n300k_device_tf-trust-exact done 21:09:13
+############ all done 21:09:13

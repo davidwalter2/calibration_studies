@@ -1,0 +1,21 @@
+############ joint_ok_n500k  21:22:25  card /home/david_w/orcd/pool/zmass/cards/joint_ok_n500k.hdf5  hess pfor
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788830553.914972    5291 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788830580.112088    5291 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit_joint] joint_ok_n500k: 2 mass term(s) ['zmass', 'jpsi'], 1000000 candidates, loaded in 61 s
+      zmass: 500000 candidates, nt 64 (integration 253), 103 params, chunk 8192, kernel tabulated, corr_form fluctuation, jensen exact, scale_param None
+      jpsi: 500000 candidates, nt 64 (integration 64), 96 params, chunk 8192, kernel delta, corr_form fluctuation, jensen exact, scale_param None
+External likelihood term 'hitchi2': the Hessian is singular and the gradient has a component outside its range, so the term is unbounded below and cannot be centered. Using the pseudo-inverse for the in-range part; absolute NLL values remain offset.
+  external term 'hitchi2': 92 parameters, 92 of them free; const 0, lognorm -784.612
+      99 free (92 of them calibration parameters), 4 fixed; 124 chunks
+WARNING:tensorflow:5 out of the last 5 calls to <function pfor.<locals>.f at 0x14c2222528e0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+WARNING:tensorflow:6 out of the last 6 calls to <function pfor.<locals>.f at 0x14c222252160> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+
+  reference point: NLL 616346.411285, |grad|inf 9.051e+06   [value+grad 23.2 s, Hessian 563.4 s (pfor), peak RSS 43.4 GB]
+/orcd/pool/005/david_w/zmass/fullscale/fit_joint.py:506: RuntimeWarning: overflow encountered in scalar divide
+  f"cond {ev[-1]/max(ev[0], 1e-300):.4g}, "
+  Hessian eigenvalues [-4.816e+06, 7.243e+13], cond inf, 2 non-positive
+/orcd/pool/005/david_w/zmass/fullscale/fit_joint.py:524: RuntimeWarning: invalid value encountered in sqrt
+  res["asimov_err"] = np.sqrt(
+[2026-09-08T03:07:46.012] error: *** JOB 22210973 ON node3401-c1 CANCELLED AT 2026-09-08T03:07:46 DUE TO TIME LIMIT ***

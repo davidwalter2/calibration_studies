@@ -1,0 +1,27 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788839189.187837 2421361 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788839190.320524 2421361 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[fit] F_toy: 3668671 candidates, nt 64 (integration 253), loaded in 40 s
+      params ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+      norm_window [60.0, 120.0], upsample 4, self_consistent_sigma True, jensen exact, corr_form fluctuation, background uniform
+  minimiser: method tf-trust-krylov, engine device
+Traceback (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale/devobj.py", line 76, in __init__
+    from rabbit.unbinned import ChunkTable  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ImportError: cannot import name 'ChunkTable' from 'rabbit.unbinned' (/home/david_w/orcd/pool/zmass/rabbit/rabbit/unbinned.py)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale/fit.py", line 313, in <module>
+    main()
+    ~~~~^^
+  File "/orcd/pool/005/david_w/zmass/fullscale/fit.py", line 189, in main
+    obj = DeviceChunkedObjective([term], free, chunk=args.chunk or None)
+  File "/orcd/pool/005/david_w/zmass/fullscale/devobj.py", line 78, in __init__
+    raise ImportError(
+    ...<3 lines>...
+    )
+ImportError: the device chunk loop needs rabbit.unbinned.ChunkTable (the native-minimizer merge, branch material-resolution-native); point RABBIT= at that worktree or use ChunkedObjective

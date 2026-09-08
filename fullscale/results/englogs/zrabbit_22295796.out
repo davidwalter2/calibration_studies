@@ -1,0 +1,108 @@
+############ n300kfl  11:06:50  card /home/david_w/orcd/pool/zmass/cards/z_n300k_fl.hdf5  method tf-trust-exact
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788880010.648273 3362727 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788880011.824714 3362727 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[gate] /home/david_w/orcd/pool/zmass/cards/z_n300k_fl.hdf5: 1 unbinned term(s), loaded in 4 s
+        zmass: n 300000, 10 chunk(s) of 32768, 11 params, graph_chunkable True
+
+=== 1. graph chunk loop vs the eager python loop (same term) ===
+Traceback (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/test_rabbit_path.py", line 298, in <module>
+    main()
+    ~~~~^^
+  File "/orcd/pool/005/david_w/zmass/fullscale_native/test_rabbit_path.py", line 150, in main
+    g = t1.gradient(v, xt)
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/eager/backprop.py", line 1066, in gradient
+    flat_grad = imperative_grad.imperative_grad(
+        self._tape,
+    ...<3 lines>...
+        sources_raw=flat_sources_raw,
+        unconnected_gradients=unconnected_gradients)
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/eager/imperative_grad.py", line 67, in imperative_grad
+    return pywrap_tfe.TFE_Py_TapeGradient(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        tape._tape,  # pylint: disable=protected-access
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        sources_raw,
+        ^^^^^^^^^^^^
+        compat.as_str(unconnected_gradients.value))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/ops/custom_gradient.py", line 583, in actual_grad_fn
+    input_grads = grad_fn(*result_grads)
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 753, in vjp
+    return dy * _grad_of_nll(p)
+                ~~~~~~~~~~~~^^^
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/ops/custom_gradient.py", line 339, in __call__
+    return self._d(self._f, a, k)
+           ~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/ops/custom_gradient.py", line 293, in decorated
+    return _eager_mode_decorator(wrapped, args, kwargs)
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/ops/custom_gradient.py", line 539, in _eager_mode_decorator
+    result, grad_fn = f(*args, **kwargs)
+                      ~^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 723, in _grad_of_nll
+    (g,) = term._chunk_loop((tf.zeros_like(p),), piece)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 648, in _chunk_loop
+    out = tf.while_loop(
+        lambda ci, *acc: ci < nch,
+    ...<5 lines>...
+        maximum_iterations=nch,
+    )
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/util/deprecation.py", line 660, in new_func
+    return func(*args, **kwargs)
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/ops/while_loop.py", line 241, in while_loop_v2
+    return while_loop(
+        cond=cond,
+    ...<7 lines>...
+        maximum_iterations=maximum_iterations,
+        return_same_structure=True)
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/ops/while_loop.py", line 488, in while_loop
+    loop_vars = body(*loop_vars)
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/ops/while_loop.py", line 479, in <lambda>
+    body = lambda i, lv: (i + 1, orig_body(*lv))
+                                 ~~~~~~~~~^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 651, in <lambda>
+    + tuple(a + b for a, b in zip(acc, body_piece(ci))),
+                                       ~~~~~~~~~~^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 719, in piece
+    f = term._chunk_contribution(p, ci)
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 2368, in _chunk_contribution
+    li = self._chunk_li(values, ci)
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 2139, in _chunk_li
+    return self._density(
+           ~~~~~~~~~~~~~^
+        values,
+        ^^^^^^^
+    ...<10 lines>...
+        corr_w=self._fluct_w(values, ci) if self._fluct_active else None,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 2049, in _density
+    k_re, k_im = self.kernel.log_cf(values, t_abs)
+                 ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/unbinned.py", line 447, in log_cf
+    return self.provider(values, t_abs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/lineshapes/zgamma.py", line 964, in log_cf
+    re, im = self._interp(tab_re, tab_im, t_abs)
+             ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/lineshapes/zgamma.py", line 959, in _interp
+    return take(tab_re), take(tab_im)
+                         ~~~~^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit_native/rabbit/lineshapes/zgamma.py", line 953, in take
+    w_m1 * tf.gather(tab, idx - 1)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + w_0 * tf.gather(tab, idx)
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/util/traceback_utils.py", line 167, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/tensorflow/python/framework/ops.py", line 6027, in raise_from_not_ok_status
+    raise core._status_to_exception(e) from None  # pylint: disable=protected-access
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tensorflow.python.framework.errors_impl.ResourceExhaustedError: {{function_node __wrapped__AddV2_device_/job:localhost/replica:0/task:0/device:GPU:0}} failed to allocate memory [Op:AddV2] name: 
