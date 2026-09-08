@@ -18,6 +18,10 @@ declare -A CARDS=(
   [SVs6]=z_V_s6                [SVs7]=z_V_s7
   [SVetaB]=z_V_etaB            [SVetaT]=z_V_etaT       [SVetaE]=z_V_etaE
   [SVKetaB]=z_VK_etaB          [SVKetaT]=z_VK_etaT
+  # warm twins of the three COLD controls: a cold and a warm run of
+  # the same card meeting at the same NLL is the evidence that the
+  # card has one minimum and not two (sec. 0f.15)
+  [f380refW]=z_full380_fl      [SVfullW]=z_V_full      [Sdc8W]=z_F_dc8
 )
 TAGS=${*:-${!CARDS[@]}}
 for t in $TAGS; do
