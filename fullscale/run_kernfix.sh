@@ -74,13 +74,13 @@ case $st in
     done
     ;;
   fits)
-    fit kf300 kf300 --ares --jensen
-    fit kl300 kl300 --ares --jensen
+    fit kf300 kf300
+    fit kl300 kl300
     ;;
   bandfits)
     for n in B T E; do
-      fit kf_eta$n kf_eta$n --ares --jensen
-      fit kl_eta$n kl_eta$n --ares --jensen
+      fit kf_eta$n kf_eta$n
+      fit kl_eta$n kl_eta$n
     done
     ;;
 esac
