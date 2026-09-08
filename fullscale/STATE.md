@@ -1715,3 +1715,41 @@ Measured on 50 000 candidates (`gate_fd.py --compare`,
 the fit cannot see.
 
 Gate 2 also passes on this card (worst relative gradient error 1.5e-6).
+
+### 0f.6 A REAL BUG, CAUGHT BEFORE IT COST A RESULT (2026-09-08)
+
+`ZGammaLineshape.config()` did not carry `vpow`. The datacard stores the
+provider as its `config()` dict and `make_provider` rebuilds it on the read
+side, so **every v card silently rebuilt its provider in the MASS variable
+while the term went on treating its CF as the one in `v`**.
+
+It is not an error and nothing in the card looks wrong. The symptoms:
+
+* the modelled density loses its resonance peak entirely —
+  `L_v / (L_m m^p)` ran from **0.026 at the Z peak to 1.6 in the tails**
+  instead of being 1;
+* the truncation normalisation came out **21x too small**, 0.0461 against
+  0.9775;
+* and the fit ran away. The full-statistics barrel job reached
+  **NLL -10.3 M with the trust radius collapsing to 4.8e-7** over 24
+  iterations — a likelihood unbounded below, which is what an under-normalised
+  density gives you.
+
+**How it was caught**: not by the fit failing (a runaway can look like a hard
+problem), but by asking the density a question it had to answer —
+`L_v` must equal `L_m m^p` on the same candidates, and `Z_v` must equal `Z_m`.
+Both are cheap and neither needs a minimiser.
+
+With `"vpow": self.vpow` in `config()`: `L_v/(L_m m^p)` = **0.99997** median
+(p05 0.99982, p95 1.00021), `Z_v` = 0.977515 against `Z_m` = 0.977518, and the
+NLL's dependence on `m_Z` and the shape parameters matches the m card's.
+
+**Gate 1 is unaffected** — `gate_fluct_gun.py` builds its terms in process with
+a `DeltaKernel` and no provider, so nothing round-tripped. Gates 2 and 2b were
+run on cards and are being re-run; all seven full-statistics jobs were
+cancelled and the cards rebuilt.
+
+**The lesson, for the next argument added to a provider**: anything that
+changes what `_cf_tab` transforms MUST go in `config()`. There is no test that
+would have caught this except one that compares the two formulations' densities
+directly, which is now `L_v = L_m m^p` in this file.
