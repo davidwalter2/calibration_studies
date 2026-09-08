@@ -4140,3 +4140,69 @@ against a GEN leading-muon pT, which **is not in either pairs cache** -- `ptp`,
 `ptm` are reconstructed (`corr = +0.04`) and there is no gen leg momentum. A
 gen-pT split needs a re-extraction, and until then `m_gen` and `eta_pair` are
 the safe kinematic handles.
+
+### 0f.43 (1) COMPLETE `data - model` AT MASS LEVEL — the endcap misses at
+### 7 sigma, and it is the PIXEL-POOR tracks that miss (2026-09-08)
+
+`resolution/model_odd_mass.py` assembles the per-candidate mass CF exactly as
+`unbinned.MassCFTerm._family_parts` does -- `tgrid` is the STANDARDIZED
+argument (the Gaussian family enters as `-0.5 vgf t^2`), so
+
+    log phi_z(t) = Sms + (Sio_re + i Sio_im) + (Srad_re + i Srad_im)
+                        - 0.5 vgf t^2 + i t (1.5 (sigma/m)(1 + f_ang))
+
+with every `k` at 1, and `<z e^{-uz^2}> = 1/sqrt(pi u) Int (t/2u) e^{-t^2/4u}
+Im phi dt` on the term's own grid. **The model's own odd moment, decomposed:**
+
+| band | full | Jensen alone | ioni+rad skew alone |
+|---|---:|---:|---:|
+| `\|eta\|<0.9` | +14.15 | +11.55 | +2.62 |
+| `0.9-1.6` | +18.63 | +16.07 | +2.58 |
+| `1.6-3.0` | +27.86 | +25.85 | +2.04 |
+
+The Jensen term dominates and the CF skew adds a nearly flat +2.0...+2.6, so
+sec. 0f.41's Jensen-only subtraction was ~90 % of the correction.
+
+**A. per `\|eta\|` band, COMPLETE `data - model`:**
+
+| band | data | model (full) | **data - model** |
+|---|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | +15.58 +- 3.03 | +14.05 | **+1.53** (0.5 sigma) |
+| `0.9-1.6` | +15.00 +- 2.56 | +18.20 | **-3.21** |
+| `1.6-3.0` | +10.86 +- 2.03 | +25.41 | **-14.56 (7.2 sigma)** |
+| inclusive | +13.20 +- 1.45 | +20.73 | **-7.54** |
+
+**The barrel CLOSES and the endcap misses by 7 sigma.** This is the first
+properly model-subtracted mass-level statement in the thread, and the
+`eta` dependence is now unambiguous: +1.5 -> -3.2 -> -14.6.
+
+**B. and the endcap split INVERTS once the model is subtracted:**
+
+| endcap cut | data | model | **data - model** |
+|---|---:|---:|---:|
+| pixel share LOW | -1.27 +- 3.87 | +27.60 | **-28.88 (7.5 sigma)** |
+| pixel share HIGH | +23.94 +- 3.73 | +25.78 | **-1.85 (0.5 sigma)** |
+| single-strip LOW | +8.60 +- 2.89 | +22.32 | -13.73 |
+| single-strip HIGH | -1.68 +- 7.08 | +32.43 | **-34.11** |
+
+**It is not that pixel-RICH endcap tracks are anomalous -- they CLOSE
+(-1.85 +- 3.73). It is that pixel-POOR ones fail, by -28.9 +- 3.9.** The raw
+table read the opposite way because the model is large and nearly equal in the
+two samples (+27.6 against +25.8): subtracting it moves the pixel-HIGH sample
+onto zero and leaves the pixel-LOW sample stranded.
+
+The single-strip variable says the same thing from the other side: tracks whose
+curvature is carried by single-strip clusters miss by **-34.1** against -13.7
+for the rest.
+
+**So the coherent statement is: in the endcap, tracks with DEGRADED HIT
+CONTENT -- few pixel hits, many single-strip clusters -- carry an odd moment
+the model does not describe, and tracks with a normal hit complement close.**
+That is a hit-content effect, it is 7 sigma, and it is now measured against the
+model rather than against zero.
+
+**What this does NOT yet say** is whether the mechanism is the CPE residual
+density per class (the standing hypothesis) or the CF's hit term being wrong
+for a degraded complement in some other way. The no-free-parameter test of item
+(3) is exactly what separates them, and it needs the per-class residual
+LOCATIONS, which `hitres_classes.py` discards (sec. 0f.38).

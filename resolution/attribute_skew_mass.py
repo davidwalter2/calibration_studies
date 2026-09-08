@@ -122,6 +122,16 @@ def main():
 
     fang = d["fang"].astype(np.float64) if "fang" in d.files else np.zeros(ntr)
     srel_all = sig / m
+    # THE FULL per-candidate model odd moment from its own CF: the Jensen mean
+    # shift AND the ionisation and radiative skews, assembled exactly as
+    # unbinned.MassCFTerm does. Only with this is a mass-level odd moment an
+    # ATTRIBUTION rather than a correlation.
+    from model_odd_mass import model_odd, PROBES as MP
+    assert tuple(MP) == tuple(PROBES)
+    MOD = model_odd(d, None, jensen=True)
+    print(f"full model odd moment (Jensen + ioni + rad): inclusive "
+          f"{1e3*np.average(MOD[ok, 0], weights=w[ok]):+.2f} (u={PROBES[0]}), "
+          f"{1e3*np.average(MOD[ok, 1], weights=w[ok]):+.2f} (u={PROBES[1]})\n")
 
     def table(title, groups):
         print(title)
@@ -137,8 +147,7 @@ def main():
             for u in PROBES:
                 dv = odd(x[mk], u, w[mk])
                 de = odd_err(x[mk], u, a.nboot, rng, w[mk])
-                mv = np.average(model_odd_jensen(srel_all[mk], fang[mk], u),
-                                weights=w[mk])
+                mv = np.average(MOD[mk, PROBES.index(u)], weights=w[mk])
                 row += (f"  {1e3*dv:+8.2f}+-{1e3*de:4.2f} {1e3*mv:+8.2f} "
                         f"{1e3*(dv-mv):+8.2f}")
             print(row)
