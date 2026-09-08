@@ -2404,3 +2404,21 @@ two corrections above -- nothing was lost.)
 into the json `fit.py --start-from` reads, carrying `edmval`, so the sandwich
 covariance and the `x1.109` weight factor can still be evaluated at rabbit's
 minimum with `fit.py --no-fit`.
+
+**Both cures are now measured** (the agent's confirmation of `d83342e`, on
+`z_n300k`, same four parameters frozen, `tf-trust-exact`):
+
+| | EDM trajectory | outcome |
+|---|---|---|
+| without the fix | 16495, 1150, 421, 227, 210, 209, 207, 203 ... | 66 iterations, EDM 83, crawling |
+| **with the fix** | ... 551, 538, 513, 466, 377, 222, **46.2, 0.179, 3.0e-6, 1.0e-15** | **18 iterations, EDM 1.0e-15** |
+
+That tail is textbook quadratic convergence — what a Newton method does once
+the subproblem is not singular. So the diagnosis is settled: the frozen rows,
+not the conditioning, and not preconditioning.
+
+**Which method to use.** `tf-trust-krylov` is the default here: it is immune
+without any fix, and it pays ~5 HVPs per step where `trust-exact` pays `nfree`
+HVP columns. At 7 free parameters they are close; on the **99-parameter joint
+cards of phase 2** krylov should win by a wide margin. Reach for `trust-exact`
+only when the Hessian at every step is wanted anyway.
