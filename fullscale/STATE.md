@@ -4678,3 +4678,66 @@ cd /work/submit/david_w/ZMass/calibration_studies/fullscale && ./run_auxgen.sh
 
 The hit-class agent has been told the paths, the alignment contract, the
 `fioni` caveat and the guessed branch names.
+
+### 0f.50 THE MIXTURE HYPOTHESIS DOES **NOT** REPRODUCE ON THE Z LEGS WITH
+### `chi2/ndof` AS THE DISCRIMINATOR (2026-09-09)
+
+The hit-class agent found the track-level `eta` dependence to be a MIXTURE:
+splitting on `|seed->final dq/p|` at its 90th percentile gives two
+`eta`-INDEPENDENT components (+20.59 +- 6.45 and -6.33 +- 1.84 e-3) whose
+mixing fraction runs 2.4 -> 7.0 -> 21.2 % with `|eta|` and reproduces the band
+values exactly.
+
+The seed->final step is not in the mass caches, but the IN population's
+signatures are, and **`chi2/ndof` is BOTH their discriminator (1.098 against
+0.988) and the safest conditioning variable this cache has**:
+
+| variable | `corr(., z)` |
+|---|---:|
+| **`chi2/ndof`** | **+0.0004** |
+| `vgf` | -0.0009 |
+| `\|eta\|` lead | -0.0081 |
+| `nhit` | +0.0133 |
+| pixel share | +0.0141 |
+| `sigma/m` | -0.0158 |
+| `maxfraclossp` | -0.0335 |
+| (their signed seed->final step) | +0.113 |
+
+`mixture_test.py`, `data - model`, 1e-3, u = 0.05:
+
+| split | band | `f_IN` | IN | OUT |
+|---|---|---:|---:|---:|
+| p90 | `\|eta\|<0.9` | 9.6 % | +0.83 +- 9.92 | +1.61 +- 3.54 |
+| | `0.9-1.6` | 10.6 % | +5.26 +- 8.94 | -4.21 +- 2.30 |
+| | `1.6-3.0` | 9.7 % | -16.33 +- 8.03 | **-14.37 +- 2.23** |
+| | **chi2 vs `eta`-flat** | | **3.65 / 2** | **18.12 / 2** |
+
+**The IN component is `eta`-flat (chi2 3.65/2, p = 0.16) but the OUT component
+is NOT (18.12/2, p = 1e-4)** -- and OUT is 90 % of the sample, so the bulk
+still carries the whole `eta` dependence. Same at p80 (OUT 16.7/2) and p95
+(OUT 22.8/2), and the IN fraction is **flat in `eta`** here (9.6 / 10.6 / 9.7 %)
+where theirs grows 2.4 -> 21.2 %.
+
+**So `chi2/ndof` is not their discriminator at mass level.** It selects a
+population that is `eta`-flat, but it does not select THE population whose
+fraction grows with `eta`. The test is not refuted -- it has not been done:
+it needs the actual `|seed->final dq/p|` per leg, which the coordinator says is
+in the trees (`Jpsitrk_*` / per-leg trk branches) and which the auxgen pass
+can pick up.
+
+**THE PLAN when `auxgen_*.npz` land** (in order):
+1. the `a_m = (1 + f_hit - f_ioni) sigma_m/m` closed-form check with the
+   Q-matrix `f_ioni`, against the measured 1.2110 +- 0.0004 / 1.2503 / 1.1667 /
+   1.2725;
+2. `|seed->final dq/p|` per leg, **absolute value only** -- the signed one has
+   `corr(., x) = +0.113`, a worse trap than reco pT -- with
+   `corr(|delta|, |x|)` stated;
+3. the same two-component decomposition per `eta` on the Z and J/psi legs at
+   8x the gun's statistics, and at mass level kernel-free per band, IN vs OUT.
+
+**`hit_s` is dead as a column** and the guessed names are REMOVED from
+`cf_inmaker` rather than left to skip silently: the v2 slim trees carry exactly
+`cfmass_hitcls`, `cfmass_hitv`, `reshitcls`, `reshitidx`, `resinfcovhit` per
+hit. `resinfv`/`resinfbv` are booked under `if (exportStepRecords_)` (off for
+the 81 kB/candidate path) and `hitDetId` only in the fitFromGenParms block, so
+a signed per-hit weight needs a re-production or a small maker change.

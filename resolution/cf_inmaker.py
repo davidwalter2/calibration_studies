@@ -471,21 +471,23 @@ def _grp_block(t, stop, idx, prefix, nt, push, stats, fn):
     # INDEX and the module is reached through the runtree, so `hit_idx` is what
     # gets exported and the detid mapping is a downstream join, not a column.
     #
-    # NOTE, and it is a real gap: nothing in this output is a SIGNED
-    # mass-projected per-hit weight. `resinfcovhit` is exported here as
-    # `hit_cov` because it is the only remaining per-hit influence quantity,
-    # but whether it carries a sign is UNVERIFIED. Propagating a location bias
-    # therefore needs the sign from the local-to-global rotation via the
-    # runtree geometry, not from a stored column.
+    # NOTE, and it is a real gap, now CHECKED rather than suspected: the v2
+    # slim trees contain NO signed per-hit weight and no detid. Both legs'
+    # trees (213 and 228 branches) carry exactly `cfmass_hitcls`,
+    # `cfmass_hitv`, `reshitcls`, `reshitidx`, `resinfcovhit` and nothing else
+    # per hit. `resinfv` / `resinfbv` are booked inside
+    # `if (exportStepRecords_)` in `ResidualGlobalCorrectionMakerBase.cc`
+    # (~547-549), which was OFF for the 81 kB/candidate v2 path, and
+    # `hitDetId` only in the fitFromGenParms/validation block. So a signed
+    # mass-projected weight needs either `exportStepRecords=True` (the
+    # 430 kB/candidate path, a re-production) or a small maker change writing
+    # an int8 sign per block. Guessed column names were REMOVED rather than
+    # left to skip silently.
     _keys = set(t.keys())
     hit_extra = [(k, b) for k, b in
                  (("hit_idx", "reshitidx"),
                   ("hit_rescls", "reshitcls"),
-                  ("hit_cov", "resinfcovhit"),
-                  # present on the SINGLE-track path (see the `cls` list in
-                  # `pairs`), absent from the two-track v2 output; taken if it
-                  # is there so the detid join is free where it exists
-                  ("hit_detid", "hitDetId"))
+                  ("hit_cov", "resinfcovhit"))
                  if b in _keys]
     br += [b for _, b in hit_extra]
     a = t.arrays(br, library="ak", entry_stop=stop)
