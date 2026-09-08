@@ -2281,6 +2281,28 @@ The fixed `trust-exact` EDM ends 222 -> 46.2 -> 0.179 -> 3.0e-6 -> **1.0e-15**
 once its subproblem is not singular. Against the unfixed run's 66 iterations
 at EDM 83 and still falling 1 % per iteration.
 
+**But it converged somewhere else, and that is worth more than the fix.** On
+this card the two methods reach two DIFFERENT stationary points:
+
+| | NLL | EDM | `Gamma_Z` |
+|---|---:|---:|---:|
+| standalone `fit.py` | 874734.9966056045 | — | -421.03 |
+| `tf-trust-krylov` | **874734.9966056045** | 4.98e-13 | -421.03 |
+| `tf-trust-exact` + the fix | 874816.6155744941 | 1.04e-15 | -368.17 |
+
+**81.6 NLL units apart, and the one with the SMALLER EDM is the worse
+point.** Both are genuine stationary points -- an EDM of 1e-15 is not a
+convergence failure, it is a converged fit at a local minimum. `z_n300k` is
+the residual-form stopgap card, the one sec. 0 records as running away to
+`Gamma_Z = -421 MeV`, so a multi-modal likelihood there is expected; but the
+lesson generalises:
+
+> **EDM certifies stationarity, not optimality.** It is exactly the tool for
+> "did this fit stop early", which is the failure that cost four numbers, and
+> it says nothing about "is this the right minimum". Compare NLL between runs
+> as well, and treat a large `|delta NLL|` between two converged fits of the
+> same card as the alarm it is.
+
 **Use `tf-trust-krylov` when anything is frozen** (it is immune with no fix
 at all, and it pays ~5 HVPs per step where `trust-exact` pays `nfree`
 columns -- at the 99 parameters of a joint card that is the whole cost).
