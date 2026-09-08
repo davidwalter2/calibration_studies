@@ -2856,3 +2856,63 @@ failure.
 warm rows in two batched jobs (`22312979`, `22312980`), the warm control twins
 (`22312981`), the phase-2 smoke (`22312856`) and the phase-2 krylov stage
 (`22312984 P2K`, `joint_ok_full`).
+
+### 0f.23 THE CONTROL PASSES — `rabbit_fit.py --minimizerMethod trust-exact`
+### REPRODUCES THE REFERENCE EXACTLY (2026-09-08 14:40)
+
+`22312981 f380refW`: `z_full380_fl`, scipy `trust-exact` through
+`rabbit_fit.py`, four frozen, warm-started at `f380fl_base`'s point.
+
+| | `m_Z` | `Gamma_Z` | NLL | EDM |
+|---|---:|---:|---:|---:|
+| `f380fl_base` (the standalone reference) | -11.064 +- 2.27 | -5.265 +- 4.16 | 11075392.465686 | 1.777e-18 |
+| **`f380refW` (rabbit)** | **-11.06 +- 2.27** | **-5.26 +- 4.16** | **11075392.4657** | **1.779e-18** |
+
+All three parts of the acceptance test agree, and it took **two iterations**
+(EDM 1.779e-18 at the first, 4.53e-23 at the second) — i.e. rabbit's scipy
+`trust-exact` immediately certifies the reference point as a minimum rather
+than walking away from it, which is what the two TF ports did (they stopped
+14.7 and 27.9 NLL units above it, from a cold start).
+
+**So the campaign minimiser is settled**: `rabbit_fit.py --minimizerMethod
+trust-exact`, four resolution knobs frozen. The standing rule (every fit
+through `rabbit_fit.py`) and the reference algorithm are the same thing.
+
+**The `sandwich.sbatch` stage may often be skipped.** `certtable.py`
+transports the measured `sandwich_ratio` onto a rabbit row that sits at the
+same point as a `fit.py` row of the same card (same `m_Z` to 0.01 MeV, same
+NLL to 0.01), and marks the row `~`. `s` is a directly measured sandwich, `H`
+an inverse-Hessian error that still owes one. The ratio is 1.088 to 1.177
+across these cards — it is NOT the flat x1.109 and cannot be applied by hand.
+
+### 0f.24 A REAL BUG IN THE PHASE-2 PATH: THE SPARSE `D` HAS NO DETERMINISTIC
+### GPU KERNEL (2026-09-08)
+
+`22312856 P2smoke` — `joint_ok_n500k` through `rabbit_fit.py` — loaded both
+mass terms and the external quadratic correctly and then died at the FIRST
+loss evaluation:
+
+```
+UNIMPLEMENTED: A deterministic GPU implementation of
+               SparseTensorDenseMatmulOp is not currently available
+   [[{{node while/SparseTensorDenseMatMul/SparseTensorDenseMatMul}}]]
+```
+
+`bin/rabbit_fit.py` line 21 calls `tf.config.experimental.enable_op_determinism()`
+at import, and `MassCFTerm._chunk_residual` multiplied the per-candidate sparse
+`D` by `theta` with `tf.sparse.sparse_dense_matmul`. **Every joint card in
+phases 2 and 3 hits this**, and it is not reachable from the standalone
+drivers — `chunkfit.py` uses a DENSE affine map (pitfall 3), which is why the
+gates passed and the fit did not.
+
+**Fixed by storing `D` dense** (`JacChunkTable(dense=)`, default: dense above
+1/3 fill). That is not a workaround, it is the better representation on these
+cards: a COO nonzero costs two int64 indices plus a float64 value, 24 bytes
+against 8 for a dense entry, so sparse only pays below ~1/3 density — and the
+joint cards' `D` blocks are **79.3 % (J/psi) and 82.3 % (Z) dense**, where the
+sparse form is larger, slower AND undifferentiable on a GPU under determinism.
+The J/psi block goes from 2627 MB of card to 1.1 GB in memory.
+
+Gate (`fullscale/gate_jacdense.py`): the same card loaded twice, `dense=False`
+and `dense=True`, compared at the terms' own defaults on both chunk loops.
+J/psi term, eager loop: **value exactly 0**, gradient 2.6e-15, HVP 1.6e-15.

@@ -29,6 +29,14 @@ declare -A CARDS=(
   [SVetaB]=z_V_etaB            [SVetaT]=z_V_etaT       [SVetaE]=z_V_etaE
   [SVKetaB]=z_VK_etaB          [SVKetaT]=z_VK_etaT
   [f380refW]=z_full380_fl      [SVfullW]=z_V_full      [Sdc8W]=z_F_dc8
+  # the extended K(m) ladder: every added Legendre term is still a
+  # 13-15 sigma improvement at 5->6->7, so the basis is not saturated
+  [Ss9]=z_full380_fl_s9        [SVs9]=z_V_s9
+  [Ss12]=z_full380_fl_s12      [SVs12]=z_V_s12
+  # the preconditioning control (sec. 0f.14 dropped --precondition
+  # against the SINGULAR-subproblem cause; with scipy's subproblem
+  # that cause is gone and the trust radius scaling is what is left)
+  [f380refP]=z_full380_fl
 )
 FREEZE=${FREEZE:-k_hit k_ms k_ioni k_rad}
 METHOD=${METHOD:-trust-exact}
@@ -47,6 +55,6 @@ for TAG in ${ROWS:?set ROWS="tag tag ..."}; do
         ${FREEZE:+--freezeParameters $FREEZE} \
         -t 0 --unblind --diagnostics \
         --snapshotFile $SNAP --snapshotInterval 0.25 \
-        --outpath $OUT --outname rabbit_${TAG}.hdf5
+        --outpath $OUT --outname rabbit_${TAG}.hdf5 ${EXTRA:-}
     echo "############ $TAG done $(date +%H:%M:%S) rc=$?"
 done

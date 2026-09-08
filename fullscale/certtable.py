@@ -52,8 +52,18 @@ CARDS = {
     "z_V_toy":          ("the assembly toy",         "v"),
     "z_VK_etaB":        ("per-band FSR kernel, B",   "v"),
     "z_VK_etaT":        ("per-band FSR kernel, T",   "v"),
+    "z_full380_fl_s9":  ("K(m) 9 terms",              "m"),
+    "z_full380_fl_s12": ("K(m) 12 terms",             "m"),
+    "z_V_s9":           ("K(m) 9 terms",              "v"),
+    "z_V_s12":          ("K(m) 12 terms",             "v"),
 }
-ORDER = list(CARDS)
+ORDER = ["z_full380_fl", "z_full380_fl_s6", "z_full380_fl_s7",
+         "z_full380_fl_s9", "z_full380_fl_s12",
+         "z_M_etaB", "z_M_etaT", "z_M_etaE",
+         "z_F_toy", "z_F_dc8", "z_F_toydc", "z_F_w70110",
+         "z_V_full", "z_V_s6", "z_V_s7", "z_V_s9", "z_V_s12",
+         "z_V_etaB", "z_V_etaT", "z_V_etaE", "z_V_toy",
+         "z_VK_etaB", "z_VK_etaT"]
 
 # a rabbit result carries no card name; this is the map
 RABBIT_CARD = {
@@ -69,6 +79,12 @@ RABBIT_CARD = {
     "SVKetaB": "z_VK_etaB", "SVKetaT": "z_VK_etaT",
     "SMetaB": "z_M_etaB", "SMetaT": "z_M_etaT", "SMetaE": "z_M_etaE",
     "Stoy": "z_F_toy", "Stoydc": "z_F_toydc", "Sw70110": "z_F_w70110",
+    # the warm twins of the three cold controls, and the preconditioning control
+    "f380refW": "z_full380_fl", "SVfullW": "z_V_full", "Sdc8W": "z_F_dc8",
+    "f380refP": "z_full380_fl",
+    # the extended K(m) ladder
+    "Ss9": "z_full380_fl_s9", "SVs9": "z_V_s9",
+    "Ss12": "z_full380_fl_s12", "SVs12": "z_V_s12",
 }
 
 
