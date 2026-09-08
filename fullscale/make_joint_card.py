@@ -121,6 +121,54 @@ have to rescale those too; until it does, read a `--inject` closure on
 `bfield_mode0` (or on any mode whose `D` column is proportional to `m`) as a
 12 %-level statement, not a 1e-2 one.
 
+PHASE 3: `--material`
+---------------------
+`--material` replaces the four ad-hoc resolution knobs (`k_hit`, `k_ms`,
+`k_ioni`, `k_rad`) by the PHYSICAL parameterisation of `MaterialCFTerm`, on
+BOTH legs at once:
+
+    S_f(tau; k) = S_f^fix(tau) + sum_g A(k_g) S_{f,g}(tau) ,   A(k) = exp(k)
+    v_i(eps)    = v_other,i    + sum_c H(eps_c) v_{c,i} ,      H(eps) = 1 + eps
+
+over the SAME `material_<group>` names the quadratic hit-chi2 term and the
+sparse `D` already use. Each of the 42 parmtype-15 parameters therefore
+appears in THREE places in one likelihood -- the quadratic curvature, the
+mass terms' width, and the mass terms' mean -- which is the whole point of
+phase 3. The 18 `hitres_<class>` parameters are new and come from the mass
+terms alone.
+
+The per-group exponents come from a `cf_inmaker.py pairs --groups` cache
+(`Sgrp_*` in the CSR layout `MaterialCFTerm` consumes); the FLAT exponents
+`Sms`/`Sio_re`/... in the same file are the k = 0 value of the same sum, to
+7.3e-8 relative (`matres/validate_inmaker_groups.py`, the float32 storage
+floor; the maker's own float64 closure is 1.4e-14).
+
+WHAT IS EXACT AT k = 0, AND WHAT IS NOT
+    * the per-candidate exponent: `sum_g A(0) S_{f,g} == S_f^flat` to the
+      7.3e-8 above (float32 storage), NOT to float64;
+    * the Gaussian share: `vg_other + sum_c H(0) v_c == vgf` EXACTLY -- the
+      maker defines `vg_other` as `vgf - sum_c v_c`, so it is the algebraic
+      remainder and not "noise". It is negative for 40.2 % of J/psi
+      candidates (median |vg_other|/vgf = 3.2e-7, max 2.3e-4). `--clip-vg-other`
+      clips it at 0 as an earlier note suggested; that BREAKS the identity for
+      those 40 %, so it is off by default;
+    * the TRUNCATION NORMALISATION `Z_c`: `_norm_z` sums over resolution
+      CLASSES, which have no per-group decomposition. In `--material` the
+      class exponents are written as rabbit's FIXED norm families (coefficient
+      1, `norm_fixed` in the term config), i.e. `Z_c` is evaluated at the
+      production's own resolution -- which is EXACTLY the constant phase 2
+      evaluates it at, since phase 2 runs with `--fix k_hit k_ms k_ioni k_rad`.
+      Nothing is lost relative to phase 2; what is not modelled is the
+      (second-order) response of `Z_c` to the material parameters themselves.
+
+WHAT NOTHING CONSTRAINS (the census `--material` prints)
+    `material_pp1_cables` is touched by NO candidate on either leg, and
+    `material_thermal_screen` / `material_support_tube` by under 0.1 %; the
+    hit-chi2 Hessian is blind to those three AND to `material_beampipe`. The
+    card prints both censuses and a ready-to-paste `--freezeParameters` list;
+    it does NOT freeze anything itself, because a frozen parameter is a
+    physics decision and belongs in the fit command.
+
 A CAVEAT ABOUT `--chunk`
 ------------------------
 `chunkfit.ChunkedObjective(chunk=)` -- and therefore `fit.py --chunk` and
@@ -196,6 +244,41 @@ def parse_args(argv=None):
                         "systematic to scan.")
     p.add_argument("--field-prior", type=float, default=0.0)
     p.add_argument("--material-prior-scale", type=float, default=1.0)
+    # ---- phase 3: the physical resolution parameterisation ---------------
+    p.add_argument("--material", action="store_true",
+                   help="make BOTH mass terms MaterialCFTerms over the 42 "
+                        "parmtype-15 `material_<group>` parameters the "
+                        "quadratic term and the sparse D already carry, plus "
+                        "18 new `hitres_<class>`. Both pairs caches must have "
+                        "been built with `cf_inmaker.py pairs --groups`.")
+    p.add_argument("--amount-mode", choices=["exp", "linear"], default="exp",
+                   help="A(k) in S_f = S^fix + sum_g A(k_g) S_{f,g}. `exp` is "
+                        "the C++ `matStepFact` convention.")
+    p.add_argument("--hit-mode", choices=["exp", "linear"], default="linear")
+    p.add_argument("--no-hits", action="store_true",
+                   help="drop the 18 hitres_<class> parameters; the whole "
+                        "Gaussian share then rides as a FIXED vg_other = vgf")
+    p.add_argument("--legacy-families", action="store_true",
+                   help="ALSO keep the old k_hit knob on top of the physical "
+                        "parameterisation, as make_material_card.py does. It "
+                        "DOUBLE COUNTS the Gaussian share by construction and "
+                        "exists only for comparison fits.")
+    p.add_argument("--group-prune", type=float, default=0.0,
+                   help="fold group rows contributing less than this fraction "
+                        "of the candidate's max_tau |S| into the FIXED "
+                        "baseline. 0 keeps every row; it is what sets the "
+                        "card size (~30 kB/candidate at 0).")
+    p.add_argument("--hit-prior", type=float, default=0.0,
+                   help="Gaussian prior sigma on every hitres_<class>")
+    p.add_argument("--clip-vg-other", action="store_true",
+                   help="clip the Gaussian remainder at 0. It is the exact "
+                        "algebraic remainder vgf - sum_c v_c and is negative "
+                        "for 40 % of candidates at the 1e-7 level, so "
+                        "clipping breaks `sum = vgf` for those; off by default.")
+    p.add_argument("--material-maxrows", type=int, default=0,
+                   help="abort if the group block would exceed this many CSR "
+                        "rows (a guard against building a 100 GB card by "
+                        "accident). 0 = no limit.")
     p.add_argument("--max-chi2-ndof", type=float, default=3.0)
     p.add_argument("--max-sigma-rel", type=float, default=0.10)
     p.add_argument("--chunk", type=int, default=32768,
@@ -356,6 +439,418 @@ def sparse_jac(D, prune, tag, log=print):
 
 
 # ---------------------------------------------------------------------------
+# phase 3: the parmtype-15 group block
+# ---------------------------------------------------------------------------
+def zip_member_array(path, key):
+    """A read-only memmap of an UNCOMPRESSED ``.npz`` member, or ``None``.
+
+    `np.load(npz)[key]` materialises the WHOLE member; the per-group exponent
+    blocks are 3.8 GB each and there are five of them per leg, so a smoke card
+    that keeps 20 000 candidates would still read 19 GB and hold it. Both group
+    caches are written by `np.savez` (stored, not deflated), so the member's
+    payload is a contiguous `.npy` inside the zip and can be memory-mapped in
+    place; fancy-indexing the kept CSR rows then touches only those pages.
+
+    Returns ``None`` for a deflated member, and the caller falls back to
+    `np.load`, so this is an optimisation and never a correctness dependency.
+    """
+    import struct
+    import zipfile
+
+    z = zipfile.ZipFile(path)
+    try:
+        zi = z.getinfo(key + ".npy")
+    except KeyError:
+        return None
+    if zi.compress_type != zipfile.ZIP_STORED:
+        return None
+    with open(path, "rb") as f:
+        f.seek(zi.header_offset)
+        hdr = struct.unpack("<IHHHHHIIIHH", f.read(30))
+        if hdr[0] != 0x04034B50:
+            return None
+        f.seek(zi.header_offset + 30 + hdr[9] + hdr[10])
+        ver = np.lib.format.read_magic(f)
+        rd = (np.lib.format.read_array_header_1_0 if ver == (1, 0)
+              else np.lib.format.read_array_header_2_0)
+        shape, fortran, dt = rd(f)
+        off = f.tell()
+    return np.memmap(path, dtype=dt, mode="r", offset=off, shape=shape,
+                     order="F" if fortran else "C")
+
+
+def csr_rows(ptr, idx):
+    """The flat CSR row indices of candidates ``idx``, and the new row pointer.
+
+    Vectorised on purpose: the obvious
+    ``np.concatenate([np.arange(ptr[i], ptr[i+1]) for i in idx])`` is 650 000
+    python-level `arange`s on the full J/psi leg.
+    """
+    cnt = (ptr[idx + 1] - ptr[idx]).astype(np.int64)
+    nptr = np.concatenate([[0], np.cumsum(cnt)]).astype(np.int64)
+    if not len(idx):
+        return np.zeros(0, np.int64), nptr, cnt
+    rows = np.repeat(ptr[idx] - nptr[:-1], cnt) + np.arange(nptr[-1],
+                                                            dtype=np.int64)
+    return rows, nptr, cnt
+
+
+class MaterialContext:
+    """Everything `--material` needs that is common to the two legs.
+
+    It owns the join between the three places a parmtype-15 parameter appears:
+    the quadratic term's `names` (which is where the NAME comes from), the
+    whitening scale (which is where `group_units` comes from), and the cache's
+    own `group_names` (which is what the exponents are indexed by). The three
+    are cross-checked rather than assumed -- a silent group-index shift would
+    otherwise mis-associate every material amount with the wrong detector.
+    """
+
+    def __init__(self, args, names, parmtype, subidx, pscale, prior_sigmas,
+                 poi_set):
+        self.args = args
+        self.names = list(names)
+        self.prior_sigmas = np.asarray(prior_sigmas, np.float64)
+        self.poi_set = set(poi_set)
+        self.matcol = {int(si): j for j, (pt, si)
+                       in enumerate(zip(parmtype, subidx)) if int(pt) == 15}
+        self.pscale = np.asarray(pscale, np.float64)
+        self.census = {}
+
+    # -- the join ----------------------------------------------------------
+    def group_params(self, gnames, tag, log):
+        ng = len(gnames)
+        if len(self.matcol) != ng:
+            raise SystemExit(
+                f"{tag}: the cache has {ng} material groups but the quadratic "
+                f"extraction has {len(self.matcol)} parmtype-15 columns; the "
+                "two were not produced from the same materialGroups file")
+        gp = [self.names[self.matcol[g]] if g in self.matcol
+              else f"material_group{g}" for g in range(ng)]
+        bad = [(g, gnames[g], gp[g]) for g in range(ng) if gnames[g] != gp[g]]
+        if bad:
+            raise SystemExit(
+                f"{tag}: the cache's own group name and the quadratic "
+                f"extraction's parameter name disagree for {len(bad)} "
+                f"group(s), e.g. {bad[:3]}. Pass the --groups tier file the "
+                "production used; without it name_params() invents "
+                "`material_group<i>` and the join is by index alone.")
+        return gp
+
+    def declarations(self, group_params, hit_params):
+        """The (default, sigma, mean, is_poi) row of every parameter this
+        block adds. The material rows are the CALIBRATION rows -- the same
+        ones `attach_jac` writes -- so the two legs and the bundle agree."""
+        out = {}
+        for g, nm in enumerate(group_params):
+            j = self.matcol.get(g)
+            sig = float(self.prior_sigmas[j]) if j is not None else np.nan
+            out[nm] = (0.0, sig, 0.0, 1 if nm in self.poi_set else 0)
+        hp = self.args.hit_prior if self.args.hit_prior > 0 else np.nan
+        for nm in hit_params:
+            out[nm] = (0.0, hp, 0.0, 0)
+        return out
+
+    # -- the truncation normalisation --------------------------------------
+    @staticmethod
+    def fixed_norm(norm):
+        """Turn the PARAMETERISED norm classes into FIXED ones.
+
+        `_norm_z` sums over resolution classes with a coefficient
+        `values[param]` per family. A `MaterialCFTerm` has no `k_*`, and the
+        classes have no per-group decomposition, so the classes are handed to
+        rabbit as `fixed` families (coefficient 1). Phase 2 fixes the same
+        knobs at 1, so this reproduces phase 2's `Z_c` exactly rather than
+        approximating it.
+        """
+        fixed = [{"name": "hit", "kind": "gauss"}]
+        for f in norm.get("families", []):
+            e = {"name": f["name"], "kind": "tab"}
+            for c in ("re", "im"):
+                if c in f:
+                    e[c] = f[c]
+            fixed.append(e)
+        return {"sigma": norm["sigma"], "vgf": norm["vgf"],
+                "class": norm["class"], "families": [], "fixed": fixed}
+
+    # -- the block ---------------------------------------------------------
+    def block(self, path, idx, tag, log):
+        """``(constructor kwargs, datasets, census)`` for one leg."""
+        args = self.args
+        d = np.load(path, allow_pickle=False)
+        keys = set(d.files)
+        need = ("grp_ptr", "grp_id", "hit_ptr", "hit_cls", "hit_v",
+                "vg_other", "group_names", "hit_classes", "families")
+        miss = [k for k in need if k not in keys]
+        if miss:
+            raise SystemExit(
+                f"{tag}: {os.path.basename(path)} has no {miss}; --material "
+                "needs a cache built with `cf_inmaker.py pairs --groups`")
+        gnames = [str(x) for x in d["group_names"]]
+        cnames = [str(x) for x in d["hit_classes"]]
+        fams = [str(x) for x in d["families"]]
+        ngroups, nt = len(gnames), len(d["tgrid"])
+        n = len(idx)
+        gp = self.group_params(gnames, tag, log)
+        # k_phys = theta_card * group_units  (theta_card = theta_raw * pscale)
+        units = np.array([1.0 / max(self.pscale[self.matcol[g]], 1e-300)
+                          if g in self.matcol else 1.0
+                          for g in range(ngroups)])
+
+        ptr = np.asarray(d["grp_ptr"], np.int64)
+        rows, nptr, cnt = csr_rows(ptr, idx)
+        nnz = int(nptr[-1])
+        if args.material_maxrows and nnz > args.material_maxrows:
+            raise SystemExit(
+                f"{tag}: {nnz} CSR rows exceeds --material-maxrows "
+                f"{args.material_maxrows} ({nnz*nt*4*len(fams)/1e9:.1f} GB of "
+                "exponents); prune, cut the statistics, or raise the limit")
+        _mm = zip_member_array(path, "grp_id")
+        gid = np.asarray((_mm if _mm is not None else d["grp_id"])[rows],
+                         np.int64)
+        log(f"  {tag} group block: {n} candidates, {nnz} CSR rows "
+            f"({nnz/max(n,1):.2f} groups/candidate), {len(fams)} families, "
+            f"{nnz*nt*4*len(fams)/1e9:.2f} GB of exponents")
+
+        arrs = {}
+        amp = np.zeros(nnz)
+        for f in fams:
+            mm = zip_member_array(path, "S" + f)
+            a = np.asarray(mm[rows] if mm is not None else d["S" + f][rows])
+            arrs[f] = a
+            np.maximum(amp, np.abs(a).max(axis=1), out=amp)
+
+        seg = np.repeat(np.arange(n), cnt)
+        drop = np.zeros(nnz, bool)
+        if args.group_prune > 0.0:
+            top = np.zeros(n)
+            np.maximum.at(top, seg, amp)
+            drop = amp < args.group_prune * top[seg]
+            log(f"    --group-prune {args.group_prune:g}: {int(drop.sum())} of "
+                f"{nnz} rows ({100.*drop.mean():.2f} %) folded into the fixed "
+                "baseline")
+
+        merged = {}
+        for f in fams:
+            nm = f[:-3] if f.endswith(("_re", "_im")) else f
+            comp = "im" if f.endswith("_im") else "re"
+            e = merged.setdefault(nm, {"name": nm})
+            e[comp] = arrs[f][~drop].astype(np.float32)
+            if drop.any():
+                fx = np.zeros((n, nt), np.float32)
+                np.add.at(fx, seg[drop], arrs[f][drop])
+                e["fix_" + comp] = fx
+            arrs[f] = None
+        group_families = [merged[k] for k in sorted(merged)]
+
+        kcnt = np.zeros(n, np.int64)
+        np.add.at(kcnt, seg[~drop], 1)
+        nptr = np.concatenate([[0], np.cumsum(kcnt)]).astype(np.int64)
+        gid_kept = gid[~drop]
+
+        datasets = {"grp_ptr": nptr, "grp_id": gid_kept.astype(np.int32),
+                    "group_units": units}
+        for m in group_families:
+            for c in ("re", "im"):
+                if c in m:
+                    datasets[f"Sg_{c}_{m['name']}"] = m[c]
+                if "fix_" + c in m:
+                    datasets[f"Sgfix_{c}_{m['name']}"] = m["fix_" + c]
+
+        # ---- the Gaussian hit share -------------------------------------
+        hptr = np.asarray(d["hit_ptr"], np.int64)
+        hrows, hnptr, _ = csr_rows(hptr, idx)
+        vgf = np.asarray(d["vgf"], np.float64)[idx]
+        vgo = np.asarray(d["vg_other"], np.float64)[idx]
+        nneg = int((vgo < 0).sum())
+        if args.clip_vg_other:
+            vgo = np.maximum(vgo, 0.0)
+        if args.no_hits:
+            hit_params = []
+            share = (np.zeros(n + 1, np.int64), np.zeros(0, np.int64),
+                     np.zeros(0, np.float64), vgf)
+            log("    --no-hits: the whole Gaussian share is a FIXED vg_other")
+        else:
+            hit_params = [f"hitres_{c}" for c in cnames]
+            hv = np.asarray(d["hit_v"], np.float64)[hrows]
+            hc = np.asarray(d["hit_cls"], np.int64)[hrows]
+            share = (hnptr, hc, hv, vgo)
+            tot = np.zeros(n)
+            np.add.at(tot, np.repeat(np.arange(n), np.diff(hnptr)), hv)
+            resid = np.abs(vgo + tot - vgf) / np.maximum(vgf, 1e-300)
+            log(f"    hit share: {len(cnames)} classes, "
+                f"{len(hc)/max(n,1):.2f} rows/candidate; "
+                f"|vg_other + sum_c v_c - vgf|/vgf max {resid.max():.3e} "
+                f"(0 unless --clip-vg-other); vg_other < 0 for {nneg} "
+                f"candidates ({100.*nneg/max(n,1):.2f} %)")
+        datasets["hit_ptr"] = share[0]
+        datasets["hit_cls"] = np.asarray(share[1], np.int32)
+        datasets["hit_v"] = np.asarray(share[2], np.float64)
+        datasets["vg_other"] = np.asarray(share[3], np.float64)
+        datasets["hit_units"] = np.ones(len(hit_params))
+
+        kw = dict(group_params=gp, group_families=group_families,
+                  grp_ptr=nptr, grp_id=gid_kept, group_units=units,
+                  hit_params=hit_params, hit_share=share,
+                  amount_mode=args.amount_mode, hit_mode=args.hit_mode)
+
+        occ = np.bincount(gid_kept, minlength=ngroups) / max(n, 1)
+        lev = np.zeros(ngroups)
+        np.add.at(lev, gid_kept, amp[~drop])
+        self.census[tag] = {"names": gnames, "occ": occ, "lev": lev, "n": n,
+                            "nnz": int(nptr[-1]), "nneg_vgother": nneg}
+        return kw, datasets, self.census[tag]
+
+
+def strip_flat_families(datasets, log=print):
+    """Drop the per-candidate FLAT exponents from a material term's datasets.
+
+    They are the k = 0 value of the group sum, so keeping them would add ~30 %
+    to the card for arrays no `MaterialCFTerm` reads. The `_norm` copies
+    (`S_*_norm`, one row per resolution CLASS) STAY: they are what the fixed
+    truncation normalisation is built from.
+    """
+    gone = [k for k in list(datasets)
+            if (k.startswith("S_re_") or k.startswith("S_im_"))
+            and not k.endswith("_norm")]
+    nb = sum(datasets[k].nbytes for k in gone)
+    for k in gone:
+        datasets.pop(k)
+    if gone:
+        log(f"    dropped the flat per-candidate exponents {gone} "
+            f"({nb/1e9:.2f} GB); they are the k = 0 group sum")
+    return datasets
+
+
+def norm_from_datasets(datasets):
+    """Rebuild the ``norm`` dict `make_card.build` handed to the term."""
+    if "norm_sigma" not in datasets:
+        return None
+    fams = {}
+    for k in datasets:
+        if k.startswith("S_") and k.endswith("_norm"):
+            body = k[len("S_"):-len("_norm")]
+            comp, nm = body.split("_", 1)
+            fams.setdefault(nm, {"name": nm})[comp] = datasets[k]
+    return {"sigma": datasets["norm_sigma"], "vgf": datasets["norm_vgf"],
+            "class": datasets["norm_class"],
+            "families": [fams[k] for k in sorted(fams)]}
+
+
+def report_census(matctx, names, dead, poi_set, log=print):
+    """WHAT NOTHING CONSTRAINS -- printed so the fit can freeze it explicitly.
+
+    Three separate blindnesses, and the union is what has to be named on the
+    command line: the quadratic term's null space (`dead`), the groups no
+    candidate of a leg touches, and the groups so few candidates touch that the
+    mass terms cannot move them either.
+    """
+    if not matctx.census:
+        return []
+    tags = list(matctx.census)
+    gnames = matctx.census[tags[0]]["names"]
+    ng = len(gnames)
+    log("")
+    log("  === what constrains the 42 material amounts ===")
+    log(f"    {'group':<28s}" + "".join(f"{t + ' occ':>14s}" for t in tags)
+        + f"{'hit-chi2':>10s}")
+    dead_set = set(dead)
+    untouched, thin = [], []
+    for g in range(ng):
+        occ = [matctx.census[t]["occ"][g] for t in tags]
+        nm = gnames[g]
+        blind = "BLIND" if nm in dead_set else "ok"
+        if max(occ) == 0.0:
+            untouched.append(nm)
+        elif max(occ) < 0.01:
+            thin.append(nm)
+        if max(occ) < 0.01 or nm in dead_set:
+            log(f"    {nm:<28s}" + "".join(f"{o:14.6f}" for o in occ)
+                + f"{blind:>10s}")
+    log(f"    ({ng} groups; only those under 1 % occupancy or blind to the "
+        "hit-chi2 term are listed)")
+    # a group is unconstrainable when NO term can move it: no candidate
+    # touches it, or so few do that only the quadratic term could -- and the
+    # quadratic term is blind to it too.
+    frozen = sorted(set(untouched) | (set(thin) & dead_set))
+    log(f"    touched by NO candidate on any leg: {untouched or 'none'}")
+    log(f"    touched by < 1 % of candidates:     {thin or 'none'}")
+    log(f"    the hit-chi2 Hessian is blind to:   "
+        f"{[nm for nm in dead] or 'none'}")
+    if frozen:
+        log("    NOTHING in this card constrains: " + " ".join(frozen))
+        log("    -> add to the fit:  --freezeParameters " + " ".join(frozen))
+    else:
+        log("    every material amount is constrained by at least one term")
+    # leverage, which is what says whether a CONSTRAINED group matters
+    for t in tags:
+        c = matctx.census[t]
+        tot = c["lev"].sum() or 1.0
+        order = np.argsort(-c["lev"])[:6]
+        log(f"    {t}: top groups by share of sum_i max_tau |S| -- " + ", ".join(
+            f"{gnames[g]} {100.*c['lev'][g]/tot:.1f} %" for g in order))
+    return frozen
+
+
+def rebuild_material(term, datasets, decl, matctx, path, idx, tag, log):
+    """Re-instantiate a `make_card.build` MassCFTerm as a MaterialCFTerm.
+
+    Everything the Z leg needs -- the `ZGammaLineshape` provider with its
+    banded FSR fold and the acceptance, the floated 5-term `K(m)`, the
+    truncation window and its classes, both corrections, the weights -- is
+    expensive to build and easy to get subtly wrong a second time, so none of
+    it is rebuilt. `MassCFTerm.config()` IS the constructor's argument list,
+    and the kernel and background OBJECTS are carried over by reference; only
+    the resolution parameterisation changes. That is what makes the k = 0
+    comparison against the phase-2 term a gate on the resolution model alone.
+
+    Returns the new term, the datasets it was built from (the flat exponents
+    dropped, the group block added) and its declaration arrays.
+    """
+    from rabbit import unbinned
+
+    args = matctx.args
+    gkw, gdata, _ = matctx.block(path, idx, tag, log)
+    datasets = dict(datasets)
+    datasets.update(gdata)
+    strip_flat_families(datasets, log)
+    norm = norm_from_datasets(datasets)
+    cfg = dict(term.config())
+    for k in ("kind", "families", "norm_fixed", "kernel", "background",
+              "jac_params"):
+        cfg.pop(k, None)
+    legacy = ([{"name": "hit", "param": "k_hit", "kind": "gauss"}]
+              if args.legacy_families else [])
+    old = {nm: (float(decl["param_defaults"][i]),
+                float(decl["param_prior_sigmas"][i]),
+                float(decl["param_prior_means"][i]),
+                int(decl["param_is_poi"][i]))
+           for i, nm in enumerate(term.param_names)}
+    new = unbinned.MaterialCFTerm(
+        term.name,
+        sigma=datasets["sigma"], mobs=datasets["mobs"],
+        tgrid=datasets["tgrid"], families=legacy,
+        vgf=datasets.get("vgf"),
+        weights=datasets.get("weights"), a_res=datasets.get("a_res"),
+        jensen_s2=datasets.get("jensen_s2"),
+        corr_mass=datasets.get("corr_mass"),
+        phik=None,
+        norm=(None if norm is None else MaterialContext.fixed_norm(norm)),
+        kernel=term.kernel, background=term.background,
+        **cfg, **gkw)
+    keep = set(new.param_names)
+    dcl = {nm: row for nm, row in old.items() if nm in keep}
+    dcl.update(matctx.declarations(gkw["group_params"], gkw["hit_params"]))
+    for f in legacy:
+        dcl[f["param"]] = (1.0, np.nan, 1.0, 0)
+    gone = [nm for nm in term.param_names if nm not in keep]
+    log(f"    {tag}: MassCFTerm -> MaterialCFTerm; the resolution knobs {gone} "
+        f"are REPLACED by {len(gkw['group_params'])} material amounts + "
+        f"{len(gkw['hit_params'])} hit classes")
+    return new, datasets, unbinned.declare_params(new, dcl)
+
+
+# ---------------------------------------------------------------------------
 # the J/psi term (make_card.build's shape, with a delta kernel)
 # ---------------------------------------------------------------------------
 def norm_classes(sigma, vgf, arrays, nt, nclasses, log=print):
@@ -399,11 +894,17 @@ def norm_classes(sigma, vgf, arrays, nt, nclasses, log=print):
     return norm, extra
 
 
-def build_jpsi(args, log=print):
+def build_jpsi(args, log=print, matctx=None):
     """The J/psi mass term: delta kernel at MJPSI, NO scale parameter.
 
     Returns (term, datasets, decl, idx, d) -- `idx` and the open cache so the
     caller can slice the D block on exactly the same candidates.
+
+    With ``matctx`` the term is a :class:`MaterialCFTerm` over the parmtype-15
+    amounts and the hit classes instead of the four ``k_*`` knobs; everything
+    else -- the selection, the weights, the two corrections, the truncation
+    window -- is bit-identical, which is what makes the k = 0 comparison a
+    gate rather than a coincidence.
     """
     import make_card
     from rabbit import unbinned
@@ -477,9 +978,8 @@ def build_jpsi(args, log=print):
     norm, extra = norm_classes(sigma, vgf, arrays, nt, jargs.norm_classes, log)
     datasets.update(extra)
 
-    term = unbinned.MassCFTerm(
-        "jpsi", sigma=sigma, mobs=mobs, tgrid=tgrid,
-        families=[dict(f, **arrays.get(f["name"], {})) for f in families],
+    common = dict(
+        sigma=sigma, mobs=mobs, tgrid=tgrid,
         vgf=vgf, phik=None,
         kernel=unbinned.DeltaKernel(),
         background=None, m_ref=MJPSI,
@@ -491,11 +991,30 @@ def build_jpsi(args, log=print):
         a_res=a_res, self_consistent_sigma=True,
         jensen_s2=jensen_s2, jensen_mode="exact",
         corr_form=args.corr_form,
-        norm_window=(lo, hi), norm_tpoints=jargs.norm_tpoints, norm=norm,
+        norm_window=(lo, hi), norm_tpoints=jargs.norm_tpoints,
         upsample=args.fit_upsample_jpsi,
         chunk=args.chunk, channel="jpsi")
-    decl = unbinned.declare_params(
-        term, {f["param"]: (1.0, np.nan, 1.0, 0) for f in families})
+
+    if matctx is None:
+        term = unbinned.MassCFTerm(
+            "jpsi",
+            families=[dict(f, **arrays.get(f["name"], {})) for f in families],
+            norm=norm, **common)
+        decl = unbinned.declare_params(
+            term, {f["param"]: (1.0, np.nan, 1.0, 0) for f in families})
+    else:
+        gkw, gdata, _ = matctx.block(args.jpsi_pairs, idx, "jpsi", log)
+        datasets.update(gdata)
+        strip_flat_families(datasets, log)
+        legacy = ([{"name": "hit", "param": "k_hit", "kind": "gauss"}]
+                  if args.legacy_families else [])
+        term = unbinned.MaterialCFTerm(
+            "jpsi", families=legacy,
+            norm=MaterialContext.fixed_norm(norm), **common, **gkw)
+        dcl = matctx.declarations(gkw["group_params"], gkw["hit_params"])
+        for f in legacy:
+            dcl[f["param"]] = (1.0, np.nan, 1.0, 0)
+        decl = unbinned.declare_params(term, dcl)
     log(f"  parameters {list(term.param_names)}")
     info = {"n": n, "n_cache": int(len(d["z"])), "window": [lo, hi],
             "weights_info": winfo}
@@ -505,7 +1024,8 @@ def build_jpsi(args, log=print):
 # ---------------------------------------------------------------------------
 # card assembly
 # ---------------------------------------------------------------------------
-def attach_jac(cfg, datasets, decl, params, jac, names, prior_sigmas, poi_set):
+def attach_jac(cfg, datasets, decl, params, jac, names, prior_sigmas, poi_set,
+               allow_shared=False):
     """Give an already-built MassCFTerm a sparse D, through its card image.
 
     `MassCFTerm.__init__` appends `jac_params` to `param_names` LAST (after the
@@ -525,23 +1045,39 @@ def attach_jac(cfg, datasets, decl, params, jac, names, prior_sigmas, poi_set):
     datasets["jac_values"] = vals
     datasets["jac_shape"] = np.asarray(shape, dtype=np.int64)
     new = [nm for nm in names if nm not in params]
-    if len(new) != len(names):
+    shared = [nm for nm in names if nm in params]
+    if shared and not allow_shared:
         raise SystemExit(
             "a calibration parameter name collides with one of the mass "
-            f"term's own parameters: {sorted(set(names) - set(new))}")
+            f"term's own parameters: {sorted(shared)}")
+    prior = {nm: prior_sigmas[i] for i, nm in enumerate(names)}
     params = list(params) + new
     decl = {
         "param_defaults": np.concatenate(
             [decl["param_defaults"], np.zeros(len(new))]),
         "param_prior_sigmas": np.concatenate(
-            [decl["param_prior_sigmas"], np.asarray(prior_sigmas, np.float64)]),
+            [decl["param_prior_sigmas"],
+             np.array([prior[nm] for nm in new], np.float64)]),
         "param_prior_means": np.concatenate(
             [decl["param_prior_means"], np.zeros(len(new))]),
         "param_is_poi": np.concatenate(
             [np.asarray(decl["param_is_poi"], np.int8),
              np.array([1 if nm in poi_set else 0 for nm in new], np.int8)]),
     }
-    return cfg, datasets, decl, params
+    # A parameter the TERM already declares (the 42 material amounts, which a
+    # MaterialCFTerm lists as its own) must still carry the CALIBRATION
+    # declaration -- same prior, same POI flag as the bundle and as the other
+    # leg -- or `merge_declarations` refuses the card. Overwrite rather than
+    # trust the term's default row, and say how many were touched.
+    if shared:
+        pos = {nm: i for i, nm in enumerate(params)}
+        for nm in shared:
+            i = pos[nm]
+            decl["param_defaults"][i] = 0.0
+            decl["param_prior_sigmas"][i] = prior[nm]
+            decl["param_prior_means"][i] = 0.0
+            decl["param_is_poi"][i] = 1 if nm in poi_set else 0
+    return cfg, datasets, decl, params, shared
 
 
 def merge_declarations(entries):
@@ -634,6 +1170,21 @@ def main():
         if unknown:
             raise SystemExit(f"--poi names not among the 92: {sorted(unknown)}")
 
+    matctx = None
+    if args.material:
+        if not args.jpsi_pairs:
+            raise SystemExit(
+                "--material with no --jpsi-pairs: the material amounts would "
+                "then be constrained by the Z leg and the quadratic term "
+                "alone, which is not the phase-3 configuration. Give both "
+                "group caches.")
+        matctx = MaterialContext(args, names, parmtype, subidx, pscale,
+                                 prior_sigmas, poi_set)
+        log(f"  --material: {len(matctx.matcol)} parmtype-15 amounts are "
+            "SHARED between the quadratic curvature, the mass-term widths and "
+            f"the mass-term means; A(k) = {args.amount_mode}, "
+            f"H(eps) = {args.hit_mode}")
+
     # -- 2. the injection vector -------------------------------------------
     inject = np.zeros(nfit)
     if args.inject:
@@ -655,12 +1206,28 @@ def main():
     log(f"  parameter map: the D block of every pairs cache matches the "
         f"quadratic extraction on all {nfit} (fitidx, parmtype, subidx)")
 
+    # `f_ang` (decision 10): the Jensen s^2 must be TRUTH-FREE on both legs,
+    # i.e. read per candidate from `Jpsi_covrefmom`. The phase-2 J/psi cache
+    # predated that branch and needed the scalar --jpsi-fang; say explicitly
+    # which source each leg of THIS card uses rather than leaving it in the
+    # middle of make_card's selection log.
+    fangsrc = {}
+    for tag, path in (("jpsi", args.jpsi_pairs), ("z", args.z_pairs)):
+        if not path:
+            continue
+        has = "fang" in set(np.load(path, allow_pickle=False).files)
+        fangsrc[tag] = "per-candidate Jpsi_fang" if has else (
+            f"the SCALAR --jpsi-fang {args.jpsi_fang:g}" if tag == "jpsi"
+            else "none (s^2 unscaled)")
+        log(f"  jensen f_ang, {tag} leg: {fangsrc[tag]}"
+            + ("" if has else "  <-- NOT truth-free from the candidate"))
+
     entries = []          # (name, cfg, params, datasets, decl)
     jacinfo = {}
 
     if args.jpsi_pairs:
         log("--- J/psi term ---")
-        jterm, jdata, jdecl, jidx, jd, jinfo = build_jpsi(args, log)
+        jterm, jdata, jdecl, jidx, jd, jinfo = build_jpsi(args, log, matctx)
         Dj = jd["D"][jidx].astype(np.float64)
         Dj *= -inv[None, :]
         del jd
@@ -671,11 +1238,14 @@ def main():
             jdata["mobs"] = jdata["mobs"] + shift
             log(f"  injected into the J/psi means: mean {shift.mean()*1e3:+.5f} "
                 f"MeV, rms {shift.std()*1e3:.5f} MeV")
-        cfg, jdata, jdecl, jparams = attach_jac(
+        cfg, jdata, jdecl, jparams, jshared = attach_jac(
             jterm.config(), jdata, jdecl, jterm.param_names, jac, names,
-            prior_sigmas, poi_set)
+            prior_sigmas, poi_set, allow_shared=args.material)
         entries.append(("jpsi", cfg, jparams, jdata, jdecl))
-        log(f"  J/psi term: {jinfo['n']} candidates, {len(jparams)} parameters")
+        log(f"  J/psi term: {jinfo['n']} candidates, {len(jparams)} parameters"
+            + (f" ({len(jshared)} of them SHARED with the term's own material "
+               "amounts)" if jshared else ""))
+        del jterm
     else:
         log("NO --jpsi-pairs: building the QUADRATIC + Z card only. Without "
             "the J/psi leg nothing pins the momentum scale independently of "
@@ -713,6 +1283,10 @@ def main():
     Dz = zd["D"][zidx].astype(np.float64)
     Dz *= -inv[None, :]
     del zd
+
+    if matctx is not None:
+        zterm, zdata, zdecl = rebuild_material(
+            zterm, zdata, zdecl, matctx, args.z_pairs, zidx, "z", log)
     jac, Dz, zstat = sparse_jac(Dz, args.jac_prune, "z", log)
     jacinfo["z"] = zstat
     if args.inject and not args.inject_quad_only:
@@ -720,16 +1294,24 @@ def main():
         zdata["mobs"] = zdata["mobs"] + shift
         log(f"  injected into the Z means: mean {shift.mean()*1e3:+.5f} MeV, "
             f"rms {shift.std()*1e3:.5f} MeV")
-    cfg, zdata, zdecl, zparams = attach_jac(
+    cfg, zdata, zdecl, zparams, zshared = attach_jac(
         zterm.config(), zdata, zdecl, zterm.param_names, jac, names,
-        prior_sigmas, poi_set)
+        prior_sigmas, poi_set, allow_shared=args.material)
     entries.append(("zmass", cfg, zparams, zdata, zdecl))
-    log(f"  Z term: {zinfo['n']} candidates, {len(zparams)} parameters")
+    log(f"  Z term: {zinfo['n']} candidates, {len(zparams)} parameters"
+        + (f" ({len(zshared)} of them SHARED with the term's own material "
+           "amounts)" if zshared else ""))
+    del zterm
 
     # -- 4. the injection into the quadratic term ---------------------------
     if args.inject and not args.inject_mass_only:
         G = G - K @ inject
         log("  quadratic term: G -> G - K dtheta")
+
+    frozen = report_census(matctx, names, dead, poi_set, log) if matctx else []
+    if frozen:
+        log("  the card does NOT freeze them: which parameters a fit floats is "
+            "a physics decision and belongs in the fit command.")
 
     # -- 5. write ------------------------------------------------------------
     writer = tensorwriter.TensorWriter()
@@ -816,6 +1398,15 @@ def main():
             "field_prior": args.field_prior,
             "material_prior_scale": args.material_prior_scale,
             "jpsi_fang": args.jpsi_fang,
+            "fang_source": fangsrc,
+            "material": bool(args.material),
+            "amount_mode": args.amount_mode,
+            "hit_mode": args.hit_mode,
+            "group_prune": args.group_prune,
+            "hit_prior": args.hit_prior,
+            "clip_vg_other": bool(args.clip_vg_other),
+            "legacy_families": bool(args.legacy_families),
+            "unconstrained": frozen if args.material else [],
             "paramModels": models,
         })],
     })
