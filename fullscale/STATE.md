@@ -1038,3 +1038,162 @@ be hoisted out of the per-chunk path first (`MassCFTerm._prologue(values)`
 returning the (class, tau) tables and `_norm_z`), because otherwise one FFT per
 class is recomputed on every chunk: at 64 classes x 113 chunks that turns a
 4 ms/chunk redundancy into the dominant cost.
+
+---
+
+## 6. THE NATIVE MINIMISER PATH  (added 2026-09-07; APPEND ONLY, nothing above changes)
+
+**The default path is untouched.** `--engine auto` resolves to `host` for
+every scipy method, so `fit.py` / `fit_joint.py` with the arguments used in
+sections 0-8 run what they always ran — checked against the pre-change drivers
+on `cards/smoke_zls.hdf5` under `rabbit-material`: identical NLL, identical
+iteration count, parameters agreeing to 2e-15 (multithreaded round-off).
+
+### 6.1 The problem, measured
+
+`chunkfit.ChunkedObjective` loops the candidate chunks in **python**, in eager
+TF, and calls `.numpy()` on the value and the gradient of **every chunk**. Each
+of the 113 chunks of the 3.68 M card is a few hundred individually dispatched
+ops followed by a forced device sync, so the device is idle between them.
+Sampled through the 300 k fit on an H200 (`fit_n300k_host_trust-exact`):
+
+> **GPU utilisation: mean 9.1 %, median 0.0 %, p90 32.9 %** over 732 samples.
+
+That is the whole of it. The arithmetic was never the bottleneck.
+
+### 6.2 What was built
+
+| piece | where | what |
+|---|---|---|
+| `ChunkTable` / `JacChunkTable` | rabbit `unbinned.py` | `term._chunks[ci]` for a **traced** `ci`: the same `arr[lo:hi]` becomes a dynamic slice. Python int in, python ints out — the eager path is unchanged |
+| `MassCFTerm.candidate_slice` | rabbit `unbinned.py` | the unbinned analogue of PR #154's `ShardIndataView`: a term over candidates `[a, b)` with its per-candidate tensors on one device |
+| `DeviceChunkedObjective` | `fullscale/devobj.py` | subclasses `ChunkedObjective` and calls its `_chunk_nll`; the loop is a `tf.while_loop` inside a `tf.function`, `parallel_iterations=1` so one chunk is live, gradient taken **inside** the body |
+| `ShardedChunkedObjective` | `fullscale/shardobj.py` | the same, split over N GPUs by candidate |
+| `minimize_driver` | `fullscale/` | `--method tf-*` (rabbit PR #153), `--engine`, `--devices`, snapshots (PR #155), `--check-device`, `--gpu-monitor` |
+
+Nothing is approximated. Device vs host, relative:
+
+| card | value | gradient | HVP |
+|---|---|---|---|
+| `z_n300k` (300 k, 7 free), H200, chunks 8192 / 32768 / 131072 / 300000 | **0** | 1.2e-15 … 9.9e-15 | 1.8e-15 … 9.8e-14 |
+| `joint_smoke` (2 mass terms, 120 k, **99 free**, sparse D + external quadratic) | **0** | 1.6e-17 | 3.1e-16 |
+
+and 1, 2, 3 candidate shards reproduce the single-device objective to 4e-16 —
+sharding splits a sum, so it is an identity, not an approximation.
+
+**Per-call cost, `z_n300k` on an H200** (best of 3 after the trace):
+
+| chunk | nchunk | trace | device v+g | device HVP | host v+g | host HVP | x v+g | x HVP | GPU dev | GPU host |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 8192 | 37 | 4.9 s | 0.407 s | 0.801 s | 2.169 s | 11.383 s | **5.3** | **14.2** | 25 % (p90 88) | 14 % (p90 25) |
+| **32768** (card) | 10 | 1.2 s | 0.301 s | 0.543 s | 1.043 s | 4.001 s | **3.5** | **7.4** | 32 % (p90 85) | 33 % (p90 42) |
+| 131072 | 3 | 0.9 s | 0.269 s | 0.478 s | 0.725 s | 1.984 s | 2.7 | 4.1 | 29 % (p90 82) | 45 % (p90 62) |
+| 300000 | 1 | 0.9 s | 0.260 s | 0.452 s | 0.630 s | 1.419 s | 2.4 | 3.1 | 28 % (p90 83) | 56 % (p90 73) |
+
+Read the last two columns together with the first: the host path's cost is
+**per chunk**, so it improves as the chunks get larger and the python loop
+gets shorter — and at full scale it cannot take that route, because the chunk
+size is what bounds the memory (host RSS goes 9.7 -> 22.3 GB across this
+scan, and the `pfor` Hessian is `nfree` times a chunk's tape). The device
+path is nearly flat in the chunk size: the residual 4 ms per chunk is the
+parameter-only prologue (the Z/gamma* transform and the truncation
+normalisation), which is re-evaluated once per chunk. Hoisting it was
+measured to be worth 14 % of a gradient at `chunk 32768` on the full card and
+~2 % at `chunk 262144`, so it was left alone.
+
+### 6.3 How to switch
+
+```bash
+RABBIT=/work/submit/david_w/ZMass/rabbit-native \
+  ./run_tf.sh python3 -u fit.py --card cards/z_full380_fl.hdf5 \
+      --fix k_hit k_ms k_ioni k_rad \
+      --method tf-trust-krylov \
+      --snapshot-file results/f380.snapshot.hdf5 --snapshot-interval 0.25 \
+      -o results/fit_f380_native.json
+```
+
+- `RABBIT=.../rabbit-native`, branch **`material-resolution-native`** =
+  `material-resolution` + rabbit PRs **#153** (native TF trust-region
+  minimizers), **#154** (multi-device) and **#155** (snapshots). The device
+  engine refuses to start against any other rabbit and says why.
+- `--method tf-trust-krylov` implies `--engine device`. `tf-trust-ncg` and
+  `tf-trust-exact` are the other two; the scipy `trust-exact` /
+  `trust-krylov` / `trust-ncg` are unchanged and remain the reference.
+- `--engine device --method trust-krylov` is the halfway point (fast
+  objective, scipy steps) and separates the two effects.
+- `--snapshot-file` + `--snapshot-interval <hours>` write the parameter vector
+  after every accepted iteration, on SIGTERM (a slurm wall clock kill, a
+  preemption) and on failure; `--resume <file>` seeds a fit from one. Three
+  fits have been lost to interruptions — this is the fix, and it is what makes
+  `mit_preemptable` (which starts H200 jobs in minutes instead of hours) the
+  right partition.
+- `--devices N` shards the candidates over N GPUs.
+- `--check-device` asserts device == host before fitting; `--gpu-monitor 1.0`
+  puts the utilisation distribution in the json.
+
+### 6.4 The measurement
+
+**`cards/z_n300k.hdf5`** (300 000 candidates, 7 free), one H200, every row the
+same card from the same start, `--gtol 1e-6`:
+
+| engine | method | it | wall | vs default | t/it | GPU mean | GPU p90 | host RSS | TF device | dNLL | max rel dx |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| host | **trust-exact** (today's default) | 20 | **776.7 s** | 1.0x | 38.8 s | **9.1 %** | 32.9 % | 19.1 GB | — | ref | ref |
+| host | trust-krylov | 42 | 1299.0 s | 0.6x | 30.9 s | 15.6 % | 29.0 % | 18.2 GB | — | -1e-10 | 4.3e-8 |
+| device | trust-krylov | 42 | 109.9 s | 7.1x | 2.62 s | 90.8 % | 94.0 % | 10.0 GB | 8.88 GB | -1e-10 | 4.3e-8 |
+| device | **tf-trust-krylov** | 41 | 95.8 s | 8.1x | 2.34 s | 80.1 % | 93.0 % | 10.1 GB | 9.85 GB | +1e-10 | 1.9e-8 |
+| device | **tf-trust-exact** | 20 | **73.1 s** | **10.6x** | 3.65 s | 88.3 % | 94.0 % | 10.0 GB | 8.93 GB | **0** | 1.2e-8 |
+| device (2 GPU) | tf-trust-krylov | 41 | **63.7 s** | **12.2x** | 1.55 s | 58.3 %* | 92.1 % | 15.5 GB | 9.94 GB | **0** | 1.9e-8 |
+| device | tf-trust-ncg | 200 | 198.0 s | — | 0.99 s | 84.6 % | 94.0 % | 10.2 GB | 9.98 GB | **+2.5e+3** | **DID NOT CONVERGE** |
+
+\* averaged over both cards.
+
+**`cards/z_full380.hdf5`** (3 682 662 candidates, 7 free), one H200:
+
+| engine | method | it | wall | t/it | GPU mean | host RSS | TF device | dNLL | max rel dx |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| device | trust-krylov | 61 | 1846.8 s | 30.3 s | 77.4 % | 16.6 GB | 13.14 GB | ref | ref |
+| device | **tf-trust-krylov** | 46 | **1205.8 s** | 26.2 s | 81.0 % | 16.6 GB | 14.15 GB | +2.4e-8 | **9.8e-7** |
+| device | tf-trust-ncg | 200 | 2550.7 s | 12.8 s | 79.9 % | 16.6 GB | 14.22 GB | +3.2e+4 | **DID NOT CONVERGE** |
+| host | **trust-exact** (today's default) | ~38 | **~19 600 s** (running; 515 s/it measured over its first 8) | 515 s | — | 20.9 GB | — | — | — |
+
+The reference-point Hessian alone, on that card: **420 s** (host, `pfor`) against
+**62 s** (device, `nfree` HVP columns) — and the device one is flat in memory
+where `pfor` is `nfree` times a chunk's tape. That single number is most of
+what a `trust-exact` iteration costs on the host, which is why its 515 s/it
+against `tf-trust-krylov`'s 26.2 s/it is a factor **20 per iteration** and
+about **16x** on the wall.
+
+**What each factor buys, separated.** `host trust-krylov -> device
+trust-krylov` is the objective alone at *identical* iterates (42 both, same
+minimum): **11.8x**. `device trust-krylov -> device tf-trust-krylov` is the
+native minimiser on top: 1.15x at 300 k (95.8 vs 109.9 s) and 1.53x on the
+full card (1205.8 vs 1846.8 s, and 46 iterations against 61 — GLTR solves the
+subproblem to optimality inside the Krylov space, so its steps are better,
+not just cheaper). Sharding over a second GPU: 1.50x.
+
+**Every converged row lands on the same minimum.** NLL agrees to 1e-10
+absolute out of 8.7e5 at 300 k and 2.4e-8 out of 1.07e7 on the full card;
+parameters to **4.3e-8** relative at 300 k and **9.8e-7** on the full card,
+against the 1e-6 the comparison asked for.
+
+**`tf-trust-ncg` should not be used on this objective.** Steihaug-CG truncates
+at the trust-region boundary instead of solving the subproblem in the Krylov
+space, and on a Hessian whose spectrum spans 4.9e-3 to ~1e4 that is not enough:
+it hits `maxiter = 200` at NLL +2.5e3 (300 k) / +3.2e4 (full) above the
+minimum, with `m_Z` and `Gamma_Z` still at their starting values. This is the
+algorithm, not the port — scipy's own `trust-ncg` is the same subproblem.
+Use **`tf-trust-krylov`** (GLTR) or **`tf-trust-exact`**.
+
+### 6.5 Caveats
+
+- `--chunk` on a card that carries a per-candidate sparse `D` (the joint
+  cards) now **raises** instead of silently mis-aligning the write-time
+  blocks. That is a pre-existing bug, not a new restriction.
+- `MaterialCFTerm` with CSR group / hit blocks is not graph-chunkable (it
+  indexes a numpy pointer array with `int(...)`); such a term falls back to
+  the host loop with a clear message.
+- The sandwich is still the host implementation — it runs once per fit.
+- A sharded rabbit `Fitter` (`--nDevices > 1`, PR #154) evaluates unbinned
+  terms in the **global, unsharded** term. That is correct but not sharded;
+  before this branch they were silently **dropped** from the likelihood.
