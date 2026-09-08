@@ -3444,3 +3444,59 @@ against `V_etaT` = +12.39 (+4.9 MeV): giving each band the FSR kernel measured
 on its own selected candidates moves it by ~4 MeV in the SAME direction in both
 bands, against a 33 MeV difference BETWEEN the bands. The kernel is worth its
 4 MeV and is not the pattern.
+
+### 0f.32 THE KERNEL-FREE DETECTOR TEST IS **NOT** FLAT PER BAND — the pattern
+### is on the DETECTOR side (2026-09-08, at the coordinator's request)
+
+`--residual-mode`: `m_reco - m_gen` against the per-candidate resolution CF,
+delta kernel, no FSR fold, no acceptance, no `K(m)`. `--maxn 700000` per band,
+`--floor-scale 1e-7` (see below), fitted through `rabbit_fit.py` with
+`trust-exact` and then re-evaluated with `fit.py --start-from` for the sandwich
+— which took **nit = 0** on every row, i.e. rabbit's point was already the
+minimum.
+
+| split | `sigma/m` | n | **kernel-free `alpha`** | EDM | the full fit, same band (v form) |
+|---|---:|---:|---:|---:|---:|
+| `0.9 < \|eta\| < 1.6` | 0.0125 | 693 553 | **+11.99 +- 1.51** | 1.6e-15 | **+12.39 +- 4.16** |
+| `sigma/m` tertile 1 | 0.0094 | 699 359 | **-5.06 +- 1.05** | 2.4e-24 | — |
+| `sigma/m` tertile 2 | 0.0123 | ~696 000 | **+4.80 +- 1.31** | 2.2e-08 | — |
+| inclusive (297 k, sec. 0b) | 0.0123 | 297 557 | +0.88 +- 2.12 | — | -1.54 +- 2.08 |
+
+**With NO kernel at all the detector half shows the pattern**: `+11.99 +- 1.51`
+on the middle `eta` band is 7.9 sigma from zero, and it reproduces that band's
+FULL v-form closure (`+12.39 +- 4.16`) to within its own error. The
+`sigma/m` tertiles are monotone, `-5.06 -> +4.80`, i.e. **+3.4 MeV per 1e-3 of
+`sigma/m`** on the detector side alone.
+
+**So sec. 0b's `+0.88 +- 2.12` "the detector half CLOSES" was a CANCELLATION**,
+exactly like the v-form inclusive closure: bands of opposite sign averaging to
+zero. It was never evidence that the detector model is right — only that its
+errors average out on this MC's `eta` composition.
+
+**This is the coordinator's first branch**: a coefficient error proportional to
+`sigma/m` gives a bias linear in `sigma/m`, which is what the tertiles show, so
+the `a_res` / Jensen / substitution coefficients are wrong as a function of
+`sigma/m` and **the fix is on the detector side**, not in the kernel, the
+acceptance or `K(m)`. The `sigma/m` split at fixed `eta`
+(`z_V_eta{B,E}_s{lo,hi}`, `22316192`) and the per-band `K` ladder remain
+useful, but they are no longer where the cause is expected to be.
+
+**Still running**: `residB`, `residE`, `residShi` (the machine is at load ~180;
+they are past their minimiser and in the postfit). Their numbers complete the
+picture and the barrel is the one to watch — the full fit gives -21.1 there.
+
+**The floor-scale trap, recorded because it produced no error message.** At
+`make_card.py`'s default `--floor-scale 1e-9` the residual cards give
+`NLL = inf` before any minimiser runs: three candidates in 695 757 have a
+NEGATIVE density from CF ringing (`li` = -5.7e-5, -2.4e-5, -1.9e-5), all
+large-`sigma` (2.3-2.4 GeV), near-pure-Gaussian (`vgf` 0.91-0.94) candidates at
+~4 sigma, and `s*softplus(li/s)` with `s = 1e-9` is exactly 0 there. rabbit
+reports it as *"diagnostics unavailable: SVD did not converge"* followed by
+*"Minimizer raised: array must not contain infs or NaNs"* and then writes a
+result file at the unmoved starting point — the sec. 0f.19 failure shape again.
+The scale is SET, not chosen: `s*softplus(li/s)` underflows once `li/s < -745`
+and distorts the density by >1 % once `li < 4.6 s`, so `5.7e-5/745 = 7.7e-8 < s`
+and `4.6 s` must stay below the densities that matter. **`s = 1e-7`.**
+`s = 1e-4` was tried first and is wrong — it inflates everything past ~4 sigma
+and blew `alpha` up to +71 +- 25 MeV against an expected +-1.4.
+`--floor clip` is no help either: `max(li, 0) = 0` gives `log 0` as well.
