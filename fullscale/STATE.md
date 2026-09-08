@@ -3039,6 +3039,12 @@ of a field mode is a near-cancelling sum over candidates, so the same relative
 density perturbation shows up ~30x amplified there on the J/psi leg; that is a
 property of the sample, not of the parameterisation.
 
+Gate (b) was re-run after `rabbit-vmass` `35b9394` (the dense `D`, sec. 9) and
+returns the SAME numbers to every digit: the phase-3 card stores `D` in the
+same `jac_indices`/`jac_values` datasets, so it inherits that fix -- and the
+GPU-determinism failure it fixes -- automatically, and `jac_dense` is a
+constructor option that is not written to the card.
+
 **(c) sum-of-groups closure** — `matres/validate_inmaker_groups.py --maxn
 200000` on the two phase-3 caches, re-run today:
 
