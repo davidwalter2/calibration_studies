@@ -409,3 +409,150 @@ Dead ends worth not repeating:
   300 k; job 22163315 spent 1:57 on its first variant and produced nothing.
 * `--corr-clip` on a fluctuation-form card is meaningless and `fit.py` now
   refuses it.
+
+---
+
+### 2026-09-07 20:00-21:00 — the kernel programme, and a RETRACTION
+
+**RETRACTED: "the FSR fold describes a sample radiating 1.66x more than the
+reconstructed candidates".** The comparison behind it was wrong. I compared
+
+    <u> = <-ln(m_post/m_pre)>   kernel npz, no mass cut          0.024032
+                                selected candidates, 60-120      0.014447
+
+and read the factor 1.66 as a defect of the kernel. It is not: the kernel is
+built on the FULL gen sample precisely so that the fold can move a Born mass
+anywhere, and the model's prediction for the SELECTED sample is the same gen
+sample restricted to the window, which the truncation normalisation
+(`norm_window` / `_norm_z`) is what implements. Measured on the same generator
+merge (`genmerged_full.npz`, 29.27 M events):
+
+| sample | `<u>` |
+|---|---:|
+| gen, inclusive | 0.027147 |
+| gen, fiducial `pT > 5`, `\|eta\| < 2.4` (the kernel's cut) | 0.023456 |
+| **gen, fiducial + `m_post` in [60, 120]** (the model's prediction) | **0.014234** |
+| gen, fiducial `pT > 25` + window (the WRONG fiducial, for scale) | 0.010207 |
+| **reconstructed, fully selected** | **0.014447** |
+
+so the model and the data agree to **+2.1e-4 in `<u>`, 1.5 % relative**, not a
+factor 1.66. The residual sign is that the data radiate slightly MORE than the
+model, which pushes `m_Z` DOWN — the right sign for the -11 MeV — but 1.5 %,
+not 66 %. The `pT > 5` fiducial is confirmed as the right one for this sample:
+the selected candidates' sub-leading muon `pT` is 5.50 GeV at the 0.1 % point
+and 9.22 at the 1 %, i.e. a ~5 GeV threshold, and the `pT > 25` fiducial's
+`<u>` (0.0102) is nowhere near the data.
+
+**The acceptance is also not the defect.** `A_sel(m_pre) = P(selected | m_pre)`
+measured from the selected candidates against the generator's `m_pre` spectrum
+is a top-hat (0.006 at 55.6 GeV, 0.70 at 61.6, plateau 0.95 over 85-118, 0.28
+at 121.6, 0.13 at 124.6) — the 60-120 window acting through `m_post ~ m_pre`.
+Divided by the loose gen acceptance in use it is **FLAT at 1.97 +- 0.05 across
+61-118 GeV** and only falls outside the window, which is what the truncation
+normalisation handles. So inside the window the acceptance shape in use is
+right to a few per cent, and that residual slope is exactly what the floated
+`K(m)` absorbs. (A degree-8 Bernstein cannot fit the top-hat: chi2/ndf =
+30638/184. That is a statement about the parameterisation of a step, not about
+the physics.)
+
+New files: `zchannel/kern_from_selected.py` (the selected-sample kernel and
+acceptance), `zchannel/data/kern_selected_band3.3e-4.npz` (3 682 662
+candidates, 11 bands, 4529 atoms), `zchannel/data/acc_selected_d8.json`,
+`zchannel/data/gen_selected.npz` (the selected candidates' own gen record, in
+`fit_gen.py`'s format, so the generator-level chain can be run ON THEM).
+
+**Kernel statistical precision**, on the selected sample: `<u> = 0.014447`,
+`RMS(u) = 0.050139`, `N_eff = 2 993 821`, so `sigma(<u>) = 2.90e-5` = **2.64 MeV
+on the peak position**. That is the floor a data-driven kernel could reach here
+and it is NOT negligible against a 2.27 MeV statistical error.
+
+**What IS there, and it has the right eta pattern.** `<u>` model vs data, both
+with the same window applied, in the `|eta_lead|` bands the `m_Z` splits used:
+
+| `\|eta_lead\|` | model (gen fid + window) | data (selected) | data - model | fitted `m_Z` (300 k) |
+|---|---:|---:|---:|---:|
+| 0 - 0.9 (barrel) | 0.014276 | 0.014476 | **+2.00e-4** | -35.79 +- 7.13 |
+| 0.9 - 1.6 | 0.014235 | 0.014397 | +1.62e-4 | +0.08 +- 7.89 |
+| 1.6 - 3.0 (endcap) | 0.014164 | 0.014160 | **-0.04e-4** | +4.07 +- 9.64 |
+| inclusive | 0.014234 | 0.014367 | +1.33e-4 | -11.06 +- 2.27 (full stats) |
+
+The barrel radiates 2.0e-4 more than the model says and the endcap agrees to
+0.04e-4. `2e-4` of the mass is **18 MeV**, in the direction that pulls `m_Z`
+DOWN, and the barrel-endcap `m_Z` difference is 40 +- 12 MeV. So the sign, the
+size to a factor ~2, and the `eta` pattern all match. The cause is that the
+selection acts on RECONSTRUCTED muons and the kernel's fiducial acts on
+generated ones; the two differ in a way that correlates with the radiation.
+That is the coordinator's hypothesis, at 1.5 % of `<u>` rather than 66 %.
+
+**The decisive test: the kernel side CLOSES at generator level.** The
+coordinator's step 1, run on the selected candidates' own gen record
+(`zchannel/fit_gensel.py`, `data/fit_gensel_bands.log`): fit their GEN masses
+with exactly the detector-level chain, (a) the pre-FSR mass against
+lineshape (x) A (x) K and (b) the post-FSR mass against the full fold, with the
+kernel/acceptance IN USE and with the pair rebuilt from these candidates.
+`shape 5`, window 60-120, Born 50-130, no detector anywhere. MeV.
+
+| `\|eta_lead\|` | pair | (a) pre-FSR, no fold | (b) post-FSR, full fold | (b) - (a) | detector-level `m_Z` |
+|---|---|---:|---:|---:|---:|
+| barrel | in use | -3.28 +- 1.90 | **+0.61 +- 2.05** | +3.89 | -35.79 +- 7.13 |
+| barrel | selected | -1.51 +- 1.91 | +2.18 +- 2.07 | +3.69 | |
+| transition | in use | +1.01 +- 2.31 | **+4.16 +- 2.51** | +3.15 | +0.08 +- 7.89 |
+| transition | selected | +2.82 +- 2.32 | +5.79 +- 2.54 | +2.97 | |
+| endcap | in use | -2.99 +- 2.42 | **-2.70 +- 2.63** | +0.29 | +4.07 +- 9.64 |
+| endcap | selected | -1.26 +- 2.43 | -1.38 +- 2.70 | -0.12 | |
+| inclusive | in use | -1.94 +- 1.25 | **+0.76 +- 1.36** | +2.69 | -11.06 +- 2.27 |
+| inclusive | selected | -0.17 +- 1.26 | +2.30 +- 1.38 | +2.47 | |
+
+**The fold is worth +2.7 MeV, not -11, and its `eta` spread is 3.6 MeV, not
+40.** The chain reproduces the selected candidates' own gen masses to
++0.76 +- 1.36 MeV inclusively and to +0.6 / +4.2 / -2.7 per band. Rebuilding
+the kernel AND the acceptance from those candidates moves `m_Z` by +1.5 MeV and
+does not touch the `eta` pattern. `nm` 32768 -> 8192 moves `m_Z` by 0.01 MeV,
+so the binning is not in this.
+
+**RETRACTED: "what is left is the KERNEL".** It is not. The detector half
+closes at +0.9 +- 2.1 MeV (kernel-free, delta lineshape) and the kernel half
+closes at +0.8 +- 1.4 MeV (detector-free, gen masses). **The -11 MeV is in the
+COMBINATION**, and the leading candidate is now identified.
+
+### The per-candidate resolution is not independent of the mass
+
+The likelihood is `prod_i p(m_i | sigma_i)` and the model computes it as
+`int p(m') K_{sigma_i}(m_i - m') dm' / Z_i` — i.e. it assumes the Born
+spectrum `p(m')` is the SAME for every candidate whatever its `sigma_i`.
+Measured on the fitted sample (3 682 662 candidates, octiles of the absolute
+`sigma_m`):
+
+| `sigma_m` octile [GeV] | n | `<sigma>` | **`<m_gen>`** | `<sigma/m>` |
+|---|---:|---:|---:|---:|
+| 0.332 - 0.783 | 460 333 | 0.699 | **84.94** | 0.0083 |
+| 0.783 - 0.914 | 460 333 | 0.849 | 88.16 | 0.0097 |
+| 0.914 - 1.012 | 460 332 | 0.965 | 89.21 | 0.0109 |
+| 1.012 - 1.103 | 460 333 | 1.056 | 90.12 | 0.0118 |
+| 1.103 - 1.227 | 460 332 | 1.161 | 90.50 | 0.0129 |
+| 1.227 - 1.403 | 460 333 | 1.308 | 90.84 | 0.0145 |
+| 1.403 - 1.758 | 460 333 | 1.553 | 91.12 | 0.0171 |
+| 1.758 - 11.9 | 460 333 | 2.597 | **91.28** | 0.0285 |
+
+`rho(sigma, m_gen) = 0.168`, and the conditional mean of the TRUE mass runs
+over **6.3 GeV** across the classes — the low-`sigma` candidates are a
+genuinely low-mass-enriched population (`sigma` grows with `pT`, and `pT` with
+the mass). Against this the same quantity in `sigma/m` classes moves only
+1.1 GeV and `rho(sigma/m, m_gen) = 0.035`.
+
+This mis-specification is invisible to BOTH closure tests that passed. The
+generator-level fit has no `sigma` at all. The kernel-free residual fit has a
+DELTA lineshape — every candidate's true mass is identically zero — so there is
+no true-mass distribution left to correlate with `sigma`. It is exactly a
+defect of the COMBINATION, which is where the -11 MeV was localised to.
+
+It is also `eta`-dependent by construction (the endcap's `sigma` distribution
+and its `sigma`-mass relation both differ from the barrel's), which is the
+missing `eta` pattern.
+
+**The test now running** (`sigslice.sh`, six absolute-`sigma` slices at 400 k
+each, `K(m)` floated): inside a narrow slice the class-conditional Born
+spectrum differs from the marginal by a SMOOTH function of `m`, which five
+floated Legendre terms can absorb; inclusively one `K(m)` has to serve every
+class at once and cannot. So the prediction is that the slices close and the
+inclusive fit does not.

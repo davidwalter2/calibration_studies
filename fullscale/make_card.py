@@ -153,6 +153,19 @@ def parse_args(argv=None):
                         "Z analogue of MASSCFTERM_SPEC's gate J4.")
     p.add_argument("--max-sigma", type=float, default=0.0,
                    help="absolute sigma_m cut [GeV]; 0 = off")
+    p.add_argument("--sigma-range", type=float, nargs=2, default=None,
+                   metavar=("LO", "HI"),
+                   help="keep only `LO <= sigma_m < HI` [GeV]. The ABSOLUTE "
+                        "sigma, not sigma/m: the likelihood assumes the Born "
+                        "spectrum is the same for every candidate whatever its "
+                        "sigma_i, and on this sample it is not -- <m_gen> runs "
+                        "from 84.94 GeV in the lowest sigma octile to 91.28 in "
+                        "the highest, rho(sigma, m_gen) = 0.168. Slicing on "
+                        "sigma makes that mis-specification measurable: inside "
+                        "a narrow slice the class-conditional Born spectrum is "
+                        "a SMOOTH function of m away from the marginal one, "
+                        "which the floated K(m) can absorb; inclusively one "
+                        "K(m) has to serve every class at once and cannot.")
     p.add_argument("--maxn", type=int, default=0)
     p.add_argument("--seed", type=int, default=1234,
                    help="seed for the --maxn subsample (a HEAD slice would be "
@@ -293,6 +306,10 @@ def select(d, args, log=print):
             lo_v, hi_v = args.vgf_range
             keep &= (v >= lo_v) & (v < hi_v)
             steps.append((f"{lo_v:g} <= vgf < {hi_v:g}", keep.copy()))
+    if args.sigma_range is not None:
+        lo_s, hi_s = args.sigma_range
+        keep &= (sigma >= lo_s) & (sigma < hi_s)
+        steps.append((f"{lo_s:g} <= sigma_m < {hi_s:g} GeV", keep.copy()))
     if args.max_sigma > 0:
         keep &= sigma < args.max_sigma
         steps.append((f"sigma_m < {args.max_sigma:g} GeV", keep.copy()))
