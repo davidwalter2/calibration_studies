@@ -984,3 +984,57 @@ it inherits phase 2's minimiser problem, with 42 + 18 more parameters.
 15. **The K(m) Legendre basis is saturated for `m_Z` and NOT for `Gamma_Z`.**
     Do not carry "5 terms close it" from the generator-level study to the
     detector-level `Gamma_Z`.
+
+---
+
+## 0d. THE ASSEMBLY — WHAT IS RUNNING AND WHAT IS ALREADY SETTLED
+   (checkpoint 2026-09-07 23:45)
+
+Both halves close (sec. 0c). Of the five ways the halves could be joined
+wrongly, three are settled and two are being measured.
+
+| item | status | number |
+|---|---|---|
+| the `_norm_z` class-sigma approximation | **CLOSED** | a 5 % sigma error moves `d lnZ/d m_Z` by 2.1e-8 against its own 7.6e-7 over 5 MeV, i.e. **0.02 MeV**. `Z` = 0.9768-0.9776 |
+| the corrections' reference mass (`m_i` vs the shifted `d_i`) | **CLOSED by construction** | `m_true` in the map IS the convolution's integration variable, i.e. the post-FSR mass; `c_i`, `d_i` are per-candidate CONSTANTS |
+| the acceptance's position in the fold | **CLOSED by the gen-level fit** | `A` multiplies the BORN spectrum, and the gen fit that uses exactly that order closes at +0.76 +- 1.36 MeV |
+| the `tau` grid / upsampling | queued | `--fit-upsample 8` vs 4 on the same candidates |
+| the window normalisation | inconclusive at 300 k | 70-110 gives -2.75 +- 9.82, 75-105 gives -24.50 +- 11.57; the full-statistics 70-110 fit is submitted |
+
+**The mechanism that is left, quantified without any fit.** Build the two
+observed spectra the model can and cannot produce —
+`sum_c P(c)[p(m'|c) (x) N(0,sigma_c)]` against
+`sum_c P(c)[p(m') (x) N(0,sigma_c)]` — and ask what mass shift makes the second
+match the first with a floated 5-term `K(m)`:
+
+**-15.3 MeV** (stable: -16.1 at 8 classes, -14.6 at 48), against the measured
+**-11.06 +- 2.27**. The peak of the truth sits 20 MeV below the peak of the
+model. `K(m)` alone removes 30 % of the mismatch; with the shift free, 45 %.
+
+It does NOT explain the `eta` pattern — it predicts -12 barrel / -26 endcap
+where the fit gives -36 / +4 — and neither does the kernel, whose whole
+band-to-band spread at generator level is 3 MeV. **The `eta` pattern is a
+second, separate open item.**
+
+### The four full-statistics fits submitted to settle it (Engaging, H200)
+
+`22254360 F_toy`, `22254361 F_toydc`, `22254368 F_dc8`, `22254370 F_w70110`,
+all 3 682 662 candidates, `--engine device --method tf-trust-krylov`
+(the rabbit-native agent measured that path at 8x `trust-exact` end to end and
+flat in memory). Read them against the base **-11.06 +- 2.27**:
+
+| card | what it is | reading |
+|---|---|---|
+| `F_toy` | `m_gen_i + sigma_i z_j`, `z_j` shuffled inside 20 `sigma/m` classes | ~-11 => the ASSEMBLY is wrong given correct inputs; ~0 => the data differ from the model INSIDE the convolution |
+| `F_toydc` | the same toy, plus the `p(m_gen)/p(m_gen\|class)` weights | with `F_toy` ~-11 and this ~0, the sigma-mass pairing is PROVED to be the cause |
+| `F_dc8` | the real data with those weights | the same test without the toy |
+| `F_w70110` | the real data, window 70-110 | the window normalisation, at last with a 2.3 MeV error |
+
+**If the pairing is confirmed, the fix is a per-resolution-class Born
+reweighting** `w_c(m) = p(m|c)/p(m)`, exactly analogous to the acceptance and
+measurable from MC. The class machinery already exists in the term for
+`_norm_z`. The rabbit-native agent has asked that the parameter-only prologue
+be hoisted out of the per-chunk path first (`MassCFTerm._prologue(values)`
+returning the (class, tau) tables and `_norm_z`), because otherwise one FFT per
+class is recomputed on every chunk: at 64 classes x 113 chunks that turns a
+4 ms/chunk redundancy into the dominant cost.
