@@ -1045,7 +1045,7 @@ class is recomputed on every chunk: at 64 classes x 113 chunks that turns a
 
 **The default path is untouched.** `--engine auto` resolves to `host` for
 every scipy method, so `fit.py` / `fit_joint.py` with the arguments used in
-sections 0-8 run what they always ran — checked against the pre-change drivers
+sections 0-5 run what they always ran — checked against the pre-change drivers
 on `cards/smoke_zls.hdf5` under `rabbit-material`: identical NLL, identical
 iteration count, parameters agreeing to 2e-15 (multithreaded round-off).
 
