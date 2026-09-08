@@ -587,3 +587,62 @@ Two consequences, and both are testable:
    an asymmetric smearing across the peak and there is no `K(m)` that repairs
    it, because `K(m)` multiplies the Born spectrum before the convolution and
    the defect is in the pairing of kernel width with mass.
+
+### 2026-09-07 21:30 — the assembly checklist
+
+The coordinator's five items, in order, with what is settled and how.
+
+**(iii) the `_norm_z` class-sigma approximation — CLOSED, 0.02 MeV.**
+Re-measured on a fluctuation-form card (`check_normz_sigma.py --card
+cards/z_toy20.hdf5`): scaling every stored sigma by `1 + eps` moves `Z` by
+1.1e-5 / 5.5e-5 / 1.1e-4 at `eps` = 0.005 / 0.025 / 0.05, but moves the only
+quantity that can bias a mass — `d lnZ / d m_Z` — by 2.1e-9 / 1.1e-8 / 2.1e-8
+against its own value of 7.6e-7 over 5 MeV. So a 5 % error in the class sigma
+costs 2.8 % of a term worth 7.6e-7, i.e. the same ~0.02 MeV as before. `Z`
+itself is 0.9768-0.9776, so 2.3 % of the modelled density is outside the window
+and it IS being normalised away.
+
+**(iv) the corrections' reference mass — CLOSED by construction.**
+The fluctuation map `m_i = m_true + sigma_i x + c_i x^2 + d_i` has `m_true` as
+the CONVOLUTION's integration variable, i.e. the post-FSR, post-acceptance,
+post-`K(m)` mass, which is what the resolution physically acts on. `c_i` and
+`d_i` are per-candidate CONSTANTS built from `corr_mass` (the observed mass, so
+truth-free) and cannot interfere with the fold. The only approximation is that
+they are evaluated at `m_i` rather than at `m'`, which is `O(sigma/m)` times
+`c_i` -- second order in a second-order term.
+
+**(v) the acceptance on the Born grid — CLOSED by the gen-level fit.**
+`A` multiplies the Born spectrum BEFORE the fold, which is the correct
+factorisation `P(m_post, pass) = p_born(m_pre) A(m_pre) K_sel(m_post|m_pre)`,
+and the generator-level fit that uses exactly this ordering closes at
++0.76 +- 1.36 MeV. If the ordering were wrong that fit would show it.
+
+**(ii) the tau grid and the upsampling — a variant is queued** (`--fit-upsample
+8` against the default 4, on the same candidates).
+
+**(i) the window normalisation — partly measured, needs full statistics.**
+At 300 k, moving the fit window to 70-110 gives `m_Z` = -2.75 +- 9.82 and to
+75-105 gives -24.50 +- 11.57: both consistent with -11 and with 0, so the test
+is inconclusive at this size. A `--no-window-norm` diagnostic is queued.
+
+**THE TOY (the coordinator's separator), running.** `--toy-shuffle 20`
+replaces each candidate's observed mass by `m_gen_i + sigma_i z_j`, `z_j` the
+standardized residual of a random OTHER candidate in the same `sigma/m` class.
+It keeps the true masses, the per-candidate resolutions and their pairing, and
+the empirical per-class residual shape; it removes only any dependence of the
+FLUCTUATION on the true mass (`corr(z, m_gen)` -0.0341 -> -0.0013). 398 543 of
+400 000 survive the window re-cut. If it returns -11 the chain as assembled is
+wrong given correct inputs; if it returns 0 the data differ from the model
+inside the convolution.
+
+Then `--toy-shuffle 20 --decorrelate-sigma 8` separates the one mechanism
+already identified from the rest: the toy still carries the sigma-mass pairing,
+so if the toy alone gives -11 and the toy with the decorrelation weights gives
+0, the mis-specification of sec. 0c is proved to be the cause.
+
+**A note for whoever runs these**: at `--chunk 262144` the `pfor` Hessian peaks
+at **420 GB per fit** (pitfall 12). Three at once took submit82 to 1.36 of
+1.45 TB and the kernel killed the `--sigma-range` batch. Use `--chunk 32768`
+(59 GB) or `--hess-mode hvp`. The `--engine device --method tf-trust-krylov`
+path the rabbit-native agent has just measured is 8x faster end to end and
+flat in memory; the full-statistics versions of all of this belong on a GPU.

@@ -185,6 +185,30 @@ def parse_args(argv=None):
                         "not a correction.")
     p.add_argument("--decorr-clip", type=float, default=5.0,
                    help="cap on the --decorrelate-sigma weight ratio")
+    p.add_argument("--decorr-var", choices=["sigma", "srel"], default="sigma",
+                   help="which resolution variable the classes are quantiles "
+                        "of. `sigma` is the absolute width the term stores; "
+                        "`srel` = sigma/m is the EFFECTIVE conditioning "
+                        "variable of the fluctuation form, whose "
+                        "c_i = sigma_i^2/m_i term makes the map the "
+                        "multiplicative kernel m_obs = m'(1 + s_i x) to first "
+                        "order. rho(m_gen, .) is 0.168 for the first and 0.035 "
+                        "for the second, so which one the fit responds to says "
+                        "which conditioning it is really doing.")
+    p.add_argument("--toy-shuffle", type=int, default=0, metavar="NCLASS",
+                   help="DIAGNOSTIC TOY: replace the observed mass by "
+                        "`m_gen_i + sigma_i z_j`, `z_j` the standardized "
+                        "residual of a random OTHER candidate in the same "
+                        "sigma/m class (NCLASS quantiles). The toy then "
+                        "satisfies the likelihood's own assumption exactly -- "
+                        "the fluctuation is independent of the true mass -- "
+                        "while keeping the empirical per-class residual SHAPE, "
+                        "which is already known to be right (pull width 0.996, "
+                        "kernel-free closure +0.9 +- 2.1 MeV). It separates the "
+                        "two remaining possibilities: if the toy returns the "
+                        "same -11 MeV the ASSEMBLY of the chain is wrong; if it "
+                        "returns zero the data differ from the model in the "
+                        "convolution itself.")
     p.add_argument("--wclip", type=float, default=100.0,
                    help="clip |genweight| at this multiple of the modal |w|; "
                         "0 = no clip; -1 = unweighted")
@@ -421,8 +445,10 @@ def build(args, log=print):
     if args.decorrelate_sigma:
         mg_all = d["eta"].astype(np.float64)
         w_all = w_all.copy()
+        rvar = (sig_all if args.decorr_var == "sigma" else srel_all)[idx]
+        log(f"  --decorr-var {args.decorr_var}")
         w_all[idx] = w_all[idx] * decorrelation_weights(
-            mg_all[idx], sig_all[idx], w_all[idx],
+            mg_all[idx], rvar, w_all[idx],
             args.decorrelate_sigma, args.decorr_clip, log)
     n = len(idx)
     if not n:
@@ -431,6 +457,33 @@ def build(args, log=print):
     mreco = m_all[idx]
     mgen = d["eta"].astype(np.float64)[idx]
     vgf = d["vgf"].astype(np.float64)[idx]
+    if args.toy_shuffle:
+        rng = np.random.default_rng(args.seed + 7)
+        srel_sel = sigma / np.maximum(np.abs(mreco), 1e-9)
+        zres = (mreco - mgen) / sigma
+        qc = np.quantile(srel_sel, np.linspace(0.0, 1.0, args.toy_shuffle + 1))
+        qc[0], qc[-1] = -np.inf, np.inf
+        cls = np.clip(np.searchsorted(qc, srel_sel, "right") - 1, 0,
+                      args.toy_shuffle - 1)
+        zperm = zres.copy()
+        for c in range(args.toy_shuffle):
+            w_ = np.where(cls == c)[0]
+            zperm[w_] = zres[rng.permutation(w_)]
+        log(f"  TOY SHUFFLE: residuals permuted inside {args.toy_shuffle} "
+            f"sigma/m classes. corr(z, m_gen) "
+            f"{np.corrcoef(zres, mgen)[0, 1]:+.4f} -> "
+            f"{np.corrcoef(zperm, mgen)[0, 1]:+.4f}")
+        mreco = mgen + sigma * zperm
+        # the window is a cut on the OBSERVED mass and the toy has new ones
+        lo_w, hi_w = args.window
+        keep_t = (mreco >= lo_w) & (mreco <= hi_w)
+        log(f"    re-applying the {lo_w:g}-{hi_w:g} window to the toy: "
+            f"{int(keep_t.sum())} of {len(mreco)} "
+            f"({100.0 * keep_t.mean():.3f} %)")
+        idx = idx[keep_t]
+        sigma, mreco, mgen, vgf = (a[keep_t] for a in
+                                   (sigma, mreco, mgen, vgf))
+        n = len(idx)
     if args.residual_mode:
         # the observable is the RESIDUAL; `alpha` enters as m_ref * alpha, so it
         # keeps its units of 1e-3 of the Z mass
