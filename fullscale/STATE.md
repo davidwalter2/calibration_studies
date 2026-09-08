@@ -1912,3 +1912,71 @@ converge the v form on this card structure, so `V_full`'s stop is a stopping-
 rule accident on one trajectory and not a systematic property of the
 formulation. And `V_toy`'s `m_Z` moved from 0 to +1.01, so the POI direction
 was explored.
+
+### 0f.11 THE CONVERGENCE GATE IS NOW PART OF EVERY RESULT
+
+`fit.py` and `fit_joint.py` now compute, print and store the per-parameter
+gradient and the **diagonal Newton step at the stop, in units of each
+parameter's own error** (`g_i sigma_i`, since `H_ii ~ 1/sigma_i^2`), and mark a
+result `converged` only if every POI — `m_Z`, `Gamma_Z`, `alpha`, `k_ms`,
+`k_hit`, `k_ioni`, `k_rad` — is within `--conv-tol` (default **0.05 sigma**).
+When it is not, the fit says so on stdout and names the remedy. The JSON gains
+`grad`, `newton_step_sigma`, `worst_poi_step_sigma`, `conv_tol`, `converged`.
+`vtable.py` prints the verdict on every cell: a trailing `!` means DO NOT QUOTE,
+`?` means the result predates the gate.
+
+`checkconv.py` does the same for a result that already exists, from its card.
+
+**Why this was needed.** `|grad|inf` is not a convergence test for this
+objective. Sorting every stored result by `|grad|inf` x `sigma(m_Z)` — a loose
+upper bound, but enough to rank them:
+
+| fit | `m_Z` | `\|grad\|inf` | bound [sigma] |
+|---|---:|---:|---:|
+| `f380fl_base` **(the reference)** | -11.06 +- 2.27 | 8.5e-4 | **0.002 — converged** |
+| `V_toy` (gate 3) | +1.01 +- 2.30 | 0.0049 | **0.011 — converged** |
+| `V_etaT` | +12.39 +- 4.16 | 1.6e-4 | **0.0007 — converged** |
+| `V_full` | -0.00 +- 2.32 | 1.42 | 3.3 (measured: `m_Z` 0.98) |
+| `F_dc8` | -0.12 +- 2.42 | 3.04 | 7.4 |
+| `F_toy` | -3.08 +- 2.19 | 3.81 | 8.4 |
+| `F_toydc` | +3.80 +- 2.41 | 3.01 | 7.2 |
+| `F_w70110` | -1.87 +- 3.15 | 43.1 | 136 |
+| `f380fl_s6` | -14.01 +- 2.22 | 0.68 | 1.5 |
+| `f380fl_s7` | -7.81 +- 2.26 | 57.5 | 130 |
+
+**`fit.py` has always written `gradmax` and I never looked at it.** That is the
+mistake, and it is mine: I took the reference's convergence as evidence for the
+others because they shared a method.
+
+Six re-runs are in flight from each fit's own stored point with
+`--method trust-exact --engine device` (the subproblem that converged the
+reference): `22276469 F_dc8_cv`, `22276470 F_toy_cv`, `22276471 F_toydc_cv`,
+`22276472 F_w70110_cv`, `22276473 f380fl_s6_cv`, `22276474 f380fl_s7_cv`.
+
+### WHAT DOES NOT DEPEND ON ANY MINIMISER
+
+Three legs of the argument are fits with 2 free parameters or no fit at all,
+and none of them is touched by the above:
+
+1. **The fit-free prediction** (sec. 0f.1, 0d): building the two observed
+   spectra the model can and cannot produce and asking what mass shift
+   reconciles them with a floated 5-term `K(m)`. Conditioning on `sigma` needs
+   **-15.33 MeV**; conditioning on `k = sigma/m^1.264` needs **+0.30**. Numpy
+   and a Nelder-Mead over 6 parameters; no rabbit, no TensorFlow, no
+   trust region. The `eta`-band version and the empirical-kernel version
+   (-7.7 to -11.6) are the same machinery.
+2. **The generator-level closure** (sec. 0c): the selected candidates' own gen
+   masses against the full lineshape (x) A (x) FSR (x) K chain, +0.76 +- 1.36
+   MeV inclusively. `zchannel/fit_gen.py`'s own `trust-exact` on a 7-parameter
+   binned likelihood, converged in 1-13 s per fit, `|g|inf` printed each time.
+3. **The kernel-free detector closure**, +0.9 +- 2.1 MeV, and the mass pull
+   width 0.996 flat in `eta` — a delta-kernel fit and a histogram.
+4. **`proto_vmass.py`**: the v formulation reproduces a mass-dependent-width
+   smearing to 0.01 MeV where the fixed-width form is wrong by 7-31 MeV. Pure
+   numpy quadrature.
+
+So the DIAGNOSIS — that the bias is the pairing of the per-candidate resolution
+with the mass, and that conditioning on `k` removes it — rests on
+minimiser-independent evidence. What is pending re-verification is the
+size of the effect AS MEASURED BY THE FULL LIKELIHOOD, i.e. `F_dc8` and
+`V_full`.
