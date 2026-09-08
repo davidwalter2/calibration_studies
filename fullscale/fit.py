@@ -102,7 +102,7 @@ def parse_args():
                         "something: for a quadratic a displacement of d sigma "
                         "in the worst direction costs d^2/2, so EDM < 1e-3 is "
                         "d < 0.045 sigma. `|grad|inf` is NOT a convergence "
-                        "test here (condition number ~1e6), and the DIAGONAL "
+                        "test here (condition number 3e12 measured), and the DIAGONAL "
                         "Newton step is only a proxy: it ignores the POI-shape "
                         "correlations, which is where the displacement is.")
     p.add_argument("-o", "--output", default=None, help="json result")
@@ -347,7 +347,7 @@ def main():
               f"(requirement < {args.edm_tol:g}) -> "
               f"{'CONVERGED' if converged else 'NOT CONVERGED'}")
         print(f"      |grad|inf = {np.max(np.abs(gj_)):.3g} is NOT the test: "
-              f"the Hessian's condition number is ~1e6 here")
+              f"the Hessian is ill-conditioned here (measured cond 3.4e12)")
         print(f"      {'parameter':>{w}s} {'gradient':>13s} "
               f"{'FULL step [sig]':>16s} {'diag proxy':>12s}")
         for nm, g_, sj, dj in zip(obj.freenames, gj_, step, dstep):
