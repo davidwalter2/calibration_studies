@@ -1488,3 +1488,43 @@ conditioning, which `k_i` settles on its own. Do not build the 10 x 10 class
 axis for this.
 
 Then phase 2 and phase 3 with the corrected term.
+
+### 0f.1 THE FORMULATION IS VALIDATED NUMERICALLY (2026-09-08 01:00)
+
+`fullscale/proto_vmass.py`, no TensorFlow: build the smearing that actually
+happens — `Int p(m') N(m_i - m'; k m'^{1+f}) dm'`, direct quadrature with the
+width taken AT THE TRUE MASS — and ask what mass shift each model needs to
+match it, with a 5-term Legendre `K(m)` floated over 60-120.
+
+| `sigma/m` at 91 GeV | the m-model (what the term does today) | **the v-model** |
+|---:|---:|---:|
+| 0.006 | -6.50 | **-0.00** |
+| 0.008 | -10.77 | **-0.00** |
+| 0.010 | -15.57 | **-0.00** |
+| 0.012 | -20.53 | **-0.00** |
+| 0.016 | -29.07 | **-0.01** |
+| 0.020 | -31.38 | **-0.01** |
+
+**The v-formulation is exact to 0.01 MeV** where the m-formulation is wrong by
+7 to 31 MeV, and the sample's median `sigma/m` is 0.0123.
+
+**And the quadratic coefficient is confirmed by scan, not assumed.** The
+script's truth is a pure Gaussian smearing with NO Jensen effect, so what it
+can test is the substitution's own curvature. Scanning the coefficient of
+`x^2` in `v`, the optimum is `-0.625 k sigma/m` against the derived
+`-(1+f)/2 = -0.632`, and there the residual is 0.03 MeV. The Jensen `+1` is a
+separate physical effect and its gate is the J/psi gun (gate 1).
+
+Two things this settles for the implementation:
+
+1. **Both Jacobians are required and their ratio is the effect.**
+   `L_v(v_i) = E_x[p_v(v_i - u^v(x))]` with `p_v = p(m) m^{1+f}`, and the
+   density in `m` is `L_v / m_i^{1+f}`. Their ratio `(m'/m_i)^{1+f}` is 7 %
+   over the kernel's own support — exactly the size of the thing being
+   corrected. Dropping it was the first bug the script found, and it left a
+   residual of -2 to -37 MeV that looked like a partial fix.
+2. **There is NO measure term in `v`.** `(1 - a_i x)` is the Jacobian of
+   profiling the unconditional width out against the observed one, and the
+   substitution absorbs it exactly — that is the coordinator's identity
+   `k_obs = k_bar` when `a = (1+f) sigma/m`. Carrying it over would be the
+   double count.
