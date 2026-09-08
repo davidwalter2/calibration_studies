@@ -1231,6 +1231,22 @@ Use **`tf-trust-krylov`** (GLTR) or **`tf-trust-exact`**.
   terms in the **global, unsharded** term. That is correct but not sharded;
   before this branch they were silently **dropped** from the likelihood.
 
+### 6.6 The snapshots earned their keep on the first try
+
+The 99-parameter joint benchmark (`cards/joint_v2_n500k.hdf5`, 500 k + 500 k
+candidates, `tf-trust-krylov`) was **preempted by slurm at iteration 25** —
+`JOB 22253478 CANCELLED DUE TO PREEMPTION`, 1507 s in. The periodic snapshot
+written 57 s earlier survived intact:
+`fitresults/native/joint500k_device_tf-trust-krylov.snapshot.hdf5`, 99
+parameters, `reason='periodic'`, `nit=24`, `elapsed=1496 s`. That is exactly
+the failure `mit_preemptable` trades against its minutes-instead-of-hours
+start time, and with `--resume` it costs the last snapshot interval instead of
+the fit. The run itself was not restarted: its remaining value was one timing
+row, against a GPU slot the physics campaign wanted.
+
+(That snapshot carries no `trust_radius`: the job started before the commit
+that added it. Newer runs do.)
+
 ### 0d.1 The per-resolution-class Born reweighting — the design, agreed with the
 rabbit-native agent (2026-09-08)
 
