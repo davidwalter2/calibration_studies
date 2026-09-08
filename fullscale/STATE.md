@@ -2250,6 +2250,56 @@ of the local curvature instead of GeV-versus-dimensionless.
 the EDM, which is `nfree` HVP columns. Worth it while establishing that these
 fits converge; afterwards read the final `edmval` out of the result file.
 
+**CORRECTION (same day, measured).** `--precondition` is NOT the cure, and
+the 3.4e12 condition number is not the cause. The cause is
+**`--freezeParameters`**: `get_x` stop-gradients a frozen parameter, so its
+Hessian row and column are exactly zero and the matrix handed to the
+trust-region subproblem is **singular**. `trust-exact` then meets the "hard
+case" on every iteration, never returns an interior Newton step, so
+`hits_boundary` is False, so the radius never doubles — linear convergence.
+A singular block cannot be whitened, which is why preconditioning does
+nothing (the preconditioned run crawls too, from a different start).
+
+Two independent cures, both measured on `z_n300k` with the same four
+parameters frozen:
+
+| | outcome |
+|---|---|
+| `tf-trust-exact` | **51 iterations, EDM 111.5, still crawling** |
+| **`tf-trust-krylov`** | **converged, EDM 4.98e-13, 135 s total** |
+| `tf-trust-exact` + `Fitter.hess_for_minimizer` (rabbit `d83342e`) | see below |
+
+GLTR is immune because Lanczos never explores the null space — the frozen
+directions carry no gradient, so they are never in the Krylov subspace.
+`hess_for_minimizer` puts 1 on the frozen diagonal before the matrix reaches
+the subproblem, which is EXACT rather than a regularisation (the frozen
+gradient components are zero, so `p_frozen = -0/1 = 0` for any positive value
+there) and simply makes the matrix invertible.
+
+**Use `tf-trust-krylov` when anything is frozen.**
+
+### 7.8 The 300 k card, end to end
+
+`rabbit_fit.py --minimizerMethod tf-trust-krylov --freezeParameters k_hit
+k_ms k_ioni k_rad` against the standalone `fit.py --engine host --method
+trust-exact` on `cards/z_n300k.hdf5`, same 7 free parameters:
+
+| | `rabbit_fit.py` | standalone `fit.py` | rel |
+|---|---:|---:|---:|
+| `m_Z` | -35.505318815 | -35.505318456 | 1.0e-8 |
+| `Gamma_Z` | -421.028782317 | -421.028790154 | 1.9e-8 |
+| `shape1` | -1.061860625 | -1.061860623 | 1.4e-9 |
+| `shape2` | -0.830130441 | -0.830130438 | 2.8e-9 |
+| `shape3` | -0.608301723 | -0.608301721 | 2.4e-9 |
+| `shape4` | -1.846358060 | -1.846358064 | 2.1e-9 |
+| `shape5` | +0.305905435 | +0.305905436 | 2.6e-9 |
+
+errors identical to six decimals, worst parameter difference **1.9e-8** --
+well inside the 1e-6 the migration had to hit. rabbit took **135 s total**
+including the card load and the postfit Hessian, against **776.7 s** for the
+standalone fit alone, and finished at **EDM 4.98e-13** where the standalone
+stopped at `|grad|inf` 1.7e-3 with no EDM at all.
+
 ### 0f.14 BACK INSIDE `rabbit_fit.py` — the convergence problem has a proper fix
 
 The rabbit-native agent has moved the unbinned candidate loop into rabbit
