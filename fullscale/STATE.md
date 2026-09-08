@@ -4073,3 +4073,70 @@ radiative odd content of the per-candidate CF, integrated with the same
 `unbinned.MassCFTerm` rather than in `cf_skew_closure`'s track-level builder.
 That is the next piece, and until it is done no mass-level odd moment should be
 quoted as an attribution.
+
+### 0f.42 THE pT SWING IS THE JACOBIAN-EDGE TRAP — and removing it RESTORES the
+### pixel lead at 5.4 sigma (2026-09-08)
+
+**The coordinator's diagnosis is confirmed, and it is not close.** My pT bins
+were on the RECONSTRUCTED leading-muon pT, `max(ptp, ptm)`. Measured on the
+same candidates:
+
+| conditioning variable | `corr(., z)` |
+|---|---:|
+| **reco leading pT** `max(ptp,ptm)` | **+0.0421** |
+| pixel influence share | +0.0141 |
+| `m_gen` | -0.0143 |
+| `\|eta\|` lead | -0.0081 |
+| `eta_pair` | **-0.0001** |
+
+and the smoking gun, `<z>` and `<m_reco - m_gen>` per reco-pT tertile (edges
+40.1 and 48.0 GeV; the Jacobian peak is `m_Z/2 = 45.6`):
+
+| tertile | n | `<z>` | `<m - m_gen>` |
+|---|---:|---:|---:|
+| [0, 40.1] | 158 929 | -0.0568 | -68.97 MeV |
+| [40.1, 48.0] | 163 745 | -0.0429 | -58.69 MeV |
+| **[48.0, inf]** | 158 929 | **+0.1020** | **+225.4 MeV** |
+
+The high bin's candidates sit **225 MeV above their own gen mass on average**.
+That is selection on the fluctuation, exactly as diagnosed: above the Jacobian
+peak the spectrum falls steeply, so a `pT_reco` bin there is populated by legs
+that fluctuated UP. **The -47 / -51 / +104 odd-moment swing of sec. 0f.40 is
+the regression-to-the-mean / Jacobian-edge effect and is RETRACTED as physics.**
+It is the same trap as binning on `sigma/m` (sec. 0f.33) and it is now the
+third time this campaign has walked into a conditioning artefact.
+
+**And removing it restores the pixel lead.** The same endcap pixel-share split
+inside **gen-mass** tertiles (`m_gen`, `corr = -0.014`) instead of reco-pT
+tertiles, `data - Jensen`:
+
+| gen-mass tertile | pixel LOW | pixel HIGH | difference |
+|---|---:|---:|---:|
+| [0, 89.7] | -16.27 | -2.54 | **+13.7** |
+| [89.7, 91.6] | -34.67 | -3.49 | **+31.2** |
+| [91.6, inf] | -29.54 | +5.70 | **+35.2** |
+
+all three positive, **consistent** (chi2 = 3.6 / 2 dof, p = 0.16) -- against
+the reco-pT binning's chi2 = 11.1 / 2 dof, p = 0.004 -- and the weighted mean
+is **+26.7 +- 4.9, i.e. 5.4 sigma**.
+
+**So sec. 0f.40's verdict is superseded.** The pixel-share effect was not
+"substantially a pT proxy"; the pT CONTROL was itself the confounded
+measurement, and it was destroying a real effect rather than exposing a false
+one. With a gen-safe conditioning variable the effect is larger, consistent
+across bins, and 5.4 sigma.
+
+**What remains true from sec. 0f.40**: the local-coordinate test still does not
+discriminate (endcap `pix_x` +22.7 +- 4.9 against `pix_y` +17.3 +- 5.1, both
+present), so a single drift direction is still not the signature; and the
+pixel share carries a residual exposure of its own (`corr = +0.014`, a third of
+the reco-pT's but not zero), so the consistency across gen-mass bins is the
+check that carries the result, not the inclusive number.
+
+**Still owed before this is an attribution rather than a correlation**: the
+ionisation and radiative odd content of the mass CF, for a complete
+`data - model` (only the Jensen term is subtracted above); and the same split
+against a GEN leading-muon pT, which **is not in either pairs cache** -- `ptp`,
+`ptm` are reconstructed (`corr = +0.04`) and there is no gen leg momentum. A
+gen-pT split needs a re-extraction, and until then `m_gen` and `eta_pair` are
+the safe kinematic handles.
