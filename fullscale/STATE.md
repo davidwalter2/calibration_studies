@@ -1155,7 +1155,14 @@ same card from the same start, `--gtol 1e-6`:
 | device | trust-krylov | 61 | 1846.8 s | 30.3 s | 77.4 % | 16.6 GB | 13.14 GB | ref | ref |
 | device | **tf-trust-krylov** | 46 | **1205.8 s** | 26.2 s | 81.0 % | 16.6 GB | 14.15 GB | +2.4e-8 | **9.8e-7** |
 | device | tf-trust-ncg | 200 | 2550.7 s | 12.8 s | 79.9 % | 16.6 GB | 14.22 GB | +3.2e+4 | **DID NOT CONVERGE** |
-| host | **trust-exact** (today's default) | ~38 | **~19 600 s** (running; 515 s/it measured over its first 8) | 515 s | — | 20.9 GB | — | — | — |
+| host | **trust-exact** (today's default) | ~38 | **~19 600 s** (see note) | **515 s** | — | 20.9 GB | — | — | — |
+
+The host `trust-exact` row is a projection from a MEASURED rate, not a
+completed run: 8 of its ~38 iterations were timed on this exact card at
+**515 s/iteration** before the job was cancelled to give a GPU back to the
+physics campaign. It is corroborated by `results/fit_f380fl_base.json`, which
+took **16 764 s over 38 iterations** of the same minimiser on the sibling
+`z_full380_fl.hdf5`.
 
 The reference-point Hessian alone, on that card: **420 s** (host, `pfor`) against
 **62 s** (device, `nfree` HVP columns) — and the device one is flat in memory
