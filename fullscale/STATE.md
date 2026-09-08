@@ -4380,3 +4380,83 @@ the note that it is NOT float32 noise but an exact remainder, negative for
 behaviour), `resolution/attribute_skew_mass.py` (mass level, full
 `data - model`), `resolution/model_odd_mass.py` (the mass CF's own odd moment),
 `resolution/cf_skew_closure.py --bin-eta / --truth-ref / --raw-pull`.
+
+### 0f.44 THE sigma/m SPLIT AT FIXED eta — and the slope REVERSES between the
+### barrel and the endcap (2026-09-08)
+
+The discriminating test of sec. 0f.29: `sigma/m` and `\|eta\|` are nearly
+collinear inclusively, so the only clean separation is to split `sigma/m` INSIDE
+one `eta` band. v form, certified (scipy `trust-exact` through
+`rabbit_fit.py`, EDM < 1e-3):
+
+| cell | n | `m_Z` | EDM |
+|---|---:|---:|---:|
+| barrel, `sigma/m` LOW (< 0.01032) | 785 836 | **-4.56 +- 3.69** | 8.3e-13 |
+| barrel, `sigma/m` HIGH | 786 698 | **-40.90 +- 4.63** | 2.4e-15 |
+| barrel, both | 1 572 534 | -21.08 +- 3.24 | 7.8e-12 |
+| endcap, `sigma/m` HIGH (> 0.01658) | 512 595 | **+65.87 +- 8.69** | 5.1e-16 |
+| endcap, both | 1 025 424 | +34.22 +- 5.47 | 9.1e-18 |
+
+**Within the barrel alone, `sigma/m` splits `m_Z` by -36.3 +- 5.9 MeV
+(6.2 sigma)** -- comparable to the ENTIRE `eta` span of 55 MeV. So the residual
+is a resolution effect and `eta` is largely its proxy, which is what sec. 0f.29
+set out to decide.
+
+**But the two slopes have OPPOSITE SIGNS, and nearly equal magnitude:**
+
+| | `sigma/m` range | `m_Z` range | slope, MeV per unit `sigma/m` |
+|---|---|---|---:|
+| within the barrel | 0.0080 -> 0.0119 | -4.6 -> -40.9 | **-9 300** |
+| across the `eta` bands | 0.0097 -> 0.0151 | -21.1 -> +34.2 | **+10 200** |
+
+At fixed `eta` the bias FALLS with `sigma/m`; across `eta` it RISES with
+`sigma/m`, at the same rate to 10 %. **So the bias is a function of neither
+`sigma/m` alone nor `eta` alone**: a pure `sigma/m` dependence would give the
+same slope both ways, and a pure `eta` dependence would give none within a
+band. There are two dependences of opposite sign, and the inclusive numbers are
+where they partly cancel.
+
+The endcap half-sample points the same way: `sigma/m` HIGH gives +65.9 against
++34.2 for the whole endcap, i.e. the endcap's internal `sigma/m` slope is
+POSITIVE where the barrel's is negative. **`z_V_etaE_slo` is needed to close
+this** and it FAILED -- `ValueError: Cholesky decomposition failed, Hessian is
+not positive-definite`, rabbit's `is_linear` branch -- and has been resubmitted.
+
+### 0f.45 `e = f_hit - f_ioni` DOES NOT CLOSE THE MEASURED `a`
+
+`f_ioni` is extractable from the stored CF with no new production: a CF
+exponent `S(t)` contributes variance `-S''(0)`, so a three-point second
+difference of `Sio_re` on `tgrid` gives the ionisation variance share per
+candidate. Measured on `zpairs_dyv2_full.npz`:
+
+| share | median |
+|---|---:|
+| hit (`vgf`) | 0.2173 |
+| ms | 0.8148 |
+| **ioni** | **0.00525** |
+| rad | -0.00007 |
+| sum | **1.0384** (should be 1) |
+
+| band | MEASURED `a/(sigma/m)` | spec `1+vgf` | `1+vgf-f_ioni` | spec error | new error |
+|---|---:|---:|---:|---:|---:|
+| `\|eta\|<0.9` | 1.2503 | 1.2738 | 1.2683 | +0.0235 | **+0.0180** |
+| `0.9-1.6` | 1.1667 | 1.2046 | 1.1980 | +0.0379 | **+0.0313** |
+| `1.6-3.0` | 1.2725 | 1.3007 | 1.2953 | +0.0282 | **+0.0228** |
+| inclusive | 1.2110 | 1.2625 | 1.2567 | +0.0515 | **+0.0457** |
+
+**It improves the closure by only ~25 %, not to zero.** `f_ioni` is **0.005**,
+i.e. 2.5 % of `f_hit`, where sec. 0f.33 inferred 10-20 % from the size of the
+deficit. So the ionisation term is real, has the right sign, and is **five to
+eight times too small** to be the explanation. Sec. 0f.33's attribution of the
+deficit to `f_ioni` is **retracted**; what remains true is the MEASUREMENT that
+`a` is 2-4 % smaller than `1 + vgf`.
+
+**Caveat on the extraction**: the four shares sum to 1.0384 rather than 1, a
+3.8 % closure failure, so the individual shares carry a systematic of that
+order. It does not change the conclusion -- 0.005 against a needed 0.03 is not
+a 4 % problem -- but the second-difference estimator should be checked against
+the term's own variance before `f_ioni` is put in the card builder.
+
+**So `e = f_hit - f_ioni` is NOT implemented in the card builder.** It would
+buy a quarter of a 2-4 % coefficient error and it is not what the measurement
+asks for. What the measurement asks for is whatever accounts for the other 75 %.
