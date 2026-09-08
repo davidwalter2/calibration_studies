@@ -81,10 +81,13 @@ def main():
         share[:, c] = np.bincount(trk[mm], weights=hv[mm], minlength=ntr)
     share /= np.maximum(tot, 1e-300)[:, None]
     idx = {n: i for i, n in enumerate(names)}
+    nhit = cnt.astype(np.float64)
+    ptlead = np.maximum(d["ptp"].astype(np.float64), d["ptm"].astype(np.float64))
     def grp(pref):
         cs = [i for n, i in idx.items() if n.startswith(pref)]
         return share[:, cs].sum(1) if cs else np.zeros(ntr)
     n1 = grp("str_N1"); pix = grp("pix"); strp = grp("str")
+    pixx = grp("pix_x"); pixy = grp("pix_y")
 
     print(f"{a.cache.split('/')[-1]}: {ntr} candidates, {len(cls)} hits, "
           f"{int(ok.sum())} used")
@@ -126,6 +129,46 @@ def main():
                (f"{lab}, single-strip > {q[1]:.3f}", b & (n1 >= q[1])),
                (f"{lab}, pixel share < {qp[0]:.3f}", b & (pix < qp[0])),
                (f"{lab}, pixel share > {qp[1]:.3f}", b & (pix >= qp[1]))])
+
+    # ---- CONTROLS: is the pixel-share split a proxy for pT or hit count? ----
+    b = (etal >= 1.6) & (etal < 3.0)          # where the 4.7 sigma sits
+    qp = np.percentile(pix[b & ok], [33, 67])
+    qt = np.percentile(ptlead[b & ok], [33, 67])
+    qn = np.percentile(nhit[b & ok], [33, 67])
+    print("C. CONTROLS in 1.6-3.0: the pixel-share split AT FIXED pT and AT "
+          "FIXED hit count.\n   If the 4.7 sigma is a proxy for either, it "
+          "must collapse inside those slices.\n")
+    rows = []
+    for i, (tlo, thi) in enumerate([(0, qt[0]), (qt[0], qt[1]), (qt[1], 1e9)]):
+        t = b & (ptlead >= tlo) & (ptlead < thi)
+        rows += [(f"pT bin {i+1} [{tlo:.0f},{min(thi,999):.0f}], pix LOW",
+                  t & (pix < qp[0])),
+                 (f"pT bin {i+1} [{tlo:.0f},{min(thi,999):.0f}], pix HIGH",
+                  t & (pix >= qp[1]))]
+    table("C1. at fixed leading-muon pT", rows)
+    rows = []
+    for i, (nlo, nhi) in enumerate([(0, qn[0]), (qn[0], qn[1]), (qn[1], 1e9)]):
+        t = b & (nhit >= nlo) & (nhit < nhi)
+        rows += [(f"nhit bin {i+1} [{nlo:.0f},{min(nhi,999):.0f}], pix LOW",
+                  t & (pix < qp[0])),
+                 (f"nhit bin {i+1} [{nlo:.0f},{min(nhi,999):.0f}], pix HIGH",
+                  t & (pix >= qp[1]))]
+    table("C2. at fixed hit count", rows)
+
+    # ---- the local coordinate: a forward-disk incidence/drift effect must
+    # sit in ONE local coordinate, and on the tilted Phase-0 turbine blades
+    # that is the drift direction, not both ----
+    for lo, hi, lab in BANDS:
+        b = (etal >= lo) & (etal < hi)
+        if (b & ok).sum() < 5000:
+            continue
+        qx = np.percentile(pixx[b & ok], [33, 67])
+        qy = np.percentile(pixy[b & ok], [33, 67])
+        table(f"D. LOCAL COORDINATE, {lab}   (pix_x vs pix_y share)",
+              [(f"{lab}, pix_X share < {qx[0]:.3f}", b & (pixx < qx[0])),
+               (f"{lab}, pix_X share > {qx[1]:.3f}", b & (pixx >= qx[1])),
+               (f"{lab}, pix_Y share < {qy[0]:.3f}", b & (pixy < qy[0])),
+               (f"{lab}, pix_Y share > {qy[1]:.3f}", b & (pixy >= qy[1]))])
 
 
 if __name__ == "__main__":

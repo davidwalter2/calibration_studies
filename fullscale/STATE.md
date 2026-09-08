@@ -3940,3 +3940,68 @@ needs the per-class residual DENSITIES including their location, and
 `hitres_classes.py` centres every class on its median and does not store it
 (sec. 0f.38). The medians must be re-extracted from the 260807/260829/260831
 productions before the propagation through `hit_v` can be done.
+
+### 0f.40 THE CONTROLS: the 4.7 sigma is SUBSTANTIALLY A pT PROXY, and the odd
+### moment is dominated by a pT dependence nothing had accounted for (2026-09-08)
+
+**C1. the pixel-share split AT FIXED leading-muon pT, in `1.6 < \|eta\| < 3.0`:**
+
+| pT bin | pixel LOW | pixel HIGH | difference |
+|---|---:|---:|---:|
+| [0, 36] GeV | -46.54 +- 5.82 | -8.97 +- 6.37 | +37.6 +- 8.6 |
+| [36, 46] | -51.08 +- 6.66 | -54.41 +- 5.75 | **-3.3 +- 8.8** |
+| [46, inf] | +103.93 +- 6.22 | +119.71 +- 5.55 | +15.8 +- 8.3 |
+
+The three differences are **inconsistent with each other** (chi2 = 11.1 / 2 dof,
+p = 0.004) and the middle bin is consistent with ZERO. The inclusive +25.2 +-
+5.4 becomes **+17.0 +- 4.9** once pT is held, and it is not a stable
+coefficient.
+
+**And look at the first two columns**: the odd moment itself runs
+**-47, -51, +104** across the three pT bins -- a 150e-3 swing, **twenty times
+any composition effect in this study**. That is a kinematic property of the Z
+mass residual (which leg is hard sets the sign of the mass skew), it was in
+none of the previous tables, and it means **any composition split that does not
+control pT is largely measuring pT.** The earlier per-band and per-class
+numbers (secs. 0f.36, 0f.39) all inherit that caveat.
+
+**C2. the same split AT FIXED hit count** -- here it DOES survive:
+
+| hit-count bin | pixel LOW | pixel HIGH | difference |
+|---|---:|---:|---:|
+| [0, 11] | -15.46 +- 7.36 | +28.12 +- 8.24 | +43.6 +- 11.0 |
+| [11, 13] | +4.42 +- 6.02 | +15.99 +- 6.48 | +11.6 +- 8.8 |
+| [13, inf] | +3.03 +- 5.76 | +27.76 +- 5.24 | +24.7 +- 7.8 |
+
+weighted **+23.6 +- 5.4**, consistent across bins (p = 0.06). So it is not a
+hit-count proxy; it is a pT proxy.
+
+**D. the local coordinate -- the discriminating test, and it does NOT
+discriminate.** A forward-disk incidence/drift effect on the tilted Phase-0
+turbine blades must sit in ONE local coordinate (the drift direction):
+
+| band | `pix_x` LOW -> HIGH | `pix_y` LOW -> HIGH |
+|---|---:|---:|
+| `0.9-1.6` | +7.53 -> +10.27 (**+2.7 +- 5.8**) | +5.92 -> +20.65 (**+14.7 +- 5.7**) |
+| `1.6-3.0` | -0.04 -> +22.61 (**+22.7 +- 4.9**) | +0.02 -> +17.30 (**+17.3 +- 5.1**) |
+
+In the endcap BOTH local coordinates carry it, `x` if anything more strongly;
+only in the middle band is it `y`-dominated with `x` flat. That is not the
+signature of a single drift direction.
+
+**VERDICT.** The pixel-share lead is weakened, not dead: **+17 +- 5 survives at
+fixed pT and +23.6 +- 5.4 at fixed hit count**, but it is not a stable
+coefficient across pT and it is not localised in one local coordinate, which
+were the two things that would have made it a CPE class effect rather than a
+correlate. **The dominant unexplained feature is now the pT dependence of the
+odd moment itself** (-47 / -51 / +104), which is 20x larger than anything
+attributed so far and which every previous split in this thread was partly
+measuring.
+
+**So items (2)-(4) are NOT the next step.** Re-extracting the per-class medians
+and building the no-free-parameter propagation is a large piece of work
+motivated by a lead that the pT control has just cut in half and whose
+local-coordinate signature has failed. The next measurement is the pT
+dependence itself: it is kinematic in origin (the mass residual's skew depends
+on the leg asymmetry, which is what sec. 0f.36's `s_1` measures) and it has to
+be understood and removed before ANY composition variable can be read.
