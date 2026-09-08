@@ -1753,3 +1753,14 @@ cancelled and the cards rebuilt.
 changes what `_cf_tab` transforms MUST go in `config()`. There is no test that
 would have caught this except one that compares the two formulations' densities
 directly, which is now `L_v = L_m m^p` in this file.
+
+**And a warning about the gates themselves.** Gate 2b — the off switch,
+`--vpow 1e-9` against no `--vpow` — **PASSED WITH THE BUG IN PLACE**, at
+1.8e-7. It had to: at `p -> 0` the v provider and the m provider are the same
+object, so a bug that only bites at working `p` is invisible to it. (With the
+fix it passes at 7.9e-10, which is the difference between "the two code paths
+agree" and "the two code paths agree because they are the same path".)
+
+**Only gate 2c catches it**, because it is the only test evaluated AT the
+working exponent that has an independent right answer. An off-switch test is
+necessary and is not sufficient.
