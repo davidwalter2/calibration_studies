@@ -1204,3 +1204,58 @@ Use **`tf-trust-krylov`** (GLTR) or **`tf-trust-exact`**.
 - A sharded rabbit `Fitter` (`--nDevices > 1`, PR #154) evaluates unbinned
   terms in the **global, unsharded** term. That is correct but not sharded;
   before this branch they were silently **dropped** from the likelihood.
+
+### 0d.1 The per-resolution-class Born reweighting — the design, agreed with the
+rabbit-native agent (2026-09-08)
+
+Not built. Build it only if `F_toy` ~ -11 and `F_toydc` ~ 0 (sec. 0d). The
+agent declined to add the prologue hook today, correctly: the hoist means the
+gradient no longer flows through one tape and needs a two-stage chain, a subtle
+error there is a WRONG GRADIENT THAT STILL CONVERGES, and six full-statistics
+fits are running off that branch right now. Ask again when the physics is
+confirmed, and gate it on finite differences.
+
+**Where `w_c(m)` goes.** Pre-fold, in the same place `K(m)` acts. The seam
+already exists: `ZGammaLineshape.pdf` is `fold_fsr(born_pdf(values)) * _edge`,
+normalised. So the hook is on `pdf`, NOT on `cf_tab_ext`:
+
+```python
+def pdf(self, values=None, weight=None, **kw):
+    y = self.born_pdf(values, **kw)
+    if weight is not None:          # (nm,) or (K, nm) on m_grid, NO parameters
+        y = y * weight              # <- before the fold
+    y = self.fold_fsr(y) * self._edge
+    return y / (reduce_sum(y, -1, keepdims=True) * dm)
+```
+
+Batched over a LEADING class axis, `_cf_tab` becomes one `tf.signal.rfft` on a
+`(K, nfft)` batch and the fold stays a matmul, so 16-32 classes cost close to
+one — provided the class axis is never looped in python.
+
+**The prologue contract** on the `MassCFTerm` side:
+
+```python
+def _prologue(self, values):
+    return {"ktab": self.kernel.provider.cf_tab_ext(values),   # (K, ntau)
+            "z":    None if self._norm is None else self._norm_z(values)}
+```
+
+with `_chunk_li(values, ci, prologue=None)` and `_mix` taking it and falling
+back to computing it, and `nll()` calling it once. The class gather is then one
+`tf.gather(ktab, self._class[lo:hi])` next to the `_norm_class` gather that is
+already there. Without the hoist, `ChunkedObjective` rebuilds the prologue
+inside every chunk's tape: 4 ms/chunk today (14 % of a gradient at
+`chunk 32768`), but 16-32 FFTs x 112 chunks once the classes exist.
+
+**Two traps.**
+1. `_norm_z` is already per resolution class. If the Born class and the
+   resolution class are DIFFERENT partitions you need the outer product, and a
+   per-class Born that does not also change `Z` is inconsistent — `Z` is what
+   enforces the truncated-likelihood normalisation.
+2. The class column must survive `candidate_slice` (the multi-GPU shard view).
+   It will if stored as a tf tensor or a length-`n` numpy array; it will NOT if
+   stored as a python list or a dict.
+
+**And `w_c` is MC input**, the same status as the FSR kernel and the
+acceptance: `w_c(m) = p(m | class c) / p(m)` measured on simulation. Say so
+when quoting the result.
