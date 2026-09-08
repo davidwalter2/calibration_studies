@@ -1,0 +1,426 @@
+NVIDIA H200, 143771 MiB
+############ SVetaBslo  16:38:08  card /home/david_w/orcd/pool/zmass/cards/z_V_etaB_slo.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788899897.844655 3173355 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788899934.729067 3173355 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 786698 candidates, 25 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 786698 candidates in 25 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 33484365.89605482[0m
+[38;21mINFO:fitter.py:   - edmval: 5816.194235643061[0m
+[38;21mINFO:fitter.py:   - Condition number: 76835378.8315797[0m
+[38;21mINFO:fitter.py:   - edmval: -482.79222092081545[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBslo.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBslo.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 1471944.384498942[0m
+[38;21mINFO:fitter.py:   - edmval: 4531.205068737505[0m
+[38;21mINFO:fitter.py:   - Condition number: 1453604.7628496008[0m
+[38;21mINFO:fitter.py:   - edmval: 5081.099060745161[0m
+[38;21mINFO:fitter.py:   - Condition number: 1449244.70995675[0m
+[38;21mINFO:fitter.py:   - edmval: 4646.68560919285[0m
+[38;21mINFO:fitter.py:   - Condition number: 1443188.9024743584[0m
+[38;21mINFO:fitter.py:   - edmval: 3883.1903861505534[0m
+[38;21mINFO:fitter.py:   - Condition number: 1440539.584574655[0m
+[38;21mINFO:fitter.py:   - edmval: 2676.6477654671435[0m
+[38;21mINFO:fitter.py:   - Condition number: 1466389.7708932518[0m
+[38;21mINFO:fitter.py:   - edmval: 1078.38029848958[0m
+[38;21mINFO:fitter.py:   - Condition number: 1652585.6696588597[0m
+[38;21mINFO:fitter.py:   - edmval: 32.80073455368113[0m
+[38;21mINFO:fitter.py:   - Condition number: 126133793463655.84[0m
+[38;21mINFO:fitter.py:   - edmval: 26336.041454828228[0m
+[38;21mINFO:fitter.py:   - Condition number: 6600250753055.919[0m
+[38;21mINFO:fitter.py:   - edmval: 2188.5756992171446[0m
+[38;21mINFO:fitter.py:   - Condition number: 1669349.0086743392[0m
+[38;21mINFO:fitter.py:   - edmval: 12.488753985945973[0m
+[38;21mINFO:fitter.py:   - Condition number: 13807271414076.27[0m
+[38;21mINFO:fitter.py:   - edmval: 1467650.678768836[0m
+[38;21mINFO:fitter.py:   - Condition number: 1676266.9034610211[0m
+[38;21mINFO:fitter.py:   - edmval: 6.453501017748573[0m
+[38;21mINFO:fitter.py:   - Condition number: 4576051861924.7705[0m
+[38;21mINFO:fitter.py:   - edmval: 1464.2429050149804[0m
+[38;21mINFO:fitter.py:   - Condition number: 1679393.6765446737[0m
+[38;21mINFO:fitter.py:   - edmval: 4.385834360726933[0m
+[38;21mINFO:fitter.py:   - Condition number: 1685195.0380669346[0m
+[38;21mINFO:fitter.py:   - edmval: 1.9534194995389953[0m
+[38;21mINFO:fitter.py:   - Condition number: 123082624067995.39[0m
+[38;21mINFO:fitter.py:   - edmval: 987.3355830179062[0m
+[38;21mINFO:fitter.py:   - Condition number: 66075549435.48646[0m
+[38;21mINFO:fitter.py:   - edmval: 19.23500695324941[0m
+[38;21mINFO:fitter.py:   - Condition number: 1686003.318345051[0m
+[38;21mINFO:fitter.py:   - edmval: 1.791445281247847[0m
+[38;21mINFO:fitter.py:   - Condition number: 2072384.524629674[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0957922919191618[0m
+[38;21mINFO:fitter.py:   - Condition number: 6093292223.014632[0m
+[38;21mINFO:fitter.py:   - edmval: 2.517525293356747[0m
+[38;21mINFO:fitter.py:   - Condition number: 144513238.0203948[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0338734966134686[0m
+[38;21mINFO:fitter.py:   - Condition number: 61129526.66721585[0m
+[38;21mINFO:fitter.py:   - edmval: 0.9755303665059039[0m
+[38;21mINFO:fitter.py:   - Condition number: 151073423.75645337[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0934735759027616[0m
+[38;21mINFO:fitter.py:   - Condition number: 12337127250.259779[0m
+[38;21mINFO:fitter.py:   - edmval: 2.4660856848754964[0m
+[38;21mINFO:fitter.py:   - Condition number: 453762742.2735121[0m
+[38;21mINFO:fitter.py:   - edmval: 0.997813007067201[0m
+[38;21mINFO:fitter.py:   - Condition number: 1015673950.7967966[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0281615329626936[0m
+[38;21mINFO:fitter.py:   - Condition number: 4720138776.580482[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0672108083673753[0m
+[38;21mINFO:fitter.py:   - Condition number: 1306732866.9154537[0m
+[38;21mINFO:fitter.py:   - edmval: 1.1990627945143322[0m
+[38;21mINFO:fitter.py:   - Condition number: 2728130179.0738635[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0347970489758718[0m
+[38;21mINFO:fitter.py:   - Condition number: 6055705364.526832[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0503999345048587[0m
+[38;21mINFO:fitter.py:   - Condition number: 10408509274.172853[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0810229142317953[0m
+[38;21mINFO:fitter.py:   - Condition number: 21163732114.71512[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0920092548822344[0m
+[38;21mINFO:fitter.py:   - Condition number: 25525586547.712864[0m
+[38;21mINFO:fitter.py:   - edmval: 1.1752248364789875[0m
+[38;21mINFO:fitter.py:   - Condition number: 68845359837.78528[0m
+[38;21mINFO:fitter.py:   - edmval: 1.3223684747868831[0m
+[38;21mINFO:fitter.py:   - Condition number: 58508992014.173836[0m
+[38;21mINFO:fitter.py:   - edmval: 1.2218252895726398[0m
+[38;21mINFO:fitter.py:   - Condition number: 33683164360.305073[0m
+[38;21mINFO:fitter.py:   - edmval: 1.118283119592672[0m
+[38;21mINFO:fitter.py:   - Condition number: 44563557032.340805[0m
+[38;21mINFO:fitter.py:   - edmval: 1.1252153053845977[0m
+[38;21mINFO:fitter.py:   - Condition number: 51468450110.70105[0m
+[38;21mINFO:fitter.py:   - edmval: 1.1440725578876263[0m
+[38;21mINFO:fitter.py:   - Condition number: 58097994779.869446[0m
+[38;21mINFO:fitter.py:   - edmval: 1.1269148471189319[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBslo.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBslo.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 60884867268.31663[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0924234830966344[0m
+[38;21mINFO:fitter.py:   - Condition number: 64638082079.223366[0m
+[38;21mINFO:fitter.py:   - edmval: 1.00575250988309[0m
+[38;21mINFO:fitter.py:   - Condition number: 71143265537.53792[0m
+[38;21mINFO:fitter.py:   - edmval: 0.8443475206878601[0m
+[38;21mINFO:fitter.py:   - Condition number: 83809914538.14044[0m
+[38;21mINFO:fitter.py:   - edmval: 0.5732794264990533[0m
+[38;21mINFO:fitter.py:   - Condition number: 103756908426.85207[0m
+[38;21mINFO:fitter.py:   - edmval: 0.21938826761289293[0m
+[38;21mINFO:fitter.py:   - Condition number: 119501900181.70486[0m
+[38;21mINFO:fitter.py:   - edmval: 0.0014096457664179163[0m
+[38;21mINFO:fitter.py:   - Condition number: 127508109434.16447[0m
+[38;21mINFO:fitter.py:   - edmval: 6.258746698718093e-05[0m
+[38;21mINFO:fitter.py:   - Condition number: 129133250476.129[0m
+[38;21mINFO:fitter.py:   - edmval: 1.4542156635825937e-07[0m
+[38;21mINFO:fitter.py:   - Condition number: 129223647222.10612[0m
+[38;21mINFO:fitter.py:   - edmval: 8.260906949781935e-13[0m
+[38;21mINFO:fitter.py:   - Condition number: 129223829415.58636[0m
+[38;21mINFO:fitter.py:   - edmval: 2.5558905453093778e-23[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (converged) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBslo.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBslo.snapshot.hdf5[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 8.260906949718863e-13[0m
+[38;21mINFO:rabbit_fit.py: edmvalbeta: (np.float64(0.0), <tf.Tensor: shape=(0, 0), dtype=float64, numpy=array([], shape=(0, 0), dtype=float64)>)[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute -2151033.221877 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -10[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 0.0[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBslo.hdf5
+[38;21mINFO:rabbit_fit.py: 1286.56 seconds total time[0m
+############ SVetaBslo done 17:01:05 rc=0
+############ SVetaBshi  17:01:05  card /home/david_w/orcd/pool/zmass/cards/z_V_etaB_shi.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788901265.960146 3577546 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788901267.437323 3577546 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 785836 candidates, 24 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 785836 candidates in 24 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 473217970.05275166[0m
+[38;21mINFO:fitter.py:   - edmval: 915.9063334433931[0m
+[38;21mINFO:fitter.py:   - Condition number: 247127902258.83337[0m
+[38;21mINFO:fitter.py:   - edmval: 4906.508607876021[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBshi.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBshi.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 21281073838805.043[0m
+[38;21mINFO:fitter.py:   - edmval: 4621.208775659557[0m
+[38;21mINFO:fitter.py:   - Condition number: 651183371937448.4[0m
+[38;21mINFO:fitter.py:   - edmval: 3083.139169438742[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.1836315257061914e+17[0m
+[38;21mINFO:fitter.py:   - edmval: 2870.156611163169[0m
+[38;21mINFO:fitter.py:   - Condition number: 105507948431775.02[0m
+[38;21mINFO:fitter.py:   - edmval: -23854.815571554558[0m
+[38;21mINFO:fitter.py:   - Condition number: 12947915955.328167[0m
+[38;21mINFO:fitter.py:   - edmval: 894.2323673045418[0m
+[38;21mINFO:fitter.py:   - Condition number: 132898412929049.27[0m
+[38;21mINFO:fitter.py:   - edmval: 95812.01329191867[0m
+[38;21mINFO:fitter.py:   - Condition number: 73333257157.40915[0m
+[38;21mINFO:fitter.py:   - edmval: 773.0034092094165[0m
+[38;21mINFO:fitter.py:   - Condition number: 23968087389829.844[0m
+[38;21mINFO:fitter.py:   - edmval: 4527.32622202285[0m
+[38;21mINFO:fitter.py:   - Condition number: 97347012223.00995[0m
+[38;21mINFO:fitter.py:   - edmval: 583.5366709954401[0m
+[38;21mINFO:fitter.py:   - Condition number: 4054038781378.0786[0m
+[38;21mINFO:fitter.py:   - edmval: 594.9546575389213[0m
+[38;21mINFO:fitter.py:   - Condition number: 4513731560.441801[0m
+[38;21mINFO:fitter.py:   - edmval: 439.1396032247915[0m
+[38;21mINFO:fitter.py:   - Condition number: 1497527008945.6736[0m
+[38;21mINFO:fitter.py:   - edmval: 304.2205050402995[0m
+[38;21mINFO:fitter.py:   - Condition number: 1010965836298.1669[0m
+[38;21mINFO:fitter.py:   - edmval: 326.6644083879921[0m
+[38;21mINFO:fitter.py:   - Condition number: 990447566104.964[0m
+[38;21mINFO:fitter.py:   - edmval: 381.44420371588706[0m
+[38;21mINFO:fitter.py:   - Condition number: 1010720663553.5468[0m
+[38;21mINFO:fitter.py:   - edmval: 388.4477519597703[0m
+[38;21mINFO:fitter.py:   - Condition number: 1013622531322.068[0m
+[38;21mINFO:fitter.py:   - edmval: 381.5793289265518[0m
+[38;21mINFO:fitter.py:   - Condition number: 1016191837379.5471[0m
+[38;21mINFO:fitter.py:   - edmval: 367.0796651517528[0m
+[38;21mINFO:fitter.py:   - Condition number: 1013175796955.3599[0m
+[38;21mINFO:fitter.py:   - edmval: 337.01953128374475[0m
+[38;21mINFO:fitter.py:   - Condition number: 997621627782.0985[0m
+[38;21mINFO:fitter.py:   - edmval: 280.37503778835537[0m
+[38;21mINFO:fitter.py:   - Condition number: 971223573879.7015[0m
+[38;21mINFO:fitter.py:   - edmval: 192.46331038975507[0m
+[38;21mINFO:fitter.py:   - Condition number: 886342622866.8922[0m
+[38;21mINFO:fitter.py:   - edmval: 91.01895294848089[0m
+[38;21mINFO:fitter.py:   - Condition number: 552143244505.961[0m
+[38;21mINFO:fitter.py:   - edmval: 48.64191365088925[0m
+[38;21mINFO:fitter.py:   - Condition number: 420237408066.7071[0m
+[38;21mINFO:fitter.py:   - edmval: 45.590187060868175[0m
+[38;21mINFO:fitter.py:   - Condition number: 222638749457.01315[0m
+[38;21mINFO:fitter.py:   - edmval: 43.15043462715457[0m
+[38;21mINFO:fitter.py:   - Condition number: 162710357964.7473[0m
+[38;21mINFO:fitter.py:   - edmval: 40.16812543920575[0m
+[38;21mINFO:fitter.py:   - Condition number: 75174698970.45506[0m
+[38;21mINFO:fitter.py:   - edmval: 35.09854590932958[0m
+[38;21mINFO:fitter.py:   - Condition number: 54799366028.174644[0m
+[38;21mINFO:fitter.py:   - edmval: 26.651314718177048[0m
+[38;21mINFO:fitter.py:   - Condition number: 26864053155.53653[0m
+[38;21mINFO:fitter.py:   - edmval: 13.502767049192714[0m
+[38;21mINFO:fitter.py:   - Condition number: 26772403418.667896[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0436384096213485[0m
+[38;21mINFO:fitter.py:   - Condition number: 7133916748814.165[0m
+[38;21mINFO:fitter.py:   - edmval: 1140.0161207987949[0m
+[38;21mINFO:fitter.py:   - Condition number: 889393177808.0146[0m
+[38;21mINFO:fitter.py:   - edmval: 64.69251626871471[0m
+[38;21mINFO:fitter.py:   - Condition number: 406273039172.89124[0m
+[38;21mINFO:fitter.py:   - edmval: 17.362277429952258[0m
+[38;21mINFO:fitter.py:   - Condition number: 258720606417.53098[0m
+[38;21mINFO:fitter.py:   - edmval: 12.020487667348078[0m
+[38;21mINFO:fitter.py:   - Condition number: 166463280948.82144[0m
+[38;21mINFO:fitter.py:   - edmval: 3.3561022130163707[0m
+[38;21mINFO:fitter.py:   - Condition number: 40256419263.074585[0m
+[38;21mINFO:fitter.py:   - edmval: 0.7832352692313576[0m
+[38;21mINFO:fitter.py:   - Condition number: 60490376371.46994[0m
+[38;21mINFO:fitter.py:   - edmval: 0.848358688581563[0m
+[38;21mINFO:fitter.py:   - Condition number: 91462498786.55113[0m
+[38;21mINFO:fitter.py:   - edmval: 0.8928767639461728[0m
+[38;21mINFO:fitter.py:   - Condition number: 122544925252.71423[0m
+[38;21mINFO:fitter.py:   - edmval: 1.0222484950989954[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBshi.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBshi.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 189802770354.95535[0m
+[38;21mINFO:fitter.py:   - edmval: 0.987108426435924[0m
+[38;21mINFO:fitter.py:   - Condition number: 232190931404.04633[0m
+[38;21mINFO:fitter.py:   - edmval: 1.6210543659600876[0m
+[38;21mINFO:fitter.py:   - Condition number: 534191765943.87103[0m
+[38;21mINFO:fitter.py:   - edmval: 2.3395170949181647[0m
+[38;21mINFO:fitter.py:   - Condition number: 450473802638.098[0m
+[38;21mINFO:fitter.py:   - edmval: 1.6501168374981816[0m
+[38;21mINFO:fitter.py:   - Condition number: 347897735245.7074[0m
+[38;21mINFO:fitter.py:   - edmval: 1.1480595975058243[0m
+[38;21mINFO:fitter.py:   - Condition number: 252969965281.41956[0m
+[38;21mINFO:fitter.py:   - edmval: 1.3210980198631255[0m
+[38;21mINFO:fitter.py:   - Condition number: 307461254313.80475[0m
+[38;21mINFO:fitter.py:   - edmval: 1.1467192853691817[0m
+[38;21mINFO:fitter.py:   - Condition number: 354085615852.20325[0m
+[38;21mINFO:fitter.py:   - edmval: 1.4165423772218477[0m
+[38;21mINFO:fitter.py:   - Condition number: 402938933204.3826[0m
+[38;21mINFO:fitter.py:   - edmval: 1.2916177974504572[0m
+[38;21mINFO:fitter.py:   - Condition number: 435613732210.14777[0m
+[38;21mINFO:fitter.py:   - edmval: 1.4965877205597575[0m
+[38;21mINFO:fitter.py:   - Condition number: 463807097941.69446[0m
+[38;21mINFO:fitter.py:   - edmval: 1.3163147719124533[0m
+[38;21mINFO:fitter.py:   - Condition number: 501659318328.09796[0m
+[38;21mINFO:fitter.py:   - edmval: 1.1589470853697175[0m
+[38;21mINFO:fitter.py:   - Condition number: 576105509872.4478[0m
+[38;21mINFO:fitter.py:   - edmval: 0.7888739270016369[0m
+[38;21mINFO:fitter.py:   - Condition number: 688222623382.0669[0m
+[38;21mINFO:fitter.py:   - edmval: 0.3761009091218721[0m
+[38;21mINFO:fitter.py:   - Condition number: 908428767538.6958[0m
+[38;21mINFO:fitter.py:   - edmval: 0.08115724198675878[0m
+[38;21mINFO:fitter.py:   - Condition number: 984794041858.8643[0m
+[38;21mINFO:fitter.py:   - edmval: 0.018069070187334835[0m
+[38;21mINFO:fitter.py:   - Condition number: 1122700448815.165[0m
+[38;21mINFO:fitter.py:   - edmval: 0.005545160142067018[0m
+[38;21mINFO:fitter.py:   - Condition number: 1131878910080.2073[0m
+[38;21mINFO:fitter.py:   - edmval: 5.056792378510361e-08[0m
+[38;21mINFO:fitter.py:   - Condition number: 1131951688760.2363[0m
+[38;21mINFO:fitter.py:   - edmval: 2.3879227430786605e-15[0m
+[38;21mINFO:fitter.py:   - Condition number: 1131951742405.3423[0m
+[38;21mINFO:fitter.py:   - edmval: 1.2676787122050555e-26[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (converged) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBshi.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBshi.snapshot.hdf5[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 2.387922743039331e-15[0m
+[38;21mINFO:rabbit_fit.py: edmvalbeta: (np.float64(0.0), <tf.Tensor: shape=(0, 0), dtype=float64, numpy=array([], shape=(0, 0), dtype=float64)>)[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute -2116844.527288 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -10[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 0.0[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaBshi.hdf5
+[38;21mINFO:rabbit_fit.py: 1532.51 seconds total time[0m
+############ SVetaBshi done 17:26:43 rc=0
+############ SVetaEslo  17:26:43  card /home/david_w/orcd/pool/zmass/cards/z_V_etaE_slo.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788902804.018967 4091531 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788902805.508400 4091531 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 512595 candidates, 16 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 512595 candidates in 16 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 206682927.1552147[0m
+[38;21mINFO:fitter.py:   - edmval: 3353.8493888763883[0m
+[38;21mINFO:fitter.py:   - Condition number: nan[0m
+[38;21mINFO:fitter.py:   - edmval: nan[0m
+[33;21mWARNING:fitter.py: Minimizer raised: array must not contain infs or NaNs[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (minimizer-failed) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.snapshot.hdf5[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (converged) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.snapshot.hdf5[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+Results written in file /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.hdf5
+Traceback (most recent call last):
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 1089, in <module>
+    main()
+    ~~~~^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 1056, in main
+    fit(args, ifitter, ws, dofit=ifit >= 0 and not args.noFit)
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 627, in fit
+    edmval, cov = fitter.edmval_cov(grad, hess)
+                  ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/fitter.py", line 1057, in edmval_cov
+    edmval, cov = edmval_cov(subgrad, subhess)
+                  ~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/tfhelpers.py", line 72, in edmval_cov
+    return tf_edmval_cov(grad, hess)
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/tfhelpers.py", line 54, in tf_edmval_cov
+    raise ValueError(
+        "Cholesky decomposition failed, Hessian is not positive-definite"
+    )
+ValueError: Cholesky decomposition failed, Hessian is not positive-definite
+############ SVetaEslo done 17:28:16 rc=0
+############ SVetaEshi  17:28:16  card /home/david_w/orcd/pool/zmass/cards/z_V_etaE_shi.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788902897.249805 4098921 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788902898.800312 4098921 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 512829 candidates, 16 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 512829 candidates in 16 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 1007555452.0698994[0m
+[38;21mINFO:fitter.py:   - edmval: 1017.1175490713247[0m
+[38;21mINFO:fitter.py:   - Condition number: 379300227103.8359[0m
+[38;21mINFO:fitter.py:   - edmval: 3241.5332135024655[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEshi.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEshi.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 17345621406708.906[0m
+[38;21mINFO:fitter.py:   - edmval: 2747.62034770241[0m
+[38;21mINFO:fitter.py:   - Condition number: 655587843856352.8[0m
+[38;21mINFO:fitter.py:   - edmval: 1828.6426166999154[0m
+[38;21mINFO:fitter.py:   - Condition number: 5.1019026194321024e+17[0m
+[38;21mINFO:fitter.py:   - edmval: 8609.169038772583[0m
+[38;21mINFO:fitter.py:   - Condition number: 110812305710786.78[0m
+[38;21mINFO:fitter.py:   - edmval: -12105.481254770217[0m
+[38;21mINFO:fitter.py:   - Condition number: 24433023068.38173[0m
+[38;21mINFO:fitter.py:   - edmval: 1016.0091130210728[0m
+[38;21mINFO:fitter.py:   - Condition number: 101814038799930.1[0m
+[38;21mINFO:fitter.py:   - edmval: 54752.9600547282[0m
+[38;21mINFO:fitter.py:   - Condition number: 142933580662.26517[0m
+[38;21mINFO:fitter.py:   - edmval: 936.529588049164[0m
+[38;21mINFO:fitter.py:   - Condition number: 46227333499730.234[0m
+[38;21mINFO:fitter.py:   - edmval: 2659.7027623579343[0m
+[38;21mINFO:fitter.py:   - Condition number: 225573109404.50687[0m
+[38;21mINFO:fitter.py:   - edmval: 806.8839268505377[0m
+[38;21mINFO:fitter.py:   - Condition number: 6464887712640.273[0m
+[38;21mINFO:fitter.py:   - edmval: 654.8585568603594[0m
+[38;21mINFO:fitter.py:   - Condition number: 117852477551.60046[0m
+[38;21mINFO:fitter.py:   - edmval: 702.9075035065941[0m
+[38;21mINFO:fitter.py:   - Condition number: 2166885303487.465[0m
+[38;21mINFO:fitter.py:   - edmval: 607.8595880171454[0m
+[38;21mINFO:fitter.py:   - Condition number: 1998770443382.923[0m
+[38;21mINFO:fitter.py:   - edmval: 664.9984932119169[0m
+[38;21mINFO:fitter.py:   - Condition number: 2008526052540.4863[0m
+[38;21mINFO:fitter.py:   - edmval: 673.236825789591[0m
+[38;21mINFO:fitter.py:   - Condition number: 2015121652368.4666[0m
+[38;21mINFO:fitter.py:   - edmval: 670.679997006858[0m
+[38;21mINFO:fitter.py:   - Condition number: 2027141596264.8354[0m
+[38;21mINFO:fitter.py:   - edmval: 665.1224502698781[0m
+[38;21mINFO:fitter.py:   - Condition number: 2047212150590.5107[0m
+[38;21mINFO:fitter.py:   - edmval: 652.8536365234733[0m
+[38;21mINFO:fitter.py:   - Condition number: 2075235237151.0247[0m
+[38;21mINFO:fitter.py:   - edmval: 625.4352188705135[0m
+[38;21mINFO:fitter.py:   - Condition number: 2108011222813.3103[0m
+[38;21mINFO:fitter.py:   - edmval: 568.9898902311113[0m
+[38;21mINFO:fitter.py:   - Condition number: 2136351931839.3333[0m
+[38;21mINFO:fitter.py:   - edmval: 472.0504215383297[0m
+[38;21mINFO:fitter.py:   - Condition number: 2049109665090.5393[0m
+[38;21mINFO:fitter.py:   - edmval: 332.8274633425658[0m
+[38;21mINFO:fitter.py:   - Condition number: 1651779845476.4153[0m
+[38;21mINFO:fitter.py:   - edmval: 162.2426764624488[0m
+[38;21mINFO:fitter.py:   - Condition number: 1821072018073.0864[0m
+[38;21mINFO:fitter.py:   - edmval: 86.88846659042002[0m
+[38;21mINFO:fitter.py:   - Condition number: 4718010572810.763[0m
+[38;21mINFO:fitter.py:   - edmval: 69.9256362761484[0m
+[38;21mINFO:fitter.py:   - Condition number: 6323219851195.87[0m
+[38;21mINFO:fitter.py:   - edmval: 46.618759446432165[0m
+[38;21mINFO:fitter.py:   - Condition number: 11141200095695.582[0m
+[38;21mINFO:fitter.py:   - edmval: 33.42104006794261[0m
+[38;21mINFO:fitter.py:   - Condition number: 10727652086349.008[0m
+[38;21mINFO:fitter.py:   - edmval: 23.12941134694836[0m
+[38;21mINFO:fitter.py:   - Condition number: 10983676602088.895[0m
+[38;21mINFO:fitter.py:   - edmval: 17.421464305162512[0m
+[38;21mINFO:fitter.py:   - Condition number: 10184148179239.473[0m
+[38;21mINFO:fitter.py:   - edmval: 8.207219168951497[0m
+[38;21mINFO:fitter.py:   - Condition number: 8915239313761.402[0m
+[38;21mINFO:fitter.py:   - edmval: 0.6490421242700961[0m
+[38;21mINFO:fitter.py:   - Condition number: 8444302570911.197[0m
+[38;21mINFO:fitter.py:   - edmval: 0.028460374379889686[0m
+[38;21mINFO:fitter.py:   - Condition number: 8165239884639.928[0m
+[38;21mINFO:fitter.py:   - edmval: 0.0002947242515450865[0m
+[38;21mINFO:fitter.py:   - Condition number: 8144869349164.573[0m
+[38;21mINFO:fitter.py:   - edmval: 3.223050980871393e-08[0m
+[38;21mINFO:fitter.py:   - Condition number: 8144561448934.374[0m
+[38;21mINFO:fitter.py:   - edmval: 5.119828332560522e-16[0m
+[38;21mINFO:fitter.py:   - Condition number: 8144561301712.727[0m
+[38;21mINFO:fitter.py:   - edmval: 3.1187472015934724e-25[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (converged) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEshi.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEshi.snapshot.hdf5[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 5.119828332542851e-16[0m
+[38;21mINFO:rabbit_fit.py: edmvalbeta: (np.float64(0.0), <tf.Tensor: shape=(0, 0), dtype=float64, numpy=array([], shape=(0, 0), dtype=float64)>)[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute -1301710.349421 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -10[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 0.0[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEshi.hdf5
+[38;21mINFO:rabbit_fit.py: 658.93 seconds total time[0m
+############ SVetaEshi done 17:39:21 rc=0

@@ -1,3 +1,116 @@
+# RESUME HERE — 2026-09-09 evening
+
+**You are resuming from files only. Read this section, then sec. 0f.43-0f.50 for
+the open physics. Everything below the horizontal rule predates this.**
+
+## IN FLIGHT — nothing needs babysitting; all of it is detached or slurm
+
+| what | where | result lands | done when |
+|---|---|---|---|
+| **auxgen J/psi v2** (the coordinator's, detached on **submit50**) | `logs/run_auxgen_260909b.log` | `runs/auxgen_jpsiv2.npz` | the log ends `-> .../auxgen_jpsiv2.npz` |
+| **auxgen DY v2** | — | **`runs/auxgen_dyv2.npz` HAS LANDED** (348 MB, 3 733 323 rows) | done |
+| `22315719` K(m) ladder | Engaging, `engaging/zrabbitvb_22315719.out` | `fitresults/native/rabbit_{Ss9,SVs9,Ss12,SVs12}.hdf5` | `#### <TAG> done ... rc=0` per row |
+| `22328595` **P2X** = phase 2 FULL card, scipy `trust-exact` | Engaging, `zrabbitv_22328595.out` | `fitresults/native/rabbit_P2X.hdf5` | `Results written in file ...` + `edmval:` |
+| `22315802 insitu-tnp` | Engaging | NOT MINE -- another workstream, leave it | |
+
+`./collect.sh --summary` rsyncs Engaging and re-makes the certified table. It is
+the ONE command to run first.
+
+**Two jobs FAILED reproducibly and need a decision, not a resubmit:**
+* `22328533 SVetaEslo` (`z_V_etaE_slo`) -- `ValueError: Cholesky decomposition
+  failed, Hessian is not positive-definite`, twice. That card is genuinely
+  singular; it is the missing 4th cell of the fixed-`eta` `sigma/m` split.
+* `22328636` phase-3 card build on Engaging -- `ModuleNotFoundError: No module
+  named 'make_global_term'`: `resolution/globalfit/` was never staged there.
+  Stage it, or build the card on **submit50** (ceph works there).
+
+## CERTIFIED (value AND NLL AND EDM, sec. 0f.16), MeV from the generator
+
+| row | m form | v form |
+|---|---:|---:|
+| inclusive, K(m) 5 | **-11.06 +- 2.27** | **-1.54 +- 2.08** |
+| K(m) 6 | -13.98 +- 2.22 | -3.92 +- 2.13 |
+| K(m) 7 | -17.24 +- 2.27 | -3.87 +- 2.28 |
+| `Gamma_Z` over K 5/6/7 | -5.26 / +27.16 / +8.96 | +6.81 / +14.28 / +12.86 |
+| `\|eta\|<0.9` | -26.60 +- 2.87 | -21.08 +- 3.24 |
+| `0.9-1.6` | +3.87 +- 3.88 | +12.39 +- 4.16 |
+| `1.6-3.0` | +16.55 +- 4.71 | +34.22 +- 5.47 |
+
+**The fixed-`eta` `sigma/m` split** (v form): barrel LOW **-4.56 +- 3.69**,
+barrel HIGH **-40.90 +- 4.63** (a 36.3 +- 5.9 MeV split, 6.2 sigma, INSIDE one
+band); endcap HIGH **+65.87 +- 8.69**. The barrel slope is **-9 300** MeV per
+unit `sigma/m` and the across-`eta` slope is **+10 200** -- equal and OPPOSITE.
+The bias is a function of neither `sigma/m` alone nor `eta` alone.
+
+**Phase 2, first number**: `P2smoke` (500 k J/psi + 500 k Z + hit-chi2 over
+20.7 M, 95 free) converged at **EDM 6.2e-19**, `m_Z = +31.86 +- 5.78`. **NOT a
+closure** -- a subsample, and `theta = 0` is not the hit-chi2 minimum on this MC.
+
+**`K(m)` is not saturated**: 5->6 and 6->7 are 15.2 and 13.0 sigma in
+`2 deltaNLL`. K9/K12 are in flight.
+
+## THE QUEUE, IN ORDER, WHEN `auxgen_jpsiv2.npz` LANDS
+
+1. **`a_m` closed form.** `a_m = (1 + f_hit - f_ioni) sigma_m/m` against the
+   MEASURED `a/(sigma/m)` = 1.2110 +- 0.0004 inclusive, 1.2503 / 1.1667 /
+   1.2725 per band (`resolution/measure_a.py`). **BLOCKER, already visible in
+   `auxgen_dyv2.npz`**: its `f_ioni` is **0.0000** and `f_other` is **1.0**,
+   because `aux_gen.one()` groups `resinfvarv` by `parmtype == 10 / 11` and the
+   v2 productions use **parmtype 14 (bfield) / 15 (material)**. Fix the
+   grouping to this production's convention before the check means anything.
+   Do NOT use the CF exponent's `-S''(0)` instead (sec. 0f.47b: no finite
+   second moment, cut-dependent).
+2. **`|seed->final dq/p|` per leg**, from `Jpsitrk_*` / the per-leg trk
+   branches. **ABSOLUTE VALUE ONLY** -- the signed one has `corr(., x) = +0.113`,
+   a worse trap than reco pT -- and state `corr(|delta|, |x|)`.
+3. **The two-component decomposition per `eta`**, on the Z and J/psi legs
+   (8x the gun's statistics) and at mass level kernel-free per band, IN vs OUT.
+   Sec. 0f.50 tried it with `chi2/ndof` as a proxy: the IN component is
+   `eta`-flat but OUT (90 % of the sample) is not, so `chi2/ndof` is not the
+   discriminator and the test is NOT done.
+4. Hand both auxgen files to the hit-class agent.
+
+## WHEN P2X / K9-K12 / the phase-3 fit LAND
+
+`./collect.sh --summary`, then `python3 plot_closure.py`. Certify every row with
+**value AND NLL AND EDM** and nothing else; `certtable.py` applies it
+mechanically and marks the error kind (`s` measured sandwich, `~` transported
+ratio, `H` Hessian only -- an `H` row still owes `submit_sandwich.sh`).
+
+## STANDING RULES — each was bought with a retracted number
+
+1. **Every fit through `rabbit_fit.py`**, `--minimizerMethod trust-exact`
+   (scipy). Both TF ports fail the subproblem at full statistics (sec. 0f.20)
+   and `trust-krylov` stops at indefinite points (it killed P2K and
+   `SVetaEslo`).
+2. **Never bin on a reconstructed variable correlated with the residual.**
+   Measured: reco leading pT `+0.042` (its top tertile sits **+225 MeV above
+   its own gen mass**), signed seed->final `+0.113`, `maxfraclossp` `-0.034`.
+   Safe: `chi2/ndof` `+0.0004`, `vgf` `-0.0009`, `eta_pair` `-0.0001`,
+   `|eta|` lead `-0.008`, `m_gen` `-0.014`.
+3. **Never bin on `sigma/m` or `sigma`** -- `sigma = sigma_bar(1 + a x)`, so
+   the bin is a cut on the residual (sec. 0f.33).
+4. **Truth-referenced pull for anything charge-split**: `x = z/(1 - a q z)`,
+   else `<q z> = -a` is all you measure (sec. 0f.37).
+5. **At mass level subtract the model** -- its own odd moment is
+   +14.05 / +18.20 / +25.41 across the bands (`resolution/model_odd_mass.py`).
+   At track level it is ~0 and raw data is fine.
+6. **ceph via `ssh submit50` / `submit51`** -- submit82's cephx client is
+   evicted, which is why every sandbox shell sees Permission denied.
+
+## THE OTHER AGENT
+
+`resolution/hitclassbias/STATE.md` -- the hit-class agent. It has REFUTED the
+per-class location mechanism at track level (pixel locations are real but
++1e-3 wrong-signed and flat; strips null) and found the track-level `eta`
+dependence to be a MIXTURE: an `eta`-independent bulk `-6.3 +- 1.8e-3` plus a
+`+21e-3` subpopulation whose fraction grows 2.4 -> 21.2 % with `|eta|`. It is
+testing the estimator (tighter GN convergence, gen seeding) on the gun.
+Figures: `~/public_html/cvh/260908_hitclassbias/`. Mine:
+`~/public_html/cvh/260908_fullscale/`.
+
+---
+
 # fullscale — STATE  (checkpoint 2026-09-07 07:30)
 
 **Read this file top to bottom before touching anything.** The running log of

@@ -1,0 +1,6 @@
+############ SVetaT  14:22:58  card /home/david_w/orcd/pool/zmass/cards/z_V_etaT.hdf5  method trust-exact
+NVIDIA H200, 143771 MiB, 590.48.01
+resuming from /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaT.snapshot.hdf5
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788891780.124784   60555 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[2026-09-08T14:23:00.877] error: *** JOB 22312453 ON node4400 CANCELLED AT 2026-09-08T14:23:00 DUE to SIGNAL Terminated ***

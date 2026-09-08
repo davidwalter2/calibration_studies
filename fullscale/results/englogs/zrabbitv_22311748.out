@@ -1,0 +1,8 @@
+############ Ss6  14:06:09  card /home/david_w/orcd/pool/zmass/cards/z_full380_fl_s6.hdf5  method trust-exact
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788890769.992845 2840116 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788890771.463143 2840116 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[2026-09-08T14:06:42.473] error: *** JOB 22311748 ON node4901 CANCELLED AT 2026-09-08T14:06:42 DUE to SIGNAL Terminated ***

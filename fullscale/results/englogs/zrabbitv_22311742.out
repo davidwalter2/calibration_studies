@@ -1,0 +1,78 @@
+############ f380refS  14:02:57  card /home/david_w/orcd/pool/zmass/cards/z_full380_fl.hdf5  method trust-exact
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788890581.845953 2836682 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788890595.988592 2836682 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: unbinned term 'zmass': 4445 of 3682662 candidates (0.1207 %) have |c_i/sigma_i| above corr_coeff_max = 0.08; the quadratic coefficient is bounded there[0m
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 3682662 candidates, 113 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 3682662 candidates in 113 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 251305328.3594695[0m
+[38;21mINFO:fitter.py:   - edmval: 7210.325997326552[0m
+[38;21mINFO:fitter.py:   - Condition number: 257160342914.02234[0m
+[38;21mINFO:fitter.py:   - edmval: 22985.43218261958[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380refS.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380refS.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 17544421834285.123[0m
+[38;21mINFO:fitter.py:   - edmval: 22086.32249471452[0m
+[38;21mINFO:fitter.py:   - Condition number: 542616870866624.1[0m
+[38;21mINFO:fitter.py:   - edmval: 14507.675329025835[0m
+[38;21mINFO:fitter.py:   - Condition number: 8.247938332395272e+16[0m
+[38;21mINFO:fitter.py:   - edmval: 13387.762777656317[0m
+[38;21mINFO:fitter.py:   - Condition number: 101904739559051.4[0m
+[38;21mINFO:fitter.py:   - edmval: -139472.33175492217[0m
+[38;21mINFO:fitter.py:   - Condition number: 5957378173.571954[0m
+[38;21mINFO:fitter.py:   - edmval: 8328.799885826942[0m
+[38;21mINFO:fitter.py:   - Condition number: 352355820124711.56[0m
+[38;21mINFO:fitter.py:   - edmval: 238209.1146721607[0m
+[38;21mINFO:fitter.py:   - Condition number: 35102487485.75197[0m
+[38;21mINFO:fitter.py:   - edmval: 8086.827150395464[0m
+[38;21mINFO:fitter.py:   - Condition number: 11064946405753.463[0m
+[38;21mINFO:fitter.py:   - edmval: 14704.540158727614[0m
+[38;21mINFO:fitter.py:   - Condition number: 55958525858.33851[0m
+[38;21mINFO:fitter.py:   - edmval: 7525.955108155851[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380refS.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380refS.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 1765134982056.621[0m
+[38;21mINFO:fitter.py:   - edmval: 7025.838788766782[0m
+[38;21mINFO:fitter.py:   - Condition number: 29049168441.845974[0m
+[38;21mINFO:fitter.py:   - edmval: 6996.217487111289[0m
+[38;21mINFO:fitter.py:   - Condition number: 599487108188.3635[0m
+[38;21mINFO:fitter.py:   - edmval: 7878.295078086304[0m
+[38;21mINFO:fitter.py:   - Condition number: 534556437250.9129[0m
+[38;21mINFO:fitter.py:   - edmval: 8944.28051481544[0m
+[38;21mINFO:fitter.py:   - Condition number: 535961150045.1797[0m
+[38;21mINFO:fitter.py:   - edmval: 9135.262591550661[0m
+[38;21mINFO:fitter.py:   - Condition number: 536097686556.3929[0m
+[38;21mINFO:fitter.py:   - edmval: 9068.63360811843[0m
+[38;21mINFO:fitter.py:   - Condition number: 536208329394.45215[0m
+[38;21mINFO:fitter.py:   - edmval: 8929.977738934072[0m
+[38;21mINFO:fitter.py:   - Condition number: 536189871526.8294[0m
+[38;21mINFO:fitter.py:   - edmval: 8656.116939824135[0m
+[38;21mINFO:fitter.py:   - Condition number: 535276660577.98083[0m
+[38;21mINFO:fitter.py:   - edmval: 8123.432865203103[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380refS.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380refS.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 530796436705.21625[0m
+[38;21mINFO:fitter.py:   - edmval: 7125.740794262656[0m
+[38;21mINFO:fitter.py:   - Condition number: 517173930809.42834[0m
+[38;21mINFO:fitter.py:   - edmval: 5420.7136489817985[0m
+[38;21mINFO:fitter.py:   - Condition number: 485491176307.5836[0m
+[38;21mINFO:fitter.py:   - edmval: 3057.894895526702[0m
+[38;21mINFO:fitter.py:   - Condition number: 391320203607.3161[0m
+[38;21mINFO:fitter.py:   - edmval: 683.4784761738401[0m
+[38;21mINFO:fitter.py:   - Condition number: 319674634902.4212[0m
+[38;21mINFO:fitter.py:   - edmval: 42.53292400024566[0m
+[38;21mINFO:fitter.py:   - Condition number: 477048461400.2008[0m
+[38;21mINFO:fitter.py:   - edmval: 99.00925372176926[0m
+[38;21mINFO:fitter.py:   - Condition number: 30541992622134.93[0m
+[38;21mINFO:fitter.py:   - edmval: 18366.72637612431[0m
+[38;21mINFO:fitter.py:   - Condition number: 4324250945722.0474[0m
+[38;21mINFO:fitter.py:   - edmval: 846.8880587247077[0m
+[38;21mINFO:fitter.py:   - Condition number: 834287094127.8944[0m
+[38;21mINFO:fitter.py:   - edmval: 33.14506190529619[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380refS.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_f380refS.snapshot.hdf5[0m
+[2026-09-08T15:00:35.368] error: *** JOB 22311742 ON node4901 CANCELLED AT 2026-09-08T15:00:35 DUE to SIGNAL Terminated ***
