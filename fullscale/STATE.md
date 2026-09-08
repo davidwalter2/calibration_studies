@@ -4206,3 +4206,177 @@ density per class (the standing hypothesis) or the CF's hit term being wrong
 for a degraded complement in some other way. The no-free-parameter test of item
 (3) is exactly what separates them, and it needs the per-class residual
 LOCATIONS, which `hitres_classes.py` discards (sec. 0f.38).
+
+---
+
+## HANDOFF: PER-CLASS RESIDUAL LOCATIONS  (written 2026-09-08, for a fresh agent)
+
+**Everything needed is in this section.** You do not need the rest of this file
+except sections 0f.35-0f.43, which are the measurements you are reproducing.
+
+### THE QUESTION
+
+The mass likelihood's odd content **closes in the barrel and misses in the
+endcap at 7 sigma**, and the tracks it misses on are the ones with DEGRADED HIT
+CONTENT. Complete `data - model` (sec. 0f.43), on the DY v2 Z legs, units 1e-3:
+
+| endcap cut | data - model |
+|---|---:|
+| pixel influence share LOW | **-28.88 +- 3.87  (7.5 sigma)** |
+| pixel influence share HIGH | **-1.85 +- 3.73  (closes)** |
+| single-strip share HIGH | **-34.11** |
+| single-strip share LOW | -13.73 |
+
+The standing hypothesis is that the CPE has a **cluster-class-dependent
+LOCATION bias** which a rigid module alignment cannot absorb (alignment fits
+module positions, not per-cluster-class offsets), and which therefore survives
+into the track fit. **Your job is the no-free-parameter test of it.**
+
+### WHY IT CANNOT BE DONE WITH WHAT EXISTS
+
+`resolution/hitres_classes.py: build_cf_bank` measures, per class, the log
+characteristic function of the raw per-hit pull -- so the SHAPE and the SKEW are
+there -- but line 103 is
+
+```python
+    x = v[keep] - med          # centred: the CF's mean is a bias,
+    # and a per-hit bias belongs to alignment, not to the resolution model
+```
+
+**every class is centred on its own median and the median is discarded**
+(`meta[c]` keeps only `n`, `var`, `core`, `trimmed`). That comment is the
+assumption under test. You must re-extract the medians.
+
+### THE INPUT
+
+`build_cf_bank(subdir="hitres3", tag="mugun_lowpt")` reads, with `uproot`:
+
+```
+/ceph/submit/data/user/d/david_w/ZMass/cvh/{subdir}_{tag}/task_*/globalcor_resclosure_*.root
+   tree "tree", branches:
+     dxrecsim, dxerr      local-x residual and its CPE error
+     dyrecsim, dyerr      local-y residual and its CPE error (PIXEL ONLY)
+     hitDetId             subdet = (hitDetId >> 25) & 0x7 ; <= 2 is pixel
+     hitUProj             the CPE's own independent variable (strip split at 0.25)
+     clusterSizeX         strip cluster width N (clipped to 1..5)
+     clusterChargeBin     pixel template charge bin (clipped to 0..3)
+```
+
+**Sign convention: `dxrecsim` is REC minus SIM in the LOCAL frame.** A positive
+value is a hit reconstructed at larger local x than the simulated crossing. The
+pull is `dxrecsim/dxerr`; the selection is `> -98` (the sentinel) and
+`dxerr > 0`. `dyrecsim` is used only for `subdet <= 2`.
+
+The 18 classes are `hitres_classes.CLASSES` --
+`pix_{x,y}_q{0..3}` and `str_N{1..5}_{lo,hi}` -- and `class_of(subdet, N,
+uproj, qbin, isy)` assigns them. **Use that function; do not re-derive the
+boundaries**, they are shared with `cf_track_resolution.py` and `cf_inmaker.py`
+and must not drift.
+
+`prodfiles.resolve(pattern, nfiles)` returns only COMPLETE task outputs.
+`/ceph` is **not readable from a Claude Code sandbox shell** (permission denied
+at the top level); use `run_tf.sh --ceph` or run on a node with the bind.
+
+### WHAT TO EXTRACT
+
+Per class, and **additionally split by**:
+* **local coordinate** -- `x` and `y` separately (they already are, in the class
+  names, but the strip classes are x-only);
+* **subdetector / layer / disk / +-z** -- decode `hitDetId`. Pixel barrel layer
+  and forward disk+side are in the DetId; the endcap result above makes
+  **FPix disk and side the first thing to look at**;
+* the residual **in the track's bending sense**, not only in local coordinates
+  -- a curvature bias is what propagates to `q/p`, and the local-to-global
+  rotation is what turns a local-x bias into one.
+
+and report, per cell: `n`, the **median** (the location bias, in units of
+`sigma_CPE` and in microns), the core width, and the log CF as
+`build_cf_bank` already does.
+
+### THE PROPAGATION (no free parameter)
+
+A hit's influence on the track's `q/p` is exported per hit:
+* single-track caches: `hitamp2` (per hit, aligned by `hitcnt` / `cumsum`),
+  e.g. `runs/cf_trackres_mugun_ul16_260903x_m0_k0.npz`;
+* mass caches: `hit_v` with `hit_ptr` and `hit_cls`,
+  e.g. `fullscale/runs/gzpairs_dyv2_n50.npz` (487 742 Z candidates) and
+  `gpairs_v2_n50.npz` (651 672 J/psi).
+
+The predicted odd moment of a track is then the class-weighted sum of the
+per-class odd content propagated through those weights, integrated with the
+SAME statistic the data uses:
+
+    <z e^{-u z^2}> = 1/sqrt(pi u) Int_0^inf (t/2u) e^{-t^2/4u} Im phi(t) dt
+
+(`cf_skew_closure.weier_odd`, and `resolution/model_odd_mass.py` shows the
+assembly for the mass CF). **No fitted scale anywhere** -- that is the point of
+the test.
+
+### THE TARGET NUMBERS
+
+**Track level, tight-stepper 20-60 GeV gun** (`cf_trackres_mugun_ul16_260903x_
+m0_k0.npz`), charge-EVEN odd moment, truth-referenced pull, `u = 0.05`, 1e-3:
+
+| band | charge-even |
+|---|---:|
+| `\|eta\| 0.0-0.9` | **-4.88** |
+| `0.9-1.6` | **-3.58** |
+| `1.6-2.4` | **+0.14** |
+
+The model's own odd moment is ~0 there (+5e-5), so this IS `data - model`.
+
+**Mass level, DY v2 Z legs**: the table at the top of this section.
+
+### THE BINNING RULES — three artefacts have already been walked into
+
+1. **Never bin on a RECONSTRUCTED kinematic variable.** `corr(reco leading pT,
+   z) = +0.0421`, and the top reco-pT tertile sits **+225 MeV above its own gen
+   mass** (the Jacobian peak is `m_Z/2 = 45.6` GeV). Sec. 0f.42. Safe handles
+   measured on the DY cache: `m_gen` (`corr = -0.014`), `eta_pair`
+   (`-0.0001`), `\|eta\|` lead (`-0.008`). `ptp`/`ptm` are RECO and there is no
+   gen leg momentum in either pairs cache.
+2. **Never bin on `sigma/m` or on `sigma`**: `sigma = sigma_bar(1 + a x)`, so
+   such a bin is a cut on the residual and attenuates the slope. Sec. 0f.33.
+3. **Always use the truth-referenced pull for anything charge-split**:
+   `x = z/(1 - a q z)` with `a = sigma_rel (1 - vgf)`. Without it
+   `<q z> = -a = -14.3e-3` on this gun and that is ALL you measure.
+   `oddmoment/track_truthfree.py`; `cf_skew_closure.py` now applies it
+   automatically under `--charge` (sec. 0f.38).
+4. **At mass level the model's odd moment is NOT ~0** -- it is +14 / +18 / +25
+   across the bands, dominated by the Jensen shift. Subtract it
+   (`model_odd_mass.py`). Sec. 0f.43.
+
+### IF IT REPRODUCES: THE IMPLEMENTATION PATH
+
+1. **offline CF hit term** -- `cf_track_resolution.py`, the hit family. Today it
+   consumes `hitres_classes.build_cf_bank`'s centred `log phi_c`; it must take
+   location + shape. Re-run the TRACK-level closure per `eta`
+   (`cf_skew_closure.py --bin-eta --nbins 3`): **it must go flat**.
+2. **`cf_inmaker.py`** -- the per-hit-class blocks it writes into the pairs
+   caches (`hit_cls`, `hit_v`) are what the mass functional consumes; the
+   location has to travel with them.
+3. **the maker export path** -- the per-class blocks in the CVH producer, for
+   the mass functional at production time.
+4. then the **kernel-free per-band mass closure**
+   (`fullscale/build_resid_bands.sh`, `run_resid_bands.sh` -- note
+   `--floor-scale 1e-7`, sec. 0f.34) and the **full certified Z band fits**
+   (`fullscale/collect.sh`, and the acceptance test of sec. 0f.16: value AND
+   NLL AND EDM).
+
+### IF IT DOES NOT REPRODUCE
+
+Report which subdetector / class / coordinate carries the residual, and against
+what it does scale. The alternative already on the table is that the CF's hit
+term is wrong for a DEGRADED complement in some way that is not a per-class
+location -- e.g. the influence weights themselves being mis-estimated when hits
+are missing, which the same caches can test by comparing `sum_c v_c` with
+`vgf` per candidate (`vg_other` is the exported remainder; sec. "PHASE 3" and
+the note that it is NOT float32 noise but an exact remainder, negative for
+~40 % of candidates).
+
+### TOOLS WRITTEN FOR THIS, ALL COMMITTED
+
+`resolution/attribute_skew.py` (track level, `--raw` for the pre-transform
+behaviour), `resolution/attribute_skew_mass.py` (mass level, full
+`data - model`), `resolution/model_odd_mass.py` (the mass CF's own odd moment),
+`resolution/cf_skew_closure.py --bin-eta / --truth-ref / --raw-pull`.
