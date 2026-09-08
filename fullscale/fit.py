@@ -201,9 +201,10 @@ def main():
                 x0[i] = float(pv[nm])
                 moved.append(nm)
         print(f"      seeded from {args.start_from}: {moved}")
+    resume_radius = None
     if args.resume:
-        x0 = md.load_snapshot(args.resume, obj.freenames, x0,
-                              log=lambda m: print("     " + m))
+        x0, resume_radius = md.load_snapshot(args.resume, obj.freenames, x0,
+                                             log=lambda m: print("     " + m))
     print(f"      {len(free)} free, {len(fixed)} fixed{' ' + str(sorted(fixed)) if fixed else ''};"
           f" {obj.nchunk} chunks of {term.chunk}")
 
@@ -258,6 +259,7 @@ def main():
         t0 = time.time()
         with md.GpuMonitor(args.gpu_monitor) as gpu:
             r = md.minimize(obj, x0, args, snapshotter=snap,
+                            trust_radius=resume_radius,
                             log=lambda m: print("   " + m))
         t_fit = time.time() - t0
         res["minimizer"] = md.timing_report(obj, r, t_fit, gpu=gpu,

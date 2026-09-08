@@ -497,9 +497,10 @@ def main(argv=None):
             if nm in pv:
                 x0[i] = float(pv[nm])
         print(f"      seeded from {args.start_from}: {len(moved)} parameters")
+    resume_radius = None
     if args.resume:
-        x0 = md.load_snapshot(args.resume, obj.freenames, x0,
-                              log=lambda m: print("     " + m))
+        x0, resume_radius = md.load_snapshot(args.resume, obj.freenames, x0,
+                                             log=lambda m: print("     " + m))
     if args.check_device and engine == "device":
         ref = JointObjective(terms, external, free, hess_mode="hvp",
                              chunk=None, engine="host", log=lambda *a: None)
@@ -572,6 +573,7 @@ def main(argv=None):
     t0 = time.time()
     with md.GpuMonitor(args.gpu_monitor) as gpu:
         r = md.minimize(obj, x0, args, snapshotter=snap,
+                        trust_radius=resume_radius,
                         log=lambda m: print("   " + m))
     t_fit = time.time() - t0
     res["minimizer"] = md.timing_report(obj, r, t_fit, gpu=gpu,

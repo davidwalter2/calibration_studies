@@ -227,6 +227,7 @@ def load_snapshot(path, freenames, x0, log=print):
         parms = [str(s) for s in np.asarray(f["parms"]).astype(str)]
         x = np.asarray(f["x"])
         reason = f.attrs.get("reason", "?")
+        radius = f.attrs.get("trust_radius", None)
     have = dict(zip(parms, x))
     moved = [nm for nm in freenames if nm in have]
     x0 = np.asarray(x0, np.float64).copy()
@@ -234,8 +235,9 @@ def load_snapshot(path, freenames, x0, log=print):
         if nm in have:
             x0[i] = float(have[nm])
     log(f"  resumed from {path} (written at '{reason}'): {len(moved)} of "
-        f"{len(freenames)} parameters seeded")
-    return x0
+        f"{len(freenames)} parameters seeded"
+        + (f", trust radius {float(radius):.4g}" if radius is not None else ""))
+    return x0, (None if radius is None else float(radius))
 
 
 class _Callback:
@@ -251,11 +253,17 @@ class _Callback:
         self.every = int(every)
         self.nit = 0
         self.t0 = time.time()
+        self.trust_radius = None
         self.history = []
 
     def __call__(self, arg, *rest):
         x = getattr(arg, "x", arg)
         fun = getattr(arg, "fun", None)
+        # the native loop hands the trust radius along with the iterate;
+        # scipy's does not (it is a local of its own loop)
+        tr = getattr(arg, "trust_radius", None)
+        if tr is not None:
+            self.trust_radius = float(tr)
         self.nit += 1
         el = time.time() - self.t0
         self.history.append((self.nit, el, None if fun is None else float(fun)))
@@ -263,19 +271,28 @@ class _Callback:
             self.log(
                 f"    it {self.nit:4d}  {el:8.1f} s"
                 + (f"  NLL {fun:.6f}" if fun is not None else "")
+                + (f"  radius {self.trust_radius:.3g}" if tr is not None else "")
             )
         if self.snap is not None:
-            self.snap.maybe_save(np.asarray(x), el, nit=self.nit)
+            meta = {"nit": self.nit}
+            if self.trust_radius is not None:
+                meta["trust_radius"] = self.trust_radius
+            self.snap.maybe_save(np.asarray(x), el, **meta)
 
 
 # ---------------------------------------------------------------------------
 # the entry point
 # ---------------------------------------------------------------------------
-def minimize(obj, x0, args, snapshotter=None, log=print, log_every=1):
+def minimize(obj, x0, args, snapshotter=None, log=print, log_every=1,
+             trust_radius=None):
     """Run ``args.method`` on ``obj`` from ``x0``; return the OptimizeResult.
 
     ``obj`` must have ``value_grad`` and ``hess``/``hessp`` (host or device);
     a native method additionally needs the device engine's ``native_*``.
+
+    ``trust_radius`` (from a snapshot) restarts the native loop at the radius
+    it had reached rather than at 1.0. scipy's trust-region methods keep the
+    radius as a local and cannot be told, so it is ignored there.
     """
     cb = _Callback(snapshotter, log=log, every=log_every)
     if snapshotter is not None:
@@ -302,10 +319,11 @@ def minimize(obj, x0, args, snapshotter=None, log=print, log_every=1):
             minimize_trust_ncg,
         )
 
+        tr = {} if trust_radius is None else {"initial_trust_radius": trust_radius}
         if args.method == "tf-trust-exact":
             return minimize_trust_exact(
                 obj.native_fun, obj.native_closure_hess, x0,
-                gtol=args.gtol, maxiter=args.maxiter, callback=cb,
+                gtol=args.gtol, maxiter=args.maxiter, callback=cb, **tr,
             )
         fn = (
             minimize_trust_ncg
@@ -315,7 +333,7 @@ def minimize(obj, x0, args, snapshotter=None, log=print, log_every=1):
         return fn(
             obj.native_fun, obj.native_closure, obj.native_hessp(),
             obj.native_set_point, x0,
-            gtol=args.gtol, maxiter=args.maxiter, callback=cb,
+            gtol=args.gtol, maxiter=args.maxiter, callback=cb, **tr,
         )
 
     try:
@@ -337,7 +355,11 @@ def minimize(obj, x0, args, snapshotter=None, log=print, log_every=1):
             except Exception as ex:
                 snapshotter.save_latest("minimizer-failed", error=str(ex)[:200])
                 raise
-        snapshotter.save(np.asarray(res.x), "converged")
+        tr = getattr(res, "trust_radius", None)
+        snapshotter.save(
+            np.asarray(res.x), "converged",
+            **({} if tr is None else {"trust_radius": float(tr)}),
+        )
     res.callback = cb
     return res
 
@@ -369,6 +391,7 @@ def timing_report(obj, res, t_fit, gpu=None, log=print):
         "nhev": int(getattr(res, "nhev", -1)),
         "t_fit": float(t_fit),
         "status": int(getattr(res, "status", -1)),
+        "trust_radius": float(getattr(res, "trust_radius", float("nan"))),
         "message": str(getattr(res, "message", "")),
     }
     calls = getattr(obj, "ncall", None)
