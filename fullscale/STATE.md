@@ -1628,3 +1628,40 @@ is needed**, which removes the whole per-class prologue problem. The optimum by
 the fit-free prediction is `p = 1.235`; the `a` correction's own exponent is
 `1 + <vgf> = 1.264`; the predicted bias is within +-0.35 MeV over
 `p in [1.20, 1.264]`.
+
+### 0f.3 GATE 1 PASSES — and it measures the substitution absorbing the a term
+
+`gate_fluct_gun.py --vpow 1.264` on the 299 422 real J/psi gun candidates,
+delta kernel, the same correction set. `alpha` in `1e-3`:
+
+| term | `alpha` |
+|---|---:|
+| uncorrected, m form | -0.00825 |
+| **uncorrected, v form** | **+0.12746** |
+| `a_res` only, m form | +0.13799 |
+| `a_res` only, v form | **+0.13799** |
+| both, m form | +0.04857 |
+| both, v form | **+0.04944** |
+| the spec | +0.0512 +- 0.0167 |
+
+**The gate is the ABSOLUTE `alpha`, not the shift**, and my first version of it
+got that wrong and reported FAIL. In `v` the "uncorrected" term is not the same
+object as in `m`: the substitution absorbs the self-consistent width, so a v
+term with NO corrections at all already carries most of it. The shift relative
+to each form's own reference is therefore not like-for-like. What has to agree
+is the physical answer with the same correction set, which is what the spec
+quotes:
+
+```
+  a_res only   |alpha_v - alpha_m| = 0.00000 e-3
+  both         |alpha_v - alpha_m| = 0.00087 e-3
+  both         |alpha_v - spec|    = 0.00176 e-3      requirement < 0.01  PASS
+```
+
+**And the failed comparison is itself the measurement.** The v form's
+uncorrected reference sits **+0.13571 e-3** above the m form's, against the
++0.1457 e-3 that the `a` correction applies in `m`. That is the identity
+`k_obs = k_bar when a = p sigma/m` working in practice: the substitution
+absorbs 93 % of the self-consistent width by construction, and what the
+`a^v = a - p sigma/m` residual then applies is the remaining
++0.01053 e-3. Nothing is double counted and nothing is lost.

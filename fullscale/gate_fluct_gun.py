@@ -236,19 +236,30 @@ def main(argv=None):
         d_vb = out["v_fluctuation"]["alpha"] - vref_a
         print(f"  {'a_res only, v form':22s} {d_va:+12.5f}  {+0.1457:+10.4f}")
         print(f"  {'both, v form':22s} {d_vb:+12.5f}  {+0.0559:+10.4f}")
-        e_a = abs(d_va - (out["flu_ares_only"]["alpha"] - ref))
-        e_b = abs(d_vb - (out["fluctuation"]["alpha"] - ref))
-        print(f"\n  GATE (v): |v - m| shift  a_res only {e_a:.5f} e-3, "
-              f"both {e_b:.5f} e-3   (requirement < 0.01 e-3)")
-        # the ABSOLUTE alpha may legitimately move: at a delta kernel the true
-        # mass is one point, but the FSR kernel gives it a few-per-cent spread
-        # and the v form treats the width across THAT correctly
-        print(f"  absolute alpha: m form {out['fluctuation']['alpha']:+.5f}, "
-              f"v form {out['v_fluctuation']['alpha']:+.5f} e-3 "
-              f"(difference {out['v_fluctuation']['alpha'] - out['fluctuation']['alpha']:+.5f})")
-        ok = ok and e_a < 0.01 and e_b < 0.01
-        out["_vgate"] = {"d_ares": d_va, "d_both": d_vb,
-                         "e_ares": e_a, "e_both": e_b}
+        # THE GATE IS THE ABSOLUTE ALPHA, NOT THE SHIFT.  In `v` the
+        # "uncorrected" term is not the same object as in `m`: the substitution
+        # absorbs the self-consistent width, so a v term with NO corrections at
+        # all already carries most of it (measured here: v_uncorrected =
+        # +0.1275 e-3 against the m form's -0.0083). The shift relative to each
+        # form's own uncorrected reference is therefore not a like-for-like
+        # comparison and MUST NOT be gated on -- what has to agree is the
+        # physical answer with the SAME correction set, which is what the spec
+        # quotes.
+        e_a = abs(out["v_ares_only"]["alpha"] - out["flu_ares_only"]["alpha"])
+        e_b = abs(out["v_fluctuation"]["alpha"] - out["fluctuation"]["alpha"])
+        e_s = abs(out["v_fluctuation"]["alpha"] - 0.0512)
+        print(f"\n  GATE (v): |alpha_v - alpha_m|  a_res only {e_a:.5f} e-3, "
+              f"both {e_b:.5f} e-3;  |alpha_v - spec| {e_s:.5f} e-3"
+              f"   (requirement < 0.01 e-3)")
+        print(f"  absolute alpha, both corrections: m {out['fluctuation']['alpha']:+.5f}, "
+              f"v {out['v_fluctuation']['alpha']:+.5f}, spec +0.05120 e-3")
+        print(f"  (for the record, the v form's own shifts off its own "
+              f"reference: a_res {d_va:+.5f}, both {d_vb:+.5f} e-3 -- NOT the "
+              f"gate, see above)")
+        ok = ok and e_a < 0.01 and e_b < 0.01 and e_s < 0.01
+        out["_vgate"] = {"d_ares": d_va, "d_both": d_vb, "e_ares": e_a,
+                         "e_both": e_b, "e_spec": e_s,
+                         "alpha_v_uncorrected": out["v_uncorrected"]["alpha"]}
     print(f"  -> {'PASS' if ok else 'FAIL'}")
     out["_gate"] = {"n": n, "d_ares": d_a, "d_both": d_b, "pass": bool(ok)}
     if args.output:
