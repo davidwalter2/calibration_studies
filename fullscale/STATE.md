@@ -3500,3 +3500,83 @@ and `4.6 s` must stay below the densities that matter. **`s = 1e-7`.**
 `s = 1e-4` was tried first and is wrong — it inflates everything past ~4 sigma
 and blew `alpha` up to +71 +- 25 MeV against an expected +-1.4.
 `--floor clip` is no help either: `max(li, 0) = 0` gives `log 0` as well.
+
+### 0f.33 `a_i` MEASURED IN TRUTH CELLS — the per-leg term is REFUTED, and the
+### real coefficient error is the MISSING IONISATION TERM (2026-09-08)
+
+**The derivation** (mine, to be read against the coordinator's). Two legs with
+independent relative momentum fluctuations `eps_l`, `Var(eps_l) = r_l^2`;
+`d ln m = (eps_1 + eps_2)/2 + (angular)`, so `(sigma_m/m)^2 = R^2/4 + A` with
+`R^2 = r_1^2 + r_2^2` and `f_ang = A/(sigma_m/m)^2`. `sigma_fit` is evaluated at
+the FITTED momenta, and `sigma_m = m * sqrt(R^2/4 + A)` with `A` inert, so
+
+    d ln sigma_fit = d ln m + (1/2) (1 - f_ang) d ln R^2
+                   = d ln m + (1 - f_ang) sum_l s_l e_l eps_l ,
+    s_l = r_l^2/R^2 ,  e_l = d ln r_l / d ln p_l = f_hit,l - f_ioni,l .
+
+Conditioning on `x = (m_reco - m_gen)/sigma`,
+`E[eps_l | x] = 2 s_l (1 - f_ang) (sigma_m/m) x` (the `(1-f_ang)` is there
+because only `R^2/4` of the mass variance comes from the momenta), and
+`E[d ln m | x] = (sigma_m/m) x`. Hence, with `a = d ln sigma_fit/dx`,
+
+    **a = (sigma_m/m) [ 1 + 2 (1 - f_ang)^2 sum_l s_l^2 e_l ]**
+
+Symmetric legs (`s_l = 1/2`, `f_ang = 0`) give `1 + e`, the spec's `1 + vgf`
+(and `e = vgf` exactly when ionisation is dropped: `r^2 = (h p)^2 + m_0^2` has
+`d ln r/d ln p = (h p)^2/r^2` = the hit share). Fully asymmetric legs give
+`1 + 2 e_1`. **This differs from the coordinator's placement of `f_ang`**: the
+leading `1` comes from `sigma_m ~ m_fit` and carries NO `(1-f_ang)`, while the
+`e` term carries it TWICE. At the Z it does not matter -- `f_ang` has median
+**8.4e-5** -- so the whole `f_ang` question is a J/psi-only issue (median 6.2e-2
+there).
+
+**`a` is measurable with no fit**, and `measure_a.py` measures it: bin, regress
+`ln sigma_fit` on `z = (m_reco - m_gen)/sigma` inside the cell, the slope IS
+`a`. 3 481 415 candidates, `|z| < 2` (the linear regime), MiNNLO weights.
+`s_l` comes from `sigrelp`/`sigrelm`, which ARE in the pairs cache -- the
+per-leg split did not need the hit blocks after all.
+
+| cell | `sigma/m` | `vgf` | `asym` | **MEASURED `a/(sigma/m)`** | spec `1+vgf` | per-leg |
+|---|---:|---:|---:|---:|---:|---:|
+| inclusive | 0.0141 | 0.263 | 0.218 | **1.2110 +- 0.0004** | 1.2625 | 1.3196 |
+| `\|eta\|<0.9` | 0.0088 | 0.274 | 0.062 | **1.2503 +- 0.0006** | 1.2738 | 1.2909 |
+| `0.9-1.6` | 0.0119 | 0.205 | 0.177 | **1.1667 +- 0.0003** | 1.2046 | 1.2407 |
+| `1.6-3.0` | 0.0180 | 0.301 | 0.314 | **1.2725 +- 0.0004** | 1.3007 | 1.3950 |
+
+(`asym = 2(s_1^2 + s_2^2) - 1`, 0 symmetric to 1 fully asymmetric; with
+`e_l ~ e ~ vgf` the per-leg column is `1 + vgf (1 + asym)(1 - f_ang)^2`.)
+
+**1. THE PER-LEG TERM IS REFUTED.** The measured `a` is BELOW `1 + vgf` in
+every cell, and the leg-asymmetry term moves `a` UP -- the wrong direction. It
+is **1.7 to 4.3 times further from the measurement than the spec's own form**,
+worst exactly where it is largest (the endcap: measured 1.273, spec 1.301,
+per-leg 1.395). Binned on `asym` alone the discrepancy `meas - spec` runs
+-0.148, -0.206, -0.247, -0.150, **-0.044** over the quintiles -- it SHRINKS
+where `asym` is largest. There is no leg-asymmetry signal in `a`.
+
+**2. THERE IS A REAL COEFFICIENT ERROR, AND IT IS THE IONISATION TERM.** The
+measured exponent is `e_meas = a/(sigma/m) - 1` = 0.211 inclusively against
+`vgf = 0.263`, i.e. **`e_meas = 0.80 vgf`** (0.91 / 0.81 / 0.91 in the three
+bands). That is exactly `e = f_hit - f_ioni` with `f_ioni ~ 0.1-0.2 f_hit` --
+the OTHER ingredient of the coordinator's formula, and the one the spec
+dropped when it set `f = vgf`. It is a 100-sigma effect on the inclusive row.
+
+**It also explains the J/psi.** There `a_fluct` was measured at 0.0107 against
+`sigma/m = 0.0112`, a ratio of **0.955 < 1** -- below even the leading term --
+which `1 + vgf = 1.086` cannot produce and which the spec's own sec. 1 recorded
+as "the closed form runs 16 % HIGH". With `e = f_hit - f_ioni` and the J/psi's
+much larger `f_ioni` (soft muons, `sigma_pT/pT` ionisation term ~ 1/pT), a
+NEGATIVE `e` is exactly what is expected.
+
+**3. BUT IT IS NOT THE eta PATTERN.** `meas - spec` is -0.024 / -0.038 / -0.028
+across the three bands: roughly CONSTANT, not monotone, and nothing like the
+-21 / +12 / +34 MeV it would have to generate. So correcting `a` is worth doing
+-- it is a real, measured, first-principles error with no free parameter -- but
+it is not what makes the bands differ.
+
+**A caveat on the finer cells.** Binning in `sigma/m` (or in `asym`, which
+correlates with it) CONDITIONS on `sigma`, and `sigma = sigma_bar(1 + a x)`, so
+such a bin is a cut on `x` and attenuates the very slope being measured. The
+`eta` bands and the inclusive row are clean (`eta` does not respond to the
+residual); the `sigma/m` x `asym` grid in `measure_a.py`'s output is attenuated
+and must not be read as a measurement of `a`.
