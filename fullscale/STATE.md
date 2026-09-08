@@ -1892,3 +1892,23 @@ Until those land the honest statement is: **the v formulation's full-statistics
 near `-2.3 MeV` in `m_Z` (one Newton step from the stop, diagonal
 approximation), against the m form's `-11.06 +- 2.27` — but a one-step estimate
 with a correlated Hessian is not a number to quote either.
+
+### 0f.10 GATE 3 PASSES — and it is a CONVERGED fit
+
+`V_toy`: the assembly toy (`m_gen_i + sigma_i z_j`, residuals shuffled inside
+20 `sigma/m` classes) at full statistics in the v formulation.
+
+| | `m_Z` | `Gamma_Z` | `\|grad\|inf` | nit |
+|---|---:|---:|---:|---:|
+| m form (`F_toy`) | -3.08 +- 2.19 | -2.31 +- 4.13 | — | 91 |
+| **v form (`V_toy`)** | **+1.01 +- 2.30** | +4.50 +- 4.20 | **0.0049** | 53 |
+
+**Consistent with zero at 0.44 sigma**, from -1.4 sigma in the m form. And
+`|grad|inf = 0.0049` — with `sigma(m_Z) = 2.30` that is a Newton step of
+0.011 sigma, i.e. **this one is converged**, unlike `V_full` (sec. 0f.9).
+
+That matters for two reasons beyond the gate. It shows the minimiser CAN
+converge the v form on this card structure, so `V_full`'s stop is a stopping-
+rule accident on one trajectory and not a systematic property of the
+formulation. And `V_toy`'s `m_Z` moved from 0 to +1.01, so the POI direction
+was explored.
