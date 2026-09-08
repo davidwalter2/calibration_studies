@@ -798,3 +798,20 @@ bounded 364 of 300 000 (0.12 %). Expected: the v quadratic coefficient is
 `g^v = (p/2 - vgf + ... ) sigma/m`, smaller than the m form's, and it is a
 check that the substitution has removed the piece that was straining the
 first-order truncation rather than adding to it.
+
+### The v card carries the same information as the m card
+
+Profiled errors from the reference-point Hessian, 50 000 candidates, 7 free
+parameters (`m_Z`, `Gamma_Z`, `shape1..5`):
+
+| | m form | v form | ratio |
+|---|---:|---:|---:|
+| `sigma(m_Z)` | 14.248 | 15.535 | **1.090** |
+| `sigma(Gamma_Z)` | 19.533 | 19.686 | **1.008** |
+
+So the change of variable costs **9 % on `sigma(m_Z)`** and nothing on
+`Gamma_Z`. It is not free and it is not supposed to be: the two models are
+genuinely different — the v model's effective width tracks the mass — and the
+information about a mass parameter changes with it. At full statistics that
+would take `sigma(m_Z)` from 2.27 to about 2.47 MeV, which is the price of
+removing an 11 MeV bias.
