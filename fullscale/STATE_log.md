@@ -783,3 +783,18 @@ first is NOT `(y, cos theta*)` but the resolution constant `k_i`, and the
 acceptance `A(m|cell)` — which is what the coordinator's design says. But the
 `k_i` normalisation can be checked, and possibly fixed, without any cell
 machinery at all.
+
+### 2026-09-08 — the v cards, verified
+
+`cards/z_V_full.hdf5` (3.65 GB, all 3 682 662 candidates) stores
+`vpow = 1.264`, `norm_window = [0.169341, 0.384254]` and `m_ref = 0.3037924`.
+Checked by hand: `v(60) - v(91.1876) + m_ref^{1-p} = 0.16909` and
+`v(120) - v(91.1876) + m_ref^{1-p} = 0.38420`, and
+`91.1876^{-0.264} = 0.3037924`. So the window, the `alpha` lever and the
+exponent all round-trip.
+
+**Not one candidate hits `corr_coeff_max`** in the v form, where the m form
+bounded 364 of 300 000 (0.12 %). Expected: the v quadratic coefficient is
+`g^v = (p/2 - vgf + ... ) sigma/m`, smaller than the m form's, and it is a
+check that the substitution has removed the piece that was straining the
+first-order truncation rather than adding to it.
