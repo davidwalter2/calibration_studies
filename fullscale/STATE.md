@@ -3580,3 +3580,69 @@ such a bin is a cut on `x` and attenuates the very slope being measured. The
 `eta` bands and the inclusive row are clean (`eta` does not respond to the
 residual); the `sigma/m` x `asym` grid in `measure_a.py`'s output is attenuated
 and must not be read as a measurement of `a`.
+
+### 0f.34 (1) THE MEAN DOES NOT CLOSE BAND BY BAND — and its pattern is NOT the
+### fit's pattern, which is the skew signature (2026-09-08)
+
+`<m_reco - m_gen>` against the ONLY mean shift the model predicts (the exact
+Jensen term `1.5 s^2 m`; the CF's own mean is zero by construction). MiNNLO
+weights, `sigma_m/m < 0.10`.
+
+| band | n | `<m-m_gen>` raw | truncated `\|z\|<4` | model Jensen | **gap** | `sigma/m` |
+|---|---:|---:|---:|---:|---:|---:|
+| `\|eta\|<0.9` | 703 365 | -9.30 | +16.22 +- 1.04 | 11.01 | **+5.21** | 0.0088 |
+| `0.9-1.6` | 1 271 998 | -124.44 | +27.11 +- 1.09 | 20.38 | **+6.73** | 0.0121 |
+| `1.6-3.0` | 1 737 771 | -26.20 | +39.23 +- 1.44 | 54.79 | **-15.56** | 0.0180 |
+| inclusive | 3 713 134 | -56.87 | +30.60 +- 0.79 | 34.48 | **-3.88** | 0.0142 |
+
+(MeV. The RAW means are useless — the mid band's -124 MeV shows how completely
+the untruncated mean is owned by whichever few candidates radiated — which is
+exactly why the odd-moment statistic `<z e^{-uz^2}>` exists. The truncated
+column is the meaningful one and it IS truncation-dependent; the gap should be
+read as "does the location close", not as a calibrated number.)
+
+**The location does NOT close band by band**: +5.2 / +6.7 / -15.6, a 22 MeV
+spread, non-monotone in `eta`.
+
+**And its pattern is NOT the fit's pattern.** The kernel-free `alpha` on the
+middle band is +11.99 +- 1.51 and the full v-form band closures are
+-21.1 / +12.4 / +34.2; the endcap's mean gap is **-15.6 where its fitted bias
+is +34.2** — the opposite sign. A location bias that does not follow the mean
+is precisely the coordinator's point: **the MLE location is pulled by the ODD
+part of the density, not by its mean**, so a mean that misses and a fit bias
+that misses differently is the signature of a SKEW mismatch rather than a
+mis-centred density.
+
+### WHAT (2)-(5) NEED, AND THE ONE PIECE OF PLUMBING THAT IS MISSING
+
+The family attribution the coordinator asks for -- the odd closure and the
+kernel-free `alpha` with the radiative family OFF and with the ionisation
+family OFF -- cannot be run today:
+
+* `make_card.py --del-family` is NOT a family remover: it ADDS the delta-ray
+  family (`discover_families(keys, want_del)` appends `"del"`);
+* neither `fit.py` nor `rabbit_fit.py` can SET a parameter to a non-default
+  value and freeze it there -- `--fix` / `--freezeParameters` fix at the
+  default, and `--start-from` only seeds FREE parameters. `k_rad = 0` removes
+  the radiative block, but there is no way to ask for it.
+
+**The cheapest route needs no code at all**: `discover_families` only appends a
+family whose `re_k` is present in the cache, so a card built from a cache with
+`Srad_re`/`Srad_im` deleted simply HAS no radiative family. So the recipe is
+`np.savez_compressed` of the band subsets with those keys dropped, then the
+ordinary `--residual-mode` build. Doing it on the band subsets rather than the
+full 4.6 GB cache keeps it inside the /work quota, which is the binding
+constraint (two 36 GB builds already died there today).
+
+The alternative, and the better one if these switches are wanted repeatedly, is
+a `--set NAME=VALUE` in `fit.py` and `make_card.py` that writes the value into
+`param_defaults` -- three lines, and it makes `k_rad = 0`, `k_ioni` scans and
+the single-`r` location-only fit all one flag.
+
+**Also still owed from this thread**: `e = f_hit - f_ioni` in the card builder
+(the measured 2-4 % correction of sec. 0f.33, `f_ioni` per candidate from
+`Sio_re`/`Sio_im`/`ioni_sign_fixed` in the cache), and item (4), the per-`eta`
+odd-moment closure on the tight-stepper 20-60 GeV gun at TRACK level
+(`cf_skew_closure.py --cache runs/cf_trackres_mugun_ul16_*`), whose inclusive
+1.05 ratio was never checked per `eta` and which would say whether the CF
+family model itself is wrong per region.
