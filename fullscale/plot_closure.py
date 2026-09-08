@@ -176,6 +176,12 @@ def main():
           ["5 terms", "", "6 terms", "", "7 terms", ""],
           "m_Z", r"$m_Z$ against the $K(m)$ truncation",
           r"$m_Z^{\rm fit}-m_Z^{\rm gen}$  [MeV]")
+    panel(out, "mz_sigmasplit.png",
+          ["z_V_etaB_slo", "z_V_etaB_shi", "z_V_etaE_slo", "z_V_etaE_shi"],
+          [r"barrel low $\sigma/m$", r"barrel high", r"endcap low",
+           r"endcap high"],
+          "m_Z", r"$m_Z$ against $\sigma/m$ AT FIXED $\eta$",
+          r"$m_Z^{\rm fit}-m_Z^{\rm gen}$  [MeV]")
     panel(out, "mz_variants.png",
           ["z_full380_fl", "z_V_full", "z_F_dc8", "z_F_toy", "z_V_toy",
            "z_F_toydc", "z_F_w70110"],
