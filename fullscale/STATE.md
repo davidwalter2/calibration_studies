@@ -3701,3 +3701,77 @@ pattern -- the barrel is the most negative in both.
 larger one, or the same test on the J/psi and Z legs, would settle the
 significance. The MONOTONICITY across three bands and two probes is what makes
 it worth acting on, not any single band's pull.
+
+### 0f.36 THE ATTRIBUTION TABLE — charge, phi, hit composition (2026-09-08)
+
+`resolution/attribute_skew.py`, tight-stepper 20-60 GeV gun, 319 854 tracks,
+6 219 371 hits with their 18-class labels and their per-hit influence weights
+`hitamp2`. The model's own odd moment is ~0 in every band (sec. 0f.35), so
+these DATA numbers are `data - model` to 1e-5. Units 1e-3, bootstrap 200.
+
+**1. CHARGE — and this is the headline: the odd moment is dominated by a
+charge-ODD part that the charge-average removes BY CONSTRUCTION.**
+
+| band | `q = +1` | `q = -1` | **even = (+ plus -)/2** | **odd = (+ minus -)/2** |
+|---|---:|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | -13.96 +- 3.72 | +4.12 +- 3.81 | **-4.92** | **-9.04** |
+| `0.9-1.6` | -16.11 +- 3.67 | +8.98 +- 3.77 | **-3.57** | **-12.55** |
+| `1.6-2.4` | -13.96 +- 3.78 | +14.21 +- 3.79 | **+0.13** | **-14.09** |
+
+The coordinator's reading is CONFIRMED in its structure: the charge-averaged
+number IS the charge-even part, it IS the `eta`-dependent piece
+(-4.9 -> -3.6 -> +0.1), and the endcap's "exact closure" is a genuine ABSENCE
+of the even part rather than a cancellation. What was not visible before is
+that it rides on a charge-ODD component **two to three times larger**
+(-9 -> -14, nearly flat in `eta`) which is the ionisation energy loss --
+`delta(q/p)` carries the sign of `q`, so a one-sided energy loss is charge-odd
+in `z` -- and which `cf_skew_closure --charge 0` cancels deliberately.
+
+**2. PHI — the Lorentz-drift prediction FAILS.** A hit displacement in a fixed
+LOCAL direction rotates with the module and so has a definite GLOBAL sense; the
+coordinator's test is that the sign must not flip with `phi`. It flips:
+
+| band | `phi` [-pi,-pi/2] | [-pi/2,0] | [0,pi/2] | [pi/2,pi] |
+|---|---:|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | -3.93 +- 5.06 | -13.53 +- 4.66 | -12.83 +- 4.78 | **+10.58 +- 4.52** |
+| `1.6-2.4` | +5.61 +- 4.93 | +1.85 +- 5.13 | +2.45 +- 5.03 | **-9.28 +- 5.34** |
+
+The barrel charge-even skew runs -3.9, -13.5, -12.8, **+10.6** -- a sign flip
+at 2.3 sigma against the neighbouring octants, and the same octant is the
+outlier in the endcap with the OPPOSITE sign. That is not what a uniform local
+drift does. It is a phi-modulated, global-sense effect.
+
+**3. HIT COMPOSITION — one positive indication, and it is the single-strip
+class.** Shares are INFLUENCE-weighted (`sum_{hits in c} hitamp2 / sum hitamp2`),
+which is the quantity the mass functional's per-hit-class blocks carry.
+
+| band | single-strip share LOW | HIGH | difference |
+|---|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | -1.72 +- 3.30 | -8.03 +- 7.58 | **-6.3 +- 8.3** |
+| `0.9-1.6` | -2.81 +- 3.75 | -11.20 +- 8.68 | **-8.4 +- 9.5** |
+| `1.6-2.4` | +3.58 +- 3.56 | -9.12 +- 8.28 | **-12.7 +- 9.0** |
+
+Tracks whose curvature is carried by **single-strip (N1) clusters** are more
+negatively skewed in ALL THREE bands, same sign, ~1 sigma each (~1.6 sigma
+combined). That is the one measurement pointing at a hit class. **The PIXEL
+share does not**: it is non-monotonic (-1.8 / -9.8 / -2.9 across its own
+tertiles in the barrel), so "scales with the barrel-pixel share" is not
+supported.
+
+**Where this leaves the hypothesis.** Partially supported and partially
+refuted, and the two halves are separable:
+* the charge-EVEN structure is real, `eta`-dependent, and absent in the endcap
+  -- as predicted;
+* the single-strip class carries extra negative skew in every band -- as
+  predicted, at ~1.6 sigma;
+* but the `phi` behaviour is NOT a fixed local drift, and the pixel-share
+  scaling is absent. So "Lorentz drift in the barrel pixels and strips" as the
+  specific mechanism is not what the data shows.
+* and the DOMINANT odd feature is charge-ODD ionisation, 2-3x larger, which
+  every charge-averaged closure in this campaign has been cancelling away
+  without saying so.
+
+**Before the fix of item (3) is built** -- replacing the Gaussian per hit class
+in the CF product by the class's measured residual density -- the thing to
+settle is the single-strip indication at more than 1.6 sigma, and the `phi`
+structure, which no hit-class mechanism as stated predicts.
