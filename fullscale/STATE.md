@@ -662,7 +662,33 @@ FINAL cards are `cards/z_full380_fl.hdf5` and `cards/z_n300k_fl.hdf5`.
 
 ---
 
-## 2. WHAT IS RUNNING  (checkpoint 2026-09-07 15:15)
+## 2. WHAT IS RUNNING  (checkpoint 2026-09-08 00:10 — see also sec. 0d)
+
+**Engaging, native minimiser** (`engaging/fullscale_gpu_native.sbatch`,
+`PYTHONPATH` at `rabbit-native`, branch `material-resolution-native` tip
+53c1d0f which already carries my `corr_mass`), all six at full statistics,
+`--chunk 32768 --method tf-trust-krylov` with 15-minute snapshots on
+`mit_preemptable -t 04:00:00`:
+
+| job | card | what it decides |
+|---|---|---|
+| 22254764 | `z_F_toy` | the assembly, against -11.06 +- 2.27 |
+| 22254765 | `z_F_toydc` | the toy plus the decorrelation weights |
+| 22254766 | `z_F_dc8` | the real data with those weights |
+| 22254767 | `z_F_w70110` | the window normalisation, at 2.3 MeV |
+| 22254768 | `z_full380_fl_s6` | the K(m) ladder, 6 terms |
+| 22254769 | `z_full380_fl_s7` | the K(m) ladder, 7 terms |
+
+The last two are the third attempt: the 5h30 `mit_normal_gpu` limit killed both
+on the scipy path (22227231 at 4h36, 22224280 cancelled at 4h14). At the
+measured 16x they are ~20 minutes each. `22210973 zjoint` (phase 2, 500 k) is
+still running on the scipy path.
+
+Collect with the helper in the scratchpad or simply
+`rsync -a engaging:orcd/pool/zmass/fitresults/fit_*.json results/eng/`.
+
+### (superseded, kept for the job ids)
+
 
 ### On Engaging — `eng 'timeout 30 squeue -u david_w'`
 The 8 h SSH master expires silently; when `eng` prints instructions instead of
