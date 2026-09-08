@@ -1,3 +1,102 @@
+# RESUME HERE — 2026-09-08, session ended mid-campaign
+
+## What is RUNNING right now (detached, survives the session)
+Three convergence-diagnostic refits of the 20-60 GeV tight muon gun, launched
+2026-09-08 ~20:00 EDT on **submit50** with
+
+    setsid nohup ./run_conv_all.sh > logs/conv_master.log 2>&1 < /dev/null &
+
+(`resolution/hitclassbias/run_conv_all.sh` -> `run_conv.sh <variant> 40 10`;
+40 tasks x 2000 events, 10 parallel per variant, 30 cmsRun total, under the
+32 cap). Rate measured on the smoke: ~100 ev/min/task, so ~20 min/task,
+~80 min per variant for `base`/`tight` and longer for `damp`.
+
+| variant | output dir (under `/ceph/submit/data/user/d/david_w/ZMass/cvh/`) | knobs |
+|---|---|---|
+| base | `resolution_trackres_mugun_ul16_260909_conv_base` | none — like-for-like bit check |
+| tight | `..._260909_conv_tight` | `edmConvergence=1e-7 nIters=20` (100x tighter) |
+| damp | `..._260909_conv_damp` | `edmConvergence=1e-7 nIters=30 gnDampAfter=1 gnDampFactor=0.5` |
+
+Per-task logs `<dir>/task_XXXX/local.log`, sentinel `<dir>/task_XXXX/.complete`,
+driver logs `resolution/hitclassbias/logs/conv_{base,tight,damp}.log` and
+`logs/conv_master.log`. `run_conv.sh` RESUMES on the sentinel, so re-running it
+with the same arguments picks up where it stopped. **Check progress with**
+`ls -d <dir>/task_*/.complete | wc -l` (out of 40).
+
+Everything reproduces `run_all_260903x.sh`'s `mugun_ul16_260903x_m0` arm
+exactly (same cfg in `CMSSW_15_0_19_patch2_dev`, commit `ca6058d96fc`, which is
+byte-identical to dev2; same filelist, same COMMON, `CgfQoPMode=0`); only the
+GN knobs differ. **No build was done and none is needed.**
+
+**`fitFromGenParms=True` was NOT used, and must not be**: measured on
+`hitres2_mugun_ul16`, it freezes the reference block EXACTLY at gen
+(`max|refParms-genParms| = 0.0`, `refCov(0,0) = 0`, `niter = 1`), so
+`z = (refParms[0]-genParms[0])/sigma` is identically zero — it deletes the
+observable rather than removing the seed dependence. `damp` is the substitute:
+halving the step from iteration 1 on means the fit CANNOT land at the
+seed-proximal point in two iterations, so it reaches the same minimum by a
+different path. There is no `minIters` cfi parameter; adding one needs a build.
+
+## What to do with them when they finish
+1. `python3 extract_conv.py --prod resolution_trackres_mugun_ul16_260909_conv_<v> --out data/conv_<v>.npz`
+   (keys `run/lumi/event` are kept so the variants pair track-by-track — a
+   PAIRED comparison is far more precise than two independent means, because
+   the fluctuation is common).
+2. `base` vs `resolution_trackres_mugun_ul16_260903x_m0` on the same 40 tasks:
+   `z` must agree bit-for-bit. If it does not, the build moved and every
+   comparison below is against a different baseline.
+3. On each variant, the same four analyses as in PART 2 below:
+   truth-referenced charge-even `<x>` per eta band (`s2`/`s3` recipe), the
+   bulk/IN decomposition on `|seed->final dq/p|` at its 90th percentile
+   (`s6_mixture.py`), the trim scan (`s1_trim.py`), and the `niter` census.
+   Report a before/after table per variant.
+4. **DECISION RULE.** If the bulk `-6.3e-3` and the `+21e-3` IN component
+   shrink under `tight` or `damp`, the mechanism is incomplete convergence and
+   the fix is the convergence criterion — then quote the cost per track
+   (measure `<niter>` and the wall time per task against `base`). If they
+   PERSIST at a tighter tolerance and along a damped path, they are properties
+   of the CONVERGED estimator (a second-order bias) and the coordinator wants
+   those numbers for the derivation.
+
+## Established results (do not re-derive)
+* **PART 1**: the per-hit CPE LOCATION bias is real but pixel-only -- BPix
+  +0.119 sigma_CPE (+1.26 um; layer 1 +0.227 / +2.71 um, skew +0.302), FPix
+  +0.040, every strip subdetector null at +-0.002 (3-sigma bounds 0.04-0.23 um)
+  -- and CANNOT make the observed odd moment: it predicts +0.86 / +1.58 /
+  +1.39 e-3 against a measured -4.89 / -3.57 / +0.12, wrong sign and flat in
+  eta, and the chi2 of the displacement it would need is >= 5.3 sigma at every
+  key granularity from per-subdetector to per-orientation-group-x-class. The
+  skew channel is 1e-6. Step 3 of that brief was therefore NOT done.
+* **PART 2**: the charge-even shift is a CORE shift (trim scan flat from
+  T = 2), the step control NEVER fires (`nChargeFlipProtect` = 0 for
+  319 849/319 850, `chargeHypFlipped` = 0, `niter` = 2 for 81 %), and the eta
+  dependence is a MIXTURE: `+20.59 +- 6.45 e-3` (top 10 % in
+  `|seed->final dq/p|`) and `-6.33 +- 1.84 e-3` (the rest), BOTH flat in eta,
+  mixing 2.4 % -> 7.0 % -> 21.2 %.
+* **NEW CONDITIONING TRAP, the fourth of the campaign**:
+  `corr(seed->final dq/p SIGNED, x) = +0.1132` -- bigger than the reco-pT
+  trap's +0.042 -- and its tertiles run **-169 / -7 / +163 e-3**. The seed is
+  the generalTracks KF, which shares its hits with CVH, so the difference is
+  partly the residual itself. The ABSOLUTE step is safe (`+0.0061`).
+* **`resinfv` / `resinfbv` / `hitDetId` are absent from the slim v2 two-track
+  productions** (booked under `if (exportStepRecords_)`,
+  `ResidualGlobalCorrectionMakerBase.cc:547-549`), so a SIGNED per-hit
+  mass-projected weight cannot be extracted from them.
+
+## Pointers
+* the analysis agent is `a0808263b90f22ec5`; its state is
+  `calibration_studies/fullscale/STATE.md` (secs. 0f.35-0f.47).
+* its gen-leg caches, when they land:
+  `fullscale/runs/auxgen_dyv2.npz`, `fullscale/runs/auxgen_jpsiv2.npz`
+  (produced by `fullscale/run_auxgen.sh`, commit `fbcecef`).
+* figures: `~/public_html/cvh/260908_hitclassbias/` (13 panels + index.php).
+* NOTES: two dated entries in `/work/submit/david_w/Documents/Resolution/NOTES.md`.
+* **`/ceph` is NOT readable from submit82** (cephx eviction) and the mfs venv
+  does not run there either. Use `resolution/hitclassbias/rrun.sh`, which
+  shells to submit50 over a persistent SSH ControlMaster.
+
+---
+
 # hit-class LOCATION bias — STATE
 
 Task: measure each hit class's residual LOCATION (not just its width/shape),
