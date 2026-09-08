@@ -3002,11 +3002,37 @@ model spec, so the bundle name reaches `load_model`; it could not before):
      gradient . p: analytic -3.0814345e+11, central FD the same, rel 1.98e-12  OK
 ```
 
-4. the Hessian route (117 HVP columns + a pfor Hessian of the J/psi block):
-   RUNNING when this was written -- checks 1-3 are the loss/gradient gate the
-   task asked for and they PASS; check 4 is the Hessian, and sec. 2's numbers
-   for it (3.7e-16 pfor vs hvp) were measured on the phase-2 card whose route
-   is identical here.
+4. the Hessian route: check 4 reported **MISMATCH 7.167e5**, and the test is
+   at fault, not the Hessian. It compares the Fitter's Hessian BLOCK on one
+   term's parameters against THAT TERM'S standalone `ChunkedObjective.hess`,
+   which is right for the single-term Z card it was written for and wrong for
+   any joint card: the block also carries the other mass term (they share 110
+   parameters) and the `hitchi2` external quadratic. The evidence is in its
+   own output -- the Fitter Hessian's largest eigenvalue, **7.243e13**, is to
+   four digits the largest eigenvalue of the external quadratic alone
+   (**7.2433e13**, recomputed from the two `quad_*.npz`, whitened, x 1/2),
+   while the mass terms live at ~1e8. The negative eigenvalue it also prints,
+   -7.7e-4, is -1e-17 of the largest, on one of the four known `hitchi2` null
+   directions, and its EDM 3.2e9 is a random point, not a minimum. Nobody had
+   seen this because check 4 had never RUN on a joint card -- the model spec
+   could not be parsed until `4e81bed`.
+
+`gate_joint_hessian.py` (new) makes the statement that is well posed on a
+multi-term card, without assembling any Hessian:
+
+```
+=== 1. H p vs the central difference of the Fitter's gradient ===
+  eps 1e-05  1.711e-13     eps 1e-06  1.123e-12     eps 1e-07  1.065e-11
+=== 2. H p vs sum(term HVPs) + K p + p/sigma^2 ===
+  jpsi 110 params, zmass 117, hitchi2 92 (max|K/2| 7.1162e+13), 42 constrained
+  max |H p - (sum of the pieces)| / max|H p| = 1.507e-16
+```
+
+i.e. the whole route -- both `MaterialCFTerm`s, the external quadratic, the
+Gaussian constraints -- reproduces the derivative of its own gradient at the FD
+floor (**1.7e-13**) and IS exactly the sum of its pieces (**1.5e-16**).
+`test_rabbit_path.py` now SKIPS the block comparison when other terms share the
+parameters, with the reason, instead of reporting a mismatch.
 
 `rabbit_fit.py` itself was run on the smoke card and gets past loading and into
 the minimiser -- it declares 117 fit parameters through

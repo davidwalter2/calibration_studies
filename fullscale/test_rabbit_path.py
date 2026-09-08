@@ -293,9 +293,30 @@ def main():
         print(f"  Hessian in {t_hess:.1f} s, asymmetry {asym:.2e}, "
               f"eigenvalues [{ev.min():.4g}, {ev.max():.4g}], EDM {edmval:.4g}")
         # against the standalone objective, on the unbinned parameters only,
-        # at the SAME point the Fitter's Hessian was taken at
+        # at the SAME point the Fitter's Hessian was taken at.
+        #
+        # THIS IS A SINGLE-TERM TEST. `Href` is ONE unbinned term's Hessian;
+        # the Fitter's block on the same parameters also carries every OTHER
+        # term that shares them -- the second mass term of a joint card (they
+        # share 110 parameters) and the `hitchi2` external quadratic, whose
+        # curvature on the calibration block is ~1e13 against the mass terms'
+        # ~1e8. On the phase-3 smoke card the comparison reports 7.2e5 and the
+        # evidence that it is the test and not the Hessian is in its own
+        # output: the Fitter Hessian's largest eigenvalue, 7.243e13, is to
+        # four digits the largest eigenvalue of the external quadratic alone.
+        # So it is SKIPPED rather than failed on a multi-term card;
+        # `gate_joint_hessian.py` makes the statement that is well posed there
+        # (H p against the central difference of the Fitter's own gradient,
+        # and against the sum of the per-term HVPs + K p + p/sigma^2).
         names = list(np.asarray(f.parms).astype(str))
         xnow = f.x.numpy()
+        nother = len(terms) - 1 + len(getattr(indata, "external_terms", []) or [])
+        if nother:
+            print(f"  the Hessian BLOCK comparison is SKIPPED: this card has "
+                  f"{nother} further term(s) sharing these parameters, which "
+                  "the standalone objective does not contain. Run "
+                  "gate_joint_hessian.py instead.")
+            terms = []
         for t in terms[:1]:
             free = list(range(len(t.param_names)))
             host = ChunkedObjective([t], free, hess_mode="pfor")
