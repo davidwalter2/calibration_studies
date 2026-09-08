@@ -56,11 +56,15 @@ def main():
                     default="runs/cf_trackres_mugun_ul16_260903x_m0_k0.npz")
     ap.add_argument("--nboot", type=int, default=200)
     ap.add_argument("--zmax", type=float, default=30.0)
+    ap.add_argument("--raw", action="store_true",
+                    help="use the RAW z instead of the truth-referenced x, to "
+                         "exhibit the pull-normalisation artefact rather than "
+                         "remove it")
     a = ap.parse_args()
     rng = np.random.default_rng(20260908)
 
     d = np.load(a.cache, allow_pickle=True)
-    z = d["z"].astype(np.float64)
+    z_raw = d["z"].astype(np.float64)
     eta = np.abs(d["eta"].astype(np.float64))
     phi = d["phi"].astype(np.float64)
     q = d["charge"].astype(np.float64)
@@ -69,6 +73,28 @@ def main():
     amp2 = d["hitamp2"].astype(np.float64)
     names = [str(s) for s in d["hitclsnames"]]
 
+    # THE TRUTH-REFERENCED TRANSFORM (oddmoment/track_truthfree.py).
+    #   sigma_i = sigma_bar_i + a_i q_i eps_i           (definition of a_i)
+    #   => x_i = eps_i/sigma_bar_i = z_i / (1 - a_i q_i z_i)
+    # with a_i = sigma_rel,i * dln sigma/dln kappa, sigma_rel,i = sigma_i p_fit,i
+    # and dln sigma/dln kappa ~= 1 - vgf_i. Without it the PULL-NORMALISATION
+    # ARTEFACT gives <q z> = -a exactly -- sigma_fit is larger for the
+    # fluctuation that made it larger -- and that is a property of the
+    # normalisation, not of the momentum. `a` varies with eta, so the artefact's
+    # second-order pieces leak into the charge-EVEN part per eta as well: the
+    # charge-even conclusion has to be shown to survive this transform.
+    vgf = d["vgf"].astype(np.float64)
+    pfit = d["trackpt"].astype(np.float64) * np.cosh(d["eta"].astype(np.float64))
+    a_i = d["sigma"].astype(np.float64) * pfit * (1.0 - vgf)
+    qq = d["charge"].astype(np.float64)
+    den = 1.0 - a_i * qq * z_raw
+    z_tf = np.where(np.abs(den) > 1e-3, z_raw / den, np.nan)
+    z = z_tf if not a.raw else z_raw
+    print(f"a_i = sigma_rel (1-vgf): median {np.median(a_i):.5f}, "
+          f"[{np.percentile(a_i,5):.5f}, {np.percentile(a_i,95):.5f}]")
+    print(f"the pull-normalisation artefact this removes is <q z> = -a = "
+          f"{-np.median(a_i)*1e3:+.2f}e-3")
+    print(f"using {'RAW z' if a.raw else 'the TRUTH-REFERENCED x = z/(1 - a q z)'}\n")
     ok = np.isfinite(z) & (np.abs(z) < a.zmax)
     # per-track influence-weighted class shares
     ptr = np.concatenate([[0], np.cumsum(cnt)])

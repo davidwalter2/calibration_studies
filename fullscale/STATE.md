@@ -3775,3 +3775,48 @@ refuted, and the two halves are separable:
 in the CF product by the class's measured residual density -- the thing to
 settle is the single-strip indication at more than 1.6 sigma, and the `phi`
 structure, which no hit-class mechanism as stated predicts.
+
+### 0f.37 (A) RECONCILED: the charge-ODD part WAS the pull-normalisation
+### artefact; the charge-EVEN part survives the transform UNCHANGED (2026-09-08)
+
+The coordinator was right and the check is exact. `attribute_skew.py` now
+applies `oddmoment/track_truthfree.py`'s transform,
+
+    x_i = z_i / (1 - a_i q_i z_i),
+    a_i = sigma_rel,i (1 - vgf_i),  sigma_rel,i = sigma_i p_fit,i ,
+
+all from observed quantities. On this cache **`a_i` has median 0.01432**, so
+the artefact it removes is `<q z> = -a = -14.32e-3`.
+
+**That is precisely what I reported as "charge-odd physics": -9.04 / -12.55 /
+-14.09.** It was the pull-normalisation artefact -- `sigma_fit` is larger for
+the fluctuation that made it larger -- and it is RETRACTED.
+
+**With the transform applied:**
+
+| band | `q = +1` | `q = -1` | **even** | **odd** |
+|---|---:|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | -8.80 +- 3.71 | -0.97 +- 3.81 | **-4.88** | -3.92 |
+| `0.9-1.6` | -7.35 +- 4.02 | +0.20 +- 3.73 | **-3.58** | -3.78 |
+| `1.6-2.4` | -3.34 +- 3.77 | +3.62 +- 3.86 | **+0.14** | -3.48 |
+
+* the charge-ODD part collapses from -9...-14 to **-3.5...-3.9, flat in
+  `eta`** -- the modelled ionisation skew, and consistent with the oddmoment
+  study's `<qz> = -0.0022 +- 0.0018` closing against a CF model of -0.0021
+  (the damping by `e^{-uz^2}` and the band split account for the rest);
+* the charge-EVEN part is **-4.88 / -3.58 / +0.14 against -4.92 / -3.57 /
+  +0.13 before the transform** -- identical to 0.04e-3, under 1 % of itself.
+
+**So the coordinator's second worry -- that the artefact's second-order pieces
+leak into the charge-even part because `a` varies with `eta` -- is measured and
+is negligible.** The `eta`-dependent charge-even signal is real, it is not a
+normalisation artefact, and every conclusion of sec. 0f.35 and 0f.36 about the
+charge-EVEN part stands unchanged.
+
+**One consequence for the tooling**: `cf_skew_closure.py` does NOT apply the
+transform -- there is no `1/(1 - a q z)` anywhere in it -- so its numbers are
+on the RAW `z`. For a charge-AVERAGED closure that is harmless, because the
+charge-even part is invariant under the transform to 1 %, which is now
+measured rather than assumed. It is NOT harmless for anything charge-split,
+and `--charge +1/-1` in that script is therefore reporting the artefact. That
+should be fixed before the script is used per charge.
