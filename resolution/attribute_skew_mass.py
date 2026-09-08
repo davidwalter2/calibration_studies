@@ -28,6 +28,29 @@ def odd(z, u, w=None):
     return np.average(z * np.exp(-u * z * z), weights=w)
 
 
+def model_odd_jensen(srel, fang, u):
+    """The MODEL's own odd moment, leading (and dominant) term.
+
+    At TRACK level the model's odd moment is ~0 (measured: 5e-5), so a raw data
+    odd moment IS `data - model` there. At MASS level it is NOT: the model
+    carries the exact Jensen mean shift `d_i = 1.5 s_i^2 m_i` with
+    `s_i^2 = (sigma_i/m_i)^2 (1 + f_ang,i)`, i.e. a displacement of
+    `d_i/sigma_i = 1.5 (sigma_i/m_i)(1 + f_ang,i)` in the standardized
+    variable. For a unit-width density displaced by `mu`,
+    `<z e^{-u z^2}> = mu/(1+2u)^{3/2}` to first order in `mu`, so
+
+        model_odd_i = 1.5 (sigma_i/m_i)(1 + f_ang,i) / (1 + 2u)^{3/2}
+
+    which at the endcap's `sigma/m = 0.018` and `u = 0.05` is **+23.4e-3** --
+    the same size as everything measured here. It grows with `sigma/m`, and
+    `sigma/m` is what the pT bins and the pixel-share split are largely
+    selecting on. NOT included: the ionisation and radiative skews of the CF
+    itself, which are negative and largest at low pT; the residual below is
+    therefore `data - Jensen`, not the full `data - model`.
+    """
+    return 1.5 * srel * (1.0 + fang) / (1.0 + 2.0 * u) ** 1.5
+
+
 def odd_err(z, u, nboot, rng, w=None):
     n = len(z)
     if n < 50:
@@ -97,10 +120,14 @@ def main():
     print(f"a = {a.acoef} sigma/m: median {np.median(a_i):.5f}; using "
           f"{'RAW z' if a.raw else 'x = z/(1-a z)'}\n")
 
+    fang = d["fang"].astype(np.float64) if "fang" in d.files else np.zeros(ntr)
+    srel_all = sig / m
+
     def table(title, groups):
         print(title)
         hdr = (f"  {'cut':34s} {'n':>8s}" +
-               "".join(f"{'u='+str(u):>18s}" for u in PROBES))
+               "".join(f"{'u='+str(u)+': data / model / d-m':>34s}"
+                       for u in PROBES))
         print(hdr); print("  " + "-" * (len(hdr) - 2))
         for lab, mk in groups:
             mk = mk & ok
@@ -108,8 +135,12 @@ def main():
                 print(f"  {lab:34s} {int(mk.sum()):8d}   (too few)"); continue
             row = f"  {lab:34s} {int(mk.sum()):8d}"
             for u in PROBES:
-                row += (f"  {1e3*odd(x[mk], u, w[mk]):+8.2f} "
-                        f"+-{1e3*odd_err(x[mk], u, a.nboot, rng, w[mk]):5.2f}")
+                dv = odd(x[mk], u, w[mk])
+                de = odd_err(x[mk], u, a.nboot, rng, w[mk])
+                mv = np.average(model_odd_jensen(srel_all[mk], fang[mk], u),
+                                weights=w[mk])
+                row += (f"  {1e3*dv:+8.2f}+-{1e3*de:4.2f} {1e3*mv:+8.2f} "
+                        f"{1e3*(dv-mv):+8.2f}")
             print(row)
         print()
 

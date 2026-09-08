@@ -4005,3 +4005,71 @@ local-coordinate signature has failed. The next measurement is the pT
 dependence itself: it is kinematic in origin (the mass residual's skew depends
 on the leg asymmetry, which is what sec. 0f.36's `s_1` measures) and it has to
 be understood and removed before ANY composition variable can be read.
+
+### 0f.41 THE MASS-LEVEL TABLES WERE RAW — corrected, and it changes the `eta`
+### table but NOT the pT swing or the pixel split (2026-09-08)
+
+**(1) Yes, they were raw.** Secs. 0f.39 and 0f.40 report the DATA odd moment
+with no model subtracted. At TRACK level that is legitimate -- the model's odd
+moment there is measured at +5e-5 (sec. 0f.35) -- but at MASS level the model
+carries the exact Jensen mean shift `d_i = 1.5 s_i^2 m_i`, a displacement of
+`1.5 (sigma_i/m_i)(1 + f_ang,i)` in the standardized variable, contributing
+
+    model_odd_i(u) = 1.5 (sigma_i/m_i)(1 + f_ang,i) / (1 + 2u)^{3/2}
+
+**The coordinator's estimate is exact**: at the endcap's `sigma/m = 0.018` and
+`u = 0.05` that is **+23.4e-3**, and the measured model column is **+23.42**.
+
+**(2) The corrected tables.** Model column = the Jensen term; `d-m` = data
+minus it. NOT yet subtracted: the ionisation and radiative skews of the CF
+itself, so `d-m` is `data - Jensen`, not the full `data - model`.
+
+**Per `\|eta\|` band -- this DOES change, and the sense reverses:**
+
+| band | data | model (Jensen) | **data - Jensen** |
+|---|---:|---:|---:|
+| `\|eta\| 0.0-0.9` | +15.58 +- 3.03 | +11.43 | **+4.16** |
+| `0.9-1.6` | +15.00 +- 2.56 | +15.65 | **-0.66** |
+| `1.6-3.0` | +10.86 +- 2.03 | +23.42 | **-12.56** |
+| inclusive | +13.20 +- 1.45 | +18.42 | **-5.23** |
+
+The raw reading was "+15.6 -> +10.9, mildly decreasing"; corrected it is
+**+4.2 -> -12.6**, a much steeper decrease that crosses zero. So the `eta`
+structure is REAL but the raw table understated it and got its zero point
+wrong. Sec. 0f.39's per-band row is superseded.
+
+**The pT swing -- this does NOT change:**
+
+| pT bin (endcap) | data LOW / HIGH | model | data - Jensen LOW / HIGH |
+|---|---:|---:|---:|
+| [0, 36] | -46.54 / -8.97 | +22.2 / +20.8 | **-68.71 / -29.72** |
+| [36, 46] | -51.08 / -54.41 | +25.4 / +23.9 | **-76.52 / -78.35** |
+| [46, inf] | +103.93 / +119.71 | +29.5 / +26.9 | **+74.42 / +92.78** |
+
+**The model is nearly FLAT in pT (+22, +25, +30)** because `sigma/m` barely
+moves across the leading-muon pT range at the Z -- it is set by `eta`. So the
+150e-3 data swing survives the subtraction essentially intact
+(-69 / -77 / +74). **The Jensen term is not the pT swing.** The remaining model
+piece is the ionisation and radiative skew, which is negative and largest at
+low pT -- it can plausibly account for the -69 / -77 but NOT for the +74 at
+high pT, which is a change of SIGN.
+
+**And the pixel-share split does not change either** -- if anything it grows,
+because the model is slightly SMALLER for pixel-rich candidates: the
+differences go from +37.6 / -3.3 / +15.8 (raw) to **+39.0 / -1.8 / +18.4**
+(data - Jensen). Still inconsistent across pT bins, still with the middle bin
+at zero.
+
+**(3) The judgement on the pixel lead is unchanged**: not a model artefact, not
+a hit-count proxy, but not a stable coefficient across pT and not localised in
+one local coordinate. And the dominant unexplained structure remains the pT
+swing, now shown to be neither the Jensen term nor a composition effect.
+
+**What is still owed for a complete `data - model`**: the ionisation and
+radiative odd content of the per-candidate CF, integrated with the same
+`e^{-u z^2}` weight and the same truncation. The arrays are in the cache
+(`Sio_re/Sio_im/Srad_re/Srad_im/Sms/tgrid`) and the integral is
+`weier_odd`'s; what it needs is the mass-level CF assembly, which lives in
+`unbinned.MassCFTerm` rather than in `cf_skew_closure`'s track-level builder.
+That is the next piece, and until it is done no mass-level odd moment should be
+quoted as an attribution.
