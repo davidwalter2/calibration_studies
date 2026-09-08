@@ -1196,6 +1196,20 @@ def main():
             inject[byname[nm]] = float(val)
         log("  injecting " + ", ".join(
             f"{nm}={inject[byname[nm]]:+.6g}" for nm in names if inject[byname[nm]]))
+        if args.material:
+            bad = [nm for nm in names
+                   if inject[byname[nm]] and nm.startswith("material_")]
+            if bad:
+                raise SystemExit(
+                    "--material with --inject on a material amount "
+                    f"({bad}): a TRUE extra amount of material moves the mass "
+                    "mean (which this file injects through D) AND the "
+                    "resolution EXPONENTS of that group by A(dtheta) (which "
+                    "it does not). Injecting only the mean would look like a "
+                    "closure failure of the width. Port "
+                    "`matres/make_material_card.py`'s exponent scaling first, "
+                    "or inject a field mode, which enters the mass terms "
+                    "through the mean alone and is unaffected.")
 
     # -- 3. the mass terms --------------------------------------------------
     # the parameter maps FIRST: an hour of term building is wasted if the D

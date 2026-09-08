@@ -28,7 +28,8 @@ usage:
     RABBIT=../../rabbit-native ./run_tf.sh python3 -u test_rabbit_path.py \
         --card cards/z_n300k.hdf5
     RABBIT=../../rabbit-native ./run_tf.sh python3 -u test_rabbit_path.py \
-        --card cards/joint_smoke.hdf5 --model ExternalParams
+        --card cards/joint_smoke.hdf5 \
+        --model "ExternalParams bundle:global_params"
 """
 import argparse
 import os
@@ -115,7 +116,12 @@ def rel(a, b, scale=None):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--card", required=True)
-    p.add_argument("--model", default="UnbinnedParams")
+    p.add_argument("--model", default="UnbinnedParams",
+                   help="the param model, with rabbit_fit.py's own extra "
+                        "arguments after it, space separated -- e.g. "
+                        "'ExternalParams bundle:global_params', which is what "
+                        "make_joint_card.py's cards need (their bundle is not "
+                        "the default name)")
     p.add_argument("--chunk", type=int, default=0)
     p.add_argument("--rtol", type=float, default=1e-11)
     p.add_argument("--no-hess", action="store_true", help="skip check 4")
@@ -230,7 +236,8 @@ def main():
 
     # ---- 3/4. through the Fitter -------------------------------------------
     print("\n=== 3. the Fitter's loss / gradient / HVP ===")
-    param_model = load_model(args.model, indata)
+    spec = args.model.split()
+    param_model = load_model(spec[0], indata, *spec[1:])
     f = fitter_mod.Fitter(indata, param_model, Options(unbinnedChunk=args.chunk))
     f.set_nobs(f.indata.data_obs)
     n = int(f.x.shape[0])
