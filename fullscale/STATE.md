@@ -1573,3 +1573,58 @@ moves by 32 MeV between 6 and 7 terms with a 4.4 MeV statistical error.** The
 `Gamma_Z` closure is a TENS-OF-MeV statement and must be quoted as one until
 the shape basis is understood. This is unchanged by everything above — the
 ladder was run on the uncorrected term.
+
+### 0f.2 IMPLEMENTATION AND GATES — WHERE IT STANDS (2026-09-08)
+
+Branch **`vmass-conditioning`**, cut from `material-resolution-native`,
+worktree `/work/submit/david_w/ZMass/rabbit-vmass`, commit `9d10dad`.
+
+**What was changed, and only this.**
+
+| where | change |
+|---|---|
+| `ZGammaLineshape(vpow=p)` | resamples its density onto a grid uniform in `v = Int dm/m^p`, carrying the Jacobian `dm/dv = m^p`, and transforms THAT. Nothing upstream moves — the Born spectrum, the acceptance, the FSR fold and `K(m)` are properties of the MASS and stay on the mass grid. `tau_max` is rescaled by `window_hi^p`: `dv` shrinks by the same factor so `ntau` is unchanged, i.e. a change of units, not of resolution |
+| `MassCFTerm(vpow=p)` | takes `sigma` as the width in `v` and `mobs` as `v(m) - v(m_ref)`, and rebuilds the fluctuation coefficients (below). Requires `corr_form='fluctuation'` and `corr_mass` |
+| `make_card.py --vpow p` | does the transformation on the card: `sigma -> k`, `mobs -> v(m) - v(m_ref)`, `corr_mass -> m`, the term's `m_ref -> m_ref^{1-p}` (the `alpha` LEVER, **not** `v(m_ref)`; they differ by `1/(1-p)`), the norm window mapped, the provider given `vpow` |
+
+**The coefficients in `v`**, and what each is:
+
+```
+a^v_i = a_i - p sigma_i/m_i      the RESIDUAL self-consistency. The
+                                 substitution absorbs p of it EXACTLY --
+                                 k_obs = k_bar to first order when
+                                 a = p sigma/m -- and carrying the full a_i
+                                 over would be the double count.
+g^v_i = -a^v_i + (1 - p/2) sigma_i/m_i
+                                 = the Jensen u^2 term (+1) plus the
+                                 SUBSTITUTION's own curvature (-p/2).
+d^v_i = m_i^{1-p} s_i^2 / 2      the Jensen mean shift, divided by m^p.
+                                 There is NO (1 - a_i x) measure term in v.
+```
+
+**Gate 2 (finite differences): PASS.** On a 50 k v card, worst
+`|analytic - FD| / max(|FD|, 1)` = **1.2e-7** against a 1e-5 requirement, for
+`m_Z`, `Gamma_Z`, `shape1` and `k_ms`; and it confirms `vpow` round-trips
+through the HDF5 card (`fullscale/gate_fd.py`, `results/gate2_vtest.json`).
+
+**Gate 1 (J/psi gun, delta kernel)**: running. `gate_fluct_gun.py --vpow`
+builds the v arm with the FSR kernel mapped to the distribution of
+`v(M + dm) - v(M)`. At a delta kernel the true mass is a single point, so the
+two formulations must COINCIDE up to the few-per-cent spread the FSR kernel
+itself puts on `m_true` — the v form must reproduce the spec's shifts, not
+improve on them.
+
+**Gate 3/4**: the 400 k A/B (`vref` against `vp1264`, the same candidates)
+is running, then the full-statistics fit, per `eta` band, with the `K(m)`
+5/6/7 ladder.
+
+**The exponent.** A SINGLE COMMON `p` is used, not a per-candidate `1 + vgf_i`,
+and that is a measurement, not a convenience: the per-candidate version is
+WORSE (`rho(k, m_gen) = -0.129` and a 3.27 GeV `<m_gen>` spread across `k`
+octiles, against `-0.011` and 0.514 GeV for the common `p = 1.264`). `vgf`
+varies for reasons unrelated to the resolution's mass exponent, and dividing by
+`m^{1+vgf_i}` injects its own correlation with the mass. So **no `f`-class axis
+is needed**, which removes the whole per-class prologue problem. The optimum by
+the fit-free prediction is `p = 1.235`; the `a` correction's own exponent is
+`1 + <vgf> = 1.264`; the predicted bias is within +-0.35 MeV over
+`p in [1.20, 1.264]`.
