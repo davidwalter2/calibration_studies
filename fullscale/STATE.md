@@ -2624,12 +2624,39 @@ needs one re-run before "krylov cannot be the campaign default" is recorded
 as a property of the objective -- that conclusion was drawn against a loop
 that mistook a solver failure for convergence.
 
-**And the general rule this is the second instance of:** every failure in
-this migration -- the three `--diagnostics` bugs, the frozen-row singularity,
-and this -- had the same shape. A numerical component could not do its job,
-and the surrounding code reported success instead of saying so. The EDM is
-the instrument that caught all of them, and here it did more than detect the
-failure: it MEASURED it, to three digits, before anyone knew there was one.
+**And the general rule this is the fifth instance of:** every failure in this
+migration -- the three `--diagnostics` bugs, the frozen-row singularity, and
+this -- had the same shape. A numerical component could not do its job, and
+the surrounding code reported success instead of saying so. None would be
+caught by a test that asserts a fit RUNS; every one was caught by asserting
+something about WHERE IT ARRIVED. The EDM is the instrument that caught them
+all, and here it did more than detect the failure: it MEASURED it, to three
+digits, before anyone knew there was one.
+
+**The second pattern, which is physics and not software** (the analysis
+agent's, recorded here because it is the reason the acceptance test has to be
+permanent): *every one of the five produced a number that flattered the
+hypothesis.*
+
+| reported | what it was |
+|---|---|
+| `V_full` `m_Z` = -0.0002 +- 2.32 | a fit that never took a POI step |
+| `F_dc8` `m_Z` = -0.12 +- 2.42 | 2.44 sigma from its minimum |
+| `f380ref` `m_Z` = -0.127 | 14.7 NLL units above the true -11.064 |
+
+All three read as *"the closure is perfect"*. That is not coincidence: an
+under-converged fit sits near its starting point, and the starting point of
+every closure test here is **the MC truth** -- so a fit that fails to move
+reads as a beautiful closure. The bias runs towards the answer one is hoping
+for, which is exactly when a check is least likely to be demanded and most
+needed.
+
+**This gate suite was vulnerable to the same thing** and has been hardened:
+`test_devobj.py` compared two minimisers from a shared start, which passes
+when BOTH stall. It now anchors absolutely -- the reference fit must descend
+from the starting NLL by far more than the tolerance on their agreement, or
+the comparison is refused with "two minimisers agreeing about a point neither
+of them reached".
 ### 0f.19 THE FAILURE MODE, AND WHY THE ACCEPTANCE TEST IS PERMANENT
 
 Five separate defects were found in one day (three `--diagnostics` bugs, the

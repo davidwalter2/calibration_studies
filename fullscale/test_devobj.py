@@ -111,6 +111,15 @@ def main():
         minimize_trust_ncg,
     )
 
+    # THE ABSOLUTE ANCHOR. Comparing two minimisers from the same start passes
+    # when BOTH stall -- and a stalled fit sits near its starting point, which
+    # on a closure test is the MC truth, so it reads as a beautiful closure.
+    # Every defect found in this migration produced a number more attractive
+    # than the truth for exactly that reason. So the gate asserts that each
+    # method actually MOVED: its final NLL must be below the starting NLL by
+    # much more than the tolerance on their agreement.
+    nll_start = host.value_grad(x0)[0]
+
     t0 = time.time()
     ref = minimize(
         host.value_grad,
@@ -123,8 +132,15 @@ def main():
     tref = time.time() - t0
     print(
         f"  scipy trust-exact (host): {ref.nit} it, {tref:.1f} s, "
-        f"NLL {ref.fun:.9f}, |g|inf {np.max(np.abs(ref.jac)):.3g}"
+        f"NLL {ref.fun:.9f}, |g|inf {np.max(np.abs(ref.jac)):.3g}, "
+        f"descended {nll_start - ref.fun:.6g} from the start"
     )
+    if (nll_start - ref.fun) <= 1e-6 * max(abs(nll_start), 1.0):
+        raise RuntimeError(
+            f"the REFERENCE fit did not move: NLL {nll_start:.9f} -> "
+            f"{ref.fun:.9f}. Every comparison below would then be two "
+            "minimisers agreeing about a point neither of them reached."
+        )
 
     ok = True
     for method, fn in (
@@ -148,7 +164,12 @@ def main():
         dt = time.time() - t0
         dx = np.max(np.abs(r.x - ref.x)) / max(np.max(np.abs(ref.x)), 1.0)
         dn = abs(r.fun - ref.fun) / max(abs(ref.fun), 1.0)
-        flag = "OK" if (dx < 1e-6 and dn < 1e-10) else "MISMATCH"
+        descended = (nll_start - r.fun) > 1e-6 * max(abs(nll_start), 1.0)
+        flag = (
+            "OK"
+            if (dx < 1e-6 and dn < 1e-10 and descended)
+            else ("STALLED" if not descended else "MISMATCH")
+        )
         ok &= flag == "OK"
         print(
             f"  {method:16s} {r.nit:3d} it, {dt:7.1f} s, NLL {r.fun:.9f}, "
