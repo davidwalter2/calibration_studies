@@ -3384,3 +3384,25 @@ The discriminating test is a `sigma/m` split AT FIXED `eta`:
 `sigma/m` = 0.01032) and `z_V_etaE_slo/shi` (the endcap at 0.01658). If `m_Z`
 moves strongly between the two halves of one band, the residual is a resolution
 effect and `eta` is only its proxy; if it does not, it is genuinely `eta`.
+
+### 0f.30 THE v-FORM K(m) LADDER IS FAR BETTER BEHAVED THAN THE m-FORM ONE
+
+Certified (scipy `trust-exact` through `rabbit_fit.py`, EDM < 1e-3, NLL the
+best known for each card):
+
+| terms | m form `m_Z` | m form `Gamma_Z` | **v form `m_Z`** | **v form `Gamma_Z`** |
+|---|---:|---:|---:|---:|
+| 5 | -11.06 +- 2.27 | -5.26 +- 4.16 | **-1.54 +- 2.08** | **+6.81 +- 3.80** |
+| 6 | -13.98 +- 2.22 | +27.16 +- 4.35 | **-3.92 +- 2.13** | **+14.28 +- 3.75** |
+| 7 | -17.24 +- 2.27 | +8.96 +- 4.42 | **-3.87 +- 2.28** | **+12.86 +- 4.35** |
+| span | 6.2 | **32.4** | **2.3** | **7.5** |
+
+**The substitution stabilises the `K(m)` truncation as well as the closure.**
+In the m form `Gamma_Z` swings 32 MeV over the ladder and `m_Z` drifts 6.2 MeV
+monotonically; in the v form the spans are 7.5 and 2.3 MeV, both comparable to
+the statistical error. So the m-form ladder's instability was not a property of
+the Legendre basis alone — a large part of it was the shape absorbing the
+mass-dependent width error the m form leaves behind, which is exactly what
+`K(m)` is the wrong tool for. The 15.2/13.0 sigma significance of terms 6 and 7
+is still there and still says the 5-term shape is insufficient; what changes is
+that in the v form the POIs no longer move with it.

@@ -37,6 +37,11 @@ declare -A CARDS=(
   # against the SINGULAR-subproblem cause; with scipy's subproblem
   # that cause is gone and the trust radius scaling is what is left)
   [f380refP]=z_full380_fl
+  # sigma/m split AT FIXED eta: does the v-form residual track the
+  # resolution or the pseudorapidity? They are nearly collinear
+  # inclusively, so this is the only clean separation.
+  [SVetaBslo]=z_V_etaB_slo     [SVetaBshi]=z_V_etaB_shi
+  [SVetaEslo]=z_V_etaE_slo     [SVetaEshi]=z_V_etaE_shi
 )
 FREEZE=${FREEZE:-k_hit k_ms k_ioni k_rad}
 METHOD=${METHOD:-trust-exact}

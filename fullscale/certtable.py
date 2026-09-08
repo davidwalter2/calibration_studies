@@ -56,6 +56,10 @@ CARDS = {
     "z_full380_fl_s12": ("K(m) 12 terms",             "m"),
     "z_V_s9":           ("K(m) 9 terms",              "v"),
     "z_V_s12":          ("K(m) 12 terms",             "v"),
+    "z_V_etaB_slo":     ("barrel, sigma/m low",       "v"),
+    "z_V_etaB_shi":     ("barrel, sigma/m high",      "v"),
+    "z_V_etaE_slo":     ("endcap, sigma/m low",       "v"),
+    "z_V_etaE_shi":     ("endcap, sigma/m high",      "v"),
 }
 ORDER = ["z_full380_fl", "z_full380_fl_s6", "z_full380_fl_s7",
          "z_full380_fl_s9", "z_full380_fl_s12",
@@ -63,7 +67,8 @@ ORDER = ["z_full380_fl", "z_full380_fl_s6", "z_full380_fl_s7",
          "z_F_toy", "z_F_dc8", "z_F_toydc", "z_F_w70110",
          "z_V_full", "z_V_s6", "z_V_s7", "z_V_s9", "z_V_s12",
          "z_V_etaB", "z_V_etaT", "z_V_etaE", "z_V_toy",
-         "z_VK_etaB", "z_VK_etaT"]
+         "z_VK_etaB", "z_VK_etaT",
+         "z_V_etaB_slo", "z_V_etaB_shi", "z_V_etaE_slo", "z_V_etaE_shi"]
 
 # a rabbit result carries no card name; this is the map
 RABBIT_CARD = {
@@ -85,6 +90,8 @@ RABBIT_CARD = {
     # the extended K(m) ladder
     "Ss9": "z_full380_fl_s9", "SVs9": "z_V_s9",
     "Ss12": "z_full380_fl_s12", "SVs12": "z_V_s12",
+    "SVetaBslo": "z_V_etaB_slo", "SVetaBshi": "z_V_etaB_shi",
+    "SVetaEslo": "z_V_etaE_slo", "SVetaEshi": "z_V_etaE_shi",
 }
 
 
