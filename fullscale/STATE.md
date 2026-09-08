@@ -2249,3 +2249,48 @@ of the local curvature instead of GeV-versus-dimensionless.
 `--diagnostics` is not free: it builds the full Hessian every iteration for
 the EDM, which is `nfree` HVP columns. Worth it while establishing that these
 fits converge; afterwards read the final `edmval` out of the result file.
+
+### 0f.14 BACK INSIDE `rabbit_fit.py` — the convergence problem has a proper fix
+
+The rabbit-native agent has moved the unbinned candidate loop into rabbit
+itself (`UnbinnedTerm._chunk_loop`, a `tf.while_loop` wrapped in
+`tf.custom_gradient` twice), so **an unbinned card is now an ordinary rabbit
+fit**: `rabbit_fit.py` works on it and brings rabbit's EDM, its termination
+convention, its snapshots, its result file, impacts and scans. Their gates:
+the graph loop against the eager loop is EXACTLY 0 on the value and <=5e-14 on
+gradient and HVP; rabbit's term against my `ChunkedObjective` is exactly 0;
+the Fitter's HVP-assembled Hessian against my `pfor` one is 2.4e-15; and end to
+end `rabbit_fit.py` against `fit.py` agrees to 2.5e-7 on all six parameters of
+the smoke card — the residual being rabbit running to **EDM 2.1e-24** where
+`fit.py` stopped at `gtol 1e-6`. That difference is the whole of my problem.
+
+**`material-resolution-native` is merged into `vmass-conditioning`** (`558637a`).
+Clean: their changes are in `UnbinnedTerm`, `MassCFTerm._chunk_contribution`
+and `MaterialCFTerm._csr_bounds`; mine are `ZGammaLineshape(vpow)` and
+`MassCFTerm(vpow)`. **All three v gates re-pass after the merge**: finite
+differences 1.5e-6, the off switch 7.9e-10, the Jacobian identity 2.1e-4.
+
+**`--precondition` is not optional here.** The agent measures `tf-trust-exact`
+on `z_n300k` going EDM 16495 -> 1150 -> 421 -> 227 -> 210 and then CRAWLING at
+about 1 % per iteration — the trust region cannot grow in raw coordinates whose
+curvatures span twelve orders of magnitude, because a radius of 1 is enormous
+for the shape block and negligible for `m_Z`. Preconditioning reparameterises
+so the reference Hessian is the identity: a pure change of variables, same
+minimum, but the trust region then measures distance in units of local
+curvature. On a **3.4e12** condition number (measured, sec. 0f.12) it is the
+difference between converging and crawling.
+
+**Three fits are running through it** with `--precondition`, `--diagnostics`
+and `tf-trust-exact` (`engaging/rabbit_vmass.sbatch`, PYTHONPATH at
+`rabbit-vmass`):
+
+| job | card | what it decides |
+|---|---|---|
+| `22300667 f380ref` | `z_full380_fl` | **the control**: it must come back at -11.06 |
+| `22300668 Rdc8` | `z_F_dc8` | the mechanism, at last with EDM |
+| `22300669 Rvfull` | `z_V_full` | the v closure, at last with EDM |
+
+`fullscale/rabbit_to_json.py` (the agent's, `151bfcf`) converts a rabbit result
+into the json `fit.py --start-from` reads, carrying `edmval`, so the sandwich
+covariance and the `x1.109` weight factor can still be evaluated at rabbit's
+minimum with `fit.py --no-fit`.
