@@ -229,6 +229,26 @@ def parse_args(argv=None):
                         "the historical form, exact at a delta kernel and "
                         "measured on the J/psi, which needs --corr-clip at the "
                         "Z and is kept only as the reference for that gate.")
+    p.add_argument("--vpow", type=float, default=0.0,
+                   help="THE v FORMULATION. Convolve in "
+                        "`v(m) = Int dm/m^p` instead of in `m`, condition each "
+                        "candidate on the resolution CONSTANT "
+                        "`k_i = sigma_i/m_i^p` instead of on `sigma_i`, and "
+                        "give the provider the lineshape's density in `v`. "
+                        "0 = off (the m formulation). The mass resolution of a "
+                        "track pair scales as `m^p` with `p = 1 + f_hit` "
+                        "because the CURVATURE resolution is what is constant, "
+                        "so a fixed-width convolution in `m` is wrong at the "
+                        "true mass AND makes `sigma_i` a conditioning label "
+                        "that carries information about it: measured here, "
+                        "`<m_gen>` runs 84.94 -> 91.28 GeV across sigma "
+                        "octiles and `rho(sigma, m_gen) = +0.168`, against "
+                        "`rho(k, m_gen) = -0.011` at p = 1.25. That is the "
+                        "whole of the -11.06 +- 2.27 MeV closure failure "
+                        "(reweighting it away gives -0.12 +- 2.42). The "
+                        "measured optimum is p = 1.235 and the a-correction's "
+                        "own exponent is 1 + <vgf> = 1.264; the predicted bias "
+                        "is within +-0.35 MeV over p in [1.20, 1.264].")
     p.add_argument("--corr-coeff-max", type=float, default=0.08,
                    help="bound on the fluctuation form's quadratic coefficient "
                         "|c_i/sigma_i| -- the expansion parameter itself. A "
@@ -542,14 +562,47 @@ def build(args, log=print):
     fams = discover_families(set(d.files), args.del_family)
     log(f"  {n} candidates, nt = {nt}, tau [0, {tgrid[-1]:.4f}], "
         f"families {[f[0] for f in fams]} + hit, upsample {args.fit_upsample}")
+    # ---- the v formulation ----------------------------------------------
+    vkw = {}
+    if args.vpow:
+        if args.residual_mode:
+            raise SystemExit("--vpow and --residual-mode are exclusive: the "
+                             "residual has no mass to raise to a power")
+        pw = float(args.vpow)
+        vmap = (lambda x: np.log(x)) if pw == 1.0 else \
+            (lambda x: x ** (1.0 - pw) / (1.0 - pw))
+        v_ref = float(vmap(np.array(args.mref)))
+        # the term's `m_ref` is now only the lever of the `alpha` scale: a
+        # physical shift `m_ref alpha` is a shift `m_ref alpha / m_ref^p` in v,
+        # so the lever is `m_ref^{1-p}`. It is NOT `v(m_ref)`, which is
+        # `m_ref^{1-p}/(1-p)`; the two differ by `1/(1-p)` and confusing them
+        # rescales alpha silently.
+        mref_term = float(args.mref) ** (1.0 - pw)
+        k = sigma / mreco ** pw
+        vobs = vmap(mreco) - v_ref
+        log(f"  --vpow {pw:g}: convolving in v = Int dm/m^p")
+        log(f"    sigma -> k = sigma/m^p : median {np.median(sigma):.4f} GeV "
+            f"-> {np.median(k):.6g}")
+        log(f"    mobs  -> v(m) - v(m_ref): [{vobs.min():.6g}, {vobs.max():.6g}]")
+        log(f"    m_ref -> the alpha lever m_ref^(1-p) = {mref_term:.6g} "
+            f"(v(m_ref) = {v_ref:.6g}, NOT the same thing)")
+        # the window, in the term's own variable `mobs + m_ref`
+        lo_v = float(vmap(np.array(lo))) - v_ref + mref_term
+        hi_v = float(vmap(np.array(hi))) - v_ref + mref_term
+        vkw = dict(vpow=pw, sigma_v=k, mobs_v=vobs, mref_term=mref_term,
+                   window_v=(lo_v, hi_v))
+        sigma, mobs = k, vobs
+
     log(f"  sigma: min {sigma.min():.4f} med {np.median(sigma):.4f} "
         f"max {sigma.max():.4f} GeV -> tau needed "
         f"{tgrid[-1]/sigma.min():.2f} 1/GeV")
 
     families = [{"name": "hit", "param": "k_hit", "kind": "gauss"}]
     datasets = {"sigma": sigma, "mobs": mobs, "vgf": vgf, "tgrid": tgrid}
-    if args.residual_mode:
-        # the corrections must still see the candidate's PHYSICAL mass
+    if args.residual_mode or vkw:
+        # the corrections must still see the candidate's PHYSICAL mass: in
+        # residual mode `mobs` is `m_reco - m_gen`, and under `--vpow` it is
+        # `v(m) - v(m_ref)`. Neither can supply it.
         datasets["corr_mass"] = mreco
     if weights is not None:
         datasets["weights"] = weights
@@ -626,11 +679,22 @@ def build(args, log=print):
     if args.shape:
         kw["shape"] = args.shape
         kw["shape_window"] = tuple(args.shape_window or args.window)
+    if vkw:
+        kw["vpow"] = vkw["vpow"]
     provider = ZGammaLineshape(
         m_ref=args.mref, window=tuple(args.born_window), nm=args.nm,
         tau_max=args.tau_max, width_scheme=args.width_scheme,
         fsr=args.fsr, acceptance=acc, **kw)
-    need, ok = provider.check_tau_range(tgrid, sigma)
+    if vkw:
+        # `check_tau_range` compares against the provider's tau_max in MASS
+        # units; in v the same physical range is `tau_max * window_hi^p`, which
+        # `_build_v` has already applied, so compare against the widths in v.
+        need = float(np.max(tgrid) / sigma.min())
+        ok = need <= provider.vtau_max
+        log(f"  v tau: needed {need:.1f}, tabulated to {provider.vtau_max:.1f} "
+            f"-> {'ok' if ok else 'TOO SMALL'}")
+    else:
+        need, ok = provider.check_tau_range(tgrid, sigma)
     log(f"  {provider} in {time.time()-t0:.1f} s; tau needed {need:.2f} 1/GeV "
         f"-> {'ok' if ok else 'TOO SMALL'}")
     if not ok:
@@ -701,14 +765,17 @@ def build(args, log=print):
         vgf=vgf, phik=None,
         kernel=(unbinned.DeltaKernel() if args.residual_mode
                 else unbinned.TabulatedLineshapeKernel(provider=provider)),
-        background=background, m_ref=args.mref,
-        corr_mass=(mreco if args.residual_mode else None),
+        background=background,
+        m_ref=(vkw["mref_term"] if vkw else args.mref),
+        corr_mass=(mreco if (args.residual_mode or vkw) else None),
+        **({"vpow": vkw["vpow"]} if vkw else {}),
         scale_param="alpha" if args.with_alpha else None,
         bkg_frac_param="f_bkg" if args.float_bkg else None,
         bkg_frac=args.fbkg,
         weights=weights,
         **({"floor_scale": args.floor_scale} if args.floor_scale else {}),
-        norm_window=None if args.no_window_norm else (lo, hi),
+        norm_window=(None if args.no_window_norm else
+                     (vkw["window_v"] if vkw else (lo, hi))),
         norm_tpoints=args.norm_tpoints, norm=norm,
         upsample=args.fit_upsample,
         chunk=args.chunk, channel=args.channel, **kw2)
