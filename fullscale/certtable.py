@@ -84,7 +84,9 @@ def rows():
         card = os.path.basename(d.get("card", "")).replace(".hdf5", "")
         nm = d["params"]
         sw = d.get("sandwich_err") or d["err"]
+        ratio = d.get("sandwich_ratio")
         r = {"src": "fit.py", "tag": os.path.basename(p)[4:-5], "card": card,
+             "swratio": (dict(zip(nm, ratio)) if ratio else None),
              "nll": d.get("nll"), "edm": d.get("edm"), "nit": d.get("nit"),
              "method": d.get("method") or "trust-exact",
              "step": d.get("worst_poi_step_sigma"), "n": d.get("n"),
@@ -112,6 +114,7 @@ def rows():
         tag = os.path.basename(p)[len("rabbit_"):-5]
         nm = d["params"]
         r = {"src": "rabbit", "tag": tag, "card": RABBIT_CARD.get(tag, ""),
+             "swratio": None,
              "nll": d.get("nllvalreduced"), "edm": d.get("edmval"),
              "nit": None, "method": "rabbit", "step": None, "n": None,
              "model": None}  # the card's own defaults
@@ -146,6 +149,36 @@ def main():
     by = {}
     for r in R:
         by.setdefault(r["card"], []).append(r)
+
+    # A `rabbit_fit.py` row carries the INVERSE-HESSIAN error; the table quotes
+    # the sandwich, and the factor is not flat (1.088 to 1.177 across these
+    # cards). Where a `fit.py` row of the same card sits at the SAME point --
+    # which is what a warm start seeded from that row and converged there
+    # means -- its measured `sandwich_ratio` is transported onto the rabbit
+    # row and the row is marked `~`. Where no such row exists the rabbit row
+    # keeps its Hessian error and is marked `H`; it needs `sandwich.sbatch`
+    # before it is quoted.
+    for c, v in by.items():
+        donors = [x for x in v if x.get("swratio")]
+        for r in v:
+            if r["src"] != "rabbit" or not donors:
+                continue
+            near = [x for x in donors
+                    if "m_Z" in x and "m_Z" in r
+                    and abs(x["m_Z"][0] - r["m_Z"][0]) < 0.01
+                    and x["nll"] is not None and r["nll"] is not None
+                    and abs(x["nll"] - r["nll"]) < 0.01]
+            if not near:
+                r["errkind"] = "H"
+                continue
+            k = near[0]["swratio"]
+            for q in POIS:
+                if q in r and q in k:
+                    r[q] = (r[q][0], r[q][1] * k[q])
+            r["errkind"] = "~"
+    for r in R:
+        r.setdefault("errkind", "s" if r["src"] == "fit.py" else "H")
+
     # the reference NLL of a card is the best over its DEFAULT-model fits only
     best = {c: min((x["nll"] for x in v
                     if x["nll"] is not None and x["is_default"]), default=None)
@@ -187,7 +220,7 @@ def main():
             print()
 
     print("\nCERTIFIED TABLE -- the best QUOTABLE fit of each card\n")
-    hdr = (f"{'row':28s} {'form':4s} {'from':7s} {'m_Z [MeV]':>16s} "
+    hdr = (f"{'row':28s} {'form':4s} {'from':8s}{'m_Z [MeV]':>16s} "
            f"{'Gamma_Z [MeV]':>16s} {'NLL':>18s} {'EDM':>9s} {'POI step':>9s}  verdict")
     print(hdr)
     print("-" * len(hdr))
@@ -205,16 +238,18 @@ def main():
         vd, why = verdict(pick)
         mz, gz = pick.get("m_Z", (np.nan,) * 2), pick.get("Gamma_Z", (np.nan,) * 2)
         st = pick.get("step")
-        print(f"{CARDS[card][0]:28s} {CARDS[card][1]:4s} {pick['src']:7s} "
+        print(f"{CARDS[card][0]:28s} {CARDS[card][1]:4s} "
+              f"{pick['src'] + pick['errkind']:8s}"
               f"{mz[0]:+8.2f} +-{mz[1]:5.2f} {gz[0]:+8.2f} +-{gz[1]:5.2f} "
               f"{pick['nll']:18.4f} {pick['edm'] if pick['edm'] is not None else np.nan:9.2e} "
               f"{(f'{st:9.1e}' if st is not None else '        -')}  "
               f"{'QUOTABLE' if vd == 'QUOTE' else 'NOT QUOTABLE (' + why + ')'}")
     print("\nOffsets in MeV from the generator: m_Z = 91.153509740726733 GeV, "
           "Gamma_Z = 2.4932018986110700 GeV.")
-    print("Errors are the sandwich where the row came from `fit.py`; a `rabbit` "
-          "row still carries the\ninverse-Hessian error and needs its sandwich "
-          "pass (sandwich.sbatch) before it is quoted.")
+    print("Error column: `s` = the measured sandwich; `~` = the sandwich RATIO "
+          "transported from a\n`fit.py` fit of the same card at the same point "
+          "(same m_Z to 0.01 MeV and same NLL to 0.01);\n`H` = the "
+          "inverse-Hessian error only -- that row still needs `sandwich.sbatch`.")
 
 
 if __name__ == "__main__":

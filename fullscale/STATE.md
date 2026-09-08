@@ -2793,3 +2793,66 @@ the ACTUAL Hessian at those points, not of the conditioning alone, and raising
 `MAXITER_DEFAULT` is not demonstrably the cure. That line of enquiry is
 dropped: the empirical fact -- scipy's More-Sorensen converges on this card and
 the TF port does not -- is what the campaign runs on.
+
+### 0f.22 CHECKPOINT 2026-09-08 14:30 — what is certified so far, and what is running
+
+`certtable.py` is the mechanical form of the sec. 0f.16 acceptance test: it
+enumerates EVERY stored fit of every card (`fit.py` json and `rabbit_fit.py`
+result alike) and reports value / NLL / EDM / full POI Newton step, with the
+NLL compared only across fits of the SAME model — `fit.py` turns one card into
+a scan and `f380fl_noboth` sits 2512 NLL units BELOW `f380fl_base` on identical
+candidates. `collect.sh` pulls Engaging and re-makes it.
+
+**CERTIFIED (all four parts pass), m formulation:**
+
+| row | `m_Z` | `Gamma_Z` | NLL | EDM |
+|---|---:|---:|---:|---:|
+| inclusive, K 5 | **-11.06 +- 2.27** | -5.26 +- 4.16 | 11075392.4657 | 1.8e-18 |
+| K 6 | -13.98 +- 2.22 | **+27.16 +- 4.35** | 11075277.1487 | 1.7e-12 |
+| K 7 | **-17.24 +- 2.27** | +8.96 +- 4.42 | 11075192.7817 | 8.1e-10 |
+| the assembly toy `F_toy` | -3.75 +- 2.19 | -4.73 +- 4.12 | 10994223.7216 | 5.7e-15 |
+| `F_dc8`, sigma-reweighted | **-2.03 +- 2.06 (H)** | -5.19 +- 3.76 | 11014819.0793 | 3.8e-12 |
+| `F_toydc` | +8.73 +- 2.40 | -5.26 +- 4.40 | 10933537.0862 | 4.1e-19 |
+| `F_w70110` | -13.62 +- 2.88 | -13.44 +- 4.94 | 10063943.1582 | 5.1e-11 |
+
+**(H) = inverse-Hessian error, sandwich pass still owed.** Everything else is
+the measured sandwich.
+
+**THREE NUMBERS OF sec. 0g CHANGE ONCE THE FITS ARE CONVERGED**, and all three
+move AWAY from closure — the sec. 0f.19 pattern again:
+
+| | sec. 0g (as run) | converged | |
+|---|---:|---:|---|
+| `F_dc8` `m_Z` | -0.12 +- 2.42 | **-2.03** | at NLL 35.5 LOWER |
+| `F_toy` `m_Z` | -3.08 +- 2.19 | -3.75 | |
+| `F_toydc` `m_Z` | +3.80 +- 2.41 | +8.73 | |
+| `F_w70110` `m_Z` | -1.87 +- 3.15 | **-13.62** | |
+| K 7 `Gamma_Z` | +1.14 +- 4.40 | **+8.96** | |
+
+**`F_dc8` still carries the sec. 0g conclusion but weakened**: the reweighting
+that removes the dependence of the true mass on the resolution class takes
+`m_Z` from -11.06 +- 2.27 to **-2.03 +- 2.06** — 80 % of the effect, not 100 %,
+and 1.0 sigma from zero rather than 0.05 sigma. `F_w70110` no longer supports
+it at all: the narrow window was read as "less mass range, less effect" at
+-1.87, and converged it is **-13.62 +- 2.88**, i.e. as large as the baseline.
+
+**`Gamma_Z` is NOT `K(m)`-saturated at full statistics, and convergence does
+not rescue it.** Certified: -5.26 (K5), **+27.16 (K6)**, +8.96 (K7) against a
+4.2-4.4 MeV statistical error. The 32 MeV swing of sec. 0g SURVIVES — it has
+moved from the 6->7 step to the 5->6 step, but the span over the ladder is
+unchanged at 32.4 MeV. **`Gamma_Z` remains a tens-of-MeV statement.**
+And `m_Z` over the same ladder is now MONOTONE — -11.06, -13.98, -17.24, a
+6.2 MeV drift over its own 2.3 MeV error, so "the basis is saturated for `m_Z`"
+is weaker than sec. 0g had it: the drift is 2.7 sigma, not 1 sigma.
+
+**Certified, v formulation** (only one row so far): `|eta_lead| < 0.9`
+**-21.08 +- 3.24**, `Gamma_Z` +1.37 +- 5.82, NLL -4266842.7487, EDM 7.8e-12.
+The warm start reproduced its seed's NLL to the 4th decimal, so
+`fit_V_etaB.json` WAS at its minimum; its "no EDM" verdict was ignorance, not
+failure.
+
+**Running**: the three cold controls (`22311742 f380refS`, `22311743 SVfull`,
+`22311744 Sdc8`, ~1.7 min/iteration against `fit.py`'s 7.4, so ~80 min), the
+warm rows in two batched jobs (`22312979`, `22312980`), the warm control twins
+(`22312981`), the phase-2 smoke (`22312856`) and the phase-2 krylov stage
+(`22312984 P2K`, `joint_ok_full`).
