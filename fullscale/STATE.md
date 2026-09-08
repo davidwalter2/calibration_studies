@@ -2320,15 +2320,44 @@ and `MaterialCFTerm._csr_bounds`; mine are `ZGammaLineshape(vpow)` and
 `MassCFTerm(vpow)`. **All three v gates re-pass after the merge**: finite
 differences 1.5e-6, the off switch 7.9e-10, the Jacobian identity 2.1e-4.
 
-**`--precondition` is not optional here.** The agent measures `tf-trust-exact`
-on `z_n300k` going EDM 16495 -> 1150 -> 421 -> 227 -> 210 and then CRAWLING at
-about 1 % per iteration — the trust region cannot grow in raw coordinates whose
-curvatures span twelve orders of magnitude, because a radius of 1 is enormous
-for the shape block and negligible for `m_Z`. Preconditioning reparameterises
-so the reference Hessian is the identity: a pure change of variables, same
-minimum, but the trust region then measures distance in units of local
-curvature. On a **3.4e12** condition number (measured, sec. 0f.12) it is the
-difference between converging and crawling.
+**RETRACTED, twice, and the second answer is measured.** First I recorded
+`--precondition` as the cure for the trust region crawling. It is not: a
+preconditioned 300 k run crawls just as badly. **The cause is
+`--freezeParameters`** — a frozen parameter is stop-gradiented, so its Hessian
+row and column are EXACTLY ZERO, and four of them hand the trust-region
+subproblem a SINGULAR matrix on every iteration. `trust-exact`'s nearly-exact
+subproblem meets that head-on and treats it as the hard case, so it never
+returns an interior Newton step, `hits_boundary` stays False, the radius never
+doubles, and the fit converges LINEARLY. A singular block cannot be whitened,
+which is why preconditioning did nothing. The 3.4e12 condition number is real
+and bad, but it is not what causes the crawl.
+
+**This bites every Z fit in this campaign**, all of which freeze `k_hit`,
+`k_ms`, `k_ioni`, `k_rad` at the MC truth.
+
+**Two independent fixes, both available:**
+
+| | frozen | outcome (300 k card) |
+|---|---|---|
+| `tf-trust-exact` | 4 | 51 iterations, EDM still 111.5, crawling |
+| **`tf-trust-krylov`** | 4 | **converged, EDM 4.98e-13, 135 s** |
+
+GLTR is immune because Lanczos never explores the null space: the frozen
+directions carry no gradient, so they are never in the Krylov subspace.
+`d83342e` (merged here as `80899f9`) additionally makes `trust-exact` work, by
+putting 1 on the frozen diagonal before the subproblem sees it — exact, not a
+regularisation, since the frozen gradient components are zero so
+`p_frozen = -0/1 = 0`. **The method is what is used here**; the fix is carried
+as well. `--precondition` is dropped: a pure reparameterisation, so it cannot
+give a wrong answer, it just buys nothing.
+
+**And the migration's own number, on the 300 k card**: `rabbit_fit.py`
+(`tf-trust-krylov`) against the standalone `fit.py` (host `trust-exact`), same
+card, same 7 free parameters — `m_Z` -35.505318815 against -35.505318456
+(1.0e-8), `Gamma_Z` -421.028782317 against -421.028790154 (1.9e-8), shapes
+<=2.8e-9, errors identical to six decimals. rabbit took **135 s** against
+776.7 s and finished at **EDM 4.98e-13** where the standalone stopped at
+`|grad|inf` 1.7e-3 with no EDM at all.
 
 **Three fits are running through it** with `--precondition`, `--diagnostics`
 and `tf-trust-exact` (`engaging/rabbit_vmass.sbatch`, PYTHONPATH at
@@ -2336,9 +2365,14 @@ and `tf-trust-exact` (`engaging/rabbit_vmass.sbatch`, PYTHONPATH at
 
 | job | card | what it decides |
 |---|---|---|
-| `22300667 f380ref` | `z_full380_fl` | **the control**: it must come back at -11.06 |
-| `22300668 Rdc8` | `z_F_dc8` | the mechanism, at last with EDM |
-| `22300669 Rvfull` | `z_V_full` | the v closure, at last with EDM |
+| `22301214 f380ref` | `z_full380_fl` | **the control**: it must come back at -11.06 |
+| `22301216 Rdc8` | `z_F_dc8` | the mechanism, at last with EDM |
+| `22301217 Rvfull` | `z_V_full` | the v closure, at last with EDM |
+| `22301218 Rvtoy` | `z_V_toy` | gate 3, re-verified |
+| `22301219 Rs6`, `22301220 Rs7` | the `K(m)` ladder | the `Gamma_Z` shape question |
+
+(`22300667-9` and `22301104-6` were cancelled while still PENDING, before the
+two corrections above -- nothing was lost.)
 
 `fullscale/rabbit_to_json.py` (the agent's, `151bfcf`) converts a rabbit result
 into the json `fit.py --start-from` reads, carrying `edmval`, so the sandwich
