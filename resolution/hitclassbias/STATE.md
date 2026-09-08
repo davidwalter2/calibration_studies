@@ -197,3 +197,28 @@ almost no eta dependence, and cannot be the -4.9 / -3.6 / +0.1 pattern.**
 ## Step 3 — NOT DONE, by the brief's own condition
 The prediction does not reproduce the pattern, so the class densities are NOT
 put into the CF hit term and no recipe is handed to the analysis agent.
+
+### The exclusion at every granularity (`t12_chi2.py`)
+
+| key | ncell | central prediction (1e-3) | chi2 (3 dof) | sigma |
+|---|---:|---:|---:|---:|
+| subdet x coordinate | 8 | +1.00 / +1.38 / +0.98 | 33 497 | 183 |
+| subdet x layer | 32 | +0.86 / +1.59 / +1.39 | 1 333 | 36.5 |
+| subdet x layer x z side | 48 | +0.86 / +2.10 / +0.58 | 239 | 15.4 |
+| + the 18 classes | 275 | +1.16 / +2.40 / +0.96 | 215 | 14.7 |
+| orientation group | 440 | +0.48 / +0.07 / +1.15 | 28.5 | 5.3 |
+| orientation group x class | 1728 | +1.11 / +0.90 / +1.68 | 34 | 5.8 |
+
+`t11_bound.py` gives the worst-case 3-sigma envelope instead: +-0.31 / 0.22 /
+0.19 at subdetector level, growing to +-8.8 / 16.1 / 8.8 at the finest key (it
+scales as sqrt(ncell/N)), so the fine keys are statistics-limited for an
+ADVERSARIAL arrangement while the chi2 -- how far the locations must actually
+move -- is >= 5.3 sigma everywhere.
+
+### The mass level is BLOCKED on a cache field, not on a production
+`fullscale/runs/gzpairs_dyv2_n50.npz` carries `hit_cls`, `hit_v` (the variance
+share) and `hit_ptr`, but **no sign and no `hitDetId`**. A location needs the
+sign, and the orientation-group key needs the DetId. The two-track maker's
+`resinfv` already holds the SIGNED mass-projected weights
+(`cf_mass_likelihood.build_pairs_tt` docstring), so this is a pairs-cache
+RE-EXTRACTION -- add `hit_s` and `hit_detid` -- not a production.
