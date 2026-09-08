@@ -1813,3 +1813,32 @@ python3 vtable.py
 predicted bias is within +-0.35 MeV over `p in [1.20, 1.264]` and the fit-free
 optimum is 1.235, so it is not a knob to tune per fit; scan it only to quote
 the sensitivity.
+
+### 0f.8 WHAT TO DO NEXT, in order (checkpoint 2026-09-08)
+
+1. **Collect the running fits** and run `python3 vtable.py`.
+   `22274048 V_full`, `22274049 V_toy`, `22274050 V_s6`, `22274052 V_s7`,
+   `22274053/54/55 V_eta{B,T,E}`, `22274132/33/34 M_eta{B,T,E}` (the m-form
+   twins at full statistics, so the `eta` comparison is like-for-like).
+   Read `V_full` against `f380fl_base` = -11.06 +- 2.27 and `V_toy` against
+   `F_toy` = -3.08 +- 2.19 (that is GATE 3).
+2. **Quote the cost honestly**: the v form costs 9 % on `sigma(m_Z)` and
+   nothing on `Gamma_Z` (STATE_log.md). 2.27 -> ~2.47 MeV at full statistics.
+3. **The `eta` pattern.** `scratchpad/vetakern.sh` is written and held: it
+   builds `VK_eta{B,T,E}`, the bands fitted with the PER-BAND FSR kernel
+   measured on that band's own selected candidates
+   (`zchannel/data/kern_sel_eta{B,T,E}.npz`). The `<u>` data-minus-model
+   mismatch IS barrel-worst (+2.0e-4 barrel, -0.04e-4 endcap, ~18 MeV of
+   spread, the right sign for the 40 +- 12 MeV pattern) even though the
+   GENERATOR-level fits showed only 3.6 MeV — because there a floated `K(m)`
+   absorbs it and at detector level, in combination with the resolution, it may
+   not. That is the same "lives only in the combination" structure as the main
+   result and it is the one surviving hypothesis. Run it after (1).
+4. **`Gamma_Z` is still not closed** and is independent of all of this: the
+   `K(m)` 5/6/7 ladder moves it by 32 MeV on a 4.4 MeV error at full
+   statistics (sec. 0g). `V_s6`/`V_s7` repeat the ladder in the v form; if the
+   swing survives, the shape basis is the next thing to understand and
+   `Gamma_Z` stays a tens-of-MeV statement until it is.
+5. Then **phase 2** (the J/psi joint fit, `22210973` was still running on the
+   scipy path) and **phase 3** (`MaterialCFTerm`, the 3 % MS tail,
+   `k_ms` = 1.030 +- 0.004) with the corrected term.
