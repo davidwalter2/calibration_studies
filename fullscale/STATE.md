@@ -1352,3 +1352,65 @@ computable from the cache: `y` from `Jpsi_pt`, `Jpsi_eta` and the mass, and
 `cos theta*` from the two legs' `(pT, eta)` (`cos dphi = cosh d_eta -
 m^2/(2 pT1 pT2)` for massless muons, and at `pT_Z ~ 0`,
 `cos theta* ~ tanh(d_eta/2)`).
+
+### 0e.1 THE PREMISE IS CONFIRMED, AND IT NAMES A SIMPLER FIX (2026-09-08 00:30)
+
+The design rests on "at fixed observed angular variables the true mass and the
+resolution are linked only through `p ~ m`, which the `a` correction already
+models". Tested, and the sharp version of it is TRUE — with the exponent read
+off the data.
+
+**The naive version fails informatively.** Conditioning on a `(y, cos theta*)`
+cell makes the raw `sigma`-mass dependence WORSE (`rho` 0.168 -> 0.233 at
+10 x 10), because at `pT_Z ~ 0` and fixed `(y, cos theta*)` the mass DETERMINES
+both muon `pT`s, so `sigma` becomes a near-deterministic function of `m` inside
+a cell.
+
+**The correct version holds.** The link is `sigma ~ m^{1+f}` — the curvature
+resolution is what is constant, so `sigma_pT/pT ~ pT`. Scanning
+`rho(log sigma - p log m_obs, log m_gen)` it crosses zero at **p = 1.25**, and
+the `a` correction's own exponent is `1 + <vgf> = 1.2640`. The RESOLUTION
+CONSTANT `k_i = sigma_i / m_i^{1+f_i}` is independent of the true mass to
+`rho = -0.01`, inside a cell AND inclusively.
+
+**And that alone accounts for the whole bias.** The same fit-free calculation
+as sec. 0d, 16 classes, Gaussian kernels, only the CLASS VARIABLE changed:
+
+| conditioning label | barrel | transition | endcap | **inclusive** |
+|---|---:|---:|---:|---:|
+| absolute `sigma` | -12.04 | -16.50 | -25.61 | **-15.33** |
+| **`k = sigma/m^1.264`** | **-0.23** | **+0.44** | **+0.20** | **+0.30** |
+
+and letting the width additionally SCALE as `k m'^{1.264}` along the
+integration changes `+0.30` to `+0.46`, i.e. nothing. **The bias is not the
+width gradient. It is that `sigma_i` as a conditioning label carries mass
+information and `k_i` does not.**
+
+### The fix this names: change the convolution variable
+
+Writing the smearing as `m_i = m' + k_i m'^{1+f} x` and substituting
+
+```
+v(m) = Int dm / m^{1+f} = m^{-f} / (-f)          (v = ln m when f = 0)
+```
+
+gives `v_i = v(m') + k_i x` to first order — **a fixed-width convolution in
+`v`**, with a width `k_i` that is independent of the true mass. So:
+
+* the FFT still applies, on a grid uniform in `v` instead of in `m`;
+* the Born density carries the Jacobian, `p_v(v) = p(m(v)) m(v)^{1+f}`;
+* the conditioning is on `k_i`, which is legitimate: `p(m'|k_i) = p(m')`;
+* **no per-class Born reweighting is needed for this, and no
+  `(y, cos theta*)` cells either**;
+* the existing `a` and Jensen corrections stay exactly as they are — they are
+  the second-order terms of the same map and are unchanged by the substitution.
+
+The `f_i = vgf_i` spread means the ideal `v` is per candidate; a class axis in
+`f` (~8 classes, or a single `<f> = 0.264` with the residual treated as the
+existing `c_i x^2`) is the practical form, and that is a MUCH smaller class
+axis than the 10 x 10 `(y, cos theta*)` cells.
+
+**What the cells are still for**: the Born spectrum `p(m'|y, cos theta*)` from
+`dsigma/(dm dy dcos theta*)` and the acceptance `A(m|cell)` — the physics the
+coordinator asked for, and what `sin^2 theta_W` needs — not the resolution
+conditioning, which `k_i` settles on its own.
