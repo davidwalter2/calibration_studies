@@ -1665,3 +1665,31 @@ uncorrected reference sits **+0.13571 e-3** above the m form's, against the
 absorbs 93 % of the self-consistent width by construction, and what the
 `a^v = a - p sigma/m` residual then applies is the remaining
 +0.01053 e-3. Nothing is double counted and nothing is lost.
+
+### 0f.4 GATES 3 AND 4 — WHAT IS RUNNING (checkpoint 2026-09-08)
+
+Engaging, `fullscale_gpu_vmass.sbatch` (PYTHONPATH at `rabbit-vmass`, branch
+`vmass-conditioning`), `--chunk 32768 --method tf-trust-krylov`, 15-minute
+snapshots, `mit_preemptable -t 04:00:00`. All at full statistics.
+
+| job | card | reads against |
+|---|---|---|
+| 22272248 | `z_V_full` | `f380fl_base` -11.06 +- 2.27 |
+| 22272249 | `z_V_s6` | `f380fl_s6` -14.01, `Gamma_Z` +27.11 |
+| 22272250 | `z_V_s7` | `f380fl_s7` -7.81, `Gamma_Z` +1.14 |
+| 22272251 | `z_V_etaB` | the barrel, and the `M_etaB` twin now building |
+| 22272252 | `z_V_etaT` | the transition |
+| 22272253 | `z_V_etaE` | the endcap |
+| 22272306 | `z_V_toy` | **GATE 3**: `F_toy` -3.08 +- 2.19 must go to ~0 |
+
+The m-form `eta` bands in `results/` are at 300 k (errors 7-10 MeV) while the
+v-form ones are at 3.68 M, so `M_eta{B,T,E}` are being built at full statistics
+to make that comparison like-for-like. **The `eta` pattern is the open
+question and it is to be reported plainly either way**: nothing measured so far
+explains the 40 +- 12 MeV barrel-endcap difference — not the momenta (flat to
+3.7 MeV), not the resolution width (pull flat to +-0.7 %), not the kernel
+(3 MeV of band-to-band spread at generator level), and not the sigma-mass
+pairing, which predicts the OPPOSITE ordering (-12 barrel, -26 endcap).
+
+`fullscale/vtable.py` assembles the gate-4 table from `results/` and
+`results/eng/` as the fits land, with the fit-free prediction alongside.
