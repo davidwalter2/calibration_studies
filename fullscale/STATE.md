@@ -1430,3 +1430,61 @@ axis than the 10 x 10 `(y, cos theta*)` cells.
 `dsigma/(dm dy dcos theta*)` and the acceptance `A(m|cell)` — the physics the
 coordinator asked for, and what `sin^2 theta_W` needs — not the resolution
 conditioning, which `k_i` settles on its own.
+
+---
+
+## 0f. THE v-FORMULATION — APPROVED, AND ITS GATES (2026-09-08)
+
+The coordinator has approved the change of convolution variable and added the
+consistency argument: `k_i` is fluctuation-independent to first order by the
+SAME relation the `a` correction encodes,
+
+```
+sigma_obs / m_obs^{1+f} = (sigma_bar / m_bar^{1+f}) (1 + (a - (1+f) sigma_bar/m_bar) x)
+                        = k_bar   EXACTLY when a = (1+f) sigma_bar/m_bar,
+```
+
+which is the `a` the term already uses. So conditioning on `k_i` is legitimate
+AND consistent with the correction that is already there.
+
+### What to build
+
+* the fixed-width convolution in `v(m) = -m^{-f}/f`, with the Born density
+  carrying the Jacobian `m^{1+f}`;
+* a class axis in `f` (~8 classes), with the class-width sensitivity measured;
+* the conditioning on `k_i = sigma_i / m_i^{1+f_i}`;
+* on a **branch of `material-resolution-native`**.
+
+**The trap the coordinator names**: in `v` the first-order width change with
+the fluctuation is ALREADY EXACT — that was the `a` term's job — so a piece can
+be double-counted. The residual second-order term of the substitution is
+
+```
+v_i - v(m') = k x - (1+f) k^2 m'^f x^2 / 2 + ...
+```
+
+i.e. a quadratic coefficient `-(1+f) k sigma_i / (2 m_i)` in `v`, against the
+current `c_i = -vgf_i sigma_i^2 / m_i` in `m`. They are the same size. **The
+gates decide which pieces survive, not the algebra.**
+
+### The gates, in order, before any full fit
+
+1. **The J/psi gun at a delta kernel**: the final `alpha` — `+0.051 +- 0.017e-3`
+   on the gun and `+0.006 +- 0.025e-3` on v3 — reproduced within `0.01e-3`
+   with the SAME correction set.
+2. **Gradient / finite differences** on `m_Z`, `Gamma_Z`, `K`, `k_ms`.
+3. **The `F_toy` assembly toy** closes to its statistical error.
+4. **Z alone at full statistics**: `m_Z`, `Gamma_Z` vs the generator, inclusive
+   and per `eta` band, and the `K(m)` 5/6/7 ladder for `Gamma_Z`. **The `eta`
+   pattern is the open question — report it plainly either way.**
+5. The fit-free prediction table (absolute-`sigma` against `k` conditioning)
+   reported alongside.
+
+### Deferred, explicitly
+
+The `(y, cos theta*)` provider work stays the plan for the DIFFERENTIAL CROSS
+SECTION and `sin^2 theta_W`. It is **not** needed for the resolution
+conditioning, which `k_i` settles on its own. Do not build the 10 x 10 class
+axis for this.
+
+Then phase 2 and phase 3 with the corrected term.
