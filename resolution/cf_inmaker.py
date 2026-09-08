@@ -457,6 +457,18 @@ def _grp_block(t, stop, idx, prefix, nt, push, stats, fn):
     have_clo = f"{prefix}_grp_closure" in t.keys()
     if have_clo:
         br.append(f"{prefix}_grp_closure")
+    # `hit_v` is the per-hit VARIANCE contribution and is unsigned, so it
+    # cannot say which way a hit's displacement pushes the curvature. `hit_s`
+    # is the SIGNED mass-projected influence weight (from `resinfv`), which is
+    # what a per-class LOCATION bias has to be propagated through: a bias is a
+    # shift, and a shift needs a direction. `hit_detid` is what turns a class
+    # label into a subdetector / layer / disk / +-z. Both are optional so an
+    # older production still builds; the fields simply do not appear.
+    _keys = set(t.keys())
+    hit_extra = [(k, f"{prefix}_{b}") for k, b in
+                 (("hit_s", "hits"), ("hit_detid", "hitdetid"))
+                 if f"{prefix}_{b}" in _keys]
+    br += [b for _, b in hit_extra]
     a = t.arrays(br, library="ak", entry_stop=stop)
     a = a[idx]
     ng = ak.to_numpy(ak.num(a[f"{prefix}_grp"])).astype(np.int64)
@@ -475,6 +487,14 @@ def _grp_block(t, stop, idx, prefix, nt, push, stats, fn):
     push("hit_cnt", nh)
     push("hit_cls", ak.to_numpy(ak.flatten(a[f"{prefix}_hitcls"])).astype(np.int16))
     push("hit_v", ak.to_numpy(ak.flatten(a[f"{prefix}_hitv"])).astype(np.float64))
+    for key, brname in hit_extra:
+        v = ak.to_numpy(ak.flatten(a[brname]))
+        if v.size != int(nh.sum()):
+            raise SystemExit(
+                f"{fn}: {brname} has {v.size} values against "
+                f"{int(nh.sum())} hits from {prefix}_hitcls -- they must share "
+                "the same per-candidate jagged layout")
+        push(key, v.astype(np.uint32 if key == "hit_detid" else np.float64))
     if have_clo:
         c = ak.to_numpy(a[f"{prefix}_grp_closure"]).astype(np.float64)
         push("grp_closure", c)
@@ -524,11 +544,11 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
             v = np.concatenate(v, axis=0)
         if k in _MASS_AUX_INT:
             out[k] = np.asarray(v, dtype=np.int64)
-        elif k in ("hitcls", "grp_id", "hit_cls"):
+        elif k in ("hitcls", "grp_id", "hit_cls", "hit_detid"):
             out[k] = np.asarray(v, dtype=np.int16)
         elif k in ("grp_cnt", "hit_cnt"):
             out[k] = np.asarray(v, dtype=np.int64)
-        elif k in ("hit_v",):
+        elif k in ("hit_v", "hit_s"):
             out[k] = np.asarray(v, dtype=np.float32)
         elif k in ("hitamp2",):
             out[k] = np.asarray(v, dtype=np.float32)
