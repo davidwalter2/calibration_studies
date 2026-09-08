@@ -88,3 +88,6 @@ fullscale/results/*.txt
 fullscale/results/native/*.snapshot.hdf5
 fullscale/results/eng/
 fullscale/results/nativejson/
+
+# hit-class location study caches (regenerable, ~200 MB)
+resolution/hitclassbias/data/

@@ -144,3 +144,41 @@ def unpack_key(k):
     lay = k % 10
     sd = k // 10
     return sd, lay, s, c, adx, ady
+
+
+# ---------------------------------------------------------------------------
+# ORIENTATION GROUP. The bending sense `s_b` is nearly random inside a
+# (subdet, layer): +-0.03 to 0.06 in BPix, TOB and TEC. That is not noise, it
+# is the local FRAME flipping between the two module orientations of a layer
+# (BPix inner/outer ladders, TIB internal/external strings, TOB and TEC
+# forward/backward rods and petals, FPix panels). A residual bias that is
+# fixed in the LOCAL frame therefore has to be measured in the same
+# orientation group in which `s_b` is measured, or the two average away
+# separately and the product is meaningless.
+#
+# Every field below is a DetId bit field, exact, and `hitDetId` is present in
+# BOTH trees -- so this is a join on the module's identity, not a proxy.
+def orient_group(detid):
+    """A small integer labelling the module's frame orientation class."""
+    d = np.asarray(detid, dtype=np.uint32)
+    sd = ((d >> 25) & 0x7).astype(np.int64)
+    g = np.zeros(len(d), dtype=np.int64)
+
+    m = sd == 1                                   # BPix: layer, ladder parity
+    g[m] = ((d[m] >> 16) & 0xF) * 4 + ((d[m] >> 8) & 0xFF) % 2 * 2 \
+        + (((d[m] >> 2) & 0x3F) > 4)
+    m = sd == 2                                   # FPix: side, disk, panel
+    g[m] = ((((d[m] >> 23) & 0x3) * 4 + ((d[m] >> 16) & 0xF)) * 4
+            + ((d[m] >> 8) & 0x3)) * 2 + ((d[m] >> 10) & 0x3F) % 2
+    m = sd == 3                                   # TIB: layer, fw/bw, int/ext, stereo
+    g[m] = ((((d[m] >> 14) & 0x7) * 4 + ((d[m] >> 12) & 0x3)) * 4
+            + ((d[m] >> 10) & 0x3)) * 4 + (d[m] & 0x3)
+    m = sd == 4                                   # TID: side, wheel, ring, fw/bw, stereo
+    g[m] = (((((d[m] >> 13) & 0x3) * 4 + ((d[m] >> 11) & 0x3)) * 4
+             + ((d[m] >> 9) & 0x3)) * 4 + ((d[m] >> 7) & 0x3)) * 4 + (d[m] & 0x3)
+    m = sd == 5                                   # TOB: layer, rod fw/bw, stereo
+    g[m] = (((d[m] >> 14) & 0x7) * 4 + ((d[m] >> 12) & 0x3)) * 4 + (d[m] & 0x3)
+    m = sd == 6                                   # TEC: side, wheel, ring, petal fw/bw, stereo
+    g[m] = (((((d[m] >> 18) & 0x3) * 16 + ((d[m] >> 14) & 0xF)) * 8
+             + ((d[m] >> 5) & 0x7)) * 4 + ((d[m] >> 12) & 0x3)) * 4 + (d[m] & 0x3)
+    return sd * 100000 + g

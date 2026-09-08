@@ -105,3 +105,95 @@ reversal and the hypothesis fails on this point.
 ## Next
 Step 1: extract per-hit residual locations + densities per class (18 classes
 and the finer subdet / layer / side / local-coordinate / signed-angle key).
+
+---
+
+## Step 1 — the per-class residual LOCATIONS and densities (DONE 2026-09-08)
+
+`t4_step1.py` -> `out_step1.txt`. `hitres2_mugun_ul16`, 1 375 697 hits with a
+matched PSimHit, IDEAL geometry, gen-anchored. Figures in
+`~/public_html/cvh/260908_hitclassbias/` (date-derived per the standing rule;
+the brief said 260909).
+
+**T1. per subdetector, local frame, pull units:**
+
+| det | n | median | mean | +- | rms | skew |
+|---|---:|---:|---:|---:|---:|---:|
+| BPix x | 148 985 | +0.0930 | **+0.1193** | 0.0027 | 1.028 | +0.127 |
+| FPix x | 30 149 | +0.0285 | **+0.0400** | 0.0061 | 1.063 | +0.096 |
+| TIB x | 283 258 | +0.0039 | +0.0021 | 0.0018 | 0.978 | -0.008 |
+| TID phi | 135 812 | +0.0002 | -0.0028 | 0.0026 | 0.962 | -0.010 |
+| TOB x | 308 215 | +0.0017 | +0.0017 | 0.0018 | 1.007 | -0.010 |
+| TEC phi | 469 276 | +0.0003 | -0.0001 | 0.0014 | 0.944 | +0.005 |
+| BPix y | 148 934 | +0.0048 | +0.0021 | 0.0027 | 1.050 | -0.003 |
+| FPix y | 30 150 | +0.0044 | +0.0038 | 0.0055 | 0.960 | +0.030 |
+
+So the LOCATION is a PIXEL effect and nothing else: BPix +0.119 sigma_CPE
+(BPix-1 alone **+0.227**, skew **+0.302**), FPix +0.040, and every strip
+subdetector consistent with zero at +-0.002. It is EVEN in the incidence
+angle (BPix runs +0.34 / +0.23 / +0.13 / +0.11 / +0.09 | +0.09 / +0.10 /
++0.09 / +0.16 / +0.17 across signed `dx/dz`), so it is not an uncorrected
+angle-linear drift term.
+
+Largest class locations: `pix_x_q2` +0.121, `pix_x_q3` +0.119 (BPix alone
++0.134), `pix_x_q1` +0.102; pixel single-ROW clusters +0.034 with skew +0.18.
+Degraded STRIP classes are all null: `N=1` -0.0032 +- 0.0020, `N>=4`
++0.0012 +- 0.0022, `uProj>0.5` +0.0021 +- 0.0032.
+
+## Step 2 — the no-free-parameter prediction (DONE): IT DOES NOT REPRODUCE
+
+`t2_predict.py`, `t3_keys.py`, `t6_final.py`. The extraction reproduces the
+target sample exactly (319 854 tracks, 6 219 371 hit blocks, charge-even odd
+moments -4.89 / -3.57 / +0.12 against sec. 0f.37's -4.88 / -3.58 / +0.14).
+
+| band | measured (charge-even, u=0.05) | PRED location | PRED skew | PRED total |
+|---|---:|---:|---:|---:|
+| barrel | **-4.89 +- 2.46** | +0.86 | -0.001 | **+0.86** |
+| middle | **-3.57 +- 2.71** | +1.59 | -0.002 | **+1.58** |
+| endcap | **+0.12 +- 2.75** | +1.39 | -0.001 | **+1.39** |
+
+(units 1e-3). Stable at +1.0 to +2.8 under EVERY join key tried -- subdet,
+subdet x layer, orientation group, orientation group x signed angle, per
+module, and each of those crossed with the 18 classes. The skew channel is
+1e-6, because at u = 0.05 the probe is a mean probe (coefficient -0.0394 on
+kappa3 against +0.867 on the mean).
+
+**How far the locations would have to be wrong** (`t9_required.py`,
+constrained least squares on the 8 subdet x coordinate locations):
+
+| group | measured | +- | REQUIRED | shift |
+|---|---:|---:|---:|---:|
+| BPix x | +0.1193 | 0.0027 | -0.261 | -143 sigma |
+| TIB x | +0.0021 | 0.0018 | +0.096 | +51 sigma |
+| TOB x | +0.0017 | 0.0018 | +0.088 | +48 sigma |
+| TEC phi | -0.0001 | 0.0014 | -0.098 | -71 sigma |
+
+chi2 = 33 497 for 3 constraints (183 sigma). No single group can do it
+either: BPix alone would need -0.549 and would then give -4.89 / -6.32 /
+-4.42 against the target's +0.12 in the endcap.
+
+**Verdict: the CPE class LOCATION bias is measured, is a pixel-only effect of
++0.12 sigma_CPE, contributes +1.0e-3 to the charge-even odd moment with
+almost no eta dependence, and cannot be the -4.9 / -3.6 / +0.1 pattern.**
+
+### The PRE-REGISTERED predictions, scored
+
+* **P1 CONFIRMED in form, refuted in size.** The bending sense IS coherent
+  once keyed on the module orientation (`<|<s>|>` 0.072 per layer -> 0.761
+  per orientation group -> 0.905 per module), and the pixel location IS
+  coherent in the local frame (positive in all 12 BPix orientation groups,
+  +0.022 to +0.272). But the lever arm is only `<sum_b s_b a_b>` =
+  -0.020 / +0.023 / +0.018, so a 0.12 sigma bias buys 1e-3, not 5e-3.
+* **P2 REFUTED.** The degraded classes do NOT have opposite bending-sense
+  sign between barrel and forward. `L mu` for `pix qbin3` is
+  +0.25 / +0.30 / +0.12 (all positive), for pixel single-row
+  +0.16 / +0.00 / -0.01, for strip `N=1` +0.03 / -0.00 / +0.00. The
+  strip classes have no location to reverse.
+* **P3 REFUTED.** The propagated degraded-content contrasts are
+  +1.19 / +2.95 / +1.39 (pixel share HIGH-LOW) and -0.19 / -0.81 / +0.35
+  (single-strip HIGH-LOW) against measured -3.63 +- 5.16 / -0.48 +- 5.66 /
+  -0.11 +- 5.28 and -6.64 +- 5.06 / -1.83 +- 5.76 / -7.00 +- 5.15.
+
+## Step 3 — NOT DONE, by the brief's own condition
+The prediction does not reproduce the pattern, so the class densities are NOT
+put into the CF hit term and no recipe is handed to the analysis agent.
