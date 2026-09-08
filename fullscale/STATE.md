@@ -2754,3 +2754,42 @@ trust-exact`, `GATE=0 FRESH=1`, four frozen; `engaging/submit_scipy_suite.sh`):
 NLL `11075392.4657`, small EDM. `22311743-63` are the other 18 rows of the
 certified table (m form: `Sdc8 Stoy Stoydc Sw70110 Ss6 Ss7 SMetaB/T/E`;
 v form: `SVfull SVtoy SVs6 SVs7 SVetaB/T/E SVKetaB/T`).
+
+### 0f.21 THROUGHPUT: WARM STARTS, AND WHY THEY CANNOT FLATTER A RESULT
+
+scipy `trust-exact` is the minimiser that works here and it is also the slow
+one: ~38 iterations and **~5.5 h** on the full-statistics card (19 600 s,
+measured in sec. 6 against `tf-trust-krylov`'s 1206 s), against ~114 s per
+iteration for the TF port that does not converge. At 19 rows and a
+`QOSMaxGRESPerUser` of 4 GPUs on `mit_preemptable` (plus 2 on `mit_normal_gpu`)
+a cold suite is ~20 h of wall clock.
+
+**So every row except the controls starts from the LOWEST-NLL point any earlier
+fit of that card reached** (`json_to_snapshot.py`, `seed_rows.sh`, 18
+snapshots in `results/seed/`; `rabbit_vmass.sbatch` resumes from
+`$OUT/rabbit_$TAG.snapshot.hdf5` when `FRESH != 1`).
+
+**This cannot flatter a result and it is worth saying why.** The acceptance
+test of sec. 0f.16 is entirely about where a fit ARRIVES -- the value, the NLL
+and the EDM at the stopping point -- and says nothing about where it started.
+A warm start changes only the number of iterations. The failure mode of
+sec. 0f.19 was the opposite one: fits that stopped near a start that happened
+to be the MC TRUTH, and so read as perfect closures. Seeding from a stored
+minimum rather than from the truth removes that particular coincidence as well.
+
+**The controls stay COLD**, because they are testing the minimiser and not the
+card: `22311742 f380refS` (`z_full380_fl`, must find -11.0643 by itself),
+`22311743 SVfull` (`z_V_full`) and `22311744 Sdc8` (`z_F_dc8`). Those last two
+are also the answer to the sec. 0f.15 caveat on their cards -- `z_V_full` is
+the one where a converged `tf-trust-exact` sat 30.6 NLL units ABOVE an
+unconverged krylov point -- so a cold and a warm run of the same card that meet
+at the same NLL is the evidence that there is one minimum and not two.
+
+**The subproblem cap is NOT reproducible synthetically.** A Hessian with the
+measured spectrum (7 free directions spanning 3.4e12 in curvature plus the four
+frozen unit rows) never hits `maxiter=50` at any radius from 1e-3 to 100, over
+5 random orthogonal bases. So the 20 cap hits in `f380refX` are a property of
+the ACTUAL Hessian at those points, not of the conditioning alone, and raising
+`MAXITER_DEFAULT` is not demonstrably the cure. That line of enquiry is
+dropped: the empirical fact -- scipy's More-Sorensen converges on this card and
+the TF port does not -- is what the campaign runs on.

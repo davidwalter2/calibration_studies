@@ -23,6 +23,6 @@ TAGS=${*:-${!CARDS[@]}}
 for t in $TAGS; do
   c=${CARDS[$t]:?unknown tag $t}
   sbatch -A mit_general -p ${PART:-mit_preemptable} -G h200:1 ${SBOPT:-} \
-    --export=ALL,CARD=$Z/cards/${c}.hdf5,TAG=$t,METHOD=trust-exact,FREEZE="$FREEZE",GATE=0,FRESH=1 \
+    --export=ALL,CARD=$Z/cards/${c}.hdf5,TAG=$t,METHOD=trust-exact,FREEZE="$FREEZE",GATE=0,FRESH=${FRESH:-1} \
     rabbit_vmass.sbatch | sed "s/^/[$t $c] /"
 done
