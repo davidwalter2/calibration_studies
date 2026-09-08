@@ -1764,3 +1764,13 @@ agree" and "the two code paths agree because they are the same path".)
 **Only gate 2c catches it**, because it is the only test evaluated AT the
 working exponent that has an independent right answer. An off-switch test is
 necessary and is not sufficient.
+
+**A compatibility note that cost three jobs**: `make_card.py` on this branch
+writes `"vpow"` into every term config, `None` included, and
+`rabbit-native`'s `MassCFTerm` does not take that keyword —
+`TypeError: MassCFTerm.__init__() got an unexpected keyword argument 'vpow'`.
+So **any card built after `26a86bb` must be read by `rabbit-vmass`**, m-form
+cards included. Run everything through `fullscale_gpu_vmass.sbatch`; the branch
+is a strict superset of `material-resolution-native`, so nothing is lost by
+doing so. (The three m-form `eta`-band jobs failed this way in 33-60 s and were
+resubmitted on the vmass runtime.)
