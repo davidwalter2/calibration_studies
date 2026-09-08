@@ -3204,3 +3204,45 @@ conservative — it costs information. Only `material_pp1_cables`,
 `material_support_tube` and `material_thermal_screen` are unconstrained by
 everything. The running phase-2 job freezes all four (the instruction's
 "four"); a 3-frozen variant is the cross-check worth having.
+
+### 0f.27 THE v-FORM INCLUSIVE CLOSURE, CERTIFIED — AND IT IS A CANCELLATION
+
+`22312981 SVfullW`: `z_V_full`, scipy `trust-exact` through `rabbit_fit.py`,
+warm from the krylov point.
+
+| | `m_Z` | `Gamma_Z` | NLL | EDM |
+|---|---:|---:|---:|---:|
+| `V_full` / `Rvfull` (krylov, STALLED) | -0.000 +- 2.32 | +0.004 +- 4.19 | -9827099.7568 | 1.98 |
+| `RvfullX` (`tf-trust-exact`, converged) | -1.53 +- 2.08 | -0.80 +- 3.80 | -9827069.1806 | 1.6e-12 |
+| **`SVfullW` (scipy, converged)** | **-1.54 +- 2.08 (H)** | **+6.81 +- 3.80 (H)** | **-9827101.7477** | **6.4e-12** |
+
+**This settles sec. 0f.15 on `z_V_full`.** There ARE two stationary points and
+`RvfullX`'s is the WORSE one, 32.6 NLL units above; `SVfullW`'s is 2.0 units
+BELOW the krylov stall. So the campaign minimiser found the better minimum on
+the one card where `tf-trust-exact` had found a different one, and the "EDM
+certifies stationarity, not optimality" caveat is real but resolvable by
+comparing NLL, exactly as sec. 0f.16 requires.
+
+**The v formulation takes the inclusive `m_Z` closure from -11.06 +- 2.27 to
+-1.54 +- ~2.3** — 0.7 sigma from zero, against 4.9 sigma. The mechanism of
+sec. 0e/0f is confirmed at full statistics and with a converged fit. The
+earlier `-0.0002 +- 2.32` was a fit that never took a POI step; the real number
+is -1.5, not 0.
+
+**BUT the inclusive closure is a CANCELLATION between `eta` bands**, and that
+is the finding that matters. Certified so far, v form:
+
+| band | `m_Z` | n |
+|---|---:|---:|
+| `\|eta_lead\| < 0.9` | **-21.08 +- 3.24** | 1 572 534 |
+| `0.9 - 1.6` | **+12.39 +- 4.16** | 1 084 704 |
+| `1.6 - 3.0` | (+34.22 +- 5.47, NOT yet converged) | 1 025 424 |
+| inverse-variance mean of the three | **-0.80** | |
+| the inclusive fit | **-1.54 +- 2.08** | 3 682 662 |
+
+i.e. the inclusive number is the average of a spread of ~55 MeV, and it is
+small because the barrel and the endcap pull in opposite directions, not
+because the bias is gone. **The v formulation fixes the INCLUSIVE closure and
+leaves an `eta`-dependent residual as large as the effect it removed.** A Z
+mass measurement that fits `eta` bands separately, or that weights them
+differently from this MC, does not inherit the inclusive closure.
