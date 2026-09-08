@@ -2513,3 +2513,42 @@ either leg** and `material_thermal_screen` / `material_support_tube` by under
 explicitly, or give them a prior, and say which in the result** -- do not let
 the frozen-diagonal fix absorb them, because then an unmeasured parameter would
 look measured.
+
+### 0f.18 THE CONTROL FAILED — `tf-trust-krylov` STOPS EARLY ON THE FULL CARD
+
+`22301214 f380ref`: `z_full380_fl`, `tf-trust-krylov`, four frozen, on the
+merged branch. 20 minutes, a "converged" snapshot, and:
+
+| | rabbit `tf-trust-krylov` | the reference (`fit.py`, host `trust-exact`) |
+|---|---:|---:|
+| `m_Z` | **-0.127 +- 2.064** | **-11.064 +- 2.267** |
+| `Gamma_Z` | -0.016 +- 3.786 | -5.265 |
+| NLL | **11075407.184058** | **11075392.465686228** |
+| EDM | **14.723157930030274** | 1.8e-18 |
+
+**The NLL is 14.718 above the reference and the EDM is 14.723. They are the
+same number.** EDM did exactly its job: it said "14.7 NLL units are still to be
+gained", and they were, and the reference is at the bottom of them. So this is
+NOT a second minimum — it is one minimum, and krylov stopped 14.7 units up the
+hill from it while reporting convergence. And it stopped at `m_Z = -0.127`
+against a start of 0: **the POIs barely moved, the same signature as the
+`V_full` failure**.
+
+**So every fit of mine that stopped early used `tf-trust-krylov`, and the one
+that converged used host `trust-exact`.** The scoreboard on this card is the
+opposite of `z_n300k`'s, where krylov reached EDM 4.98e-13.
+
+**The likely cause is the conditioning acting on GLTR, not on the trust
+radius**: at a 3.4e12 condition number the Lanczos recurrence loses about
+twelve digits of orthogonality in float64, so the Krylov model of the
+subproblem is unreliable and its predicted reduction goes non-positive long
+before the true one does. `z_n300k` is smaller and better conditioned, which
+would be why krylov succeeded there. If that is right it is a property of THIS
+OBJECTIVE, not a bug in the port — but **`tf-trust-krylov` cannot be the
+campaign default at full statistics.**
+
+`22303682/3/4` (`f380refX`, `Rdc8X`, `RvfullX`) test `tf-trust-exact` WITH the
+frozen-diagonal fix, a combination not yet tried at full statistics. If
+`f380refX` returns -11.0643 at NLL 11075392.4657 with a small EDM, the answer
+for this campaign is **`tf-trust-exact` + `d83342e`** and the FIX rather than
+the method is what makes the migration usable here.
