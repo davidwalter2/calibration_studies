@@ -1842,3 +1842,53 @@ the sensitivity.
 5. Then **phase 2** (the J/psi joint fit, `22210973` was still running on the
    scipy path) and **phase 3** (`MaterialCFTerm`, the 3 % MS tail,
    `k_ms` = 1.030 +- 0.004) with the corrected term.
+
+### 0f.9 DO NOT QUOTE `V_full` — IT DID NOT CONVERGE IN THE POI DIRECTIONS
+
+`V_full` reported `m_Z = -0.00019 +- 2.32` and `Gamma_Z = +0.0036 +- 4.19` on
+all 3 682 662 candidates. **That is not a result.** Landing within 1e-4 of the
+starting values with 2-4 MeV errors has a chance probability of order 1e-4, and
+the shapes moving proves nothing about the POI directions. The gradient at the
+reported point, measured (`ChunkedObjective.value_grad`, chunk 32768):
+
+| parameter | gradient | `sigma` | Newton step, in `sigma` |
+|---|---:|---:|---:|
+| **`m_Z`** | +0.4234 | 2.3207 | **0.98** |
+| **`Gamma_Z`** | -0.4907 | 4.1898 | **-2.06** |
+| `shape1` | -0.0032 | 0.0294 | -9.5e-5 |
+| `shape2` | -0.2484 | 0.0360 | -0.0089 |
+| `shape3` | +0.0447 | 0.0245 | +0.0011 |
+| `shape4` | +0.4509 | 0.0105 | +0.0047 |
+| `shape5` | +1.4235 | 0.0023 | +0.0033 |
+
+**The POIs are ~1 sigma and ~2 sigma from their minimum; every shape is within
+0.01 sigma.** The reported `|grad|inf = 1.42` is `shape5`, and it is converged:
+the infinity norm is measuring the stiffest direction and saying nothing about
+the softest.
+
+**Why.** The reference-point Hessian eigenvalues span **0.05 to 1e5** — the
+soft eigenvalues 0.147 and 0.0498 are exactly `1/sigma^2` for `m_Z` (2.32) and
+`Gamma_Z` (4.19), the stiff 1e4-1e5 are the shapes. A stopping rule on the
+UNSCALED gradient infinity norm cannot converge a problem with a 1e6 condition
+number: it stops when the stiff directions are done. This is the scale problem
+the coordinator anticipated, and `rabbit/preconditioner.py` (PR #153) is on the
+branch but is not wired into `fit.py`.
+
+**It is not the physics and it is not the v formulation's fault**: the m-form
+reference reached `|grad|inf = 8.5e-4` with `--method trust-exact`, on the same
+card structure and the same conditioning. What changed is the minimiser.
+
+**Three jobs are settling it**, all from the reported point or a displaced one:
+
+| job | what |
+|---|---|
+| `22275679 V_conv` | `--method trust-exact --engine device --start-from fit_V_full.json` — scipy's own subproblem, which converged the m form |
+| `22275680 V_tight` | the same start, `tf-trust-krylov`, `--gtol 1e-9` |
+| `22275601 V_disp` | **the displaced restart**: `m_Z +10`, `Gamma_Z +20`, shapes at their fitted values. It must return to the same minimum within the errors |
+| `22275605 V_traj` | the same fit with 72-second snapshots, to see whether `m_Z` and `Gamma_Z` ever left the start |
+
+Until those land the honest statement is: **the v formulation's full-statistics
+`m_Z` is not yet measured.** What the gradient does say is that the minimum is
+near `-2.3 MeV` in `m_Z` (one Newton step from the stop, diagonal
+approximation), against the m form's `-11.06 +- 2.27` — but a one-step estimate
+with a correlated Hessian is not a number to quote either.
