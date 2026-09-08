@@ -91,14 +91,20 @@ def parse_args():
                         "steps here; the likelihood is quadratic to well "
                         "inside the subsample's own error.")
     p.add_argument("--gtol", type=float, default=1e-6)
-    p.add_argument("--conv-tol", type=float, default=0.05,
-                   help="a result is marked `converged` only if every POI's "
-                        "DIAGONAL NEWTON STEP at the stop, in units of that "
-                        "parameter's own error, is below this. `|grad|inf` is "
-                        "not a convergence test here: the Hessian's condition "
-                        "number is ~1e6 and an infinity-norm rule converges "
-                        "the stiff K(m) shapes while leaving the POIs a sigma "
-                        "or two out.")
+    p.add_argument("--edm-tol", type=float, default=1e-3,
+                   help="THE convergence criterion: rabbit's own EDM, "
+                        "`0.5 g^T H^-1 g` (rabbit.tfhelpers.edmval), the NLL "
+                        "still to be gained WITH the parameter correlations. "
+                        "rabbit's fitter has no edmtol -- it runs to gtol=0, "
+                        "terminating when the quadratic model predicts no "
+                        "further improvement, and reports EDM as a diagnostic "
+                        "-- so this threshold is ours and is chosen to mean "
+                        "something: for a quadratic a displacement of d sigma "
+                        "in the worst direction costs d^2/2, so EDM < 1e-3 is "
+                        "d < 0.045 sigma. `|grad|inf` is NOT a convergence "
+                        "test here (condition number ~1e6), and the DIAGONAL "
+                        "Newton step is only a proxy: it ignores the POI-shape "
+                        "correlations, which is where the displacement is.")
     p.add_argument("-o", "--output", default=None, help="json result")
     p.add_argument("--label", default="")
     return p.parse_args()
@@ -322,28 +328,44 @@ def main():
         # units of each parameter's OWN error: `g_i sigma_i`, since
         # `H_ii ~ 1/sigma_i^2`. It is a LOWER bound on the true displacement
         # where the POIs correlate with the shapes, which is the safe direction.
-        step = (np.asarray(r.jac) * errs).tolist()
+        # THE criterion is rabbit's own EDM, `0.5 g^T H^-1 g`
+        # (`rabbit.tfhelpers.edmval`): the amount of NLL still to be gained,
+        # WITH the parameter correlations, which is exactly what a diagonal
+        # proxy throws away. `C` is already inverted for the errors, so it is
+        # free. `Delta = -H^-1 g` in units of each error is kept as the
+        # interpretable displacement column, not as the test.
+        gj_ = np.asarray(r.jac)
+        delta = -(C @ gj_)
+        edm = float(0.5 * gj_ @ (C @ gj_))
+        step = (delta / errs).tolist()
+        dstep = (gj_ * errs).tolist()          # the OLD diagonal proxy, for the record
         pois = [nm for nm in obj.freenames if nm in POI_GATE]
         worst = max((abs(step[obj.freenames.index(nm)]) for nm in pois),
                     default=0.0)
-        converged = bool(worst < args.conv_tol)
-        print(f"\n    convergence, the DIAGONAL NEWTON STEP at the stop "
-              f"(|grad|inf = {np.max(np.abs(r.jac)):.3g} is not the test):")
-        print(f"      {'parameter':>{w}s} {'gradient':>13s} {'step [sigma]':>13s}")
-        for nm, gj, sj in zip(obj.freenames, r.jac, step):
-            mark = "  <-- POI" if nm in POI_GATE else ""
-            print(f"      {nm:>{w}s} {gj:+13.5g} {sj:+13.5f}{mark}")
-        print(f"      worst POI step {worst:.4f} sigma "
-              f"(requirement < {args.conv_tol:g}) -> "
+        converged = bool(edm < args.edm_tol)
+        print(f"\n    convergence: EDM = 0.5 g^T H^-1 g = {edm:.4g} "
+              f"(requirement < {args.edm_tol:g}) -> "
               f"{'CONVERGED' if converged else 'NOT CONVERGED'}")
+        print(f"      |grad|inf = {np.max(np.abs(gj_)):.3g} is NOT the test: "
+              f"the Hessian's condition number is ~1e6 here")
+        print(f"      {'parameter':>{w}s} {'gradient':>13s} "
+              f"{'FULL step [sig]':>16s} {'diag proxy':>12s}")
+        for nm, g_, sj, dj in zip(obj.freenames, gj_, step, dstep):
+            mark = "  <-- POI" if nm in POI_GATE else ""
+            print(f"      {nm:>{w}s} {g_:+13.5g} {sj:+16.5f} {dj:+12.5f}{mark}")
+        print(f"      worst POI displacement {worst:.4f} sigma "
+              f"(the diagonal proxy said "
+              f"{max((abs(dstep[obj.freenames.index(nm)]) for nm in pois), default=0.0):.4f})")
         if not converged:
             print("      *** THIS RESULT MUST NOT BE QUOTED. Re-run with "
                   "--start-from this json and --method trust-exact. ***")
         res.update({"fitted": r.x.tolist(), "err": err.tolist(),
                     "grad": np.asarray(r.jac).tolist(),
                     "newton_step_sigma": step,
+                    "diag_step_sigma": dstep,
                     "worst_poi_step_sigma": float(worst),
-                    "conv_tol": float(args.conv_tol),
+                    "edm": edm,
+                    "edm_tol": float(args.edm_tol),
                     "converged": converged,
                     "nll": float(r.fun), "nit": int(r.nit), "t_fit": t_fit,
                     "gradmax": float(np.max(np.abs(r.jac))),
