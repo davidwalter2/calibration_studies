@@ -1980,3 +1980,42 @@ with the mass, and that conditioning on `k` removes it — rests on
 minimiser-independent evidence. What is pending re-verification is the
 size of the effect AS MEASURED BY THE FULL LIKELIHOOD, i.e. `F_dc8` and
 `V_full`.
+
+### 0f.12 THE AUDIT — measured, per parameter (`checkconv.py`)
+
+The diagonal Newton step at each stored fit's own stopping point, in units of
+that parameter's own error. Requirement for a POI: < 0.05 sigma.
+
+| fit | `m_Z` reported | `m_Z` step | `Gamma_Z` step | verdict |
+|---|---:|---:|---:|---|
+| **`f380fl_base`** (the reference) | **-11.064 +- 2.267** | **0.0000** | **0.0000** | **CONVERGED** (gradient 4.6e-11) |
+| `F_dc8` | -0.117 +- 2.423 | **+0.972** | **+3.323** | NOT CONVERGED |
+| `F_toy` | -3.082 +- 2.192 | +0.323 | +0.687 | NOT CONVERGED |
+| `f380fl_s7` | -7.812 +- 2.256 | **+4.825** | -1.958 | NOT CONVERGED |
+| `V_full` | -0.000 +- 2.321 | +0.983 | -2.056 | NOT CONVERGED |
+| `V_toy` | +1.015 +- 2.300 | ~0.011 | — | CONVERGED |
+| `V_etaT` | +12.393 +- 4.157 | ~0.0007 | — | CONVERGED |
+
+In every unconverged case **every `shape` is within 0.03 sigma** and the POIs
+are not: the stopping rule converged the stiff directions and abandoned the
+soft ones, exactly as sec. 0f.11 says.
+
+**What this costs, honestly.**
+
+* **The reference stands.** `-11.06 +- 2.27` is converged to a gradient of
+  5e-11. The thing being explained is solid.
+* **`F_dc8` -0.12 is RETRACTED as a number.** I called it "the proof". Its
+  `m_Z` is 0.97 sigma from its minimum, and a diagonal step puts that minimum
+  near **-2.5 MeV** — still most of the way from -11 to 0, but not the clean
+  zero I reported. The re-run decides.
+* **`F_toy` -3.08 is RETRACTED**; diagonal estimate ~-3.8.
+* **The `K(m)` ladder is RETRACTED.** `f380fl_s7` has `m_Z` 4.8 sigma out.
+  The "`Gamma_Z` swings 32 MeV between 6 and 7 terms" statement is NOT
+  established — it may be entirely a convergence artefact, and it was one of
+  the headline caveats. `f380fl_s6`/`s7` are re-running.
+* **`V_full` was already retracted** (sec. 0f.9).
+* `V_toy` (gate 3) and `V_etaT` are converged and stand.
+
+The diagonal extrapolations above are indicative only: the POIs correlate with
+the shapes, so the true displacement is larger, and none of them is a number to
+quote. The re-runs are the answer.
