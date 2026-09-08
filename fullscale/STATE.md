@@ -3315,3 +3315,72 @@ what `22312984 P2K` and `22314264 P2smoke` were blocked on.
 a time, and rows are BATCHED (`rabbit_vmass_batch.sbatch ROWS="a b c"`) rather
 than one job per row. Anything beyond the cap is written into this plan
 instead of held pending.
+
+### 0f.29 THE COMMON-p HYPOTHESIS FOR THE eta PATTERN — MEASURED AND REFUTED
+### (2026-09-08, at the coordinator's request)
+
+**The hypothesis.** The card uses ONE `p = 1.264` for two different jobs: the
+conditioning label `k_i = sigma_i/m_i^p` (a labelling choice — any
+mass-independent `p` will do) and the convolution variable (physics, whose
+answer is `1 + f_i` per candidate with `f_i = vgf_i`). With a common `p` the
+model mis-scales each candidate's width by `(m/m_i)^{p-(1+f_i)}` — a
+MASS-DEPENDENT width error whose sign is the sign of `p-(1+f_i)`, and a
+mass-dependent width error biases `m_Z`. If `vgf` ran 0.22 (barrel) to 0.37
+(endcap) the sign would flip between them, which is the observed pattern.
+
+**Measured, on the m-form band cards themselves** (median `vgf`,
+inverse-variance-weighted `sigma/m`):
+
+| band | `vgf` med | q25 | q75 | `1+f` | `p-(1+f)` | `sigma/m` |
+|---|---:|---:|---:|---:|---:|---:|
+| `\|eta\|<0.9` | 0.2104 | 0.1703 | 0.2760 | 1.2104 | **+0.0536** | 0.00968 |
+| `0.9-1.6` | 0.1925 | 0.1544 | 0.2478 | 1.1925 | **+0.0715** | 0.01247 |
+| `1.6-3.0` | 0.2696 | 0.2021 | 0.4176 | 1.2696 | **-0.0056** | 0.01510 |
+| inclusive | 0.2166 | 0.1702 | 0.2985 | 1.2166 | +0.0474 | 0.01121 |
+
+**`vgf` does NOT run 0.22 -> 0.37 across the bands.** It runs 0.21 -> 0.19 ->
+0.27, and the MIDDLE band is the lowest. So `p-(1+f)` has the SAME sign in the
+barrel and the middle band (both positive, the middle one larger) and is
+essentially ZERO in the endcap — the ordering is not the observed one and there
+is no sign flip between barrel and endcap to be had.
+
+**And the size is an order of magnitude short.** `proto_vmass.py --bands` and
+`gate_pmismatch.py` run the same quadrature that produced the sigma-vs-k
+prediction — truth `Int p(m') N(m_i - m'; k m'^{1+f}) dm'` with the candidate's
+own `f`, model in the common-`p` variable, 5-term Legendre `K(m)` floated:
+
+| band | predicted from the mismatch | **observed (certified)** |
+|---|---:|---:|
+| `\|eta\|<0.9` | **+0.67** | **-21.08 +- 3.24** |
+| `0.9-1.6` | **+1.28** | **+12.39 +- 4.16** |
+| `1.6-3.0` | **-0.13** | ~+34 (converging) |
+| inclusive | +0.74 | -1.54 +- 2.08 |
+
+and the scan over the whole range the sample spans says why it cannot be
+rescued by the spread within a band: the bias is **linear in `p-(1+f)` at
+about 22 MeV per unit**, so even at `vgf = 0.10` and `vgf = 0.50` — well
+outside the q25-q75 of any band — it only reaches **+3.6 and -5.2 MeV**. The
+`v matched` control in the same table is 0.00 MeV, so the machinery is
+sensitive; it is the effect that is small.
+
+**Conclusion: the common-p mismatch is a <= 1.3 MeV effect at the band medians
+and <= 5 MeV at the extreme tails. It cannot make the 55 MeV `eta` spread.**
+The separation into an `f`-class axis (~8 classes each convolved in their own
+`v_f`) is therefore NOT worth building for this: it would be a large piece of
+machinery, with its own gates, for at most a couple of MeV. It stays on the
+list as a sub-MeV refinement, not as the explanation.
+
+**What the residual DOES track, and the test that separates it.** The observed
+per-band `m_Z` is monotone in `sigma/m` (-21.1 at 0.0097, +12.4 at 0.0125,
+~+34 at 0.0151 — about +10 MeV per 0.001 of `sigma/m`), and in this sample
+`sigma/m` and `|eta|` are nearly collinear (barrel q25-q75 0.0087-0.0119
+against endcap 0.0136-0.0215, almost no overlap). So "the `eta` pattern" and
+"a residual `sigma/m` pattern" are the same measurement so far, and `sigma/m`
+is the variable the v substitution was designed to decorrelate — which points
+at the substitution's COEFFICIENT rather than its exponent.
+
+The discriminating test is a `sigma/m` split AT FIXED `eta`:
+`build_srsplit.sh` builds `z_V_etaB_slo/shi` (the barrel, cut at its own median
+`sigma/m` = 0.01032) and `z_V_etaE_slo/shi` (the endcap at 0.01658). If `m_Z`
+moves strongly between the two halves of one band, the residual is a resolution
+effect and `eta` is only its proxy; if it does not, it is genuinely `eta`.

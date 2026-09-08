@@ -97,21 +97,39 @@ def m_model(mgrid, p, mobs, k, f, quad=None):
     return out
 
 
-def v_model(mgrid, p, mobs, k, f, quad=None):
-    """The v-formulation: fixed width `k` in `v`, mapped back."""
+def v_model(mgrid, p, mobs, k, f, quad=None, fmod=None):
+    """The v-formulation: fixed width in `v`, mapped back.
+
+    ``f`` is the candidate's TRUE width exponent (``sigma_m ~ m^{1+f}``,
+    ``f = vgf_i``); ``fmod`` is the exponent the MODEL uses. They are the same
+    number only if the convolution variable is chosen per candidate.
+
+    The card as built today uses ONE common ``p = 1 + fmod = 1.264`` for every
+    candidate, for both the conditioning label ``k_i = sigma_i/m_i^p`` and the
+    convolution variable. The first is a labelling choice and any
+    mass-independent ``p`` will do; the second is physics and its answer is
+    ``1 + f_i`` per candidate. With ``fmod != f`` the model mis-scales the
+    width by ``(m/m_i)^{fmod - f}`` -- a MASS-DEPENDENT width error whose sign
+    is the sign of ``fmod - f``, which is what this argument exists to measure.
+    """
+    if fmod is None:
+        fmod = f
     out = np.empty(len(mobs))
     x = np.linspace(-8.0, 8.0, 2001)
     px = np.exp(-0.5 * x * x) / np.sqrt(2 * np.pi)
     for i, mo in enumerate(mobs):
-        cv = 0.0 if quad is None else quad * k * (k * mo ** f)
-        vsrc = vmap(mo, f) - (k * x + cv * x * x)
-        msrc = minv(vsrc, f)
+        # the LABEL the card stores is sigma_i / m_i^{1+fmod}, and sigma_i is
+        # the candidate's true width at its own mass, k m_i^{1+f}
+        kmod = k * mo ** (f - fmod)
+        cv = 0.0 if quad is None else quad * kmod * (kmod * mo ** fmod)
+        vsrc = vmap(mo, fmod) - (kmod * x + cv * x * x)
+        msrc = minv(vsrc, fmod)
         # L_v(v_i) = E_x[p_v(v_i - u^v(x))] with p_v = p(m) m^{1+f}, and the
         # density in m is L_v / m_i^{1+f}: BOTH Jacobians, and their ratio
         # (m'/m_i)^{1+f} is a 7 % effect over the kernel's own support, i.e.
         # exactly the size of the thing being corrected. Dropping it was the
         # first bug this script found.
-        jac = (msrc / mo) ** (1.0 + f)
+        jac = (msrc / mo) ** (1.0 + fmod)
         out[i] = np.sum(np.interp(msrc, mgrid, p, left=0.0, right=0.0) * jac * px) * (x[1] - x[0])
     return out
 
@@ -138,19 +156,58 @@ def shift_needed(g, T, M, nshape=5):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--f", type=float, default=0.264)
+    ap.add_argument("--f", type=float, default=0.264,
+                    help="the candidate's TRUE width exponent, sigma ~ m^{1+f}")
+    ap.add_argument("--pmodel", type=float, default=None,
+                    help="the COMMON p the card's v map uses (1+f_model). "
+                         "Default: matched to --f, which is the idealisation "
+                         "sec. 0f.1 validated. Set it to 1.264 to measure what "
+                         "the card as built actually does to a candidate whose "
+                         "own exponent is --f.")
+    ap.add_argument("--bands", action="store_true",
+                    help="run the three eta bands at their MEASURED vgf and "
+                         "sigma/m instead of the --srel scan")
     ap.add_argument("--srel", type=float, nargs="*", default=[0.008, 0.012, 0.02, 0.03])
     ap.add_argument("--window", type=float, nargs=2, default=[60.0, 120.0])
     ap.add_argument("--dm", type=float, default=0.02)
     args = ap.parse_args()
 
     f = args.f
+    fmod = args.f if args.pmodel is None else args.pmodel - 1.0
     mgrid = np.arange(40.0, 150.0, args.dm)
     p = born(mgrid)
     p = p / (p.sum() * args.dm)
     obs = np.arange(args.window[0], args.window[1] + 1e-9, args.dm)
 
-    print(f"f = {f}, window {args.window}, dm = {args.dm*1e3:.0f} MeV\n")
+    print(f"f = {f}, model 1+f = {1+fmod:.4f} (mismatch {fmod-f:+.4f}), "
+          f"window {args.window}, dm = {args.dm*1e3:.0f} MeV\n")
+
+    if args.bands:
+        # MEASURED on the m-form band cards (median vgf, inverse-variance
+        # weighted <sigma/m>): the sample's own numbers, not an assumption
+        BANDS = [("|eta|<0.9", 0.2104, 0.00968),
+                 ("0.9-1.6",   0.1925, 0.01247),
+                 ("1.6-3.0",   0.2696, 0.01510),
+                 ("inclusive", 0.2166, 0.01121)]
+        pm = 1.264 if args.pmodel is None else args.pmodel
+        print(f"the common-p mismatch, at p = {pm:.4f}\n")
+        print(f"{'band':11s} {'vgf':>7s} {'1+f':>7s} {'p-(1+f)':>8s} {'sig/m':>8s} "
+              f"{'v matched':>10s} {'v common p':>11s}")
+        for lab, fb, sb in BANDS:
+            fmb = pm - 1.0
+            sig91 = sb * 91.1876
+            kb = sig91 / 91.1876 ** (1.0 + fb)
+            T = truth_density(mgrid, p, obs, kb, fb)
+            a = shift_needed(obs, T, v_model(mgrid, p, obs, kb, fb,
+                                             -0.5 * (1.0 + fb)))
+            b = shift_needed(obs, T, v_model(mgrid, p, obs, kb, fb,
+                                             -0.5 * (1.0 + fmb), fmod=fmb))
+            print(f"{lab:11s} {fb:7.4f} {1+fb:7.4f} {pm-(1+fb):+8.4f} {sb:8.5f} "
+                  f"{a:+10.2f} {b:+11.2f}   MeV")
+        print("\n`v matched` is the idealisation of sec. 0f.1 (p chosen per "
+              "candidate);\n`v common p` is what the card as built does. The "
+              "difference is the effect under test.")
+        return
     print(f"{'sigma/m at 91':>13} {'k':>10} | {'m-model':>22} | {'v-model':>22}")
     print(f"{'':13} {'':10} | {'no quad':>10} {'+quad':>11} | {'no quad':>10} {'+quad':>11}")
     for srel in args.srel:
@@ -160,9 +217,10 @@ def main():
         rows = []
         for quad in (None, -f):                       # the m-form's c = -vgf s^2/m
             rows.append(shift_needed(obs, T, m_model(mgrid, p, obs, k, f, quad)))
-        for quad in (None, -0.5 * (1.0 + f)):         # the v-form's c^v,
+        for quad in (None, -0.5 * (1.0 + fmod)):      # the v-form's c^v,
             # WITHOUT the Jensen +1: this script's truth has no Jensen effect
-            rows.append(shift_needed(obs, T, v_model(mgrid, p, obs, k, f, quad)))
+            rows.append(shift_needed(obs, T, v_model(mgrid, p, obs, k, f, quad,
+                                                     fmod=fmod)))
         print(f"{srel:13.4f} {k:10.3e} | {rows[0]:+10.2f} {rows[1]:+11.2f} | "
               f"{rows[2]:+10.2f} {rows[3]:+11.2f}   MeV")
     print("\nthe shift is what the MODEL needs to match the TRUTH: 0 is correct.")
