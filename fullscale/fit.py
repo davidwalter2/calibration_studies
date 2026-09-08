@@ -56,6 +56,14 @@ def parse_args():
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--card", required=True)
     p.add_argument("--term", default=None)
+    p.add_argument("--set", dest="set_params", nargs="*", default=[],
+                   metavar="NAME=VALUE",
+                   help="override a parameter's starting value. Combined with "
+                        "--fix it holds the parameter THERE, which --fix alone "
+                        "cannot do (it fixes at the card's default) and "
+                        "--start-from cannot do either (it seeds FREE "
+                        "parameters only). `--set k_rad=0 --fix k_rad` runs "
+                        "the fit with the radiative block removed.")
     p.add_argument("--fix", nargs="*", default=[],
                    help="parameters held at their declared starting value. "
                         "The MC-truth resolution is `--fix k_hit k_ms k_ioni "
@@ -197,6 +205,14 @@ def main():
     if unknown:
         raise SystemExit(f"--fix names not in the card: {sorted(unknown)}")
     free = [i for i, nm in enumerate(names) if nm not in fixed]
+    for spec in getattr(args, "set_params", []) or []:
+        nm, eq, val = spec.partition("=")
+        if not eq or nm not in names:
+            raise SystemExit(f"--set wants NAME=VALUE with NAME in the card; "
+                             f"got {spec!r}")
+        term.param_defaults[names.index(nm)] = float(val)
+        print(f"      --set {nm} = {float(val):g}"
+              + ("  (fixed there)" if nm in fixed else "  (starting value)"))
     engine = md.resolve_engine(args)
     if engine == "device" and getattr(args, "devices", 1) > 1:
         from shardobj import ShardedChunkedObjective

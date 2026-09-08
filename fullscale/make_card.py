@@ -107,6 +107,16 @@ def parse_args(argv=None):
                         "alone. `corr_mass` carries the real per-candidate mass "
                         "so the two corrections stay evaluated where they "
                         "belong.")
+    p.add_argument("--set", dest="set_params", nargs="*", default=[],
+                   metavar="NAME=VALUE",
+                   help="override a parameter's DEFAULT (and its prior mean) "
+                        "in the card. With `fit.py --fix NAME` -- which fixes "
+                        "at the default -- this is how a family is switched "
+                        "off: `--set k_rad=0` removes the radiative block, "
+                        "since S(t) carries it as `+ k_rad (Srad_re + i "
+                        "Srad_im)`. Without it there is no way to ask for a "
+                        "non-default fixed value: --fix fixes at the default "
+                        "and --start-from only seeds FREE parameters.")
     p.add_argument("--floor-scale", type=float, default=0.0,
                    help="softness of the positivity floor on L_i; 0 keeps "
                         "MassCFTerm's own default (1e-9), which is a HARD clip "
@@ -287,7 +297,15 @@ def parse_args(argv=None):
     p.add_argument("--bernstein-degree", type=int, default=2)
     p.add_argument("--fbkg", type=float, default=0.0)
     p.add_argument("--float-bkg", action="store_true")
-    p.add_argument("--del-family", action="store_true")
+    p.add_argument("--add-del-family", "--del-family", dest="add_del_family",
+                   action="store_true",
+                   help="ADD the delta-ray family. It was called --del-family, "
+                        "which reads as a family REMOVER and is the opposite "
+                        "of what it does; the old spelling still works. To "
+                        "remove a family, build from a cache with that "
+                        "family's S_* keys dropped -- `discover_families` only "
+                        "appends families present in the cache -- or set its "
+                        "coefficient to zero with --set.")
     p.add_argument("--width-scheme", choices=["fixed", "running"], default="fixed")
     p.add_argument("--nm", type=int, default=8192,
                    help="lineshape mass grid. NOT the provider's 32768 default: "
@@ -559,7 +577,7 @@ def build(args, log=print):
             f"-> {1.5*np.median(s2)*args.mref*1e3:.2f} MeV")
 
     # ---- families --------------------------------------------------------
-    fams = discover_families(set(d.files), args.del_family)
+    fams = discover_families(set(d.files), args.add_del_family)
     log(f"  {n} candidates, nt = {nt}, tau [0, {tgrid[-1]:.4f}], "
         f"families {[f[0] for f in fams]} + hit, upsample {args.fit_upsample}")
     # ---- the v formulation ----------------------------------------------
@@ -800,6 +818,19 @@ def build(args, log=print):
         for i in range(args.bernstein_degree + 1):
             decl[f"bkg_c{i}"] = (float(np.log(np.expm1(1.0))), np.nan,
                                  float(np.log(np.expm1(1.0))), 0)
+    for spec in getattr(args, "set_params", []) or []:
+        nm, eq, val = spec.partition("=")
+        if not eq:
+            raise SystemExit(f"--set wants NAME=VALUE, got {spec!r}")
+        if nm not in decl:
+            raise SystemExit(f"--set {nm}: not a parameter of this card; "
+                             f"have {sorted(decl)}")
+        d0, ps, pm, poi = decl[nm]
+        v = float(val)
+        # the prior MEAN moves with the default: a parameter set to a value is
+        # being asserted, not pulled back towards where it used to be
+        decl[nm] = (v, ps, v, poi)
+        log(f"  --set {nm} = {v:g}  (was {d0:g})")
     decl = unbinned.declare_params(term, decl)
     log(f"  parameters {list(term.param_names)}")
     log(f"    POIs {[p for p, f in zip(term.param_names, decl['param_is_poi']) if f]}")
