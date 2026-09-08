@@ -3820,3 +3820,52 @@ charge-even part is invariant under the transform to 1 %, which is now
 measured rather than assumed. It is NOT harmless for anything charge-split,
 and `--charge +1/-1` in that script is therefore reporting the artefact. That
 should be fixed before the script is used per charge.
+
+### 0f.38 (1) `--charge` FIXED, (2) THE DY GROUPS CACHE HAS THE HIT BLOCKS, AND
+### (3) THE CLASS BANK IS CENTRED — it cannot predict a location bias
+
+**(1) `cf_skew_closure.py --charge` is fixed.** `truth_ref_z(d)` implements
+`x = z/(1 - a q z)` with `a_i = sigma_rel,i (1 - vgf_i)` and is applied
+AUTOMATICALLY whenever `--charge` separates the charges; `--truth-ref` forces
+it for a charge-averaged run and `--raw-pull` reproduces the pre-fix behaviour
+with a warning saying what it is measuring. Verified: the run now logs
+*"truth-referenced pull applied: a_i median 0.01432, so the pull-normalisation
+artefact removed is `<q z> = -a = -14.32e-3`"*. Charge-averaged numbers are
+unchanged by construction (the default is off there, and the even part is
+invariant to 1 %).
+
+**(2) The DY groups cache carries the hit blocks.**
+`runs/gzpairs_dyv2_n50.npz` (17.0 GB, 487 742 candidates) has
+`hit_cls`, `hit_v`, `hit_ptr`, `hit_classes` -- the same builder as the J/psi
+one -- plus `sigrelp/sigrelm`, `etap/etam`, `ptp/ptm`, `mgen`, `w`. So (B)'s
+class-share half and (C) can both be done on the ACTUAL Z legs at ~3x the gun's
+statistics, with no new production. **Per-CHARGE is not available there**: it
+is a two-track mass cache and the pair carries both charges, so the charge
+split stays a track-level (gun / single-track) measurement.
+
+**(3) THE CLASS BANK CANNOT MAKE THE NO-FREE-PARAMETER PREDICTION AS IT
+STANDS, and the reason is a deliberate design choice.** `hitres_classes.py`
+stores `log phi_c(s)`, the COMPLEX empirical characteristic function of the raw
+per-hit pull -- so the odd part is there in `Im log phi_c`. But line 103:
+
+```python
+    x = v[keep] - med       # centred: the CF's mean is a bias,
+    # and a per-hit bias belongs to alignment, not to the resolution model
+```
+
+**every class is centred on its own median, and the median is not stored**
+(`meta` keeps `n`, `var`, `core`, `trimmed` and nothing else).
+
+The coordinator's mechanism -- a hit displacement in a fixed local direction --
+is precisely a per-class LOCATION bias. **The bank is blind to exactly the
+effect proposed**, by construction. What it can predict is a per-class SKEW
+about the median, which is a different thing.
+
+So item (C) as posed needs the per-class MEDIANS re-extracted from the
+260807 / 260829 / 260831 hit-class productions. And the physics is worth
+stating: a per-hit bias belongs to alignment only if alignment can absorb it,
+and alignment fits MODULE POSITIONS, not per-cluster-class offsets. A CPE bias
+that depends on cluster class (edge, single-column, N1 strip) is NOT absorbed
+by a rigid module shift, so it survives into the track fit as a charge-even
+curvature bias -- which is the hypothesis. The comment in the bank is an
+assumption, and it is the assumption under test.

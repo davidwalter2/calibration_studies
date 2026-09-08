@@ -345,6 +345,38 @@ def validate(rng=None):
 
 
 # ------------------------------------------------------------------- DRIVER
+def truth_ref_z(d, log=logger.info):
+    """`x = z / (1 - a q z)`, the truth-referenced pull of
+    `oddmoment/track_truthfree.py`.
+
+    `sigma_fit` is larger for the fluctuation that made it larger, so the RAW
+    pull carries a pull-normalisation artefact of exactly `<q z> = -a` with
+    `a_i = sigma_rel,i (1 - vgf_i)`, `sigma_rel,i = sigma_i p_fit,i`. On the
+    20-60 GeV gun `a` has median 0.0143 and the artefact is -14.3e-3 -- larger
+    than any physical odd moment here. It CANCELS in a charge-averaged closure
+    (measured: the charge-even part moves by 0.04e-3, under 1 %, under this
+    transform), which is why every charge-averaged number this script has
+    produced is unaffected. It does NOT cancel under `--charge +1/-1`, where
+    without this the script reports the artefact and nothing else.
+    """
+    need = ("z", "sigma", "vgf", "charge")
+    miss = [k for k in need if k not in d]
+    if miss or not ("trackpt" in d or "genpt" in d):
+        log(f"truth-referenced transform NOT applied: cache lacks {miss or 'trackpt/genpt'}")
+        return d["z"]
+    pt = d["trackpt"] if "trackpt" in d else d["genpt"]
+    pfit = np.asarray(pt, dtype=np.float64) * np.cosh(np.asarray(d["eta"], dtype=np.float64))
+    a_i = np.asarray(d["sigma"], dtype=np.float64) * pfit * (1.0 - np.asarray(d["vgf"], dtype=np.float64))
+    z = np.asarray(d["z"], dtype=np.float64)
+    q = np.asarray(d["charge"], dtype=np.float64)
+    den = 1.0 - a_i * q * z
+    out = np.where(np.abs(den) > 1e-3, z / den, np.nan)
+    log(f"truth-referenced pull applied: a_i median {np.median(a_i):.5f}, "
+        f"so the pull-normalisation artefact removed is <q z> = -a = "
+        f"{-np.median(a_i)*1e3:+.2f}e-3")
+    return out
+
+
 def load(cache, ptfrom=None, max_tracks=0, seed=1234,
          charge_sel=0, fold_charge=False, sigma_max=0.):
     d = np.load(cache)
@@ -878,6 +910,24 @@ def analyse(args, outdir):
     rng = np.random.default_rng(args.seed)
     d = load(args.cache, args.ptfrom, args.max_tracks, args.seed,
              args.charge, args.fold_charge, args.sigma_max)
+    # A charge-SPLIT closure on the raw pull measures the pull-normalisation
+    # artefact, not the physics: <q z> = -a exactly. Auto-on whenever the
+    # charges are separated, and available by hand otherwise; --raw-pull is the
+    # escape hatch that reproduces every number produced before this existed.
+    want_tr = args.truth_ref or (args.charge != 0 and not args.raw_pull)
+    if want_tr and not args.raw_pull:
+        d = dict(d)
+        d["z"] = truth_ref_z(d)
+        keep = np.isfinite(d["z"])
+        if not keep.all():
+            nn = len(keep)
+            d = {k: (v[keep] if getattr(v, "shape", (0,))[:1] == (nn,) else v)
+                 for k, v in d.items()}
+            logger.info(f"truth-referenced transform dropped "
+                        f"{int((~keep).sum())} of {nn} tracks (|1 - a q z| < 1e-3)")
+    elif args.charge != 0:
+        logger.warning("--charge with --raw-pull: this reports the "
+                       "pull-normalisation artefact <q z> = -a, not the physics")
     n = len(d["z"])
     z = d["z"]
     a = A()
@@ -1276,6 +1326,18 @@ def parse_args():
     p.add_argument("--tag", default="run")
     p.add_argument("--probes", type=float, nargs="+", default=list(PROBES))
     p.add_argument("--nbins", type=int, default=4)
+    p.add_argument("--truth-ref", action="store_true",
+                   help="apply the truth-referenced pull x = z/(1 - a q z) "
+                        "even for a charge-AVERAGED closure. It is applied "
+                        "automatically whenever --charge separates the "
+                        "charges, because there the raw pull carries the "
+                        "pull-normalisation artefact <q z> = -a and nothing "
+                        "else. Charge-averaged it changes the even part by "
+                        "under 1 % (measured), so the default is off and every "
+                        "number produced before this existed still reproduces.")
+    p.add_argument("--raw-pull", action="store_true",
+                   help="never transform, even under --charge. Reproduces the "
+                        "pre-fix behaviour; the log says what it is measuring.")
     p.add_argument("--bin-eta", dest="bin_eta", action="store_true",
                    help="bin in |eta| instead of pT, with the Z analysis's own "
                         "leading-muon band edges (0, 0.9, 1.6, 2.4) when "
