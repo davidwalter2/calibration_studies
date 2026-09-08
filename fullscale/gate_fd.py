@@ -29,6 +29,17 @@ def main():
     ap.add_argument("--at", type=float, nargs="*", default=None,
                     help="displace these parameters (name value pairs are not "
                          "parsed; this is a full parameter vector)")
+    ap.add_argument("--jacobian-compare", default=None, metavar="M_CARD",
+                   help="an m-form card on the SAME candidates. Checks the one "
+                        "identity the v formulation cannot dodge: "
+                        "`L_v(v_i) = L_m(m_i) m_i^p` per candidate, and "
+                        "`Z_v = Z_m`. This is what caught the `vpow`-missing-"
+                        "from-`config()` bug, which silently rebuilt the "
+                        "provider in the mass variable and left the density "
+                        "with no resonance peak (ratio 0.026 at the peak, 1.6 "
+                        "in the tails) and Z 21x too small -- while every "
+                        "stored array and every other config field looked "
+                        "right. It needs no minimiser and costs one NLL each.")
     ap.add_argument("--compare", default=None,
                    help="a second card whose NLL DIFFERENCES must match this "
                         "one's. Used as the off-switch gate: a card built with "
@@ -93,6 +104,36 @@ def main():
     ok = worst < a.tol
     print(f"\n  GATE 2: worst |analytic - FD| / max(|FD|,1) = {worst:.2e} "
           f"(requirement < {a.tol:g}) -> {'PASS' if ok else 'FAIL'}")
+
+    if a.jacobian_compare:
+        with h5py.File(a.jacobian_compare, "r") as f:
+            tm = unbinned.read_unbinned_terms_from_h5(f["unbinned_terms"])[0]
+        pw = getattr(term, "vpow", None)
+        if pw is None:
+            raise SystemExit("--jacobian-compare needs THIS card to be the v one")
+        vv = {p_: tf.constant(float(q), tf.float64)
+              for p_, q in zip(names, x0)}
+        vm = {p_: tf.constant(float(q), tf.float64)
+              for p_, q in zip(tm.param_names, tm.param_defaults)}
+        lv = term._chunk_li(vv, 0).numpy()
+        lm = tm._chunk_li(vm, 0).numpy()
+        mphys = np.asarray(term.corr_mass)[: len(lv)]
+        r = lv / (lm * mphys ** pw)
+        zv = term._norm_z(vv).numpy()
+        zm = tm._norm_z(vm).numpy()
+        dz = float(np.max(np.abs(np.median(zv) - np.median(zm))))
+        print(f"\n  --jacobian-compare {a.jacobian_compare} (vpow = {pw})")
+        print(f"    L_v / (L_m m^p): p05 {np.percentile(r,5):.5f} "
+              f"med {np.median(r):.5f} p95 {np.percentile(r,95):.5f}")
+        print(f"    Z: v {np.median(zv):.6f}  m {np.median(zm):.6f}  "
+              f"|diff| {dz:.2e}")
+        worst3 = max(abs(np.percentile(r, 5) - 1.0),
+                     abs(np.percentile(r, 95) - 1.0), dz)
+        ok3 = worst3 < 1e-3
+        print(f"\n  GATE 2c (the Jacobian identity): worst deviation "
+              f"{worst3:.2e} (requirement < 1e-03) -> {'PASS' if ok3 else 'FAIL'}")
+        out["_gate2c"] = {"worst": float(worst3), "pass": bool(ok3)}
+        ok = ok and ok3
 
     if a.compare:
         with h5py.File(a.compare, "r") as f:
