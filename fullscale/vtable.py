@@ -43,19 +43,44 @@ def load(tag):
             d = json.load(open(pat))
             p = d["params"]
             x, e = d["fitted"], (d.get("sandwich_err") or d["err"])
-            return {q: (x[p.index(q)], e[p.index(q)]) for q in ("m_Z", "Gamma_Z")
-                    if q in p} | {"n": d["n"], "nit": d.get("nit")}
+            out = {q: (x[p.index(q)], e[p.index(q)])
+                   for q in ("m_Z", "Gamma_Z") if q in p}
+            out["n"] = d["n"]
+            out["nit"] = d.get("nit")
+            out["converged"] = d.get("converged")
+            if out["converged"] is None:
+                # a verdict from checkconv.py, run after the fact
+                cv = f"{FS}/results/conv_" + os.path.basename(pat)[4:]
+                if os.path.exists(cv):
+                    out["converged"] = json.load(open(cv)).get("converged")
+                    out["worst_poi_step_sigma"] = json.load(
+                        open(cv)).get("worst_poi_sigma")
+            out["worst_poi_step_sigma"] = d.get("worst_poi_step_sigma")
+            out["gradmax"] = d.get("gradmax")
+            return out
     return None
 
 
 def cell(r, q):
+    """One table cell, with the convergence verdict attached.
+
+    A `!` means the fit stopped with a POI more than `conv_tol` of its own
+    error from the minimum and MUST NOT BE QUOTED; a `?` means the result
+    predates the gate and its convergence is unknown. `|grad|inf` is not the
+    test -- see `checkconv.py`.
+    """
     if r is None or q not in r:
-        return f"{'--':>18s}"
-    return f"{r[q][0]:+9.2f} +- {r[q][1]:5.2f}"
+        return f"{'--':>20s}"
+    flag = " " if r.get("converged") else ("!" if r.get("converged") is False
+                                           else "?")
+    return f"{r[q][0]:+9.2f} +- {r[q][1]:5.2f}{flag} "
 
 
 def main():
-    print("GATE 4: the m formulation against the v formulation (p = 1.264)\n")
+    print("GATE 4: the m formulation against the v formulation (p = 1.264)")
+    print("  a trailing `!` = the fit did NOT converge in the POI directions "
+          "and must not be quoted;\n  `?` = it predates the convergence gate "
+          "and its status is unknown.\n")
     print(f"{'':22s} {'m_Z  (m form)':>18s} {'m_Z  (v form)':>18s}"
           f" {'Gamma_Z (m)':>18s} {'Gamma_Z (v)':>18s}")
     for lab, mt, vt in ROWS:

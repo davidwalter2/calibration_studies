@@ -31,6 +31,9 @@ import sys
 import time
 
 import numpy as np
+
+# the parameters whose convergence decides whether a result may be quoted
+POI_GATE = ("m_Z", "Gamma_Z", "alpha", "k_ms", "k_hit", "k_ioni", "k_rad")
 import tensorflow as tf
 # scipy.optimize.minimize is reached through minimize_driver (see --method)
 
@@ -88,6 +91,14 @@ def parse_args():
                         "steps here; the likelihood is quadratic to well "
                         "inside the subsample's own error.")
     p.add_argument("--gtol", type=float, default=1e-6)
+    p.add_argument("--conv-tol", type=float, default=0.05,
+                   help="a result is marked `converged` only if every POI's "
+                        "DIAGONAL NEWTON STEP at the stop, in units of that "
+                        "parameter's own error, is below this. `|grad|inf` is "
+                        "not a convergence test here: the Hessian's condition "
+                        "number is ~1e6 and an infinity-norm rule converges "
+                        "the stiff K(m) shapes while leaving the POIs a sigma "
+                        "or two out.")
     p.add_argument("-o", "--output", default=None, help="json result")
     p.add_argument("--label", default="")
     return p.parse_args()
@@ -295,7 +306,45 @@ def main():
             print(f"      {nm:>{w}s} {v:+13.5f} {e:11.5f} "
                   + (f"{tv:+11.5f} {dv:+12.5f} {dv/e:7.2f}" if np.isfinite(tv)
                      else f"{'-':>11s} {'-':>12s} {'-':>7s}"))
+        # ---- THE CONVERGENCE GATE ------------------------------------
+        # `|grad|inf` is NOT a convergence test for this objective. Its Hessian
+        # eigenvalues span 0.05 to 1e5 -- the soft ones are `1/sigma^2` for
+        # `m_Z` and `Gamma_Z`, the stiff ones the `K(m)` shape coefficients --
+        # so a stopping rule on the unscaled gradient infinity norm stops when
+        # the STIFFEST direction is converged and says nothing about the
+        # softest. Measured: a full-statistics fit stopped at
+        # `|grad|inf = 1.42`, ALL of it `shape5` (converged to 0.003 sigma),
+        # with `m_Z` 0.98 sigma and `Gamma_Z` 2.06 sigma from their minimum and
+        # both POIs still within 1e-4 of their STARTING values. It looked like
+        # a perfect closure and it was a fit that never took a POI step.
+        #
+        # What is reported instead is the diagonal Newton step at the stop, in
+        # units of each parameter's OWN error: `g_i sigma_i`, since
+        # `H_ii ~ 1/sigma_i^2`. It is a LOWER bound on the true displacement
+        # where the POIs correlate with the shapes, which is the safe direction.
+        step = (np.asarray(r.jac) * errs).tolist()
+        pois = [nm for nm in obj.freenames if nm in POI_GATE]
+        worst = max((abs(step[obj.freenames.index(nm)]) for nm in pois),
+                    default=0.0)
+        converged = bool(worst < args.conv_tol)
+        print(f"\n    convergence, the DIAGONAL NEWTON STEP at the stop "
+              f"(|grad|inf = {np.max(np.abs(r.jac)):.3g} is not the test):")
+        print(f"      {'parameter':>{w}s} {'gradient':>13s} {'step [sigma]':>13s}")
+        for nm, gj, sj in zip(obj.freenames, r.jac, step):
+            mark = "  <-- POI" if nm in POI_GATE else ""
+            print(f"      {nm:>{w}s} {gj:+13.5g} {sj:+13.5f}{mark}")
+        print(f"      worst POI step {worst:.4f} sigma "
+              f"(requirement < {args.conv_tol:g}) -> "
+              f"{'CONVERGED' if converged else 'NOT CONVERGED'}")
+        if not converged:
+            print("      *** THIS RESULT MUST NOT BE QUOTED. Re-run with "
+                  "--start-from this json and --method trust-exact. ***")
         res.update({"fitted": r.x.tolist(), "err": err.tolist(),
+                    "grad": np.asarray(r.jac).tolist(),
+                    "newton_step_sigma": step,
+                    "worst_poi_step_sigma": float(worst),
+                    "conv_tol": float(args.conv_tol),
+                    "converged": converged,
                     "nll": float(r.fun), "nit": int(r.nit), "t_fit": t_fit,
                     "gradmax": float(np.max(np.abs(r.jac))),
                     "corr": (C / np.outer(err, err)).tolist(),
