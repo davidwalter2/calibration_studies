@@ -2539,14 +2539,39 @@ against a start of 0: **the POIs barely moved, the same signature as the
 that converged used host `trust-exact`.** The scoreboard on this card is the
 opposite of `z_n300k`'s, where krylov reached EDM 4.98e-13.
 
-**The likely cause is the conditioning acting on GLTR, not on the trust
-radius**: at a 3.4e12 condition number the Lanczos recurrence loses about
-twelve digits of orthogonality in float64, so the Krylov model of the
-subproblem is unreliable and its predicted reduction goes non-positive long
-before the true one does. `z_n300k` is smaller and better conditioned, which
-would be why krylov succeeded there. If that is right it is a property of THIS
-OBJECTIVE, not a bug in the port — but **`tf-trust-krylov` cannot be the
-campaign default at full statistics.**
+**The cause: GLTR loses its model at this conditioning, AND the outer loop
+mistook that for convergence.** At a 3.4e12 condition number the Lanczos
+recurrence loses about twelve digits of orthogonality in float64, so the Krylov
+model of the subproblem becomes unreliable and its predicted reduction goes
+non-positive long before the true one does. `rabbit/minimizer/base.py` then
+did
+
+```python
+if predicted_reduction <= 0:
+    warnflag = 2
+    break          # logged at DEBUG as "the standard end state of a converged fit"
+```
+
+— which is true only when the subproblem is solved ACCURATELY. For GLTR here it
+means "my Krylov model cannot find descent", a SOLVER failure, and the loop
+could not tell that from "no descent exists" and took the flattering reading.
+That is why a fit 14.7 units up the hill wrote a "converged" snapshot.
+
+**Fixed at `c5f46f0`** (merged here as `a8b2bbc7`): on a non-positive predicted
+reduction the loop now shrinks the radius and RE-SOLVES, and separates the two
+cases on the Cauchy first-order gain `radius |g|` against float noise on `fun`
+— below it, no step of any kind can help and stopping is right (status 2,
+unchanged for an accurately solved subproblem, so `trust-exact` is untouched);
+above it, the model is wrong rather than the point, and it fails LOUDLY with a
+new status 4 naming `|g|` and the radius.
+
+**RETRACTED: "`tf-trust-krylov` cannot be the campaign default at full
+statistics."** I drew that against a loop that mistook a solver failure for
+convergence, so it is not yet a statement about the objective. `22304185
+f380refK2` re-runs exactly this fit on `c5f46f0`. If krylov recovers and walks
+down the remaining 14.7 units, it is usable after all and only the loop was at
+fault; if it cannot, the new code says so with a warning instead of a number,
+which is the outcome to want either way.
 
 `22303682/3/4` (`f380refX`, `Rdc8X`, `RvfullX`) test `tf-trust-exact` WITH the
 frozen-diagonal fix, a combination not yet tried at full statistics. If
