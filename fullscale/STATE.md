@@ -3171,3 +3171,36 @@ by no candidate on either leg and is the only one that is unconstrained by
 everything. `Fitter.warn_unconstrained` (rabbit `54e47f6`) names anything else
 whose Hessian diagonal is below 1e-12 of the largest, rather than letting the
 frozen-diagonal fix make an unmeasured parameter look measured.
+
+### 0f.26 RESUME POINT (2026-09-08 14:50) — what is running and what to do next
+
+**One command re-makes everything**: `./collect.sh --summary` (rsyncs Engaging,
+re-dumps the rabbit results, prints the certified table). Add
+`--needs-sandwich` for the rows still owing a sandwich pass.
+
+| what | where | state |
+|---|---|---|
+| the certified table | `certtable.py`, `collect.sh` | 10 of 19 rows certified; the rest are the jobs below |
+| the v-form rows | `22312979` (SVs6 SVs7 SVetaT SVetaE SVtoy SVKetaB SVKetaT) | running, SVs6 converged at EDM 2.0e-22 |
+| the m-form rows | `22312980` (Ss6 Ss7 SMetaB SMetaT SMetaE Stoy Stoydc Sw70110) | queued |
+| the warm controls | `22312981` (f380refW SVfullW Sdc8W) | f380refW **DONE and PASSED**; SVfullW at EDM 5.5e-6 |
+| the cold controls | `22311742 f380refS`, `22311743 SVfull` | running, ~20 iterations, EDM ~8e3; `22311744 Sdc8` was cancelled to free a slot |
+| the preconditioning control | `22313540 f380refP` | running — if it converges quickly it is the answer for phase 2's 95 parameters as well |
+| the extended `K(m)` ladder | `22314340` (Ss9 SVs9 Ss12 SVs12) | queued; cards built and staged |
+| **phase 2** | `22312984 P2K` (`joint_ok_full`, `trust-krylov`), then `P2X` from its snapshot | queued; `22314264 P2smoke` re-queued after the dense-`D` fix |
+| **phase 3** | the card build, pid on submit, `logs/card_joint_mat_v3.log` | running (~36 GB, hours) |
+
+**Do next, in order:**
+1. `./collect.sh --summary` and re-run `plot_closure.py`.
+2. `./submit_sandwich.sh $(python3 certtable.py --summary --needs-sandwich | tail -1 | cut -d: -f2)`.
+3. When `P2K` lands, submit `P2X` warm from `rabbit_P2K.snapshot.hdf5` with
+   `METHOD=trust-exact` — that is the number to quote and the covariance.
+4. Stage `cards/joint_mat_v3.hdf5` and fit it the same two-stage way.
+
+**A refinement to the phase-2 freeze list, measured by the phase-3 card's own
+census (sec. 10) and NOT yet acted on**: `material_beampipe` has **99.995 %
+occupancy on both legs**, so the mass terms do constrain it and freezing it is
+conservative — it costs information. Only `material_pp1_cables`,
+`material_support_tube` and `material_thermal_screen` are unconstrained by
+everything. The running phase-2 job freezes all four (the instruction's
+"four"); a 3-frozen variant is the cross-check worth having.
