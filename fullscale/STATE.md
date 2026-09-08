@@ -1774,3 +1774,42 @@ cards included. Run everything through `fullscale_gpu_vmass.sbatch`; the branch
 is a strict superset of `material-resolution-native`, so nothing is lost by
 doing so. (The three m-form `eta`-band jobs failed this way in 33-60 s and were
 resubmitted on the vmass runtime.)
+
+### 0f.7 RUNBOOK for the v formulation
+
+```bash
+# a card, m form and v form, on the SAME candidates
+RABBIT=/work/submit/david_w/ZMass/rabbit-vmass THREADS=24 ./run_tf.sh \
+  python3 -u make_card.py --pairs runs/zpairs_dyv2_jac_full.npz \
+    --fsr ../zchannel/data/kern_loose_band3.3e-4.npz \
+    --acc ../zchannel/data/acc_loose_d8.json --shape 5 --chunk 32768 \
+    [--vpow 1.264] -o cards/z_<tag>.hdf5
+
+# GATE 2 + 2c, always, before any fit -- seconds, no minimiser
+RABBIT=/work/submit/david_w/ZMass/rabbit-vmass THREADS=8 ./run_tf.sh \
+  python3 -u gate_fd.py --card cards/z_<v>.hdf5 \
+    --jacobian-compare cards/z_<m>.hdf5 -o results/gate2_<tag>.json
+
+# GATE 1, the J/psi gun (in process, no card, no provider)
+RABBIT=/work/submit/david_w/ZMass/rabbit-vmass THREADS=24 ./run_tf.sh \
+  python3 -u gate_fluct_gun.py \
+    --pairs ../resolution/runs/cf_masspairs_jpsigun_ul16_260905d_m0.npz \
+    --kernel ../resolution/runs/cf_masskernel_jpsigun_ul16_260905d_m0.npz \
+    --vpow 1.264 -o results/gate1_vmass.json
+
+# the fit, on Engaging (16x the scipy path; snapshots make preemptable safe)
+./stage_eng.sh card cards/z_<tag>.hdf5
+eng "cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -G h200:1 \
+  -p mit_preemptable -t 04:00:00 \
+  --export=ALL,CARD=\$HOME/orcd/pool/zmass/cards/z_<tag>.hdf5,\
+ARGS='--chunk 32768 --method tf-trust-krylov' fullscale_gpu_vmass.sbatch <tag>"
+
+# collect and tabulate
+rsync -a engaging:orcd/pool/zmass/fitresults/fit_*.json results/eng/
+python3 vtable.py
+```
+
+**The exponent** is `--vpow 1.264` = `1 + <vgf>`, the `a` correction's own. The
+predicted bias is within +-0.35 MeV over `p in [1.20, 1.264]` and the fit-free
+optimum is 1.235, so it is not a knob to tune per fit; scan it only to quote
+the sensitivity.
