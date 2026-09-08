@@ -24,6 +24,12 @@ ROWS = [
     ("the assembly toy",     "F_toy",       "V_toy"),
 ]
 
+# the eta bands fitted with the PER-BAND FSR kernel measured on that band's own
+# selected candidates -- the one surviving hypothesis for the eta pattern
+KROWS = [("|eta_lead| < 0.9", "V_etaB", "VK_etaB"),
+         ("0.9 - 1.6", "V_etaT", "VK_etaT"),
+         ("1.6 - 3.0", "V_etaE", "VK_etaE")]
+
 # the fit-free prediction of sec. 0f.1, MeV: conditioning on sigma vs on k
 PREDICT = {"inclusive, K 5 terms": (-15.33, +0.30),
            "|eta_lead| < 0.9": (-12.04, -0.23),
@@ -60,7 +66,12 @@ def main():
     print(f"{'':22s} {'cond. on sigma':>18s} {'cond. on k':>18s}")
     for lab, (a, b) in PREDICT.items():
         print(f"{lab:22s} {a:+18.2f} {b:+18.2f}")
-    missing = [v for _, _, v in ROWS if load(v) is None]
+    print("\nthe eta bands with the PER-BAND FSR kernel (v form both columns):")
+    print(f"{'':22s} {'inclusive kernel':>18s} {'per-band kernel':>18s}")
+    for lab, a_, b_ in KROWS:
+        print(f"{lab:22s} {cell(load(a_),'m_Z')} {cell(load(b_),'m_Z')}")
+
+    missing = [v for _, _, v in ROWS + KROWS if load(v) is None]
     if missing:
         print("\nstill missing: " + " ".join(missing))
     return 0
