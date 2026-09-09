@@ -47,6 +47,14 @@ charge-ODD `<x>` = a momentum SCALE bias, which ADDS.**
 | **CPE location bias**, phi-MODULATED (charge-EVEN, sagitta-like) | `Delta(q/pT) ~ 4e-5 GeV^-1` at n = 8 and n = 10 | first-order CANCELLING in the pair mass; matters through resolution and through its degeneracy with alignment | **Fix it in the CPE** (BPix-1 local x is +2.7 um): a per-class local-x offset removes it for every consumer. At analysis level the correction is `Delta(q/p) = +sum_b s_b sqrt(v_b) mu_b` per track (note the SIGN of row 8), which needs, per hit block: the DetId (for the orientation group) and the class -- `hitDetId` is exported by the single-track maker but **`resinfv`/`resinfbv`/`hitDetId` are NOT in the slim two-track productions** (booked under `exportStepRecords_`, `...Base.cc:547-549`), so the two-track path needs either `exportStepRecords=True` or a small maker change exporting an int8 sign plus the orientation-group index per block. |
 | **Convergence / seed path** | < 0.004e-3 on the pull | < 0.1 keV | nothing. `edmConvergence=1e-7` costs +18 % wall for no measurable change. |
 
+## FIGURES: ONE PANEL IS NOW WRONG
+Every `conv_*` panel in `~/public_html/cvh/260908_hitclassbias/` shows
+MEASUREMENTS (or the Box prediction, which comes from `(d1, d2)` and not from
+`resinfbv`), so none of them is affected by the sign of row 8. The PART-1
+panels `pred_vs_meas` and `lever_subdet` DO use it and therefore have the
+prediction with the WRONG SIGN; regenerate them from `c9_phipred.py` (default
+`--sign +1`) before any of them is shown.
+
 ## THE ONE THING TO CARRY FORWARD
 The sign of the exported influence functional (row 8) inverts a previously
 recorded conclusion. Anyone reusing `resinfv` / `resinfbv` for an ODD-moment
