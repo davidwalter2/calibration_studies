@@ -5237,3 +5237,54 @@ What is left: the deficit is real, is 2-4 % in `|eta|` cells and 0-13 % in
 truth cells, is FOUR TIMES larger on the J/psi legs (-0.206) than on the Z legs
 (-0.052) at a seventh of the momentum, and is explained by neither the
 ionisation share (sec. 0f.51) nor the leg-asymmetry term (here).
+
+### 0f.58 THE ANISOTROPY, WITH THE SIGN RIGHT — and the warm-start trap in
+### `--freezeParameters` (2026-09-08)
+
+**`shape5` is the STIFFEST direction, not the flattest.** Shape errors from the
+certified v-form fits (`results/nativejson/`):
+
+| card | `s1` | `s2` | `s3` | `s4` | `s5` | `sigma(m_Z)` |
+|---|---:|---:|---:|---:|---:|---:|
+| `SVfullW` (3.68 M) | 0.02545 | 0.03110 | 0.02124 | 0.00925 | **0.00201** | 2.084 |
+| `SVetaBslo` | 0.06513 | 0.07595 | 0.05054 | 0.01865 | **0.00447** | 3.695 |
+| `SVetaBshi` | 0.06330 | 0.08279 | 0.05387 | 0.02072 | **0.00469** | 4.631 |
+| `SVetaEshi` | 0.05552 | 0.07073 | 0.05354 | 0.03331 | **0.00648** | 8.691 |
+| `SVetaE` | 0.04090 | 0.04996 | 0.03636 | 0.01942 | **0.00396** | 4.782 |
+
+`shape5` has the smallest `sigma` on EVERY card, i.e. the LARGEST Hessian
+eigenvalue; `m_Z` at `sigma` 2-9 is the flattest direction, by ~1e6 in
+curvature. And in the 9-term fit `shape9 = +0.003683 +- 0.000154` is a
+**24 sigma** determination -- the top coefficient is measured superbly, it is
+merely SMALL in absolute units. So the `K(m)` basis is **not** "nearly
+degenerate at the top end with the highest coefficient unmeasured"; that
+reading is wrong and must not be repeated.
+
+**The mechanism, restated consistently.** At the start point the Newton step is
+enormous (`edm` 3353.85), so the trust region is ACTIVE and the step is the
+boundary solution of `(H + lambda I) p = -g` with `lambda` large, i.e.
+`p ~ -g/lambda`: **the step aligns with the GRADIENT**, not with an
+eigenvector. The gradient is largest along the stiffest coordinate, because
+that is where a given displacement from the start costs the most NLL, and
+`shape5` starts at 0 some 10-15 of its own sigmas from its optimum. So the step
+runs 98.3 % down `shape5` because the gradient does, and a raw-unit radius of
+1.0 overshoots it by two orders of magnitude. Preconditioning cures exactly
+this -- it equalises the gradient scale and makes the trust region spherical in
+`sigma` units. (Sec. 0f.56 quoted `sigma(shape5) = 0.0020` from the INCLUSIVE
+card; on the card that actually failed it is ~0.005, so the overshoot is
+~200 sigma rather than 500. The conclusion is unchanged.)
+
+**THE WARM-START TRAP.** `--freezeParameters` holds a frozen coordinate at
+whatever `self.x` contains when `fit()` starts -- which under
+`--externalPostfit` is the SNAPSHOT value, not the card default. That is
+rabbit's existing semantics ("hold it where it is", which is how a scan is
+done) and the subspace fix deliberately does not change it; the fitter now LOGS
+the held values instead. **Consequence: a warm start from a PRE-FIX snapshot
+freezes `k` at `1 + delta`, not at 1.** So the `SVetaBslo` re-run owed after
+the fix (sec. 0f.54, `delta` = 1.6e-3) must be run **COLD**, or from a snapshot
+with `k` reset to 1, or it will freeze at 1.001624 and reproduce the very
+number it is meant to check. Same for any other warm-started re-run.
+
+Fix committed in `rabbit-vmass` as `c08d93a`, **not staged to Engaging**: the
+staging is held until `22315719` (`SVs9`) and `22333692` (`Ss12`/`SVs12`)
+finish, so that every rung of the `K(m)` ladder is the same code.
