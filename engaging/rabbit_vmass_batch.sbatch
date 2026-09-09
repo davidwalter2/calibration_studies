@@ -18,7 +18,15 @@
 set -uo pipefail
 ZMASS=$HOME/orcd/pool/zmass
 source $ZMASS/engaging/setup_env_engaging.sh
-export PYTHONPATH=$ZMASS/rabbit-vmass:$ZMASS/fullscale:$ZMASS/zchannel:${PYTHONPATH:-}
+# RABBIT selects WHICH checkout the fit runs from, exactly as in
+# `rabbit_vmass.sbatch`.  A row may override it with the `tag@checkout` form in
+# ROWS, so one allocation can run the SAME card on two checkouts and settle
+# whether a code change is a no-op (STATE 0f.72).  Until 2026-09-09 this script
+# hard-coded `rabbit-vmass`, which is what made every card built after the
+# `corr_a_max` commit unfittable here: the card carries the keyword and the
+# staged checkout does not know it.
+RABBIT=${RABBIT:-$ZMASS/rabbit-vmass}
+PYBASE=$ZMASS/fullscale:$ZMASS/zchannel:${PYTHONPATH:-}
 declare -A CARDS=(
   [f380refS]=z_full380_fl      [Ss6]=z_full380_fl_s6   [Ss7]=z_full380_fl_s7
   [Sdc8]=z_F_dc8               [Stoy]=z_F_toy          [Stoydc]=z_F_toydc
@@ -47,6 +55,13 @@ declare -A CARDS=(
   # residual (corr 0.0203 against 0.0025). STATE sec. 0f.63/0f.66.
   [VXetaB]=z_VX_etaB           [VXetaT]=z_VX_etaT      [VXetaE]=z_VX_etaE
   [VXetaBslo]=z_VX_etaB_slo    [VXetaBshi]=z_VX_etaB_shi
+  # THE CODE/KEYWORD EQUIVALENCE TRIPLE (STATE 0f.72).  Same 300 k card, same
+  # freeze, same method: `n300kV` on the staged `rabbit-vmass`, `n300kW` on the
+  # checkout that understands `corr_a_max`, `n300kWK` on that checkout with a
+  # card that CARRIES the keyword at its default 0.0.  All three must agree to
+  # the last digit in NLL, EDM and every fitted value, or the new rows are not
+  # comparable with the certified table.
+  [n300kV]=z_n300k             [n300kW]=z_n300k        [n300kWK]=z_n300k_k
 )
 FREEZE=${FREEZE:-k_hit k_ms k_ioni k_rad}
 METHOD=${METHOD:-trust-exact}
@@ -54,17 +69,26 @@ OUT=$ZMASS/fitresults/native
 mkdir -p $OUT
 cd $ZMASS/fullscale
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
-for TAG in ${ROWS:?set ROWS="tag tag ..."}; do
+for SPEC in ${ROWS:?set ROWS="tag tag ..."}; do
+    TAG=${SPEC%%@*}
+    if [ "$SPEC" = "$TAG" ]; then RB=$RABBIT; else RB=$ZMASS/${SPEC#*@}; fi
+    export PYTHONPATH=$RB:$PYBASE
     CARD=$ZMASS/cards/${CARDS[$TAG]:?unknown row $TAG}.hdf5
     SNAP=$OUT/rabbit_${TAG}.snapshot.hdf5
     RESUME=""
     if [ -f "$SNAP" ] && [ "${FRESH:-0}" != "1" ]; then RESUME="--externalPostfit $SNAP"; fi
     echo "############ $TAG  $(date +%H:%M:%S)  card $CARD  method $METHOD ${RESUME:+(warm)}"
-    python3 -u $ZMASS/rabbit-vmass/bin/rabbit_fit.py "$CARD" $RESUME \
+    echo "############   RABBIT=$RB"
+    echo "############   FREEZE=${FREEZE:-<none>}  EXTRA=${EXTRA:-<none>}"
+    python3 -u $RB/bin/rabbit_fit.py "$CARD" $RESUME \
         --paramModel ${MODEL:-UnbinnedParams} --minimizerMethod "$METHOD" \
         ${FREEZE:+--freezeParameters $FREEZE} \
         -t 0 --unblind --diagnostics \
         --snapshotFile $SNAP --snapshotInterval 0.25 \
         --outpath $OUT --outname rabbit_${TAG}.hdf5 ${EXTRA:-}
-    echo "############ $TAG done $(date +%H:%M:%S) rc=$?"
+    # STATE 0f.71.7: this used to read `rc=$?` AFTER a `date` substitution in
+    # the same line, so it reported the echo's status and every crashed stage
+    # logged rc=0.  Capture it first.
+    rc=$?
+    echo "############ $TAG done $(date +%H:%M:%S) rc=$rc"
 done

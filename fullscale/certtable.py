@@ -60,6 +60,18 @@ CARDS = {
     "z_V_etaB_shi":     ("barrel, sigma/m high",      "v"),
     "z_V_etaE_slo":     ("endcap, sigma/m low",       "v"),
     "z_V_etaE_shi":     ("endcap, sigma/m high",      "v"),
+    # THE SAFE BAND: max(|eta_p|,|eta_m|), which does not depend on which leg
+    # leads and so is not a cut on the residual (STATE 0f.63/0f.66/0f.72).
+    # NOT cell-by-cell comparable with the `z_V_eta*` rows -- they select
+    # different candidates -- the comparison is SPREAD against SPREAD.
+    "z_VX_etaB":        ("max|eta| < 0.9  (safe)",    "v"),
+    "z_VX_etaT":        ("max|eta| 0.9 - 1.6 (safe)", "v"),
+    "z_VX_etaE":        ("max|eta| 1.6 - 3.0 (safe)", "v"),
+    "z_VX_etaB_slo":    ("safe barrel, sigma/m low",  "v"),
+    "z_VX_etaB_shi":    ("safe barrel, sigma/m high", "v"),
+    # the code/keyword equivalence triple of STATE 0f.72
+    "z_n300k":          ("300 k control",             "m"),
+    "z_n300k_k":        ("300 k control + corr_a_max","m"),
 }
 ORDER = ["z_full380_fl", "z_full380_fl_s6", "z_full380_fl_s7",
          "z_full380_fl_s9", "z_full380_fl_s12",
@@ -68,7 +80,10 @@ ORDER = ["z_full380_fl", "z_full380_fl_s6", "z_full380_fl_s7",
          "z_V_full", "z_V_s6", "z_V_s7", "z_V_s9", "z_V_s12",
          "z_V_etaB", "z_V_etaT", "z_V_etaE", "z_V_toy",
          "z_VK_etaB", "z_VK_etaT",
-         "z_V_etaB_slo", "z_V_etaB_shi", "z_V_etaE_slo", "z_V_etaE_shi"]
+         "z_V_etaB_slo", "z_V_etaB_shi", "z_V_etaE_slo", "z_V_etaE_shi",
+         "z_VX_etaB", "z_VX_etaT", "z_VX_etaE",
+         "z_VX_etaB_slo", "z_VX_etaB_shi",
+         "z_n300k", "z_n300k_k"]
 
 # a rabbit result carries no card name; this is the map
 RABBIT_CARD = {
@@ -92,6 +107,10 @@ RABBIT_CARD = {
     "Ss12": "z_full380_fl_s12", "SVs12": "z_V_s12",
     "SVetaBslo": "z_V_etaB_slo", "SVetaBshi": "z_V_etaB_shi",
     "SVetaEslo": "z_V_etaE_slo", "SVetaEshi": "z_V_etaE_shi",
+    # the safe band, and the code/keyword equivalence triple
+    "VXetaB": "z_VX_etaB", "VXetaT": "z_VX_etaT", "VXetaE": "z_VX_etaE",
+    "VXetaBslo": "z_VX_etaB_slo", "VXetaBshi": "z_VX_etaB_shi",
+    "n300kV": "z_n300k", "n300kW": "z_n300k", "n300kWK": "z_n300k_k",
 }
 
 
