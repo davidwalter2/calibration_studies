@@ -96,8 +96,8 @@ mechanically by `certtable.py`. MeV from the generator
 | **inclusive, `K(m)` 5** | **-11.06 +- 2.27** | **-1.54 +- 2.08** |
 | `K(m)` 6 | -13.98 +- 2.22 | -3.92 +- 2.13 |
 | `K(m)` 7 | -17.24 +- 2.27 | -3.87 +- 2.28 |
-| **`K(m)` 9** | **+9.39 +- 2.31** | (running) |
-| `K(m)` 12 | (running) | (running) |
+| **`K(m)` 9** | **+9.39 +- 2.31** | NOT CERTIFIED — running, 5.3 |
+| `K(m)` 12 | NOT CERTIFIED — running | NOT CERTIFIED — running |
 | `Gamma_Z`, `K` 5 / 6 / 7 / 9 | -5.26 / +27.16 / +8.96 / -1.79 | +6.81 / +14.28 / +12.86 / — |
 | `\|eta\|` lead < 0.9 | -26.60 +- 2.87 | -21.08 +- 3.24 |
 | 0.9 - 1.6 | +3.87 +- 3.88 | +12.39 +- 4.16 |
@@ -173,6 +173,11 @@ gun at 299 422 candidates: the fluctuation and residual forms agree to
 | 7 | -17.24 +- 2.27 | 11075192.7817 | 168.7 / 1 |
 | **9** | **+9.39 +- 2.31** | 11074904.2322 | **577.1 / 2** |
 
+(m form. Certified by content, not by exit code: of the four rungs the two dead
+jobs were meant to write, only `Ss9` has a `results` group at all — `SVs9` and
+`Ss12` have `meta` only and `SVs12` is a zero-byte file with no HDF5
+signature.)
+
 7 -> 9 moves `m_Z` by **+26.63 MeV = 11.5 statistical errors**, and the 9-term
 fit is preferred at 24 sigma. The coefficients stay O(1) and tightly determined
 (`shape9 = +0.003683 +- 0.000154`, 24 sigma), so this is not a runaway: the
@@ -180,12 +185,26 @@ LO -> MiNNLO K-factor has structure the 5-term basis cannot carry, and it
 projects onto the mass. The earlier reading that the basis is saturated for
 `m_Z` came from a -1.3 MeV shift over 5 -> 7 **at 300 k**; at full statistics
 that step is -6.2 MeV. **No closure number from this campaign may be quoted
-without its `K(m)` truncation beside it.** The v form is far better behaved
-over 5/6/7 (-1.5 / -3.9 / -3.9); its 9- and 12-term rungs are in flight and
-they decide whether the shape freedom can be bounded at all. **The structural
-answer is a theory-predicted `K(m)`** — an NNLO parton luminosity in place of
-the floated LO kernel — which would also return the x1.5 / x1.4 statistical
-penalty of section 3.
+without its `K(m)` truncation beside it.**
+
+**The v form is far better behaved over 5/6/7 (-1.5 / -3.9 / -3.9 — 2.4 MeV,
+inside one sigma), and that is the number to quote as the truncation
+systematic today.** Its 9- and 12-term rungs are **NOT YET CERTIFIED**. Their
+first two attempts failed for two separate reasons, both now fixed: the
+positivity floor was at `unbinned.py`'s reference default 1e-9, which underflows
+in float64 (5.9), and the rebuilt cards then hit the staging defect of 5.10.
+The third attempt (Engaging `22354353`) is running with the floor at 1e-7 and
+**has not NaN'd in 50 Hessian evaluations**, so the floor did its job. Its EDM
+has been flat at ~1.1e4 for 25 iterations, which looks like a stall and is not:
+**the m-form 9-term rung that converged sat on the identical shelf** — first
+dip to 655 at iteration 11, bounce to 3.2e4, plateau at 10 300-10 600 for
+~20 iterations — and then fell to 1e-11 over 60 more, 98 Hessians and 4 h 23 in
+total. The v-form rung is at 50. So the plateau is a property of the 9-term
+model, not of the formulation or the minimiser.
+
+**The structural answer is a theory-predicted `K(m)`** — an NNLO parton
+luminosity in place of the floated LO kernel — which would also return the
+x1.5 / x1.4 statistical penalty of section 3.
 
 ### 5.4 The reco-variable conditioning traps — five of them
 Every one was found by measuring `corr(variable, residual)` before binning.
@@ -403,7 +422,7 @@ cells and is not a property of every Engaging row.
 
 | # | item | size on `m_Z` | next step |
 |---|---|---:|---|
-| 1 | **`K(m)` truncation** | **+26.6 MeV** (7 -> 9) | the v-form 9- and 12-term rungs (in flight); then replace the floated LO kernel with a theory-predicted `K(m)` — which also returns the x1.5 statistical penalty |
+| 1 | **`K(m)` truncation** | **+26.6 MeV** (7 -> 9) in the m form; **2.4 MeV** over 5 -> 7 in the v form, which is the number to quote today | the v-form 9- and 12-term rungs are on their third attempt (Engaging 22354353) after the floor fix and the staging fix; the 9-term rung has run 50 Hessians without a NaN and is on the same EDM shelf its converged m-form twin sat on for 20 iterations. Then replace the floated LO kernel with a theory-predicted `K(m)` — which also returns the x1.5 statistical penalty |
 | 2 | ~~**`eta_lead` reco-`pT` selector**~~ | it WAS up to 45 MeV per band, 0 inclusive | **CLOSED (5.5)**: the safe-band refit collapses the spread from +55.3 to -12.5 MeV and changes its sign, `chi2` 93.8/2 -> 6.7/2, and the safe bands' weighted mean equals the inclusive closure. What is left is a **-12.5 +- 5.9 MeV (2.1 sigma)** residual whose own band variable is still 6x less clean than the gen one — an upper bound, not an effect |
 | 3 | the momentum scale from J/psi (phase 2) | not yet measured | **`P2X` is RUNNING and descending, not converged** (Engaging 22336261, 3 M J/psi + 3.68 M Z + the hit-chi2 quadratic, 95 floating of 103, exact delta-kernel J/psi term). 11 Hessian evaluations in 3 h 45: EDM 137 291 -> 99 172 -> 74 075 -> 27 665 -> 40 511 -> 12 359 -> 6 242 -> 2 103 -> 999 -> 203 -> **189**, against a 1e-3 target; the condition number fell from **3.1e19 to 1.0e15** as it left the start point. ~20 min per Hessian, 36 h of walltime, so it has room. It is NOT blocked on the gun check (5.9). **The remedy if it stalls is preconditioning at the trust-region level** — rescale by the curvature so the region is spherical in sigma units, a change of variables that leaves the minimum invariant — or the 2-GPU candidate sharding; NOT a resubmit, which would only repeat the same descent |
 | 4 | the material amounts (phase 3) | not yet measured | needs 2-GPU candidate sharding: the phase-2 Hessian is **141.4 GB of an H200's 143.8 GB** |

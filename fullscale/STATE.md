@@ -6420,3 +6420,49 @@ demonstrated detector effect and must not be quoted as one.**
 
 Figures: `~/public_html/cvh/260909_fullscale/mz_eta_safe.png` (both definitions
 with their own pre-registered predictions) and `mz_sigmasplit_safe.png`.
+
+### 0f.72.4 THE K(m) LADDER AT 9 AND 12: WHAT EXISTS BY CONTENT, AND WHY THE
+### PLATEAU IS NOT A STALL (2026-09-09)
+
+**BY CONTENT, NOT BY `rc`** (the batch driver's `rc=0` is worthless before
+0f.72's fix). Every file the two dead jobs were supposed to write:
+
+| file | HDF5 content | verdict |
+|---|---|---|
+| `rabbit_Ss9.hdf5` (m form, 9) | `meta` + **`results`** | certified **+9.39 +- 2.31**, NLL 11074904.2322, EDM 1.31e-11, QUOTE |
+| `rabbit_SVs9.hdf5` (v form, 9) | `meta` only | **no result** |
+| `rabbit_Ss12.hdf5` (m form, 12) | `meta` only | **no result** |
+| `rabbit_SVs12.hdf5` (v form, 12) | **0 bytes, no HDF5 signature** | **no result** |
+| all three of `22348542` | died at card load (0f.72) | **no result** |
+
+So the ladder's certified extent is **m form 5/6/7/9, v form 5/6/7** — exactly
+what 0f.71.2 says — and `22354353` is now re-running the three missing rungs on
+the floored cards.
+
+**AND THE FLOOR WORKED.** `SVs9` has run 50 Hessian evaluations in 2 h with no
+NaN, where the un-floored card died on one. Its EDM has been flat at
+1.05e4-1.13e4 for the last ~25 of those, which reads like a limit cycle. **It
+is not.** The m-form rung that DID converge has the same trace:
+
+| | `Ss9` (converged, 98 Hessians / 4 h 23) | `SVs9` (running, 50 Hessians / 2 h) |
+|---|---|---|
+| first deep dip | **655** at iteration 11 | **651** at iteration 11 |
+| bounces back to | 32 324 | 22 672 |
+| then plateaus at | **10 300-10 600 for ~20 iterations** | **10 500-11 300 for ~25 iterations** |
+| then | breaks out, falls to 1e-11 over ~60 more | — |
+
+The plateau is a property of the 9-term model, not of the v form and not of the
+minimiser giving up: `Ss9` sat on the identical shelf, at the identical value,
+for the identical number of iterations, and then converged. **`SVs9` is roughly
+halfway through and needs ~2 more hours; killing it to make room for `SVs12`
+would have thrown away a fit that is on the converging path.** It was left
+running. `SVs12` and `Ss12` follow it in the same allocation, whose walltime
+ends 13:20, so `SVs12` should land and `Ss12` may not.
+
+**THE SAME SHELF IS WHERE `P2X` IS.** 17 Hessians in 5 h 47, EDM plateaued at
+**184-466** for the last six, condition number steady at 1.0e15 (from 3.1e19 at
+the start point). At ~20 min per Hessian and ~30 h of walltime left it has
+approximately the budget `Ss9` needed in iterations. So the handoff's reading —
+"NOT expected to certify" — is not supported by the trace: it is on the same
+shelf that a converged fit of this family sat on. What preconditioning would buy
+is margin, not the difference between converging and not.
