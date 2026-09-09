@@ -150,6 +150,18 @@ def main():
         "so the coordinate walk brackets what the first step can reach -- and "
         "it costs one eager pass per point instead of one Hessian.")
     ap.add_argument(
+        "--amax-scan", nargs="*", type=float, default=None,
+        help="ladder of `corr_a_max` values (0 = unbounded, today's default). "
+        "For each rung, per unbinned term: how many candidates the bound "
+        "reaches, how many modelled densities are non-positive, and the "
+        "minimum density -- at the default parameter point AND at the four "
+        "displaced points the `corr_coeff_max` scan used (m_Z +-30 MeV, "
+        "Gamma_Z +-60 MeV). The acceptance is the largest value leaving ZERO "
+        "non-positive densities anywhere. Also reports whether the bounded "
+        "population is the same one `corr_coeff_max` already reaches, and the "
+        "mass weight (1/sigma^2, relative to the median) of the candidates "
+        "that go non-positive unbounded.")
+    ap.add_argument(
         "--scan-combo", nargs="*", default=None,
         help="extra directions to scan with --scan, as signed parameter sums, "
         "e.g. 'k_hit+k_ms+k_ioni+k_rad' or 'k_hit-k_ms+k_ioni-k_rad'. The "
@@ -208,6 +220,60 @@ def main():
                     ev = f"<{ex}>"
                 print(f"  external '{getattr(et,'name','?')}': nll {ev}")
         return v, g, H
+
+    if a.amax_scan is not None:
+        pts = [("default", {})]
+        for nm, d in (("m_Z", 30.0), ("Gamma_Z", 60.0)):
+            if nm in names:
+                pts += [(f"{nm}{d:+.0f}", {nm: +d}), (f"{nm}{-d:+.0f}", {nm: -d})]
+        # the populations, and the weight of what goes wrong, ONCE
+        for t in terms:
+            if not hasattr(t, "_fl_a") or t._fl_a is None:
+                continue
+            av = np.abs(np.asarray(t._fl_a))
+            gv = np.abs(np.asarray(t._fl_g))
+            sg = np.asarray(t.sigma)
+            w = 1.0 / sg**2
+            wmed = float(np.median(w))
+            r0 = term_report(t, x0, names)
+            bad = np.array([b[0] for b in r0["bad"]], dtype=int)
+            print(f"\n  term '{t.name}': n {t.n}, corr_coeff_max "
+                  f"{t.corr_coeff_max:g}, corr_a_max {t.corr_a_max:g}")
+            print(f"    |a| quantiles 50/90/99/99.9/max: "
+                  + " ".join(f"{q:.4g}" for q in np.percentile(
+                      av, [50, 90, 99, 99.9, 100])))
+            print(f"    |g| >= corr_coeff_max: "
+                  f"{int(np.sum(gv >= t.corr_coeff_max)) if t.corr_coeff_max else 0}")
+            if bad.size:
+                print(f"    non-positive at the default point: {bad.size}, "
+                      f"their |a| {np.array2string(av[bad], precision=4)}, "
+                      f"|g| {np.array2string(gv[bad], precision=4)}, "
+                      f"mass weight 1/sigma^2 relative to the median "
+                      f"{np.array2string(w[bad] / wmed, precision=4)}")
+        hdr = (f"\n  {'a_max':>8s} {'term':10s} {'point':12s} {'bounded':>9s} "
+               f"{'also |g|':>9s} {'non-pos':>8s} {'min L_i':>12s} {'nll':>16s}")
+        print(hdr)
+        for amax in a.amax_scan:
+            for t in terms:
+                if hasattr(t, "set_corr_bounds"):
+                    t.set_corr_bounds(a_max=amax)
+                av = np.abs(np.asarray(t._fl_a)) if t._fl_a is not None else None
+                gv = np.abs(np.asarray(t._fl_g)) if t._fl_g is not None else None
+                # what the bound REACHED: recomputed against the unbounded a is
+                # not available after clipping, so count the saturated entries
+                nb = 0 if not amax else int(np.sum(av >= amax * (1 - 1e-12)))
+                nboth = (0 if not amax or not t.corr_coeff_max else
+                         int(np.sum((av >= amax * (1 - 1e-12))
+                                    & (gv >= t.corr_coeff_max * (1 - 1e-12)))))
+                for label, over in pts:
+                    x = x0.copy()
+                    for k, v in over.items():
+                        x[names.index(k)] = x0[names.index(k)] + v
+                    r = term_report(t, x, names)
+                    print(f"  {amax:8.4g} {t.name:10s} {label:12s} {nb:9d} "
+                          f"{nboth:9d} {r['n_nonpos']:8d} {r['li_min']:12.4g} "
+                          f"{r['nll_eager']:16.4f}")
+        return 0
 
     if a.scan is not None:
         print("\n--- START POINT, density only (no Hessian)")
