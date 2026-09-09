@@ -98,6 +98,14 @@ def run(V, rng):
     cens = ", ".join(f"{k}:{100.*(ni==k).sum()/tot:5.2f}%"
                      for k in sorted(set(ni.tolist()))[:12])
     print(f"    niter  mean {ni.mean():6.3f}  max {ni.max()}   {cens}")
+    # AT THE CAP means the tolerance was NOT reached: a variant that only
+    # raises nIters and then saturates it has not tested convergence, it has
+    # tested the cap.
+    cap = int(ni.max())
+    print(f"    at the iteration cap ({cap}): {int((ni == cap).sum())} tracks "
+          f"({100.*(ni == cap).mean():.4f} %)   "
+          f"edmref >= 1e-7 for {100.*(V.d['edmref'] >= 1e-7).mean():.2f} %, "
+          f">= 1e-5 for {100.*(V.d['edmref'] >= 1e-5).mean():.4f} %")
     ed = V.d["edm"]
     print(f"    edmval median {np.median(ed):.3e}  "
           f"p90 {np.percentile(ed, 90):.3e}  p99 {np.percentile(ed, 99):.3e}  "

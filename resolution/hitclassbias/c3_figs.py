@@ -261,39 +261,91 @@ def main():
     ax.set_title("second-order Gauss-Newton bias vs measurement", fontsize=15)
     save(fig, outdir, "conv_boxbias")
 
-    # ---- 7. phi structure --------------------------------------------------
+    # ---- 7. phi profile with the n=8 + n=10 harmonic model ---------------
     if "genphi" in ref_full.d:
-        fig, (ax, rx) = plt.subplots(2, 1, figsize=(9, 8), sharex=True,
-                                     gridspec_kw={"height_ratios": [2.2, 1],
-                                                  "hspace": 0.07})
+        import c8_phiquad as c8                                   # noqa: E402
+        gg = ref_full.good & (np.abs(ref_full.x) < 10)
         ph = ref_full.d["genphi"].astype(float)
-        eb = np.linspace(-np.pi, np.pi, 13)
+        NB = 24
+        eb = np.linspace(-np.pi, np.pi, NB + 1)
         cn = 0.5 * (eb[1:] + eb[:-1])
         vs, es = [], []
-        for i in range(12):
-            m = ref_full.good & (ph >= eb[i]) & (ph < eb[i + 1])
-            v, e, _ = cc.even_mean(ref_full.x, ref_full.q, m, rng, 150)
-            vs.append(v * 1e3)
-            es.append(e * 1e3)
+        for i in range(NB):
+            m = gg & (ph >= eb[i]) & (ph < eb[i + 1])
+            xp, xm = ref_full.x[m & (ref_full.q > 0)], ref_full.x[m & (ref_full.q < 0)]
+            vs.append(0.5 * (xp.mean() + xm.mean()) * 1e3)
+            es.append(0.5 * np.hypot(xp.std() / np.sqrt(len(xp)),
+                                     xm.std() / np.sqrt(len(xm))) * 1e3)
         vs, es = np.asarray(vs), np.asarray(es)
         w = 1 / es ** 2
         mu = (vs * w).sum() / w.sum()
-        ax.errorbar(cn, vs, yerr=es, fmt="o", color="k", ms=8, capsize=4,
-                    label=r"charge-even, all $\eta$")
-        ax.axhline(mu, color="#d62728", lw=2,
+        # the UNBINNED n = 8 and n = 10 amplitudes, evaluated on a fine grid
+        gfine = np.linspace(-np.pi, np.pi, 600)
+        model = np.full_like(gfine, mu)
+        for n in (8, 10):
+            o = c8.amps(ref_full, gg, ph, n)
+            model += o["cos"][0] * np.cos(n * gfine) + o["sin"][0] * np.sin(n * gfine)
+        mbin = np.full(NB, mu)
+        for n in (8, 10):
+            o = c8.amps(ref_full, gg, ph, n)
+            mbin += o["cos"][0] * np.cos(n * cn) + o["sin"][0] * np.sin(n * cn)
+        fig, (ax, rx) = plt.subplots(2, 1, figsize=(10, 8), sharex=True,
+                                     gridspec_kw={"height_ratios": [2.2, 1],
+                                                  "hspace": 0.07})
+        ax.errorbar(cn, vs, yerr=es, fmt="o", color="k", ms=6, capsize=3,
+                    label=r"charge-even $\langle x\rangle$, all $\eta$")
+        ax.axhline(mu, color="0.45", lw=1.6, ls="--",
                    label=fr"flat, $\mu={mu:+.2f}\times10^{{-3}}$")
-        ax.axhline(0, color="0.6", lw=1, ls=":")
-        rx.errorbar(cn, (vs - mu) / es, yerr=np.ones(12), fmt="o", color="k",
-                    ms=7, capsize=3)
-        rx.axhline(0, color="0.6", lw=1, ls=":")
-        chi2 = float((w * (vs - mu) ** 2).sum())
-        rx.set_ylabel(r"pull vs flat")
-        rx.set_xlabel(r"generated $\phi$")
+        ax.plot(gfine, model, "-", color="#d62728", lw=2,
+                label=r"flat $+\ n=8\ +\ n=10$ (unbinned amplitudes)")
+        ax.axhline(0, color="0.75", lw=1, ls=":")
+        rx.errorbar(cn, (vs - mu) / es, yerr=np.ones(NB), fmt="s", color="0.45",
+                    ms=5, capsize=2, label="residual to flat")
+        rx.errorbar(cn, (vs - mbin) / es, yerr=np.ones(NB), fmt="o",
+                    color="#d62728", ms=5, capsize=2, label="residual to model")
+        rx.axhline(0, color="0.75", lw=1, ls=":")
+        c2f = float((w * (vs - mu) ** 2).sum())
+        c2m = float((w * (vs - mbin) ** 2).sum())
         ax.set_ylabel(r"charge-even $\langle x\rangle$  [$10^{-3}$]")
-        ax.set_title(fr"$\chi^2$(flat) $= {chi2:.1f}/11$  (ideal geometry)",
-                     fontsize=15)
-        ax.legend(fontsize=13)
+        rx.set_ylabel("pull")
+        rx.set_xlabel(r"generated $\phi$")
+        ax.set_title("ideal geometry:  "
+                     r"$\chi^2$(flat) $= $" + f"{c2f:.0f}/23,  "
+                     + r"$\chi^2$(flat $+\,n=8,10$) $= $" + f"{c2m:.0f}/19",
+                     fontsize=14)
+        ax.legend(fontsize=12)
+        rx.legend(fontsize=11, ncol=2)
         save(fig, outdir, "conv_phi")
+
+        # ---- 8. the harmonic power spectrum --------------------------------
+        fig, (ax, rx) = plt.subplots(2, 1, figsize=(10, 8), sharex=True,
+                                     gridspec_kw={"height_ratios": [1.6, 1],
+                                                  "hspace": 0.07})
+        ns = np.arange(1, 26)
+        sa, se, pw = [], [], []
+        for n in ns:
+            o = c8.amps(ref_full, gg, ph, n)
+            sa.append(o["sin"][0])
+            se.append(o["sin"][2])
+            pw.append((o["cos"][0] / o["cos"][2]) ** 2
+                      + (o["sin"][0] / o["sin"][2]) ** 2)
+        ax.errorbar(ns, sa, yerr=se, fmt="o", color="k", ms=6, capsize=3,
+                    label=r"$2\langle x\sin(n\phi)\rangle_{even}$")
+        ax.axhline(0, color="0.6", lw=1, ls=":")
+        for n in (8, 10):
+            ax.axvline(n, color="#d62728", lw=1, ls="--", alpha=0.5)
+        ax.set_ylabel(r"sine amplitude  [$10^{-3}$]")
+        ax.legend(fontsize=13)
+        ax.set_title("unbinned charge-even harmonics of the truth-referenced "
+                     "pull", fontsize=14)
+        rx.bar(ns, pw, color="0.35", width=0.7)
+        rx.axhline(2., color="#d62728", lw=1.6, ls="--",
+                   label="expectation with no signal (2 dof)")
+        rx.set_yscale("log")
+        rx.set_ylabel("power  [2 dof]")
+        rx.set_xlabel("harmonic $n$")
+        rx.legend(fontsize=12)
+        save(fig, outdir, "conv_phiharm")
     logger.info(f"figures -> {outdir}")
 
 
