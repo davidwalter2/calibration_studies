@@ -1,3 +1,59 @@
+# SUMMARY FOR THE FEASIBILITY REPORT — hitclassbias, 2026-09-08
+
+Sample throughout: the 20-60 GeV tight-stepper muon gun, IDEAL geometry,
+default field, GT `150X_mcRun2_asymptotic_v1`, 160 tasks = **319 854 tracks**
+(`resolution_trackres_mugun_ul16_260903x_m0`); the low-pT gun
+(`mugun_lowpt_260903x_m0`, 313 245 tracks) is the out-of-sample arm.
+Statistic: the truth-referenced pull `x = z/(1-a q z)`,
+`z = (refParms[0]-genParms[0])/sigma`. **charge-EVEN `<x>` = a SAGITTA
+(charge-dependent) momentum bias, which largely CANCELS in a dimuon mass;
+charge-ODD `<x>` = a momentum SCALE bias, which ADDS.**
+
+## ESTABLISHED
+
+| # | result | numbers | effect on p / on m_Z |
+|---|---|---|---|
+| 1 | **Bit check.** A re-launched `base` reproduces the baseline production track by track | 3 tracks of 79 965 differ (0.0038 %), max 1e-4 sigma; all are high-`niter` (5.67 vs 2.19) limit-cycle tracks | -- (CVH is reproducible except on tracks at an iteration boundary) |
+| 2 | **Incomplete convergence EXCLUDED.** `edmConvergence` 1e-5 -> 1e-7, `nIters` 10 -> 20 | `<niter>` 2.190 -> 2.870, tracks above the 1e-7 EDM 65.7 % -> 0.11 %, 47.5 % of q/p values move (median 2.6e-7); **paired `<dx>_even` = -0.000 +- 0.000e-3**; +18 % wall | none |
+| 3 | **Seed / path dependence EXCLUDED.** `gnDampAfter=1 gnDampFactor=0.5 nIters=30` halves every step from iteration 1 | `<niter>` 3.500, **98.8 % of tracks move** (median 2.5e-6 relative), chi2/ndof identical to 6 digits; **paired `<dx>_even` = +0.000 +- 0.002e-3**, i.e. >1500x below the effect; +43 % wall | none |
+| 4 | **The second-order (Box) bias is CHARGE-ODD, by symmetry.** `d2 = (K/2) d1^2` from the exported `(seed->iter0, iter0->final)` steps; `<z> = -(K/2) sigma` | `K_+ = +20.85+-0.30`, `K_- = -21.29+-0.32 GeV`, `K_+ + K_- = -0.44+-0.44` -- the mirror map, measured. Predicted charge-EVEN `<z> = +0.019+-0.027e-3` (measured -4.26+-1.75): **200x too small** | -- |
+| 5 | **...and it IS the charge-odd residual the CF ionisation+radiation model leaves.** Per-track `b_i = -(K/2)sigma_i` with K refit on a (band x sigma-quintile) grid | 20-60 gun: pred **-3.17e-3** vs measured **-3.23+-1.80e-3**; low-pT gun: pred -2.28 vs -5.35+-1.84. Cell-wise scale on an exogenous gen (pT,\|eta\|) grid **k = 0.98 +- 0.40 combined** (2.4 sigma from 0). In probe space model(-2.13) + Box(-2.75) = -4.88 vs measured -4.10+-1.52 (pull +0.51); model alone pulls -1.30 | **dp/p = +16e-6 (Z-like central) to +43e-6 (endcap)** -> **+1.5 to +3.9 MeV on m_Z** uncalibrated; see the calibration caveat below |
+| 6 | **The CPE location bias is PIXEL-ONLY.** IDEAL geometry, 1 375 697 hits | BPix local x **+0.1193+-0.0027 sigma_CPE** (BPix-1 alone **+0.227**, +2.7 um, skew +0.302), FPix +0.040; every strip subdetector null at +-0.002 | -- |
+| 7 | **The charge-even shift is strongly PHI-MODULATED**, with no eta structure | unbinned amplitudes `2<x sin(n phi)>`: **n=8 +18.96+-2.55e-3, n=10 +21.62+-2.55e-3**, total power 281.5/80 dof; permutation null 11/7/16 for 12 bins; lumi-parity split-half chi2(A==B) 20.9/24 with corr **+0.75**; charge-ODD amplitudes null and no 1/pT fall, so it is not a rotated field effect. In eta: chi2(FLAT) **15.8/23** | modulated **Delta(q/pT) ~ 4e-5 GeV^-1**, the same order as the AN's misalignment bound \|M\| < 1e-4 -- on ideal geometry |
+| 8 | **The modulation IS the CPE location bias, and PART 1's exclusion was a SIGN ERROR.** `W5 = V^-1 F C^-1 E5` (`...G4e.cc:4619`) while the step taken is `dx = -C^-1 F^T V^-1 r` (:4098), so **`W5^T r = -dx`**: the exported influence functional has the OPPOSITE sign to the fit's response. (Variance uses are unaffected -- `v_b` is quadratic.) With the corrected sign the no-free-parameter propagation gives | **n=8 sin +18.68+-0.35 (meas +18.96+-2.55), n=10 sin +19.88+-0.39 (meas +21.62+-2.55)**; over n=1..20, **chi2(measured==PREDICTED) = 61.5/40 against chi2(measured==0) = 227.6**; the pixel dose response +0.2/+11.3/+19.6/+25.8/+23.2 against measured -6.9+-14.2/+10.3+-6.1/+24.0+-4.1/+26.1+-4.4/+30.9+-10.9; and the phi-AVERAGED bands now pull **-1.09 / -1.07 / +0.23** instead of PART 1's ">= 5.3 sigma" | as row 7 |
+| 9 | **The traps.** Four conditioning variables that manufacture the signal | `corr(seed->final dq/p SIGNED, x) = +0.1132`, tertiles -169/-7/+163e-3; binning the charge-ODD channel on the FITTED `sigma` gives -68 -> +44e-3 across quintiles, pure artefact; a 24-bin phi scan ALIASES n=14/16/17 onto 10/8/7; `fitFromGenParms=True` deletes the observable (`refCov(0,0)=0`, `niter=1`) | -- |
+
+## HYPOTHESISED
+
+* **The identification of the harmonics.** n = 10 <- BPix layer 1 (Phase-0: 20
+  ladders alternating inner/outer, so a bias fixed in local x enters the
+  bending coordinate with period 2 ladders = 36 deg = n = 10); n = 8 <- the
+  TEC petals, 8 per disk face. SUPPORTED by: the frequencies, the clean pixel
+  dose response of n = 10 and its absence for n = 8, and the fact that the
+  propagation keyed on the DetId ORIENTATION GROUP reproduces both. NOT
+  established: the phases have not been matched to the surveyed ladder and
+  petal azimuths (that needs the 160-task pass, ~4x the precision).
+* **The phi-AVERAGED charge-even offset.** On the full baseline with no
+  subsample selection it is `-3.7 +- 1.8e-3` (**2.0 sigma**) and the corrected
+  prediction accounts for -1.3e-3 of it; the 3.4 sigma quoted earlier is for a
+  subpopulation selected on a variable with `corr(v,\|x\|) = +0.054`. Treat it
+  as not yet established.
+
+## SIZES AND WHAT TO DO ABOUT THEM
+
+| effect | size on the momentum scale | on m_Z | recommended next step |
+|---|---|---|---|
+| **Box second-order bias** (charge-ODD, scale-like) | `dp/p = -<z>_odd sigma_rel`: +21.5e-6 (barrel, `<p>` 46), +43.3e-6 (endcap, `<p>` 154), +16.1e-6 for a Z-like pT 40-50 \|eta\|<0.4 muon | **+1.5 MeV central, up to +3.9 MeV in the endcap, UNCALIBRATED** | Apply the analytic per-track correction `Delta(q/p) = +(K/2) sigma^2` with K from the `(d1, d2)` regression -- it needs NO new production (`refParms_iter0`, `trackParms`, `refParms`, `refCov` are already exported). **The calibration caveat is the key number**: the low-pT gun gives +25.3e-6 in the barrel against +21.5e-6 at 20-60 GeV, so a J/psi-anchored scale absorbs most of it and the RESIDUAL is the difference, **~4e-6 -> ~0.35 MeV (barrel), ~8e-6 -> ~0.7 MeV (endcap)**. Validate on Z and J/psi legs, where the statistics are 10x. |
+| **CPE location bias**, phi-MODULATED (charge-EVEN, sagitta-like) | `Delta(q/pT) ~ 4e-5 GeV^-1` at n = 8 and n = 10 | first-order CANCELLING in the pair mass; matters through resolution and through its degeneracy with alignment | **Fix it in the CPE** (BPix-1 local x is +2.7 um): a per-class local-x offset removes it for every consumer. At analysis level the correction is `Delta(q/p) = +sum_b s_b sqrt(v_b) mu_b` per track (note the SIGN of row 8), which needs, per hit block: the DetId (for the orientation group) and the class -- `hitDetId` is exported by the single-track maker but **`resinfv`/`resinfbv`/`hitDetId` are NOT in the slim two-track productions** (booked under `exportStepRecords_`, `...Base.cc:547-549`), so the two-track path needs either `exportStepRecords=True` or a small maker change exporting an int8 sign plus the orientation-group index per block. |
+| **Convergence / seed path** | < 0.004e-3 on the pull | < 0.1 keV | nothing. `edmConvergence=1e-7` costs +18 % wall for no measurable change. |
+
+## THE ONE THING TO CARRY FORWARD
+The sign of the exported influence functional (row 8) inverts a previously
+recorded conclusion. Anyone reusing `resinfv` / `resinfbv` for an ODD-moment
+(location) calculation must apply `dx = -W5^T r`; VARIANCE uses are unaffected.
+
+---
+
 # RESUME HERE — 2026-09-08 (night), PART 3 = the CONVERGENCE test, DONE
 
 ## THE ANSWER

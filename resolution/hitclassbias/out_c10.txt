@@ -1,0 +1,95 @@
+
+==============================================================================
+=== data/conv_ref903x_full.npz   313454 tracks
+==============================================================================
+  K on the (band x sigma quintile) grid, GeV  [q=+1 rows; q=-1 is -K to 2 %]
+    barrel    +21.47   +12.89    +7.23   +12.02   +13.91
+    middle    +73.19   +82.24   +55.69   +42.51   +27.05
+    endcap    +13.08   +17.14   +20.07   +11.66    +5.84
+
+  PREDICTED charge-odd <z> =  -3.172 e-3   (<b> over all tracks  +0.076 e-3)
+  MEASURED  charge-odd <x> =  -3.228+-1.803 e-3   (probe u=0.05:  -4.098+-1.523 e-3)
+  prediction in probe space (x0.8668) =  -2.750 e-3
+
+  --- per eta band, 1e-3 ---
+  band          pred <z>          meas <x>        meas probe  pull (mean)
+  barrel          -1.836       -2.995+-2.96       -4.102+-2.49        -0.39
+  middle          -6.824       -2.152+-3.32       -3.442+-2.80        +1.41
+  endcap          -1.452       -4.444+-3.12       -4.676+-2.65        -0.96
+
+  --- the VALIDATION: regress the measured pull on the per-track prediction ---
+  slope 1 = the Box bias is exactly what the data carry; 0 = it is absent.
+    slope = +0.586 +- 0.447
+
+  --- the shape, on an EXOGENOUS gen (pT, |eta|) grid ---
+  cell                              <sigma>      pred         measured
+  pT  20.0- 33.5 |eta| 0.00-0.80  3.611e-04     -2.37       -9.49+-5.43
+  pT  20.0- 33.5 |eta| 0.80-1.60  3.575e-04     -5.68       -6.34+-5.34
+  pT  20.0- 33.5 |eta| 1.60-2.40  2.525e-04     -1.13      -10.08+-5.35
+  pT  33.5- 46.8 |eta| 0.00-0.80  2.581e-04     -1.36       +2.58+-5.43
+  pT  33.5- 46.8 |eta| 0.80-1.60  2.510e-04     -6.45       -2.66+-5.44
+  pT  33.5- 46.8 |eta| 1.60-2.40  1.863e-04     -1.68       -6.40+-5.37
+  pT  46.8- 60.0 |eta| 0.00-0.80  2.090e-04     -1.78       +0.70+-5.47
+  pT  46.8- 60.0 |eta| 0.80-1.60  1.993e-04     -6.47       +0.20+-5.41
+  pT  46.8- 60.0 |eta| 1.60-2.40  1.556e-04     -1.62       +2.49+-5.46
+    cell-wise scale of the prediction: k = +0.67 +- 0.47   (1 = validated)   chi2(k=1) = 8.6/9   chi2(k=0) = 10.1/9
+
+  --- what it does to a MOMENTUM SCALE ---
+  <z>_odd * sigma_rel = Delta(1/p)/(1/p), so the MOMENTUM bias is
+  dp/p = -<z>_odd sigma_rel, charge-INDEPENDENT; in a dimuon mass
+  dm/m = dp/p -- it ADDS on both legs, unlike the sagitta term.
+  selection                  <sigma_rel>     <p>         dp/p     dm at m_Z
+  barrel                         0.01172    45.9    +21.50e-6    +1960.1 keV
+  middle                         0.01888    77.4   +129.10e-6   +11772.7 keV
+  endcap                         0.02934   154.0    +43.27e-6    +3945.7 keV
+  Z-like: pT 40-50 |eta|<0.4     0.01090    46.2    +16.07e-6    +1465.2 keV
+  Z-like: pT 40-50 all eta       0.02023   102.0    +65.33e-6    +5957.0 keV
+
+==============================================================================
+=== data/conv_lowpt.npz   313245 tracks
+==============================================================================
+  K on the (band x sigma quintile) grid, GeV  [q=+1 rows; q=-1 is -K to 2 %]
+    barrel     -3.27   +21.32    +5.47    +4.13    +0.47
+    middle     +8.21    +4.41    +8.67    +3.23    +1.85
+    endcap    +30.05    +2.39   +18.89    +4.95    +2.73
+
+  PREDICTED charge-odd <z> =  -2.277 e-3   (<b> over all tracks  -0.052 e-3)
+  MEASURED  charge-odd <x> =  -5.354+-1.841 e-3   (probe u=0.05:  -9.480+-1.525 e-3)
+  prediction in probe space (x0.8668) =  -1.973 e-3
+
+  --- per eta band, 1e-3 ---
+  band          pred <z>          meas <x>        meas probe  pull (mean)
+  barrel          -2.583       -6.703+-3.02      -11.613+-2.49        -1.37
+  middle          -1.848      -12.547+-3.40      -15.265+-2.84        -3.14
+  endcap          -2.306       +2.399+-3.18       -2.076+-2.64        +1.48
+
+  --- the VALIDATION: regress the measured pull on the per-track prediction ---
+  slope 1 = the Box bias is exactly what the data carry; 0 = it is absent.
+    slope = +1.924 +- 0.663
+
+  --- the shape, on an EXOGENOUS gen (pT, |eta|) grid ---
+  cell                              <sigma>      pred         measured
+  pT   2.0-  8.2 |eta| 0.00-0.80  1.663e-03     -1.57      -13.39+-5.58
+  pT   2.0-  8.2 |eta| 0.80-1.61  1.679e-03     -1.70      -15.42+-5.51
+  pT   2.0-  8.2 |eta| 1.61-2.40  1.162e-03     -2.05       -3.29+-5.43
+  pT   8.2- 14.1 |eta| 0.00-0.80  7.756e-04     -3.04       -6.28+-5.51
+  pT   8.2- 14.1 |eta| 0.80-1.61  7.713e-04     -1.98       -9.15+-5.46
+  pT   8.2- 14.1 |eta| 1.61-2.40  5.265e-04     -2.31       +0.81+-5.58
+  pT  14.1- 20.0 |eta| 0.00-0.80  5.296e-04     -3.13       -1.77+-5.55
+  pT  14.1- 20.0 |eta| 0.80-1.61  5.248e-04     -2.13       -8.79+-5.51
+  pT  14.1- 20.0 |eta| 1.61-2.40  3.655e-04     -2.57       +9.15+-5.58
+    cell-wise scale of the prediction: k = +1.86 +- 0.79   (1 = validated)   chi2(k=1) = 19.0/9   chi2(k=0) = 23.4/9
+
+  --- what it does to a MOMENTUM SCALE ---
+  <z>_odd * sigma_rel = Delta(1/p)/(1/p), so the MOMENTUM bias is
+  dp/p = -<z>_odd sigma_rel, charge-INDEPENDENT; in a dimuon mass
+  dm/m = dp/p -- it ADDS on both legs, unlike the sagitta term.
+  selection                  <sigma_rel>     <p>         dp/p     dm at m_Z
+  barrel                         0.00961    12.8    +25.31e-6    +2307.8 keV
+  middle                         0.01580    21.6    +29.31e-6    +2672.4 keV
+  endcap                         0.02228    42.7    +51.20e-6    +4668.8 keV
+
+==============================================================================
+=== COMBINED over the two guns: the per-track Box prediction carries a scale
+    k = +0.98 +- 0.40   (1 = the data carry exactly the predicted bias; 2.4 sigma from 0)
+==============================================================================
