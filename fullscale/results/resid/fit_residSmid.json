@@ -1,0 +1,143 @@
+{
+ "card": "/work/submit/david_w/ZMass/calibration_studies/fullscale/cards/z_residSmid.hdf5",
+ "n": 696247,
+ "ares_active": false,
+ "jensen_active": false,
+ "jensen_mode": "exact",
+ "corr_clip": 0.0,
+ "corr_form": "fluctuation",
+ "fluct_active": true,
+ "label": "residSmid",
+ "params": [
+  "alpha"
+ ],
+ "fixed": [
+  "k_hit",
+  "k_ioni",
+  "k_ms",
+  "k_rad"
+ ],
+ "nll0": 1079891.0746800576,
+ "t_load": 2.340425968170166,
+ "t_grad": 9.243037223815918,
+ "t_hess": 42.02003741264343,
+ "rss_gb": 37.900394439697266,
+ "config": {
+  "kind": "MassCF",
+  "channel": "z",
+  "m_ref": 91.1876,
+  "scale_param": "alpha",
+  "scale_unit": 0.001,
+  "bkg_frac_param": null,
+  "bkg_frac": 0.0,
+  "bkg_frac_unit": 0.001,
+  "floor": "softplus",
+  "floor_scale": 1e-07,
+  "self_consistent_sigma": true,
+  "jensen_mode": "exact",
+  "jensen_scale": 1.0,
+  "jensen_disc_floor": 0.1,
+  "corr_clip": 0.0,
+  "corr_form": "fluctuation",
+  "corr_coeff_max": 0.08,
+  "vpow": null,
+  "sigma_floor": 0.2,
+  "chunk": 32768,
+  "norm_window": [
+   81.1876,
+   101.1876
+  ],
+  "norm_tpoints": 8192,
+  "upsample": 4,
+  "families": [
+   {
+    "name": "hit",
+    "param": "k_hit",
+    "kind": "gauss"
+   },
+   {
+    "name": "ms",
+    "param": "k_ms",
+    "kind": "tab"
+   },
+   {
+    "name": "ioni",
+    "param": "k_ioni",
+    "kind": "tab"
+   },
+   {
+    "name": "rad",
+    "param": "k_rad",
+    "kind": "tab"
+   }
+  ],
+  "kernel": {
+   "type": "delta"
+  },
+  "background": {
+   "type": "uniform",
+   "window": [
+    90.6876,
+    91.6876
+   ]
+  },
+  "jac_params": []
+ },
+ "truth": {},
+ "asimov_err": [
+  0.01441350629608636
+ ],
+ "minimizer": {
+  "gpu_peak_gb": NaN,
+  "rss_gb": 38.82501220703125,
+  "nit": 0,
+  "nfev": 2,
+  "nhev": 2,
+  "t_fit": 112.145090341568,
+  "status": 2,
+  "trust_radius": NaN,
+  "message": "A bad approximation caused failure to predict improvement."
+ },
+ "method": "trust-exact",
+ "engine": "host",
+ "t_sandwich": 13.5372896194458,
+ "sandwich_err": [
+  0.016003886937448943
+ ],
+ "sandwich_ratio": [
+  1.1103396084680952
+ ],
+ "fitted": [
+  0.052692089736313716
+ ],
+ "err": [
+  0.014413506296086351
+ ],
+ "grad": [
+  -3.778755086614183e-11
+ ],
+ "newton_step_sigma": [
+  4.905265903954003e-13
+ ],
+ "diag_step_sigma": [
+  -6.047476917048347e-13
+ ],
+ "worst_poi_step_sigma": 4.905265903954003e-13,
+ "edm": 1.4832241163073063e-25,
+ "edm_tol": 0.001,
+ "converged": true,
+ "nll": 1079891.0746800576,
+ "nit": 0,
+ "t_fit": 112.145090341568,
+ "gradmax": 3.778755086614183e-11,
+ "corr": [
+  [
+   0.9999999999999999
+  ]
+ ],
+ "projections": {
+  "696247.0": [
+   0.014413506296086351
+  ]
+ }
+}

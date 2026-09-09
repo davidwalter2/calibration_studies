@@ -8,3 +8,16 @@ calib_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')
 [nanstep] /home/david_w/orcd/pool/zmass/cards/joint_ok_full.hdf5: 2 unbinned term(s), 1 external, loaded in 514 s
 External likelihood term 'hitchi2': the Hessian is singular and the gradient has a component outside its range, so the term is unbounded below and cannot be centered. Using the pseudo-inverse for the in-range part; absolute NLL values remain offset.
   103 parameters, 95 floating, frozen [np.str_('k_hit'), np.str_('k_ioni'), np.str_('k_ms'), np.str_('k_rad'), np.str_('material_beampipe'), np.str_('material_pp1_cables'), np.str_('material_support_tube'), np.str_('material_thermal_screen')]
+
+--- START POINT (parameter defaults)
+  loss inf  grad NON-FINITE (88 of 103)  hess NON-FINITE (10384 of 10609)
+  term 'jpsi': nll -5327803.017379  min L_i -0.000557223  non-positive 2  nan 0  min Z_c 0.998787 (non-positive 0, nan 0)
+              i          m      sigma  class        a_i        g_i          L_i
+          84476     3.4230    0.07951     63    0.04538   -0.02215   -0.0005572
+        2103551     3.4176    0.08488     63    0.04719   -0.02235   -8.763e-06
+  term 'zmass': nll 11087491.809631  min L_i 9.41847e-05  non-positive 0  nan 0  min Z_c 0.976738 (non-positive 0, nan 0)
+  external '?': nll <'dict' object has no attribute 'nll'>
+
+  NON-FINITE Hessian ROWS at the START point: [np.str_('bfield_mode0'), np.str_('bfield_mode1'), np.str_('bfield_mode2'), np.str_('bfield_mode3'), np.str_('bfield_mode4'), np.str_('bfield_mode5'), np.str_('bfield_mode6'), np.str_('bfield_mode7'), np.str_('bfield_mode8'), np.str_('bfield_mode9'), np.str_('bfield_mode10'), np.str_('bfield_mode11'), np.str_('bfield_mode12'), np.str_('bfield_mode13'), np.str_('bfield_mode14'), np.str_('bfield_mode15'), np.str_('bfield_mode16'), np.str_('bfield_mode17'), np.str_('bfield_mode18'), np.str_('bfield_mode19')]
+  NON-FINITE gradient components: [np.str_('bfield_mode0'), np.str_('bfield_mode1'), np.str_('bfield_mode2'), np.str_('bfield_mode3'), np.str_('bfield_mode4'), np.str_('bfield_mode5'), np.str_('bfield_mode6'), np.str_('bfield_mode7'), np.str_('bfield_mode8'), np.str_('bfield_mode9'), np.str_('bfield_mode10'), np.str_('bfield_mode11'), np.str_('bfield_mode12'), np.str_('bfield_mode13'), np.str_('bfield_mode14'), np.str_('bfield_mode15'), np.str_('bfield_mode16'), np.str_('bfield_mode17'), np.str_('bfield_mode18'), np.str_('bfield_mode19')]
+############ done 21:01:34 rc=0

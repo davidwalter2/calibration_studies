@@ -1,0 +1,33 @@
+############ GUNoff  23:09:48  card /home/david_w/orcd/pool/zmass/cards/jpsigun_260903x_families.hdf5  method trust-exact
+NVIDIA L40S, 46068 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788923394.198153  187944 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788923422.645640  187944 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+jpsi_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'mass' (kind MassCF, channel jpsi): 299712 candidates, 10 chunk(s) of 32768, parameters ['alpha', 'k_hit', 'k_ms', 'k_ioni', 'k_rad'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 1 POI(s) ['alpha'], 4 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 1 parameters: ['alpha'][0m
+[38;21mINFO:fitter.py: unbinned term 'mass': 299712 candidates in 10 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] minimising over 1 floating parameter(s); 4 frozen one(s) are removed from the vector the minimiser sees, not merely stop-gradiented, and are held at: k_hit=1, k_ms=1, k_ioni=1, k_rad=1[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[33;21mWARNING:fitter.py:   - diagnostics unavailable at this point: {{function_node __wrapped__Svd_device_/job:localhost/replica:0/task:0/device:GPU:0}} Determinism is not yet supported for SVD of matrices with 1 column. [Op:Svd] name: [0m
+[33;21mWARNING:fitter.py:   - diagnostics unavailable at this point: {{function_node __wrapped__Svd_device_/job:localhost/replica:0/task:0/device:GPU:0}} Determinism is not yet supported for SVD of matrices with 1 column. [Op:Svd] name: [0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNoff.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNoff.snapshot.hdf5[0m
+[33;21mWARNING:fitter.py:   - diagnostics unavailable at this point: {{function_node __wrapped__Svd_device_/job:localhost/replica:0/task:0/device:GPU:0}} Determinism is not yet supported for SVD of matrices with 1 column. [Op:Svd] name: [0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (converged) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNoff.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNoff.snapshot.hdf5[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 8.226218539136916e-11[0m
+[38;21mINFO:rabbit_fit.py: edmvalbeta: (np.float64(0.0), <tf.Tensor: shape=(0, 0), dtype=float64, numpy=array([], shape=(0, 0), dtype=float64)>)[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute -588354.360433 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -4[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 0.0[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNoff.hdf5
+[38;21mINFO:rabbit_fit.py: 80.40 seconds total time[0m
+############ done 23:12:23

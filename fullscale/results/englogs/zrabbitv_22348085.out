@@ -1,0 +1,65 @@
+############ GUNwA  00:22:07  card /home/david_w/orcd/pool/zmass/cards/jpsigun_260903x_families.hdf5  method trust-exact
+############   RABBIT=/home/david_w/orcd/pool/zmass/rabbit-wrap
+############   EXTRA=--unbinnedDeltaKernelForm auto
+NVIDIA H200, 143771 MiB, 590.48.01
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788927728.491429 1646817 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788927730.137644 1646817 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+jpsi_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[gate] /home/david_w/orcd/pool/zmass/cards/jpsigun_260903x_families.hdf5: 1 unbinned term(s), loaded in 31 s
+        mass: n 299712, 10 chunk(s) of 32768, 5 params, graph_chunkable True
+
+=== 1. graph chunk loop vs the eager python loop (same term) ===
+  mass point 0: value 0.000e+00, grad 2.664e-16, hvp 1.170e-16   OK
+  mass point 1: value 0.000e+00, grad 6.804e-16, hvp 2.940e-17   OK
+
+=== 2. rabbit's term vs the standalone chunked objectives ===
+WARNING:tensorflow:5 out of the last 5 calls to <function vgh_fn.<locals>._vgh at 0x152e741e72e0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+  mass vs ChunkedObjective : value 0.000e+00, grad 5.121e-17, hvp 2.950e-17   OK
+  mass vs DeviceChunkedObjective: worst 0.000e+00   OK
+
+=== 3. the Fitter's loss / gradient / HVP ===
+  5 fit parameters, jit_compile False, hvp revrev, hessian route hvps
+  loss -588347.712414181  [value 0.97 s, value+grad 0.66 s, +hvp 3.37 s]
+  loss_val vs loss_val_grad: 0.000e+00   OK
+  gradient . p: analytic -536.53655, central FD -536.53657, rel 3.00e-08   OK
+
+=== 4. the Hessian route (HVP columns) and the EDM ===
+  Hessian in 1.4 s, asymmetry 0.00e+00, eigenvalues [0.2698, 1.04e+05], EDM 356.2
+WARNING:tensorflow:5 out of the last 5 calls to <function pfor.<locals>.f at 0x152e741e63e0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+WARNING:tensorflow:6 out of the last 6 calls to <function pfor.<locals>.f at 0x152e741e63e0> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+  Fitter Hessian block vs ChunkedObjective.hess (pfor) (5x5): 1.423e-16   OK
+
+ALL GATES PASSED
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788927804.656136 1668792 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788927805.905326 1668792 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+jpsi_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'mass' (kind MassCF, channel jpsi): 299712 candidates, 10 chunk(s) of 32768, parameters ['alpha', 'k_hit', 'k_ms', 'k_ioni', 'k_rad'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 1 POI(s) ['alpha'], 4 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 1 parameters: ['alpha'][0m
+[38;21mINFO:fitter.py: unbinned term 'mass': 299712 candidates in 10 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] minimising over 1 floating parameter(s); 4 frozen one(s) are removed from the vector the minimiser sees, not merely stop-gradiented, and are held at: k_hit=1, k_ms=1, k_ioni=1, k_rad=1[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[33;21mWARNING:fitter.py:   - diagnostics unavailable at this point: {{function_node __wrapped__Svd_device_/job:localhost/replica:0/task:0/device:GPU:0}} Determinism is not yet supported for SVD of matrices with 1 column. [Op:Svd] name: [0m
+[33;21mWARNING:fitter.py:   - diagnostics unavailable at this point: {{function_node __wrapped__Svd_device_/job:localhost/replica:0/task:0/device:GPU:0}} Determinism is not yet supported for SVD of matrices with 1 column. [Op:Svd] name: [0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNwA.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNwA.snapshot.hdf5[0m
+[33;21mWARNING:fitter.py:   - diagnostics unavailable at this point: {{function_node __wrapped__Svd_device_/job:localhost/replica:0/task:0/device:GPU:0}} Determinism is not yet supported for SVD of matrices with 1 column. [Op:Svd] name: [0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (converged) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNwA.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNwA.snapshot.hdf5[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 8.226218539136916e-11[0m
+[38;21mINFO:rabbit_fit.py: edmvalbeta: (np.float64(0.0), <tf.Tensor: shape=(0, 0), dtype=float64, numpy=array([], shape=(0, 0), dtype=float64)>)[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute -588354.360433 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -4[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 0.0[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/home/david_w/orcd/pool/env/tf/lib/python3.13/site-packages/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_GUNwA.hdf5
+[38;21mINFO:rabbit_fit.py: 32.08 seconds total time[0m
+############ done 00:24:01

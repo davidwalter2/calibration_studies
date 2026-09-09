@@ -1,0 +1,158 @@
+NVIDIA H200, 143771 MiB
+############ Ss12  21:47:32  card /home/david_w/orcd/pool/zmass/cards/z_full380_fl_s12.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788918452.456341 3462388 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788918453.901442 3462388 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: unbinned term 'zmass': 4445 of 3682662 candidates (0.1207 %) have |c_i/sigma_i| above corr_coeff_max = 0.08; the quadratic coefficient is bounded there[0m
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 3682662 candidates, 113 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5', 'shape6', 'shape7', 'shape8', 'shape9', 'shape10', 'shape11', 'shape12'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 16 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5', 'shape6', 'shape7', 'shape8', 'shape9', 'shape10', 'shape11', 'shape12'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 3682662 candidates in 113 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 9.256762087602225e+19[0m
+[38;21mINFO:fitter.py:   - edmval: 10543.621141644238[0m
+[33;21mWARNING:fitter.py: 6 floating parameter(s) have an essentially zero Hessian diagonal (1.11e+06 against a scale of 4.84e+18): [np.str_('m_Z'), np.str_('Gamma_Z'), np.str_('shape1'), np.str_('shape2'), np.str_('shape3'), np.str_('shape4')]. Nothing in the likelihood constrains them, so the trust-region subproblem is singular. Freeze them or give them a prior; this is NOT the frozen-parameter case and is deliberately not regularised away.[0m
+[38;21mINFO:fitter.py:   - Condition number: nan[0m
+[38;21mINFO:fitter.py:   - edmval: nan[0m
+[33;21mWARNING:fitter.py: Minimizer raised: array must not contain infs or NaNs[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (minimizer-failed) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Ss12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Ss12.snapshot.hdf5[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (converged) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Ss12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Ss12.snapshot.hdf5[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+Results written in file /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_Ss12.hdf5
+Traceback (most recent call last):
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 1089, in <module>
+    main()
+    ~~~~^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 1056, in main
+    fit(args, ifitter, ws, dofit=ifit >= 0 and not args.noFit)
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 627, in fit
+    edmval, cov = fitter.edmval_cov(grad, hess)
+                  ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/fitter.py", line 1057, in edmval_cov
+    edmval, cov = edmval_cov(subgrad, subhess)
+                  ~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/tfhelpers.py", line 72, in edmval_cov
+    return tf_edmval_cov(grad, hess)
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/tfhelpers.py", line 54, in tf_edmval_cov
+    raise ValueError(
+        "Cholesky decomposition failed, Hessian is not positive-definite"
+    )
+ValueError: Cholesky decomposition failed, Hessian is not positive-definite
+############ Ss12 done 21:57:53 rc=0
+############ SVs12  21:57:53  card /home/david_w/orcd/pool/zmass/cards/z_V_s12.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788919073.965154 3601925 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788919075.334797 3601925 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 3682662 candidates, 113 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5', 'shape6', 'shape7', 'shape8', 'shape9', 'shape10', 'shape11', 'shape12'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 16 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5', 'shape6', 'shape7', 'shape8', 'shape9', 'shape10', 'shape11', 'shape12'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 3682662 candidates in 113 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.0571488661921741e+20[0m
+[38;21mINFO:fitter.py:   - edmval: 9619.59101435502[0m
+[33;21mWARNING:fitter.py: 6 floating parameter(s) have an essentially zero Hessian diagonal (1.06e+06 against a scale of 4.66e+18): [np.str_('m_Z'), np.str_('Gamma_Z'), np.str_('shape1'), np.str_('shape2'), np.str_('shape3'), np.str_('shape4')]. Nothing in the likelihood constrains them, so the trust-region subproblem is singular. Freeze them or give them a prior; this is NOT the frozen-parameter case and is deliberately not regularised away.[0m
+[38;21mINFO:fitter.py:   - Condition number: 10410041544765.938[0m
+[38;21mINFO:fitter.py:   - edmval: 70525.28565967805[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 46182769558970.375[0m
+[38;21mINFO:fitter.py:   - edmval: 60074.53405923222[0m
+[38;21mINFO:fitter.py:   - Condition number: 350288875263549.0[0m
+[38;21mINFO:fitter.py:   - edmval: 44084.45798459742[0m
+[38;21mINFO:fitter.py:   - Condition number: 7798594643922249.0[0m
+[38;21mINFO:fitter.py:   - edmval: 28350.303224187344[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.9042054309938976e+16[0m
+[38;21mINFO:fitter.py:   - edmval: 22627.551443958655[0m
+[38;21mINFO:fitter.py:   - Condition number: 3.327971034559539e+17[0m
+[38;21mINFO:fitter.py:   - edmval: 22871.50441313535[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 2.6276257363384476e+19[0m
+[38;21mINFO:fitter.py:   - edmval: 22886.29329496622[0m
+[38;21mINFO:fitter.py:   - Condition number: 9.36443853463322e+21[0m
+[38;21mINFO:fitter.py:   - edmval: 17875.43292040564[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.6327349584679877e+22[0m
+[38;21mINFO:fitter.py:   - edmval: 13705.125662982464[0m
+[38;21mINFO:fitter.py:   - Condition number: 4.8497257101522115e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 12316.763383626938[0m
+[38;21mINFO:fitter.py:   - Condition number: 8.118893876908539e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 10210.311977148056[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 4.228997855791686e+26[0m
+[38;21mINFO:fitter.py:   - edmval: 8969.865713492036[0m
+[38;21mINFO:fitter.py:   - Condition number: 5.56096856646824e+27[0m
+[38;21mINFO:fitter.py:   - edmval: 4670.022202849388[0m
+[38;21mINFO:fitter.py:   - Condition number: 4.964389716886367e+27[0m
+[38;21mINFO:fitter.py:   - edmval: 125.45107409358025[0m
+[38;21mINFO:fitter.py:   - Condition number: 6.813200185841963e+22[0m
+[38;21mINFO:fitter.py:   - edmval: 11655.690711684525[0m
+[38;21mINFO:fitter.py:   - Condition number: 6.017000748637232e+20[0m
+[38;21mINFO:fitter.py:   - edmval: 9611.774567718094[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 9.948689311006412e+22[0m
+[38;21mINFO:fitter.py:   - edmval: 8702.882051285356[0m
+[38;21mINFO:fitter.py:   - Condition number: 2.535173270761911e+24[0m
+[38;21mINFO:fitter.py:   - edmval: -50713.527426719666[0m
+[38;21mINFO:fitter.py:   - Condition number: 6.375631474628468e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 11657.247368268669[0m
+[38;21mINFO:fitter.py:   - Condition number: 4.349196229002366e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 8020.500473901629[0m
+[38;21mINFO:fitter.py:   - Condition number: 3.9079952663149936e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 8253.508365027606[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 5.8267175259873015e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 7298.26331906952[0m
+[38;21mINFO:fitter.py:   - Condition number: 5.271521590338002e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 8323.413331445307[0m
+[38;21mINFO:fitter.py:   - Condition number: 6.717579981990896e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 5864.258202705532[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.6559839386386102e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9104.27137246821[0m
+[38;21mINFO:fitter.py:   - Condition number: 5.629548808369156e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 9785.347523479839[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 6.11486558544539e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 9874.122701919445[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.8217806273112066e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9874.611906678223[0m
+[38;21mINFO:fitter.py:   - Condition number: 4.881945632024102e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9871.761543384455[0m
+[38;21mINFO:fitter.py:   - Condition number: 2.1012629823500198e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9867.527531986918[0m
+[38;21mINFO:fitter.py:   - Condition number: 4.628067073712494e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9850.865483606904[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 7.447555158940202e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9803.036965152074[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.519970964645961e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9641.471535971155[0m
+[38;21mINFO:fitter.py:   - Condition number: 2.734065436549809e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9577.366109777708[0m
+[38;21mINFO:fitter.py:   - Condition number: 3.7152261032465134e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9001.866948710755[0m
+[38;21mINFO:fitter.py:   - Condition number: 2.4180329115737376e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9233.023086111993[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 8.938249417529337e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 9497.936612248071[0m
+[38;21mINFO:fitter.py:   - Condition number: 7.909909918411378e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 9451.158908377402[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.0301329358018915e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 8743.987338772975[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.9559799545810588e+23[0m
+[38;21mINFO:fitter.py:   - edmval: 8780.712403249927[0m
+[38;21mINFO:fitter.py:   - Condition number: 6.1762694249610255e+22[0m
+[38;21mINFO:fitter.py:   - edmval: 8841.205730061512[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (periodic) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVs12.snapshot.hdf5[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.8053561136875958e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9506.49603338947[0m
+[38;21mINFO:fitter.py:   - Condition number: 1.4324971792052468e+24[0m
+[38;21mINFO:fitter.py:   - edmval: 9681.635781012781[0m
+[2026-09-09T00:21:20.611] error: *** JOB 22333692 ON node4601 CANCELLED AT 2026-09-09T00:21:20 DUE to SIGNAL Terminated ***

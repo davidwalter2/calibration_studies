@@ -1,0 +1,27 @@
+{
+ "params": [
+  "alpha",
+  "k_hit",
+  "k_ms",
+  "k_ioni",
+  "k_rad"
+ ],
+ "fitted": [
+  -0.055486444279441924,
+  1.0,
+  1.0,
+  1.0,
+  1.0
+ ],
+ "err": [
+  0.01042485448095607,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "source": "/work/submit/david_w/ZMass/calibration_studies/fullscale/results/resid/rabbit_residSlo.hdf5",
+ "edmval": 2.473523897970903e-24,
+ "nllvalreduced": 868887.2303256439,
+ "ndfsat": -4.0
+}

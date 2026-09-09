@@ -1,21 +1,26 @@
-# RESUME HERE — 2026-09-09 evening
+# RESUME HERE — 2026-09-09 (wrap-up)
 
-**You are resuming from files only. Read this section, then sec. 0f.43-0f.50 for
-the open physics. Everything below the horizontal rule predates this.**
+**You are resuming from files only. Read this block, then sec. 0f.71 (the
+certified state), 0f.72 (why the confirming test had to be re-run) and 0f.72.2
+(what it said). Everything below the horizontal rule predates this.**
 
-## IN FLIGHT — nothing needs babysitting; all of it is detached or slurm
+## IN FLIGHT
 
 | what | where | result lands | done when |
 |---|---|---|---|
-| **auxgen J/psi v2** (the coordinator's, detached on **submit50**) | `logs/run_auxgen_260909b.log` | `runs/auxgen_jpsiv2.npz` | the log ends `-> .../auxgen_jpsiv2.npz` |
-| **auxgen DY v2** | — | **`runs/auxgen_dyv2.npz` HAS LANDED** (348 MB, 3 733 323 rows) | done |
-| `22315719` K(m) ladder | Engaging, `engaging/zrabbitvb_22315719.out` | `fitresults/native/rabbit_{Ss9,SVs9}.hdf5` | `#### <TAG> done ... rc=0` per row -- **`Ss9` LANDED and is certified (sec. 0f.53); `SVs9` running since 20:05** |
-| `22333692` K(m) 12 rungs (submitted 2026-09-08 20:45, the ladder job's walltime cannot hold them) | Engaging | `fitresults/native/rabbit_{Ss12,SVs12}.hdf5` | same |
-| ~~`22328595` **P2X**~~ | — | — | **FAILED on a NaN at the START point (sec. 0f.61/0f.65); superseded by the row below, which overwrites its file.** |
-| **`22336261` P2X, RESUBMITTED** with the exact delta-kernel J/psi path (sec. 0f.65) | Engaging | `fitresults/native/rabbit_P2X.hdf5` (OVERWRITES the stale start-point file) | `Results written` + a finite `edmval`; certify value AND NLL AND EDM |
-| `22336272` / `22336273` the J/psi-gun form cross-check (`auto` vs `off`) | Engaging | `alpha` must be unchanged against +0.0512 +- 0.0167e-3 | |
-| `22334725` / `22334726` the preconditioning pair | Engaging, queued | `SVetaEsloP` must converge; `SVetaBsloP` must reproduce -4.556 to 0.01 MeV | |
-| `22315802 insitu-tnp` | Engaging | NOT MINE -- another workstream, leave it | |
+| **`22354351`** the equivalence triple + the five SAFE-BAND rows | Engaging, `engaging/zrabbitvb_22354351.out` | `fitresults/native/rabbit_{n300kV,n300kW,n300kWK,VXetaB,VXetaT,VXetaE,VXetaBslo,VXetaBshi}.hdf5` | `#### <TAG> done ... rc=<rc>` per row. The triple LANDED and is in sec. 0f.72.1 |
+| **`22354353`** the K(m) ladder at 9 and 12 on the FLOORED cards | Engaging, `engaging/zrabbitvb_22354353.out` | `rabbit_{SVs9,SVs12,Ss12}.hdf5` | same. `SVs9` is descending and has NOT NaN'd, which the un-floored card did |
+| **`22336261` P2X** | Engaging | `fitresults/native/rabbit_P2X.hdf5` | descending: EDM 1.4e5 -> 189 over 11 Hessians in 3 h 45, condition number 3.1e19 -> 1.0e15. 36 h of walltime (`TimeLimit=1-12:00:00`, NOT the script's 5:45). **Submitted with `FRESH=1`, so a preemption requeue would restart it from the prefit point rather than its snapshot** — if it is requeued, resubmit with `FRESH=0` |
+| `22332184` `zcard3` phase-3 card build | Engaging, `mit_normal` | the ~36 GB phase-3 card | PENDING since 2026-09-08 20:18, estimated start **03:42**, then up to 11 h 45. It will not finish in this window |
+| `22315802 insitu-tnp` | Engaging | NOT MINE — another workstream, leave it | |
+
+**DEAD, and why (sec. 0f.72):** `22337999` (the first submission of the five
+safe-band rows) and `22348542` (the first submission of the floored ladder)
+both died on `TypeError: MassCFTerm.__init__() got an unexpected keyword
+argument 'corr_a_max'` — the card was written by a rabbit four commits ahead of
+the one the fit ran on — and both logged `rc=0` because the batch driver's
+`rc=$?` read the echo's status. Both defects are fixed; the eight affected
+cards were stripped of the inert key with `cardkey.py`.
 
 `./collect.sh --summary` rsyncs Engaging and re-makes the certified table. It is
 the ONE command to run first.
@@ -6324,3 +6329,94 @@ cells, not a systematic of every Engaging row.
 are comparable with every row of the certified table. Because (1) is exact, a
 card carrying the key and a card without it are *the same card* to the fitter,
 so this certificate does not have to be repeated if the key reappears.
+
+### 0f.72.2 THE CONFIRMING TEST OF 0f.63 — THE FIRST TWO SAFE BANDS, AND THE
+### SPREAD IS GONE (2026-09-09, `22354351`, still running)
+
+v form, `K(m)` 5, cold, scipy `trust-exact`, `k_hit k_ms k_ioni k_rad` frozen,
+staged `rabbit-vmass` `35b93940` — the SAME code as the lead-band rows they are
+compared with (0f.72/0f.72.1). Errors below are the inverse Hessian; the
+comparison rows carry the x1.109 MiNNLO sandwich, so the safe-band errors are
+quoted both ways.
+
+| band | lead band, `\|eta\|` of the RECO-leading leg | **safe band, `max(\|eta_p\|,\|eta_m\|)`** | 0f.66's PRE-REGISTERED prediction |
+|---|---:|---:|---:|
+| < 0.9 | -21.08 +- 3.24 | **+2.68 +- 3.95 (H) / +- 4.38 (sw)** | **+4.3** |
+| 0.9 - 1.6 | +12.39 +- 4.16 | **+2.92 +- 3.40 (H) / +- 3.77 (sw)** | **-4.6** |
+| 1.6 - 3.0 | +34.22 +- 5.47 | (running) | -3.9 |
+
+Both certified four ways: `VXetaB` NLL -1926526.7947, EDM **1.52e-10**;
+`VXetaT` NLL -3371566.6113, EDM **6.46e-11**; `certtable.py` marks both QUOTE.
+
+**The two safe bands differ by 0.24 MeV where the two lead bands differ by
+33.5 MeV.** The barrel alone moves **+23.8 MeV** on changing nothing but the
+definition of the band variable, and lands 0.4 sigma from the number written
+down before the fit ran. The middle band lands 2.0 sigma from its prediction
+(+2.92 measured against -4.6 predicted) — the prediction's sign is wrong there,
+which is the one place the `-A` model does not track, and it is the band whose
+predicted shift was smallest and whose two definitions overlap least.
+
+Populations, for the record — the two definitions select DIFFERENT candidates,
+which is why the comparison is spread-to-spread and not cell-by-cell:
+safe 699 414 / 1 257 175 / 1 726 073 against lead 1 572 534 / ... .
+
+### 0f.72.3 ALL FIVE SAFE-BAND ROWS — **0f.63 IS ESTABLISHED. BOTH
+### PRE-REGISTERED PREDICTIONS ARE CONFIRMED** (2026-09-09, `22354351`)
+
+All five certified four ways by `certtable.py` (QUOTE on every row). Errors are
+the inverse Hessian x **1.109** (the MiNNLO sandwich), as for every band row.
+
+| band | lead band `\|eta\|_lead(reco pT)` | **safe band `max(\|eta_p\|,\|eta_m\|)`** | 0f.66's PREDICTION |
+|---|---:|---:|---:|
+| < 0.9 | -21.09 +- 3.19 | **+2.68 +- 4.38** | +4.3 |
+| 0.9 - 1.6 | +12.39 +- 4.21 | **+2.92 +- 3.77** | -4.6 |
+| 1.6 - 3.0 | +34.22 +- 5.30 | **-9.83 +- 3.95** | -3.9 |
+| **endcap - barrel** | **+55.31 +- 6.19 (8.9 sigma)** | **-12.51 +- 5.90 (2.1 sigma)** | +67.8 -> **-8.2** |
+| chi2 against a common value | **93.8 / 2** | **6.7 / 2** | |
+| weighted mean | -0.79 +- 2.29 | **-1.54 +- 2.32** | |
+
+| barrel `sigma/m` | lead band | **safe band** | PREDICTION |
+|---|---:|---:|---:|
+| LOW | -4.56 +- 4.10 | **-2.53 +- 6.04** | |
+| HIGH | -40.90 +- 5.14 | **+9.99 +- 6.62** | |
+| **HIGH - LOW** | **-36.35 +- 6.57 (5.5 sigma)** | **+12.52 +- 8.96 (1.4 sigma)** | -45.1 -> **+18.6** |
+
+NLL / EDM: `VXetaB` -1926526.7947 / 1.52e-10; `VXetaT` -3371566.6113 /
+6.46e-11; `VXetaE` -4526804.5804 / 3.33e-15; `VXetaBslo` -952284.2646 /
+1.12e-20; `VXetaBshi` -978837.0716 / 1.23e-11.
+
+**WHAT IT SAYS.**
+
+1. **The band spread collapses by a factor 4.4 and CHANGES SIGN**, +55.31 ->
+   -12.51 MeV, against a prediction of +67.8 -> -8.2 recorded before the fits
+   ran. The chi2 against a common value falls from **93.8/2 to 6.7/2**.
+2. **The safe bands' weighted mean is -1.54 +- 2.32 MeV, which is the inclusive
+   v-form closure to three digits** (-1.538 +- 2.311, 0f.71.1). The bands and
+   the inclusive fit now say the same thing, which is what "the inclusive
+   closure is not a cancellation" means operationally.
+3. **The barrel `sigma/m` split also changes sign and does NOT vanish**:
+   -36.35 +- 6.57 -> **+12.52 +- 8.96**, against the predicted +18.6 (0.7 sigma
+   from it). This was the non-obvious part of the prediction and it holds: a
+   `sigma/m` cut is a cut on the residual *whatever the band variable is*
+   (standing rule 3), so changing the band removes the band's own selection
+   effect and not the `sigma/m` one. At 1.4 sigma the safe split is no longer
+   significant.
+4. **Per-band agreement with `-A` is good but not perfect**: barrel 0.4 sigma,
+   endcap 1.5 sigma, middle band 2.0 sigma with the wrong SIGN (+2.92 measured
+   against -4.6 predicted). The middle band is where the predicted shift was
+   smallest and where the two definitions overlap least, so this is where the
+   spread-not-cell rule bites hardest. **The claim that is established is the
+   SPREAD claim, which is what 0f.66 nominated in advance as the acceptance
+   test.**
+
+**THE RESIDUAL, STATED HONESTLY.** -12.51 +- 5.90 MeV (2.1 sigma) of
+endcap - barrel spread survives, **opposite in sign to the lead-band pattern**.
+That is the upper bound on a true detector-side `eta` effect from this test,
+and it is not fully clean either: `max(|eta_p|,|eta_m|)` still has
+`corr(., z) = +0.0025` against +0.0004 for the gen definition, so part of the
+-12.5 MeV may itself be residual selection. A cleaner number needs the gen
+predictor of 0f.63, which a card cannot cut on without truth. **It is NOT a
+demonstrated detector effect and must not be quoted as one.**
+
+Figures: `~/public_html/cvh/260909_fullscale/mz_eta_safe.png` (both definitions
+with their own pre-registered predictions) and `mz_sigmasplit_safe.png`.

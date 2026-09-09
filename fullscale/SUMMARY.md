@@ -103,6 +103,21 @@ mechanically by `certtable.py`. MeV from the generator
 | 0.9 - 1.6 | +3.87 +- 3.88 | +12.39 +- 4.16 |
 | 1.6 - 3.0 | +16.55 +- 4.71 | +34.22 +- 5.47 |
 
+**THE SAFE BAND — the same bands cut on `max(|eta_p|,|eta_m|)` instead of the
+`|eta|` of the RECO-leading leg** (v form, all five rows certified; section 5.5):
+
+| band | lead band | **safe band** | prediction, recorded in advance |
+|---|---:|---:|---:|
+| < 0.9 | -21.09 +- 3.19 | **+2.68 +- 4.38** | +4.3 |
+| 0.9 - 1.6 | +12.39 +- 4.21 | **+2.92 +- 3.77** | -4.6 |
+| 1.6 - 3.0 | +34.22 +- 5.30 | **-9.83 +- 3.95** | -3.9 |
+| **endcap - barrel** | **+55.31 +- 6.19 (8.9 sigma)** | **-12.51 +- 5.90 (2.1 sigma)** | +67.8 -> **-8.2** |
+| `chi2` vs a common value | **93.8 / 2** | **6.7 / 2** | |
+| weighted mean | -0.79 +- 2.29 | **-1.54 +- 2.32** | |
+
+**The safe bands' weighted mean equals the inclusive v-form closure
+(-1.54 +- 2.31) to three digits.**
+
 **The fixed-`eta` `sigma/m` split, now complete on both sides** (v form):
 
 | cell | `m_Z` [MeV] | internal slope |
@@ -111,15 +126,20 @@ mechanically by `certtable.py`. MeV from the generator
 | barrel `sigma/m` HIGH | -40.90 +- 4.63 | |
 | endcap `sigma/m` LOW | **+28.38 +- 5.19** | **+37.49 +- 10.10 (3.7 sigma)**, slope POSITIVE |
 | endcap `sigma/m` HIGH | +65.87 +- 8.69 | |
+| **safe** barrel `sigma/m` LOW | **-2.53 +- 6.04** | **+12.52 +- 8.96 (1.4 sigma)**, slope changes SIGN and is no longer significant; predicted **+18.6** |
+| **safe** barrel `sigma/m` HIGH | **+9.99 +- 6.62** | |
 
-The two internal slopes are equal to 3 % and **opposite in sign**, and the
-across-`eta` slope (+10 200) is equal and opposite to the barrel's. So the
-residual is a function of neither `sigma/m` alone nor `eta` alone — which is
-what section 5.5 now explains.
+The two lead-band internal slopes are equal to 3 % and **opposite in sign**,
+and the across-`eta` slope (+10 200) is equal and opposite to the barrel's. On
+the safe band that whole structure is gone: the barrel slope changes sign and
+falls to 1.4 sigma. Section 5.5 explains it.
 
-**Caveat on two rows**: `SVetaBslo` and `SVetaEslo` were fitted before the
-frozen-parameter fix (5.9) and carry `k` displaced by 1.6e-3 and 1.2e-3. They
-owe a cold re-run; the displacement is not expected to move them.
+**Caveat on two rows**: `SVetaBslo` and `SVetaEslo` carry `k` displaced by
+1.6e-3 and 1.2e-3 by the frozen-parameter defect of 5.9. The equivalence triple
+of 5.10 narrows this: on a representative card the frozen `k` sit at **exactly
+1.0** under both the defective and the fixed code, so the displacement is a
+property of those two cells and not of every Engaging row. They owe a cold
+re-run; the displacement is not expected to move them.
 
 ---
 
@@ -185,7 +205,7 @@ Every one was found by measuring `corr(variable, residual)` before binning.
 anti-correlated with the residual by construction
 (`corr = -0.090`, worse than the thing it was meant to fix).
 
-### 5.5 `eta_lead` is a RECO-`pT` selector — **it carries most of the 55 MeV `eta` spread. NEW, needs one confirming refit**
+### 5.5 `eta_lead` is a RECO-`pT` selector — **it carries the 55 MeV `eta` spread. ESTABLISHED by the confirming refit**
 `make_card.py:365-375` defines the band by the `|eta|` of the leg with the
 larger **reco** `pT`. When the legs have similar `pT`, which one leads is
 decided by which one fluctuated up, so the band edge is a cut on the residual.
@@ -218,18 +238,39 @@ candidates' *true* masses by almost exactly what the fits report:
 | 0.9-1.6 | +0.6 | +12.39 +- 4.16 |
 | endcap | **+44.4** | +34.22 +- 5.47 |
 
-**The confirming test is RUNNING** (`22337999`): five cards built on
-`max(|eta_p|, |eta_m|)`, which does not depend on which leg leads and needs no
-truth (`corr(., z) = +0.0025` against `+0.0203`), fitted in the v form. Note
-the two definitions select different candidates — the max-band barrel needs
-BOTH legs central — so the comparison is **spread to spread**, not cell by
-cell. **The predictions were recorded before the fits landed** (STATE 0f.66):
-`A` per band goes from +2.572 / -0.066 / -4.867 to **-0.470 / +0.504 / +0.426**
-e-4, so the band spread should collapse from **+67.8 MeV to -8.2 MeV**; and the
-barrel `sigma/m` split should go from -36.3 to **+18.6 MeV** — changing sign
-but **not** vanishing, because the `sigma/m` cut is a cut on the residual
-whatever the band variable is. The inclusive fits carry no `eta_lead` cut and
-are unaffected.
+**THE CONFIRMING TEST HAS RUN, AND BOTH PRE-REGISTERED PREDICTIONS HOLD.**
+Five cards built on `max(|eta_p|, |eta_m|)`, which does not depend on which leg
+leads and needs no truth (`corr(., z) = +0.0025` against `+0.0203`), fitted in
+the v form on the SAME code as the rows they are compared with, all five
+certified (Engaging `22354351`; the first submission, `22337999`, died on the
+staging defect of 5.10). The two definitions select different candidates — the
+safe barrel needs BOTH legs central, 699 414 against the lead barrel's
+1 572 534 — so the comparison is **spread to spread**, not cell by cell, and
+the predictions were written down before the fits landed (STATE 0f.66):
+
+| | predicted | **measured** |
+|---|---:|---:|
+| band spread, endcap - barrel | +67.8 -> **-8.2** | +55.31 +- 6.19 -> **-12.51 +- 5.90** |
+| `chi2` of the three bands vs a common value | — | 93.8 / 2 -> **6.7 / 2** |
+| barrel `sigma/m` split, HIGH - LOW | -45.1 -> **+18.6** | -36.35 +- 6.57 -> **+12.52 +- 8.96** |
+
+**The spread collapses by a factor 4.4 and changes sign; the `sigma/m` split
+changes sign and does not vanish, 0.7 sigma from its prediction.** That second
+point was the non-obvious half: a `sigma/m` cut is a cut on the residual
+whatever the band variable is, so changing the band can only remove the band's
+own selection effect. And the safe bands' weighted mean, **-1.54 +- 2.32**, is
+the inclusive v-form closure (-1.54 +- 2.31) to three digits — the bands and
+the inclusive fit now say the same thing.
+
+**What survives, stated honestly**: **-12.51 +- 5.90 MeV (2.1 sigma)** of
+endcap - barrel spread, *opposite in sign* to the lead-band pattern. That is
+the upper bound this test places on a true detector-side `eta` effect. It is
+not a demonstrated effect and must not be quoted as one: `max(|eta_p|,|eta_m|)`
+still carries `corr(., z) = +0.0025` against `+0.0004` for the gen definition,
+so part of the residual may itself be selection, and the clean version needs a
+gen predictor that a card cannot cut on. Per-band agreement with `-A` is 0.4 /
+2.0 / 1.5 sigma, the middle band having the wrong sign — which is why the
+established claim is the SPREAD claim, the one nominated in advance.
 
 ### 5.6 The `a`-coefficient deficit — **OPEN, small on `m_Z`**
 `a = d ln sigma/dz` is measured directly and sits 2-4 % below the spec's
@@ -363,7 +404,7 @@ cells and is not a property of every Engaging row.
 | # | item | size on `m_Z` | next step |
 |---|---|---:|---|
 | 1 | **`K(m)` truncation** | **+26.6 MeV** (7 -> 9) | the v-form 9- and 12-term rungs (in flight); then replace the floated LO kernel with a theory-predicted `K(m)` — which also returns the x1.5 statistical penalty |
-| 2 | **`eta_lead` reco-`pT` selector** | up to **45 MeV per band**, 0 inclusive | three band cards with `max(\|eta_p\|,\|eta_m\|)` + three warm refits, ~2 h. **Highest value per hour in the list** |
+| 2 | ~~**`eta_lead` reco-`pT` selector**~~ | it WAS up to 45 MeV per band, 0 inclusive | **CLOSED (5.5)**: the safe-band refit collapses the spread from +55.3 to -12.5 MeV and changes its sign, `chi2` 93.8/2 -> 6.7/2, and the safe bands' weighted mean equals the inclusive closure. What is left is a **-12.5 +- 5.9 MeV (2.1 sigma)** residual whose own band variable is still 6x less clean than the gen one — an upper bound, not an effect |
 | 3 | the momentum scale from J/psi (phase 2) | not yet measured | **`P2X` is RUNNING and descending, not converged** (Engaging 22336261, 3 M J/psi + 3.68 M Z + the hit-chi2 quadratic, 95 floating of 103, exact delta-kernel J/psi term). 11 Hessian evaluations in 3 h 45: EDM 137 291 -> 99 172 -> 74 075 -> 27 665 -> 40 511 -> 12 359 -> 6 242 -> 2 103 -> 999 -> 203 -> **189**, against a 1e-3 target; the condition number fell from **3.1e19 to 1.0e15** as it left the start point. ~20 min per Hessian, 36 h of walltime, so it has room. It is NOT blocked on the gun check (5.9). **The remedy if it stalls is preconditioning at the trust-region level** — rescale by the curvature so the region is spherical in sigma units, a change of variables that leaves the minimum invariant — or the 2-GPU candidate sharding; NOT a resubmit, which would only repeat the same descent |
 | 4 | the material amounts (phase 3) | not yet measured | needs 2-GPU candidate sharding: the phase-2 Hessian is **141.4 GB of an H200's 143.8 GB** |
 | 5 | GN second-order (Box) charge-odd bias | ~4 MeV (4.7e-5) | analytic correction from the exported steps |
@@ -373,8 +414,9 @@ cells and is not a property of every Engaging row.
 | 9 | trust-region **preconditioning** | 0 on any value; a robustness item | UNTESTED (controls cancelled in the wrap-up). Without it every card in the family is one unlucky draw from the NaN of 5.9; the present remedies are the positivity floor (5.9) and a warm start per row |
 | 10 | **staging discipline**: card and fitter must be the same rabbit | 0 on any value; cost 8 lost jobs | fixed and certified (5.10). The card builder on submit ran four commits ahead of the Engaging checkout for a whole day before anything noticed, because every crashed batch stage logged `rc=0` |
 
-Items 1 and 2 together are larger than everything else combined, and **both are
-model/analysis effects, not detector or reconstruction effects.**
+Item 2 is now closed and item 1 is what is left: it is larger than everything
+else in the list combined, and it is a **model/analysis effect, not a detector
+or reconstruction one.**
 
 ---
 

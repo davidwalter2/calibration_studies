@@ -1,0 +1,97 @@
+NVIDIA H200, 143771 MiB
+############ SVs9  00:27:19  card /home/david_w/orcd/pool/zmass/cards/z_V_s9.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788928047.052030  187871 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788928062.594240  187871 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+Traceback (most recent call last):
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 1089, in <module>
+    main()
+    ~~~~^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 915, in main
+    indata = inputdata.FitInputData(
+        args.filename, args.pseudoData, host_memory=args.nDevices > 1
+    )
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/inputdata.py", line 18, in __init__
+    self._init_impl(filename, pseudodata)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/inputdata.py", line 218, in _init_impl
+    self.unbinned_terms = read_unbinned_terms_from_h5(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        f.get("unbinned_terms"), dtype=self.dtype
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/unbinned.py", line 3150, in read_unbinned_terms_from_h5
+    term = _TERM_KINDS[kind](
+        name,
+    ...<21 lines>...
+        **cfg,
+    )
+TypeError: MassCFTerm.__init__() got an unexpected keyword argument 'corr_a_max'
+############ SVs9 done 00:29:15 rc=0
+############ SVs12  00:29:15  card /home/david_w/orcd/pool/zmass/cards/z_V_s12.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788928155.588265  195319 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788928157.278804  195319 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+Traceback (most recent call last):
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 1089, in <module>
+    main()
+    ~~~~^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 915, in main
+    indata = inputdata.FitInputData(
+        args.filename, args.pseudoData, host_memory=args.nDevices > 1
+    )
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/inputdata.py", line 18, in __init__
+    self._init_impl(filename, pseudodata)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/inputdata.py", line 218, in _init_impl
+    self.unbinned_terms = read_unbinned_terms_from_h5(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        f.get("unbinned_terms"), dtype=self.dtype
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/unbinned.py", line 3150, in read_unbinned_terms_from_h5
+    term = _TERM_KINDS[kind](
+        name,
+    ...<21 lines>...
+        **cfg,
+    )
+TypeError: MassCFTerm.__init__() got an unexpected keyword argument 'corr_a_max'
+############ SVs12 done 00:30:04 rc=0
+############ Ss12  00:30:04  card /home/david_w/orcd/pool/zmass/cards/z_full380_fl_s12.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788928205.182806  198888 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788928206.297437  198888 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+Traceback (most recent call last):
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 1089, in <module>
+    main()
+    ~~~~^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 915, in main
+    indata = inputdata.FitInputData(
+        args.filename, args.pseudoData, host_memory=args.nDevices > 1
+    )
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/inputdata.py", line 18, in __init__
+    self._init_impl(filename, pseudodata)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/inputdata.py", line 218, in _init_impl
+    self.unbinned_terms = read_unbinned_terms_from_h5(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        f.get("unbinned_terms"), dtype=self.dtype
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/unbinned.py", line 3150, in read_unbinned_terms_from_h5
+    term = _TERM_KINDS[kind](
+        name,
+    ...<21 lines>...
+        **cfg,
+    )
+TypeError: MassCFTerm.__init__() got an unexpected keyword argument 'corr_a_max'
+############ Ss12 done 00:30:55 rc=0
