@@ -5078,6 +5078,15 @@ step (`edmval` 5816 against 3354) and came out with `delta` = 1.6e-3, i.e. it
 happened to land benignly in the same subspace. It also explains why the same
 joint card family converges at 500 k and fails at full size: it is a coin flip.
 
+**IT IS THE MINIMISER, NOT THE OUTPUT WRITER -- verified.** The displacement is
+present in `cb.xval` itself, i.e. in the vector the minimiser carried at the end
+of its last iteration, which is what the SNAPSHOT stores (`n300kfix` snapshot
+`k_hit = 1.12578622`, `Ss9` 0.99981823, `SVetaBslo` 1.00162416, `Sdc8W`
+1.01460855 -- identical to the numbers in the result file). So the NLL and the
+POI values those rows report were evaluated at the DISPLACED `k`, not at 1.
+Conversely `SVetaEslo`'s failure snapshot has `k` at exactly 1, because it
+failed on the first step and rabbit restored iteration 0.
+
 **THE FIX IS NOT A REGULARISER**: minimise over the FLOATING SUBSPACE only.
 `self.floating_indices` already exists and is already used for the EDM and the
 covariance; the minimiser has to see the reduced vector and scatter back. Handed
