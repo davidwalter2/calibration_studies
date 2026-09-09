@@ -5771,3 +5771,44 @@ Tool: `fullscale/legscale.py`. Inputs: `runs/auxseed_dyv2.npz` (now also
 carrying `nvalid`/`nvalidpixel` per leg) and `runs/auxgen_dyv2.npz`.
 Pixel-count cells show nothing: `A` = +0.41 / -0.55 / -0.73e-4 for
 `npix <= 2 / = 3 / = 4`.
+
+### 0f.64 PHASE 3 STATUS (NOT FEASIBLE IN THE WRAP-UP WINDOW) AND ONE QUESTION
+### RECORDED FOR DAVID (2026-09-08)
+
+**PHASE 3 — where it actually stands.** Per the wrap-up rule (one certified fit
+if it can run on 2 GPUs within ~half a day, otherwise document and stop):
+**it cannot, and here is exactly why.**
+
+| gate | status |
+|---|---|
+| `make_joint_card.py --material` runs | the Engaging build died on `ModuleNotFoundError: make_global_term`; `resolution/globalfit/` and the `mfs` checkout are now STAGED and `engaging/build_phase3.sbatch` carries them on `PYTHONPATH` plus `MFS_DIR` |
+| the card itself | **NOT BUILT.** `zcard3` (22332184) is queued on `mit_normal`; the card is ~36 GB and takes hours |
+| memory | **THE BLOCKER.** The PHASE-2 Hessian already sits at **141.4 GB of an H200's 143.8 GB**. Phase 3 adds the per-group material exponents on both legs and the hit-class parameters, so it does **not** fit on one GPU |
+| 2-GPU candidate sharding | exists in rabbit (`#154`) but has **never been exercised on this card family**; it needs its own gate (same NLL and gradient as the single-GPU path on a card that fits) before any number from it is quotable |
+| the fit | consequently NOT ATTEMPTED |
+
+**So phase 3 is: inputs ready, card build queued, fit blocked on a sharding
+path that is untested here.** The honest next step is (1) let the card build
+finish, (2) gate the 2-GPU sharding on `joint_ok_n500k`, which fits on one GPU,
+by requiring the NLL and gradient to agree, (3) only then run the phase-3 fit.
+That is a day of work, not half a day, and none of it is physics risk.
+
+**A QUESTION RECORDED, NOT ACTED ON — FSR in the J/psi term.** The J/psi card's
+physics kernel is a **delta at the PDG mass**. But the J/psi MC has FSR, so for
+a radiating candidate the post-FSR gen mass is NOT the PDG mass, and the term
+is then comparing a reconstructed mass against the wrong truth. On the gun the
+equivalent comparison is made against **the candidate's own gen mass**, which
+is the correct reference. Two things are unknown and should be measured before
+the J/psi scale transfer is trusted:
+
+1. what fraction of J/psi candidates radiate enough to matter, and the
+   resulting shift of `<m_gen>` from the PDG value;
+2. what the difference between the two treatments (delta at PDG vs the
+   candidate's own gen-mass kernel, as on the gun) costs **on the extracted
+   momentum scale** -- which is the quantity the whole J/psi leg exists to
+   deliver into the Z fit.
+
+This matters because the J/psi term is what fixes the scale through the field
+modes in phase 2, so a common offset in its kernel propagates directly to
+`m_Z`. It is NOT a defect that has been demonstrated -- it is a check that has
+not been done, and it belongs in front of the first quotable phase-2 number.
