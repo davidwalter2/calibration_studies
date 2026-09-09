@@ -4854,3 +4854,250 @@ can pick up.
 hit. `resinfv`/`resinfbv` are booked under `if (exportStepRecords_)` (off for
 the 81 kB/candidate path) and `hitDetId` only in the fitFromGenParms block, so
 a signed per-hit weight needs a re-production or a small maker change.
+
+---
+
+### 0f.51 THE Q-MATRIX SHARES DO CLOSE, `f_ioni` IS 4.5e-06, AND THE `a_m`
+### CLOSED FORM CLOSES **NONE** OF THE DEFICIT (2026-09-08)
+
+**The grouping bug was not where the resume note said it was.** The v2 runtree
+carries parmtypes 0-5 (alignment), **8** (hit resolution, local x), **9**
+(local y, pixel only), **10** (multiple scattering), **11** (ionisation),
+**14** (50 B-field modes) and **15** (42 material groups). Per candidate
+`reseigidx` points at 8/9/10/11 **and** 15, and
+
+> the parmtype-15 blocks are a RE-PARTITION of the parmtype-10/11 noise
+> (`sum_g dQ_g == dQMS + dQI`), not an addition
+> -- `ResidualGlobalCorrectionMakerTwoTrackG4e.cc:4758`
+
+so `f_ms` and `f_ioni` in `aux_gen.py` were **always right**. What was wrong is
+`f_other`, which swept 8, 9 and 15 into one bucket and therefore printed a
+closure of 2.0 and an `f_other` of 1.0 -- the symptom that was read as
+"f_ioni = 0 because the parmtypes changed". Fixed (`cd9b58a`): each family is
+named, parmtype 15 is carried as an independent CHECK, `f_other` is now the
+unrecognised-parmtype bucket and is 0. On one DY v2 task, 2405 candidates:
+
+| check | value |
+|---|---:|
+| `f_hit + f_ms + f_ioni` | **1.000000031**, max\|.-1\| **3.9e-07** |
+| `f_mat - (f_ms + f_ioni)` | -2.9e-10 mean, 3.5e-08 max |
+| `f_other` (unrecognised) | **0 exactly** |
+
+**So the Q-matrix shares ARE variance fractions** -- which is exactly what the
+CF-exponent "shares" of sec. 0f.47b are NOT (they sum to 1.075 at one
+finite-difference step and 0.980 at another, because Moliere and Landau have no
+finite second moment). That was the whole point of asking the Q matrix instead.
+
+**THE `a_m` CLOSED FORM** (`measure_a.py --aux`, which asserts bit-identical
+`z` against the pairs cache first). `a_m = (1 + f_hit - f_ioni) sigma_m/m`:
+
+| cell | MEASURED `a/(sigma/m)` | spec `1+vgf` | closed `1+f_hit-f_ioni` | `f_ioni` | meas - closed |
+|---|---:|---:|---:|---:|---:|
+| **Z legs**, inclusive | **1.2110 +- 0.0004** | 1.2625 | **1.2625** | 4.5e-06 | **-0.0516** |
+| `\|eta\|<0.9` | 1.2503 +- 0.0006 | 1.2738 | 1.2738 | 5.0e-06 | -0.0236 |
+| `0.9-1.6` | 1.1667 +- 0.0003 | 1.2046 | 1.2046 | 4.9e-06 | -0.0379 |
+| `1.6-3.0` | 1.2725 +- 0.0004 | 1.3007 | 1.3007 | 3.9e-06 | -0.0282 |
+| **J/psi legs**, inclusive | 0.8928 +- 0.0130 | 1.0996 | 1.0993 | 3.2e-04 | **-0.2064** |
+| `\|eta\|<0.9` | 0.9163 +- 0.0223 | 1.1186 | 1.1181 | 5.7e-04 | -0.2017 |
+| `0.9-1.6` | 1.0070 +- 0.0113 | 1.0920 | 1.0917 | 3.4e-04 | -0.0847 |
+| `1.6-3.0` | 0.9899 +- 0.0090 | 1.0951 | 1.0949 | 2.1e-04 | -0.1051 |
+
+**`f_ioni` from the Q matrix is 4.5e-06 on the Z legs** -- five orders of
+magnitude below `f_hit` -- **so `1 + f_hit - f_ioni` is identical to `1 + vgf`
+to four decimals and closes 0.00 % of the deficit.** Sec. 0f.45's "it improves
+the closure by ~25 %" is **RETRACTED**: it rested on the CF-exponent
+`f_ioni = 0.005`, which sec. 0f.47b then showed is not a variance at all
+(it reads 0.0168 at one step and 0.0036 at eight).
+
+**The `e = f_hit - f_ioni` line is now CLOSED, on the right input.** The
+deficit is `-0.052` on the Z legs and **`-0.206` on the J/psi legs** -- four
+times larger at a seventh of the momentum -- and neither the per-leg term nor
+the ionisation term explains it. Figure: `am_closed.png`.
+
+### 0f.52 THE MIXTURE HYPOTHESIS: THE **FRACTION** REPRODUCES, THE
+### **COMPONENTS** DO NOT — REFUTED ON BOTH CHANNELS (2026-09-08)
+
+Sec. 0f.50 could not do this test because the mass caches had no
+`|seed -> final dq/p|`. **They do have what it takes**: the two-track trees
+carry `Mu{plus,minus}trk_pt/eta` (the generalTracks KF seed) and
+`Jpsi_qopref{plus,minus}` (the CVH reference `q/p`, `== Mu*_refParms[0]`), so
+
+    dq/p = |q/p final - q/p seed| / |q/p seed|
+
+`oddmoment/aux_seed.py` (new) extracts it plus `Jpsi_sigmarel*` and the gen leg
+momenta, and aligns to the pairs caches with `aux_gen.join_to_cache` -- the
+join is independently validated by `sigrel` coming back **bit-identical**
+(max diff 0.000e+00) to the cache's `sigrelp`/`sigrelm`. ABSOLUTE step only.
+`fullscale/run_auxseed.sh`; `runs/auxseed_{dyv2,jpsiv2}.npz` (3 733 323 and
+7 923 460 rows).
+
+**A. THE MIXING FRACTION REPRODUCES THE GUN, STRIKINGLY**, split at the 90th
+percentile of `|dq/p|`:
+
+| `\|eta\|` | gun (hit-class agent) | **Z legs** | **J/psi legs** |
+|---|---:|---:|---:|
+| 0.0-0.9 | 2.4 % | **2.68 %** | 0.64 % |
+| 0.9-1.6 | 7.0 % | **9.69 %** | 11.84 % |
+| 1.6-2.4 | 21.2 % | **20.04 %** | 15.19 % |
+
+**B. BUT NEITHER COMPONENT IS `eta`-FLAT** -- and that is what the hypothesis
+requires. Leg level, truth-referenced pull `x = z/(1 - a q z)` with
+`a = sigrel(1 - vgf)`, charge-even `<x e^{-0.05 x^2}>`, 1e-3:
+
+| sample | band | IN (top 10 %) | OUT (the bulk) | all |
+|---|---|---:|---:|---:|
+| **Z legs** | 0.0-0.9 | +7.65 +- 3.75 | +3.97 +- 0.54 | +4.06 |
+| 7 459 917 legs | 0.9-1.6 | +5.77 +- 2.20 | -3.46 +- 0.58 | -2.55 |
+| | 1.6-2.4 | -9.49 +- 1.83 | **-18.22 +- 0.75** | -16.43 |
+| | **chi2 vs `eta`-flat** | **35.8 / 2** | **577.7 / 2** | |
+| **J/psi legs** | 0.0-0.9 | +3.82 +- 6.02 | +1.47 +- 0.41 | +1.49 |
+| 15 846 860 legs | 0.9-1.6 | -0.17 +- 1.16 | -0.54 +- 0.38 | -0.46 |
+| | 1.6-2.4 | -1.18 +- 1.00 | -3.26 +- 0.36 | -2.93 |
+| | **chi2 vs `eta`-flat** | 1.0 / 2 | **77.4 / 2** | |
+
+and at MASS level, `data - model` with the FULL per-candidate CF, split on
+`max(dq_p, dq_m)`:
+
+| sample | band | `f_IN` | IN | OUT |
+|---|---|---:|---:|---:|
+| **Z**, 3 687 738 | 0.0-0.9 | 2.70 % | +9.42 +- 9.21 | -1.46 +- 1.28 |
+| | 0.9-1.6 | 5.96 % | -13.66 +- 3.89 | -4.32 +- 0.87 |
+| | 1.6-2.4 | 14.68 % | -6.69 +- 1.99 | **-12.09 +- 0.76** |
+| | **chi2** | | 6.0 / 2 | **72.2 / 2** |
+| **J/psi**, 7 920 956 | 0.0-0.9 | 0.34 % | -13.09 +-16.62 | +2.08 +- 0.61 |
+| | 0.9-1.6 | 8.14 % | +9.64 +- 2.41 | +1.09 +- 0.60 |
+| | 1.6-2.4 | 15.09 % | +14.17 +- 1.14 | **-4.73 +- 0.46** |
+| | **chi2** | | 5.4 / 2 | **102.0 / 2** |
+
+**THE VERDICT. The `eta` dependence lives in the BULK, not in the mixing
+fraction.** The OUT component is 85-90 % of every sample and it alone runs
++4.0 -> -3.5 -> -18.2 on the Z legs (`chi2` 578/2) and +2.1 -> +1.1 -> -4.7 at
+mass level (102/2). Removing the top 10 % in `|dq/p|` removes essentially none
+of the `eta` dependence. **The two-component mixture is therefore not the
+explanation on either channel, at 8x and 16x the gun's statistics.** The
+mixture IDENTITY `f IN + (1-f) OUT = all` holds to < 0.06e-3, as it must --
+it is algebra, not evidence; the FLATNESS is the test and it fails.
+
+The `f_IN` agreement with the gun is real and says the *population* the step
+selects is the same one; what does not carry over is the claim that the two
+components are `eta`-independent. Robust across p80 / p90 / p95 (OUT `chi2`
+452 / 565 / 497 on the Z legs) and across the `vgf` systematic on `a`
+(`a = sigrel`, `sigrel(1-vgf)`, `sigrel(1-2vgf)` give the inclusive
+charge-even as -3.52 / -3.51 / -3.51 e-3).
+
+**CAVEATS, both to be stated wherever this is quoted.** (i) `corr(|dq|, |x|)`
+is **+0.082** on the Z legs, **+0.100** on the J/psi legs and **+0.156** at
+mass level -- larger than the reco-`pT` trap's +0.042, so the split is NOT a
+clean conditioning variable and the IN/OUT *values* carry a selection effect
+(the FRACTIONS and the flatness `chi2` do not). (ii) The Z legs' band pattern
+(+4.1 / -2.6 / -16.4) has the OPPOSITE `eta` trend to the gun's
+(-4.9 / -3.6 / +0.1); the gun is single-track, 150X reco with a different
+alignment payload, the legs are two-track (mass- and vertex-constrained) 106X.
+The two are not the same estimator and should not be differenced.
+
+Figure: `mixture_legs.png`. Tools: `oddmoment/aux_seed.py`,
+`fullscale/mixture_legs.py`, `fullscale/run_auxseed.sh`.
+
+### 0f.53 `K(m)` IS NOT SATURATED FOR `m_Z` EITHER — 7 -> 9 MOVES IT
+### **+26.6 MeV** (2026-09-08)
+
+`Ss9` landed (4 h 23 on an H200, cold start). Certified, m form, full 3 682 662
+candidates:
+
+| terms | `m_Z` [MeV] | NLL | `2 dNLL` vs the previous rung | EDM |
+|---:|---:|---:|---:|---:|
+| 5 | -11.06 +- 2.27 | 11075392.4657 | — | 1.8e-18 |
+| 6 | -13.98 +- 2.22 | 11075277.1487 | 230.6 / 1 dof | 1.7e-12 |
+| 7 | -17.24 +- 2.27 | 11075192.7817 | 168.7 / 1 dof | 8.1e-10 |
+| **9** | **+9.39 +- 2.31** | **11074904.2322** | **577.1 / 2 dof** | 1.3e-11 |
+
+**`m_Z` moves +26.63 MeV between 7 and 9 terms -- 11.5 statistical errors** --
+and the 9-term fit is preferred at `2 dNLL = 577` for 2 dof. **Sec. 0b's
+"for `m_Z` the basis is saturated" is RETRACTED**: it was inferred from a
+-1.3 MeV shift over 5 -> 7 at 300 k, where the full-statistics shift is
+-6.2 MeV and the next rung is +26.6.
+
+So the caveat that sec. 0b attached only to `Gamma_Z` applies to `m_Z` as well:
+**the -11.06 MeV closure is a statement AT `K(m)` = 5, and the `K(m)`
+truncation moves it by tens of MeV.** The shape coefficients are still O(1) and
+tightly determined (`shape7 = +0.1507 +- 0.0061`, `shape8 = -0.0457 +- 0.0018`,
+`shape9 = +0.00368 +- 0.00015`), so this is not a runaway -- the LO->MiNNLO
+K-factor genuinely has structure the 5-term basis cannot carry, and it projects
+onto the mass. `SVs9` (the v form, which is the better-behaved one: -1.5 /
+-3.9 / -3.9 over 5/6/7) is running; `Ss12`/`SVs12` will not fit in the job's
+remaining walltime and need a resubmission. **Until the v-form 9- and 12-term
+rungs are in, no closure number from this campaign should be quoted without the
+`K(m)` truncation stated next to it.** Figure: `mz_kladder.png`.
+
+### 0f.54 `--freezeParameters` DOES NOT FREEZE THE **STEP** — a null subspace
+### the trust region walks in, and the likely cause of the NaNs (2026-09-08)
+
+**Found while certifying `Ss9`**: its frozen `k_hit/k_ms/k_ioni/k_rad` come out
+at **0.99981823**, not 1, with `err = 0`. It is not unique:
+
+| tag | `k_hit` | `k_ms` | `k_ioni` | `k_rad` |
+|---|---:|---:|---:|---:|
+| `n300kfix` | **1.12578622** | 0.87421378 | 1.12578622 | 0.87421378 |
+| `Rdc8X` / `Sdc8W` | 1.01460855 | 0.98539145 | 1.01460855 | 0.98539145 |
+| `RvfullX` | 0.98083680 | 1.01916320 | 0.98083680 | 1.01916320 |
+| `SVetaBslo` | 1.00162416 | 1.00162416 | 1.00162416 | 1.00162416 |
+| `P2smoke` | 0.99115554 | 0.99115554 | 0.99115554 | 0.99115554 |
+| `Ss9` | 0.99981823 | 0.99981823 | 0.99981823 | 0.99981823 |
+
+Note `k_hit + k_ms = 2.000000000` **exactly** in the alternating rows: the
+displacement is a pure `1 +- delta` vector inside the 4-dimensional subspace.
+
+**THE MECHANISM.** `rabbit/fitter.py` freezes with `tf.stop_gradient` only
+(`frozen_params_mask`, ~l.649-820). `edmval_cov` (l.1054) and the Hessian
+sub-block (l.1087) correctly `tf.gather(self.floating_indices)`, **but the
+minimiser at l.2972 calls `scipy.optimize.minimize(scipy_loss, xval, ...)` on
+the FULL parameter vector.** A frozen direction therefore has an exactly zero
+gradient component AND an exactly zero Hessian row and column -- i.e. the
+Hessian handed to `trust-exact` has a null subspace of dimension = the number
+of frozen parameters. That is scipy's trust-region **HARD CASE**, in which
+`IterativeSubproblem` deliberately adds a multiple of the null eigenvector to
+reach the trust boundary. So the frozen parameters take an arbitrary walk in
+their own subspace, of size set by the trust radius, and `delta` runs from
+1.8e-4 to **0.126**.
+
+**AND IT IS A CANDIDATE CAUSE OF THE TWO NaN FAILURES** (`SVetaEslo`, `P2X`):
+`k_hit` multiplies the Gaussian variance in the CF exponent
+(`-0.5 k_hit vgf t^2`), so a hard-case displacement through `k_hit <= 0` gives
+a non-positive density and `log` of it is the NaN. It fits every observation --
+the failure is on the FIRST step, the snapshot shows `x` unmoved (rabbit
+restores `cb.xval` on the exception), and `SVetaBslo` survived a LARGER first
+step (`edmval` 5816 against 3354) and came out with `delta` = 1.6e-3, i.e. it
+happened to land benignly in the same subspace. It also explains why the same
+joint card family converges at 500 k and fails at full size: it is a coin flip.
+
+**THE FIX IS NOT A REGULARISER**: minimise over the FLOATING SUBSPACE only.
+`self.floating_indices` already exists and is already used for the EDM and the
+covariance; the minimiser has to see the reduced vector and scatter back. Handed
+to the fit-infrastructure agent with the evidence.
+
+**CONSEQUENCE FOR THE TABLE.** "Resolution and alignment FIXED at the MC truth"
+is not exactly what the affected rows measured. `F_dc8` (`Rdc8X`/`Sdc8W`,
+`m_Z = -2.03 +- 2.06`) ran with `k_hit` 1.5 % high and `k_ms` 1.5 % low; the
+`sigma/m` split's barrel-low cell ran 0.16 % off. Every row with
+`delta > 1e-3` has to be re-run once the fix is in. The headline
+`-11.06 +- 2.27` (`fit_f380fl_base.json`, through `fit.py`, not rabbit) and the
+inclusive v-form row (`SVfullW`, `k` exactly 1) are NOT affected.
+
+### 0f.55 HOUSEKEEPING (2026-09-08)
+
+* **`P2X` FAILED**, same NaN as `SVetaEslo` (first iteration, `Condition
+  number: nan` / `edmval: nan`); it still wrote `rabbit_P2X.hdf5` from the
+  unmoved start point. **It is not a phase-2 number.** `certtable.py` rejects
+  it on EDM, but do not read the file.
+* Both cards were scanned dataset by dataset and are **NaN/inf-FREE**
+  (`joint_ok_full.hdf5`: both unbinned terms' `a_res, jensen_s2, mobs, sigma,
+  vgf, weights, jac_values`, the five `S_*` tables and their `*_norm`, plus
+  `hitchi2`'s `grad_values`/`hess_dense`). `hitchi2`'s eigenvalues run
+  6.5e-19 to 7.24e13 with 32 of 92 below 1e-6 x max, but the identical warning
+  appears in `P2smoke`, which converged.
+* **`plot_closure.py` was drawing ONE series twice.** `band()` was called for
+  the m form and for the v form but never told which cards to draw, so both
+  drew every card and the v form painted over the m form, in the m form's
+  colour. Every panel it has ever produced is affected. Fixed (`d363f92`).
+* `runs/auxgen_jpsiv2.npz` landed at 20:03 (7 923 460 rows, `z` and `sigma`
+  bit-identical, `<f_hit>` 0.0996 `<f_ms>` 0.9001 `<f_ioni>` 3.2e-04).
