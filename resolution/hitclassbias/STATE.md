@@ -1,128 +1,67 @@
-# PART 3 RESULT (2026-09-08, 40/160 tasks) — THE FIT IS NOT CONVERGED FOR ~15 % OF TRACKS
+# RESUME HERE — 2026-09-08 (night), PART 3 = the CONVERGENCE test, DONE
 
-The three variants COMPLETED on 40 tasks (79 965 tracks each) and the 160-task
-extension is running detached (same commands, `NT=160`). Numbers below are the
-40-task set, paired on (run, lumi, event); 40 000 tracks common to all four.
+## THE ANSWER
+**The charge-even shift is NOT incomplete convergence, NOT seed/path
+dependence, and NOT the second-order bias of the converged estimator.** All
+three refits landed on the same minimum and the same number, and the Box bias
+computed from the data's own curvature is ~200x too small in that channel and
+zero by mirror symmetry. What the campaign DID find is a large phi-modulated
+sagitta bias at n = 8 and n = 10 that the phi-averaged analysis had been
+integrating away.
 
-## The knobs did what they should
-| variant | `<niter>` | niter distribution | wall/task | cost |
-|---|---:|---|---:|---:|
-| base | 2.19 | 2: 81.2 %, 3: 18.7 % | 669 s | -- |
-| tight | 2.87 | 2: 16.6 %, 3: 81.8 %, >=4: 1.5 % | 753 s | **+12.6 %** |
-| damp | 3.50 | 2: 34.6 %, 3: 21.3 %, 4: 20.1 %, 5: 13.9 %, >=6: 10 % | 947 s | **+41.6 %** |
+## WHAT IS RUNNING NOW (started by someone else, ~20:58)
+`NT=160 NP=10 ./run_conv_all.sh` -> `logs/conv_master_160.log`, extending all
+THREE variants from 40 to 160 tasks (30 cmsRun, ~3-4 h for `damp`). The
+numbers below are pinned to the **first 40 tasks** (79 965 / 79 966 / 79 961
+tracks), whose caches are frozen as `data/conv_{base,tight,damp}_t40.npz`.
+`run_conv_analysis.sh` takes `NTASKS` (default 40) precisely so an unpinned
+re-extraction cannot grow the sample under the reader; rerun it with
+`NTASKS=160` when that pass finishes for 4x the precision on every number.
 
-`base` vs the `260903x_m0` production on the same 40 tasks: **2 tracks of
-40 000 differ** (max |dz| 7.8e-4, median 0) -- reproducible, the two areas are
-the same build. The variants are interpreted against `base`.
+## THE TABLE (40 tasks, ~80 k tracks each, PAIRED where it matters)
 
-## THE HEADLINE: 15 % of single-track fits are not converged, and they are invisible
+| | base | tight | damp |
+|---|---:|---:|---:|
+| knobs | -- | `edmConvergence=1e-7 nIters=20` | `+ gnDampAfter=1 gnDampFactor=0.5 nIters=30` |
+| `<niter>` | 2.190 | 2.870 | **3.500** |
+| at the iteration cap | 15 (0.019 %) | 91 (0.114 %) | 17 (0.021 %) |
+| `edmvalref >= 1e-7` | **65.66 %** | 0.11 % | 0.02 % |
+| wall per task (2000 ev) | 587 s | 690 s (**+18 %**) | 842 s (**+43 %**) |
+| tracks whose q/p moved vs base | -- | 47.5 % | **98.8 %** |
+| median moved \|dq/p\|/(q/p) | -- | 2.6e-7 | 2.5e-6 |
+| `<chi2/ndof>` | 0.998874 | 0.998874 | 0.998894 |
+| charge-even `<x>` barrel | **-4.29** | **-4.29** | **-4.29** |
+| middle | **-10.04** | **-10.04** | **-10.04** |
+| endcap | **+5.17** | +5.15 | +5.00 |
+| mixture OUT (bulk 90 %) | -5.53+-3.74 | -5.10+-3.75 | -5.44+-3.61 |
+| mixture IN (top 10 %) | +19.71+-12.95 | +19.49+-13.06 | +18.87+-13.08 |
+| **PAIRED `<dx>_even` vs base** | -- | **-0.000+-0.000 e-3** | **+0.000+-0.002 e-3** |
 
-Per-track change when the tolerance is tightened 1e-5 -> 1e-7:
+The paired column is the measurement. `damp` moves **98.8 %** of tracks by a
+median 2.5e-6 in relative curvature -- a genuinely different path to the
+minimum, not a longer walk down the same one -- and the charge-even statistic
+moves by less than **0.004e-3**, i.e. **more than 1500x smaller than the
+-6.3e-3 bulk**. `tight` reduces the fraction of tracks with `edmvalref` above
+1e-7 from 66 % to 0.1 % and changes it by less than 0.001e-3. The chi2/ndof is
+identical to six digits in all three: they are the same minimum.
 
-| |z_tight - z_base| > | 1e-4 | 1e-3 | 0.01 | 0.1 | 0.5 | 1.0 | 3.0 |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| fraction | 23.4 % | 21.4 % | 21.3 % | 20.1 % | **15.4 %** | **10.1 %** | 0.8 % |
-| damp | 80.9 % | 49.1 % | 48.9 % | 46.3 % | **35.0 %** | 22.9 % | 2.0 % |
+**Criterion, if one were wanted anyway**: `edmConvergence=1e-7` costs +18 %
+wall and +0.68 GN iterations per track and buys nothing measurable here. It is
+not worth adopting for THIS observable; the only thing it changes is the 0.019
+-> 0.114 % of tracks that hit the iteration cap, which is a diagnostic, not a
+bias.
 
-The MEDIAN change is 0.0000 and the 90th percentile is 1.01 sigma: about 79 %
-of tracks are converged to <1e-4 sigma and the rest move by O(1) sigma. The
-unconverged fraction is **FLAT in eta** (15.48 / 14.82 / 15.88 %).
+## STEP 2 — THE BIT CHECK: PASSED (2026-09-08, all 40 `base` tasks)
 
-**And they are indistinguishable from the converged ones in every diagnostic
-the maker exports:**
+`c0_bitcheck.py --a data/conv_base.npz --b data/conv_ref903x.npz`,
+79 965 paired tracks (0 unpaired on the `base` side):
 
-| | frac | `<niter>` | chi2/ndof | sigma_rel | nvalid | npixhit | log10 edmval | `<z>`_even |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| unconverged | 0.154 | 2.189 | 1.006 | 0.0203 | 17.27 | 2.249 | 0.600 | **-21.41e-3** |
-| converged | 0.846 | 2.191 | 0.998 | 0.0203 | 17.19 | 2.239 | 0.615 | **-0.31e-3** |
-
-**The charge-even shift lives entirely in the unconverged 15 %**:
-0.846 x (-0.31) + 0.154 x (-21.41) = -3.56e-3, which is the base sample's
-inclusive value. The converged 85 % sit at -0.31e-3, i.e. at ZERO.
-(CAVEAT: the partition is defined by the PAIR `z_tight - z_base`, so it is not
-a selection on `z_base` alone but it is not independent of it either. The
-selection-free version is the paired inclusive shift below.)
-
-## The selection-free numbers, and why 40 tasks is not yet enough
-Paired charge-even shift, truth-referenced, all bands:
-**tight - base = +3.37 +- 3.45e-3**, **damp - base = +5.21 +- 5.19e-3**
-(on raw z: +4.04 and +6.09). Both POSITIVE, both about the size of the
--6.3e-3 bulk, both ~1 sigma. Per band, tight-base = +9.66 +- 5.75 /
-+4.76 +- 6.55 / -4.98 +- 5.60.
-
-And the mean shift is ALL tail: trimmed at |dz| < 0.5 it is +0.64 / +1.40 /
--0.05 (tight) and +0.74 / +2.99 / -2.39 (damp), i.e. zero, against
-+11.64 / +4.32 / -4.80 and +6.62 / +8.72 / +3.18 untrimmed.
-
-**160 tasks will give +-1.7e-3 on the paired shift, a 2.5-3.7 sigma
-discrimination between "the bulk vanishes" (+6.3) and "it persists" (0).**
-That run is live; re-extract with `extract_conv.py` and re-run
-`s8_variants.py`, `s9_who_moved.py`, `s10_tail.py`, `s11_unconv.py`.
-
-## What is already ESTABLISHED regardless of the 160-task outcome
-* The CVH single-track fit at the default `edmConvergence = 1e-5` leaves
-  **15 % of tracks moving by more than half their own resolution** and 10 % by
-  more than a full sigma when the tolerance is tightened 100x. The maker's own
-  comment already says the iteration does not monotonically decrease the chi2
-  because every iteration re-propagates and re-linearises; this measures what
-  that costs.
-* **No exported per-track diagnostic identifies them** -- `niter`, `edmval`,
-  `chi2/ndof`, `sigma_rel`, hit counts are all equal to 3 decimal places
-  between the two populations. (`edmval` is stored but the criterion uses
-  `edmvalref` on the reference block; both were extracted and neither
-  separates them.)
-* The price of fixing it is **+12.6 % wall time** for `edmConvergence=1e-7`
-  (`<niter>` 2.19 -> 2.87), or +41.6 % for the damped path.
-
----
-
-# RESUME HERE — 2026-09-08 (resumed session), PART 3 = the CONVERGENCE test
-
-## Status of PART 3
-* **Step 1 (jobs)**: three refits launched 20:00 EDT are RUNNING on submit50,
-  10 tasks in parallel each, ~5 min/task, ~12 min per wave of 10, so ~50 min
-  for 40 tasks. Progress: `ls -d <dir>/task_*/.complete | wc -l` (out of 40).
-* **Analysis chain, WRITTEN AND SMOKE-TESTED, ready to run**:
-
-  | script | what it does |
-  |---|---|
-  | `extract_conv.py` | per-track cache; now also writes `slot`, `geneta`, `qop_gen`, and takes `--ntasks` (needed to cut the 160-task baseline down to the same 40) |
-  | `conv_common.py` | the truth-referenced `x = z/(1-a q z)`, the bands, the charge-even/odd bootstrap estimators, and `pair()` |
-  | `c0_bitcheck.py` | `base` vs `260903x_m0`, EXACT equality track by track — the gate |
-  | `c1_conv.py` | per variant: (A) charge-even per band, (B) trim scan, (C) mixture at p90, (D) iteration census, (E) the sigma-scaling second-order test |
-  | `c2_pair.py` | PAIRED variant-to-variant `<dx>_even` per band + the mixture recomputed on the paired set |
-  | `c4_secondorder.py` | the no-free-parameter Box-bias prediction from `(d1, d2) = (seed->iter0, iter0->final)` |
-  | `c3_figs.py` | 5 panels, each with a ratio panel, into `~/public_html/cvh/260908_hitclassbias/` |
-
-* **Two facts established while waiting, both needed to read the results**:
-  1. The gun puts **TWO muons of OPPOSITE charge in each event** (999 of 1000
-     events in task_0000 have 2 candidates), so the pairing key is
-     `(run, lumi, event, charge)` — NOT the within-event slot, which shifts if
-     one candidate of a pair fails the covariance cut in one variant only.
-  2. The convergence break is on **`edmvalref`**, not `edmval`
-     (`ResidualGlobalCorrectionMakerG4e.cc:4351-4354`; `edmval` is O(1-30) at
-     the exported iteration while `edmvalref` is O(1e-7)). Its median is
-     2.8e-7 and **64 % of tracks have `edmvalref` > 1e-7**, so `tight` really
-     does buy extra iterations for most of the sample — the test has lever arm.
-  3. `gnDampAfter`/`gnDampFactor`/`nIters`/`edmConvergence` are all real,
-     wired cfi parameters (`:418-432`, `:4195-4198`, `:4351-4354`) — no silent
-     no-op.
-* `refParms_iter0` is filled at `iiter==0`, i.e. AFTER the first GN update
-  (`:4309-4311`), so `d1 = refParms_iter0[0] - trackParms[0]` is the first GN
-  step from the seed and `d2 = refParms[0] - refParms_iter0[0]` is everything
-  after it. That is what `c4_secondorder.py` regresses.
-
-## STEP 2 — THE BIT CHECK: PASSED (2026-09-08, on the first 21 `base` tasks)
-
-`c0_bitcheck.py --a data/conv_base_partial.npz --b data/conv_ref903x.npz`,
-41 985 paired tracks (0 unpaired on the `base` side):
-
-* **3 tracks of 41 985 (0.0071 %) have a different converged q/p**, and the
+* **3 tracks of 79 965 (0.0038 %) have a different converged q/p**, and the
   largest difference is **1e-4 sigma**. Every other exported variable
   (`qop_seed`, `chi2n`, `nvalid`, `npixhit`, `pt`, `qop_gen`, `slot`) is
   EXACTLY equal on every track.
 * The charge-even `<x>` per band agrees to the printed precision
-  (+5.36 / -5.24 / +3.23 e-3 in both).
+  (-4.29 / -10.04 / +5.17 e-3 in both).
 * The three tracks are the known CVH limit-cycle / anchoring non-determinism:
   their `<niter>` is **5.67 against 2.19** for the sample, one goes 3 -> 5
   iterations and one sits at the `nIters` cap of 10 with `edmref` ~ 1.
@@ -304,74 +243,43 @@ bound |M| < 1e-4 GeV^-1 -- on IDEAL geometry, where there is no misalignment
 at all. HYPOTHESIS for the identification; ESTABLISHED for the existence,
 the frequencies, and the pixel/eta dependence.
 
-## THE DECISION RULE (unchanged)
-If the bulk `-6.3e-3` and the `+21e-3` IN component SHRINK under `tight` or
-`damp`, the mechanism is incomplete convergence / seed dependence: quote the
-cost per track and the criterion to adopt. If they PERSIST, they are a
-property of the converged estimator, and `c4_secondorder.py` is the
-first-principles comparison.
+## WHAT REMAINS, and how the campaign now stands
 
----
+Every estimator mechanism on the table has been excluded:
 
-# RESUME HERE — 2026-09-08, session ended mid-campaign
-
-## What is RUNNING right now (detached, survives the session)
-Three convergence-diagnostic refits of the 20-60 GeV tight muon gun, launched
-2026-09-08 ~20:00 EDT on **submit50** with
-
-    setsid nohup ./run_conv_all.sh > logs/conv_master.log 2>&1 < /dev/null &
-
-(`resolution/hitclassbias/run_conv_all.sh` -> `run_conv.sh <variant> 40 10`;
-40 tasks x 2000 events, 10 parallel per variant, 30 cmsRun total, under the
-32 cap). Rate measured on the smoke: ~100 ev/min/task, so ~20 min/task,
-~80 min per variant for `base`/`tight` and longer for `damp`.
-
-| variant | output dir (under `/ceph/submit/data/user/d/david_w/ZMass/cvh/`) | knobs |
+| candidate | verdict | where |
 |---|---|---|
-| base | `resolution_trackres_mugun_ul16_260909_conv_base` | none — like-for-like bit check |
-| tight | `..._260909_conv_tight` | `edmConvergence=1e-7 nIters=20` (100x tighter) |
-| damp | `..._260909_conv_damp` | `edmConvergence=1e-7 nIters=30 gnDampAfter=1 gnDampFactor=0.5` |
+| a one-sided TAIL from a subpopulation | excluded (core shift, flat from T = 2) | PART 2 (1) |
+| the step control / momentum clamp | excluded (never fires on a 20-60 GeV gun) | PART 2 (2) |
+| the hit-class CPE LOCATION bias, phi-averaged | excluded (+1.0e-3, wrong sign, >= 5.3 sigma at every granularity) | PART 1 |
+| an eta-dependent region effect | excluded (chi2(FLAT) 15.8/23 over 24 signed-eta bins) | `c7_eta.py` |
+| INCOMPLETE CONVERGENCE | **excluded** (paired `<dx>_even` < 0.001e-3 under a 100x tighter tolerance) | PART 3 |
+| SEED / PATH dependence | **excluded** (paired `<dx>_even` = +0.000 +- 0.002e-3 with 98.8 % of tracks moved) | PART 3 |
+| the SECOND-ORDER (Box) bias of the converged estimator | **excluded in the charge-even channel** (+0.02 +- 0.03e-3 predicted, and zero by the mirror map) -- but it is a REAL **-2.6e-3** in the charge-ODD channel | PART 3 |
 
-Per-task logs `<dir>/task_XXXX/local.log`, sentinel `<dir>/task_XXXX/.complete`,
-driver logs `resolution/hitclassbias/logs/conv_{base,tight,damp}.log` and
-`logs/conv_master.log`. `run_conv.sh` RESUMES on the sentinel, so re-running it
-with the same arguments picks up where it stopped. **Check progress with**
-`ls -d <dir>/task_*/.complete | wc -l` (out of 40).
+What is LEFT for the phi-averaged -3.6 to -6.3e-3:
 
-Everything reproduces `run_all_260903x.sh`'s `mugun_ul16_260903x_m0` arm
-exactly (same cfg in `CMSSW_15_0_19_patch2_dev`, commit `ca6058d96fc`, which is
-byte-identical to dev2; same filelist, same COMMON, `CgfQoPMode=0`); only the
-GN knobs differ. **No build was done and none is needed.**
+1. **A statistical fluctuation.** On the FULL 160-task baseline with no
+   subsample selection the per-track regression gives `<x> = -3.7 +- 1.8e-3`,
+   i.e. **2.0 sigma**. The 3.4 sigma quoted in PART 2 is for the OUT
+   subpopulation, selected on a variable with `corr(v, |x|) = +0.054`. The
+   most economical reading is that the phi-AVERAGED bulk is not yet
+   established at all.
+2. **A chiral source beyond the hit-location channel** -- which is exactly
+   what the n = 8 / n = 10 modulation shows exists and is large; its
+   phi-average is zero only if the module layout is exactly periodic, and it
+   is not (the pixel barrel has 20/32/44 ladders, the TEC 8 petals per face,
+   so the harmonics do not commensurate).
 
-**`fitFromGenParms=True` was NOT used, and must not be**: measured on
-`hitres2_mugun_ul16`, it freezes the reference block EXACTLY at gen
-(`max|refParms-genParms| = 0.0`, `refCov(0,0) = 0`, `niter = 1`), so
-`z = (refParms[0]-genParms[0])/sigma` is identically zero — it deletes the
-observable rather than removing the seed dependence. `damp` is the substitute:
-halving the step from iteration 1 on means the fit CANNOT land at the
-seed-proximal point in two iterations, so it reaches the same minimum by a
-different path. There is no `minIters` cfi parameter; adding one needs a build.
-
-## What to do with them when they finish
-1. `python3 extract_conv.py --prod resolution_trackres_mugun_ul16_260909_conv_<v> --out data/conv_<v>.npz`
-   (keys `run/lumi/event` are kept so the variants pair track-by-track — a
-   PAIRED comparison is far more precise than two independent means, because
-   the fluctuation is common).
-2. `base` vs `resolution_trackres_mugun_ul16_260903x_m0` on the same 40 tasks:
-   `z` must agree bit-for-bit. If it does not, the build moved and every
-   comparison below is against a different baseline.
-3. On each variant, the same four analyses as in PART 2 below:
-   truth-referenced charge-even `<x>` per eta band (`s2`/`s3` recipe), the
-   bulk/IN decomposition on `|seed->final dq/p|` at its 90th percentile
-   (`s6_mixture.py`), the trim scan (`s1_trim.py`), and the `niter` census.
-   Report a before/after table per variant.
-4. **DECISION RULE.** If the bulk `-6.3e-3` and the `+21e-3` IN component
-   shrink under `tight` or `damp`, the mechanism is incomplete convergence and
-   the fix is the convergence criterion — then quote the cost per track
-   (measure `<niter>` and the wall time per task against `base`). If they
-   PERSIST at a tighter tolerance and along a damped path, they are properties
-   of the CONVERGED estimator (a second-order bias) and the coordinator wants
-   those numbers for the derivation.
+**The recommendation**: stop spending statistics on the phi-averaged number
+and go after the modulation, which is 5x larger, 8 sigma per harmonic, and has
+a dose-response in the pixel content. The two concrete next steps are
+(a) rerun with `NTASKS=160` when the running pass finishes -- 4x the precision
+on every number above, and enough to map the harmonic phases against the
+ladder/petal positions; (b) repeat the harmonic scan on the Z and J/psi legs,
+where a phi-modulated sagitta bias of `Delta(q/pT) ~ 4e-5 GeV^-1` is directly
+relevant to the calibration and is NOT removed by the per-module alignment
+corrections if it is a CPE effect rather than a geometric one.
 
 ## Established results (do not re-derive)
 * **PART 1**: the per-hit CPE LOCATION bias is real but pixel-only -- BPix
@@ -404,7 +312,12 @@ different path. There is no `minIters` cfi parameter; adding one needs a build.
 * its gen-leg caches, when they land:
   `fullscale/runs/auxgen_dyv2.npz`, `fullscale/runs/auxgen_jpsiv2.npz`
   (produced by `fullscale/run_auxgen.sh`, commit `fbcecef`).
-* figures: `~/public_html/cvh/260908_hitclassbias/` (13 panels + index.php).
+* figures: `~/public_html/cvh/260908_hitclassbias/` (13 PART-1/2 panels plus
+  the 8 PART-3 panels `conv_band`, `conv_mixture`, `conv_niter`,
+  `conv_scaling`, `conv_dqop`, `conv_boxbias`, `conv_phi`, `conv_phiharm`;
+  index.php present).
+* PART 3 outputs: `out_conv.txt` (the driver's single pass), plus `out_c1.txt`
+  / `out_c2.txt` / `out_c4.txt` / `out_c6.txt` from the pinned `_t40` caches.
 * NOTES: two dated entries in `/work/submit/david_w/Documents/Resolution/NOTES.md`.
 * **`/ceph` is NOT readable from submit82** (cephx eviction) and the mfs venv
   does not run there either. Use `resolution/hitclassbias/rrun.sh`, which
