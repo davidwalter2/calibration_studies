@@ -223,6 +223,7 @@ Every one was found by measuring `corr(variable, residual)` before binning.
 | gen `\|eta\|` lead | **+0.0004** | safe |
 | gen `pT` of the softer leg | -0.0005 | safe |
 | `chi2/ndof` | +0.0004 | safe |
+| **`max(\|eta_p\|,\|eta_m\|)`** | **+0.0025** | the safe band of 5.5 — 8x better than the reco lead, 6x worse than the gen one, and the residual spread it leaves is quoted as an upper bound for exactly that reason |
 
 `sigma_bar = sigma(1 - a z)` is **not** a repair: built from `z`, it is
 anti-correlated with the residual by construction
