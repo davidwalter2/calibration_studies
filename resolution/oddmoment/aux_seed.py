@@ -58,7 +58,11 @@ BR = ["run", "lumi", "event", "Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass",
       "Muplustrk_pt", "Muplustrk_eta", "Muminustrk_pt", "Muminustrk_eta",
       "Muplus_pt", "Muplus_eta", "Muminus_pt", "Muminus_eta",
       "Muplusgen_pt", "Muplusgen_eta", "Muminusgen_pt", "Muminusgen_eta",
-      "Muplus_charge", "Muminus_charge"]
+      "Muplus_charge", "Muminus_charge",
+      # hit content: the coordinator's third cell. `nvalidpixel` is the pixel
+      # count the mass-level endcap miss (sec. 0f.43) is indexed on.
+      "Muplus_nvalid", "Muminus_nvalid",
+      "Muplus_nvalidpixel", "Muminus_nvalidpixel"]
 
 
 def one(fn):
@@ -94,6 +98,8 @@ def one(fn):
         out[f"eta_{lab}"] = f8(f"Mu{sfx}_eta")
         out[f"geta_{lab}"] = f8(f"Mu{sfx}gen_eta")
         out[f"pt_{lab}"] = f8(f"Mu{sfx}_pt")
+        out[f"nvalid_{lab}"] = f8(f"Mu{sfx}_nvalid")
+        out[f"npix_{lab}"] = f8(f"Mu{sfx}_nvalidpixel")
     return out
 
 

@@ -5289,7 +5289,7 @@ Fix committed in `rabbit-vmass` as `c08d93a`, **not staged to Engaging**: the
 staging is held until `22315719` (`SVs9`) and `22333692` (`Ss12`/`SVs12`)
 finish, so that every rung of the `K(m)` ladder is the same code.
 
-### 0f.56 THE `trust-exact` NaN IS A TRUST-RADIUS SCALE DEFECT ON THE `K(m)`
+### 0f.60 THE `trust-exact` NaN IS A TRUST-RADIUS SCALE DEFECT ON THE `K(m)`
 ### BLOCK — measured, not inferred (2026-09-08, fit-infrastructure)
 
 Two fits died with `WARNING:fitter.py: Minimizer raised: array must not contain
@@ -5428,7 +5428,7 @@ H200's 143.8 GB** at 99 % utilisation, i.e. that fit is at 98 % of the largest
 card available.
 
 
-### 0f.57 `P2X` IS A DIFFERENT FAILURE: TWO J/psi CANDIDATES WHOSE MODELLED
+### 0f.61 `P2X` IS A DIFFERENT FAILURE: TWO J/psi CANDIDATES WHOSE MODELLED
 ### DENSITY IS NEGATIVE AT THE DEFAULT POINT (2026-09-08, fit-infrastructure)
 
 `22328595 P2X` printed ONE `--diagnostics` pair and it was already `nan`, so by
@@ -5574,7 +5574,7 @@ two candidates' `1/sigma^2` weight relative to the median J/psi candidate.
 `fitresults/native/rabbit_P2X.hdf5` and `.snapshot.hdf5` hold the UNMOVED start
 point and are not certifiable; `certtable.py` rejects them on EDM.
 
-### 0f.58 THE 4th CELL LANDS, AND THE ENDCAP SLOPE IS POSITIVE — `sigma/m` AT
+### 0f.62 THE 4th CELL LANDS, AND THE ENDCAP SLOPE IS POSITIVE — `sigma/m` AT
 ### FIXED `eta` IS NOW CLOSED (2026-09-08, fit-infrastructure)
 
 `22333453`: `z_V_etaE_slo` re-run with the remedy of 0f.56 (1) -- warm-started
@@ -5677,3 +5677,97 @@ need it -- then resubmit `P2X`.
 has no headroom for a third term, so the phase-3 card needs the two-GPU
 candidate sharding (`shardobj` / `candidate_slice`) rather than a single
 device.
+
+### 0f.63 **THE `eta_lead` SELECTOR IS THE FIFTH CONDITIONING TRAP, AND IT
+### CARRIES MOST OF THE `eta` DEPENDENCE OF THE FITTED `m_Z`** (2026-09-08)
+
+*(Numbering note: the fit-infrastructure agent and I appended concurrently and
+collided on 0f.56-0f.58. Its three sections have been renumbered 0f.60-0f.62;
+no text was changed.)*
+
+The coordinator's question: is the mass-level `sigma/m` pattern a per-leg
+MOMENTUM bias, or is it the likelihood? Only a bias that is the SAME for both
+charges survives into the pair mass (`dm/m = (d_1 + d_2)/2`), so the statistic
+is the charge-EVEN `A` in the MOMENTUM variable
+`d_l = q/p(reco)/q/p(gen) - 1 = p_gen/p_reco - 1` (`legscale.py`, 5 % trim per
+tail as `qopbias.py`, bootstrap over CANDIDATES because the two legs are
+correlated). `A > 0` means reco `p` too LOW, hence reco mass too low, hence
+fitted `m_Z` low: `dm/m = -A`.
+
+**What the split needs**: barrel HIGH - LOW is -36.34 MeV on 91.19 GeV, so
+`dA = +3.99e-4`; endcap HIGH - barrel LOW is +70.43 MeV, so `-7.72e-4`.
+
+**AND THE ANSWER DEPENDS ENTIRELY ON HOW `eta_lead` IS DEFINED.**
+`make_card.py:365-375` defines it as the `|eta|` of the leg with the larger
+**RECO** `pT`. Recomputing the identical cells with the **GEN** leading leg
+instead -- 98 % the same candidates -- gives completely different answers:
+
+| cell | `A`, RECO `eta_lead` (the cards) | `A`, GEN `eta_lead` (safe) |
+|---|---:|---:|
+| barrel `\|eta\|<0.9` | **+2.572 +- 0.102** | **-0.171 +- 0.103** |
+| 0.9-1.6 | -0.066 +- 0.128 | +0.632 +- 0.156 |
+| endcap 1.6-3.0 | **-4.867 +- 0.217** | **+0.550 +- 0.223** |
+| barrel `sigma/m` LOW -> HIGH | +0.520 -> +5.462 (**dA +4.94**) | +0.162 -> -0.474 (**dA -0.64 +- 0.16**) |
+| barrel GEN-PREDICTED `sigma/m` LOW -> HIGH | +0.944 -> +4.502 (dA +3.56) | -0.176 -> -0.202 (**dA -0.03 +- 0.18**) |
+| endcap `sigma/m` LOW -> HIGH | -1.532 -> -9.074 (dA -7.54) | +1.908 -> -0.943 (dA -2.85 +- 0.41) |
+| endcap GEN-PREDICTED LOW -> HIGH | -5.211 -> -4.244 | +0.177 -> +1.220 (dA +1.04 +- 0.37) |
+
+(1e-4 throughout. The "GEN-PREDICTED `sigma/m`" split uses a predictor built
+ONLY from gen quantities -- the mean `sigma/m` in a 40x40 quantile grid of
+(gen `|eta|` lead, gen `pT` of the softer leg), ~2300 candidates per cell, so
+the residual leaks in at < 1e-4 of a sigma. `sigma_bar = sigma(1 - a z)` was
+tried first and is USELESS as a split variable: built from `z`, it is
+ANTI-correlated with the residual by construction,
+`corr(sigma_bar/m, z) = -0.090` against `corr(sigma/m, z) = -0.006`.)
+
+**THE MEASURED CORRELATIONS SAY IT DIRECTLY:**
+
+| variable | `corr(., z)` |
+|---|---:|
+| `\|eta\|` lead, **RECO** (what every band card cuts on) | **+0.0203** |
+| `\|eta\|` lead, **GEN** | **+0.0004** |
+| GEN-predicted `sigma/m` | +0.0024 |
+| gen `pT` of the softer leg | -0.0005 |
+| `sigma/m` (reco) | -0.0055 |
+
+**A factor of 50 between the reco and gen definitions of the same variable.**
+The mechanism is the same Jacobian edge as sec. 0f.42: when the two legs have
+similar `pT`, which one "leads" is decided by which one fluctuated up, so the
+`|eta|` band boundary becomes a cut on the residual. 2 % of candidates change
+band between the two definitions and they move `A` by 2.7e-4.
+
+**CONSEQUENCE 1 -- THE ANSWER TO THE QUESTION.** With the safe definition the
+legs are **flat in `eta` to 0.8e-4** and the barrel `sigma/m` split collapses
+from `+4.94e-4` to `-0.03 +- 0.18e-4` on the gen predictor -- **zero**. By the
+coordinator's own decision rule, **the legs are unbiased at the 1e-4 level in
+every cell, so the `sigma/m` pattern is NOT a per-leg momentum bias.**
+Sec. 0b's conclusion is confirmed and strengthened, and the second-order GN
+estimator bias is not needed to explain it.
+
+**CONSEQUENCE 2, AND IT IS THE BIGGER ONE.** The selector alone shifts the
+selected candidates' TRUE masses, and by almost exactly the amount the fits
+report. Predicted `dm/m = -A(reco-selected)` against the certified fitted
+`m_Z` per band (v form):
+
+| band | `-A` [MeV] | certified fitted `m_Z` [MeV] |
+|---|---:|---:|
+| barrel | **-23.4** | **-21.08 +- 3.24** |
+| 0.9-1.6 | +0.6 | +12.39 +- 4.16 |
+| endcap | **+44.4** | **+34.22 +- 5.47** |
+
+**So most of the `eta` dependence of the fitted `m_Z` -- the 55 MeV spread that
+has driven this thread since sec. 0f.29 -- is the RECO-`pT` `eta_lead`
+SELECTOR, not an `eta`-dependent detector effect and not (mostly) a defect of
+the likelihood.** The inclusive fits are unaffected (no `eta_lead` cut).
+
+**WHAT WOULD CONFIRM IT, and it is the single highest-value follow-up**: build
+the three band cards with `eta_lead` taken from the GEN leading leg (or,
+equivalently and without truth, from `max(|eta_p|, |eta_m|)`, which does not
+depend on which leg leads) and refit. The prediction is that the band spread
+collapses from 55 MeV to a few MeV. Three cards, three warm fits, ~2 h.
+NOT DONE -- the campaign is in wrap-up.
+
+Tool: `fullscale/legscale.py`. Inputs: `runs/auxseed_dyv2.npz` (now also
+carrying `nvalid`/`nvalidpixel` per leg) and `runs/auxgen_dyv2.npz`.
+Pixel-count cells show nothing: `A` = +0.41 / -0.55 / -0.73e-4 for
+`npix <= 2 / = 3 / = 4`.
