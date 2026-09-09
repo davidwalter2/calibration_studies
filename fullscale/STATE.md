@@ -11,7 +11,7 @@ the open physics. Everything below the horizontal rule predates this.**
 | **auxgen DY v2** | — | **`runs/auxgen_dyv2.npz` HAS LANDED** (348 MB, 3 733 323 rows) | done |
 | `22315719` K(m) ladder | Engaging, `engaging/zrabbitvb_22315719.out` | `fitresults/native/rabbit_{Ss9,SVs9}.hdf5` | `#### <TAG> done ... rc=0` per row -- **`Ss9` LANDED and is certified (sec. 0f.53); `SVs9` running since 20:05** |
 | `22333692` K(m) 12 rungs (submitted 2026-09-08 20:45, the ladder job's walltime cannot hold them) | Engaging | `fitresults/native/rabbit_{Ss12,SVs12}.hdf5` | same |
-| ~~`22328595` **P2X**~~ | — | — | **FAILED on a NaN at the first step (sec. 0f.54-55). The file it wrote is the UNMOVED start point -- not a phase-2 number.** |
+| ~~`22328595` **P2X**~~ | — | — | **FAILED on a NaN at the START point (sec. 0f.61/0f.65); superseded by the row below, which overwrites its file.** |
 | **`22336261` P2X, RESUBMITTED** with the exact delta-kernel J/psi path (sec. 0f.65) | Engaging | `fitresults/native/rabbit_P2X.hdf5` (OVERWRITES the stale start-point file) | `Results written` + a finite `edmval`; certify value AND NLL AND EDM |
 | `22336272` / `22336273` the J/psi-gun form cross-check (`auto` vs `off`) | Engaging | `alpha` must be unchanged against +0.0512 +- 0.0167e-3 | |
 | `22334725` / `22334726` the preconditioning pair | Engaging, queued | `SVetaEsloP` must converge; `SVetaBsloP` must reproduce -4.556 to 0.01 MeV | |
