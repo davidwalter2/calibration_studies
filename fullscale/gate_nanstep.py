@@ -142,6 +142,22 @@ def main():
     ap.add_argument("--no-min", action="store_true", help="stop after the start point")
     ap.add_argument("--quad", nargs="*", default=None)
     ap.add_argument("--groups", default=None)
+    ap.add_argument(
+        "--scan", nargs="*", type=float, default=None,
+        help="skip the Hessian entirely and walk each FLOATING parameter "
+        "alone to these offsets, reporting the density. A trust-region step "
+        "of the default initial radius 1.0 has every component bounded by 1, "
+        "so the coordinate walk brackets what the first step can reach -- and "
+        "it costs one eager pass per point instead of one Hessian.")
+    ap.add_argument(
+        "--scan-combo", nargs="*", default=None,
+        help="extra directions to scan with --scan, as signed parameter sums, "
+        "e.g. 'k_hit+k_ms+k_ioni+k_rad' or 'k_hit-k_ms+k_ioni-k_rad'. The "
+        "direction is normalised to unit length, so the offset is the "
+        "displacement in the same units as the trust radius. These are the "
+        "directions a trust-region hard case actually walks along: the "
+        "smallest-curvature eigenvector of a degenerate block is an arbitrary "
+        "vector inside it, not a coordinate axis.")
     a = ap.parse_args()
 
     from rabbit import fitter as fitter_mod
@@ -192,6 +208,49 @@ def main():
                     ev = f"<{ex}>"
                 print(f"  external '{getattr(et,'name','?')}': nll {ev}")
         return v, g, H
+
+    if a.scan is not None:
+        print("\n--- START POINT, density only (no Hessian)")
+        for t in terms:
+            r = term_report(t, x0, names)
+            print(f"  term '{t.name}': nll {r['nll_eager']:.6f}  "
+                  f"min L_i {r['li_min']:.6g}  non-positive {r['n_nonpos']}  "
+                  f"nan {r['n_nan']}"
+                  + (f"  min Z_c {r['z_min']:.6g}" if "z_min" in r else ""))
+        offs = a.scan or [-1.0, -0.5, -0.25, 0.25, 0.5, 1.0]
+        print("\n--- one FLOATING parameter at a time, |d| bracketing the "
+              "initial trust radius 1.0")
+        hdr = (f"  {'parameter':16s} {'d':>8s} {'nll':>16s} {'min L_i':>12s} "
+               f"{'non-pos':>8s} {'nan':>6s} {'min Z_c':>12s}")
+        print(hdr)
+        dirs = []
+        for k in free:
+            u = np.zeros(len(names))
+            u[k] = 1.0
+            dirs.append((names[k], u))
+        for spec in (a.scan_combo or []):
+            u = np.zeros(len(names))
+            tok = spec.replace("-", "+-").split("+")
+            for t in tok:
+                t = t.strip()
+                if not t:
+                    continue
+                sgn, nm = (-1.0, t[1:]) if t.startswith("-") else (1.0, t)
+                u[names.index(nm)] = sgn
+            u /= max(np.linalg.norm(u), 1e-300)
+            dirs.append((spec, u))
+        for label, u in dirs:
+            for d in offs:
+                x = x0 + d * u
+                for t in terms:
+                    r = term_report(t, x, names)
+                    print(f"  {label:16s} {d:+8.3f} {r['nll_eager']:16.4f} "
+                          f"{r['li_min']:12.4g} {r['n_nonpos']:8d} "
+                          f"{r['n_nan']:6d} "
+                          f"{r.get('z_min', float('nan')):12.4g}")
+                    if r["n_nonpos"] or r["n_nan"] or r.get("z_nonpos", 0):
+                        describe_bad(t, r["bad"])
+        return 0
 
     v0, g0, H0 = at(x0, "START POINT (parameter defaults)")
     if a.no_min or not np.all(np.isfinite(H0)):
