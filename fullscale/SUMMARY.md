@@ -437,7 +437,7 @@ cells and is not a property of every Engaging row.
 | 1 | **`K(m)` truncation** | **+26.6 MeV** (7 -> 9) in the m form; **2.4 MeV** over 5 -> 7 in the v form, which is the number to quote | **the v-form ladder ENDS at 7**: the 9-term rung now runs 96 Hessians with no density NaN and fails on an indefinite Hessian whose diagonal spans 14 orders of magnitude (5.3). Two consequences — **preconditioning (item 9) is promoted from a robustness item to the blocker on the truncation systematic**, and the structural cure, a theory-predicted `K(m)` in place of the floated LO kernel (which also returns the x1.5 statistical penalty), is now the only route to a `K`-independent number |
 | 2 | ~~**`eta_lead` reco-`pT` selector**~~ | it WAS up to 45 MeV per band, 0 inclusive | **CLOSED (5.5)**: the safe-band refit collapses the spread from +55.3 to -12.5 MeV and changes its sign, `chi2` 93.8/2 -> 6.7/2, and the safe bands' weighted mean equals the inclusive closure. What is left is a **-12.5 +- 5.9 MeV (2.1 sigma)** residual whose own band variable is still 6x less clean than the gen one — an upper bound, not an effect |
 | 3 | the momentum scale from J/psi (phase 2) | not yet measured | **`P2X` is RUNNING and descending, not converged** (Engaging 22336261, 3 M J/psi + 3.68 M Z + the hit-chi2 quadratic, 95 floating of 103, exact delta-kernel J/psi term). 18 Hessian evaluations in 5 h 50: EDM 137 291 -> 99 172 -> 74 075 -> 27 665 -> 40 511 -> 12 359 -> 6 242 -> 2 103 -> 999 -> 203 -> 189 -> 448 -> 466 -> 442 -> 191 -> 188 -> **184**, against a 1e-3 target; the condition number fell from **3.1e19 to 1.0e15** as it left the start point. ~20 min per Hessian and 36 h of walltime (`TimeLimit=1-12:00:00`, not the script's 5:45), so it has room. It is NOT blocked on the gun check (5.9). **Read its plateau carefully**: a flat EDM on this card family is a shelf, not a stall — the converged m-form 9-term rung sat on one for twenty iterations — but 5.3 shows that leaving the shelf is not sufficient either, since the v-form 9-term rung left its shelf and then failed on an indefinite Hessian. The one quantitative reason to expect `P2X` to fare better is its condition number, 1.0e15 against that card's 1e17-1e20. **The named remedy is preconditioning at the trust-region level** — rescale by the curvature so the region is spherical in sigma units, a change of variables that leaves the minimum invariant — or the 2-GPU candidate sharding; NOT a resubmit, which would only repeat the same descent. It was submitted with `FRESH=1`, so a preemption requeue would restart it from the prefit point: resubmit with `FRESH=0` if that happens |
-| 4 | the material amounts (phase 3) | not yet measured | needs 2-GPU candidate sharding: the phase-2 Hessian is **141.4 GB of an H200's 143.8 GB** |
+| 4 | the material amounts (phase 3) | not yet measured | **the card IS now built and verified**: `joint_mat_v3.hdf5`, **28.37 GB**, written in 54 s and re-read term by term (Engaging 22332184, 10 min total) — 645 517 J/psi + 481 020 Z candidates, 18 hit-resolution parameters and the 92 calibration parameters, 42 material amounts SHARED between the quadratic curvature and both mass terms. The fit is **not attempted**. And the memory blocker is re-opened rather than settled: the 141.4 GB figure was measured on the phase-2 FULL card, and this one has ~6x fewer candidates (34.8 GB of exponents in total), so whether it needs the 2-GPU sharding is now one cheap job to establish, not a known requirement. The card also reports that **nothing constrains `material_pp1_cables`, `material_support_tube`, `material_thermal_screen`** — freeze them |
 | 5 | GN second-order (Box) charge-odd bias | ~4 MeV (4.7e-5) | analytic correction from the exported steps |
 | 6 | the `a`-coefficient deficit | bounded small; unquantified on `m_Z` | none proposed; both leading explanations excluded |
 | 7 | post-fit shape | `chi2/ndof = 4.75` over 240 bins | genuine few-% shape mismodelling; unchanged when the model subsample is grown 6.7x |
@@ -460,8 +460,8 @@ or reconstruction one.**
 | joint 500 k + 500 k + hit-chi2, 95 free | **3 h 39**, EDM 6.2e-19 |
 | a warm band/cell refit | 10-35 min |
 | native TF minimiser | **16x** faster on the wall (1206 s against 19 600 s) but fails the subproblem at full statistics — not usable |
-| card sizes | `joint_ok_full` **10.7 GB**; phase-3 material card ~**36 GB** (built on Engaging, `/work` quota cannot hold it) |
-| phase-2 Hessian | **141.4 GB** of an H200's 143.8 GB — phase 3 **requires** 2-GPU sharding |
+| card sizes | `joint_ok_full` **10.7 GB**; the phase-3 material card **28.37 GB**, built in **10 min** on `mit_normal` (16 cores, 250 GB) and verified by re-reading both terms — the ~36 GB estimate was high (built on Engaging; `/work` quota cannot hold it) |
+| phase-2 Hessian | **141.4 GB** of an H200's 143.8 GB **on the FULL card**. The phase-3 card is a subsample (1.13 M candidates against 6.68 M), so that number does not transfer to it and the 2-GPU requirement is re-opened |
 | exports | ~81 kB/candidate slim; +26 kB with per-group material exponents |
 | production | condor **15.6x** slurm on the same payload |
 | offline auxiliary extractions | 3.7 M (DY) and 7.9 M (J/psi) candidates in 3 and 17 min on 32 cores |
@@ -506,7 +506,8 @@ sensitivity is 7.5 MeV in the v form and 32.4 MeV in the m form against a
 
 Two pieces are explicitly **not run** and are not claimed: the momentum-scale
 transfer from the J/psi (phase 2, `P2X`, descending but not converged — section
-6 item 3) and the material amounts (phase 3, blocked on 2-GPU sharding — item 4).
+6 item 3) and the material amounts (phase 3 — its card is now built and
+verified at 28.4 GB, but the fit has not been attempted, item 4).
 
 ---
 

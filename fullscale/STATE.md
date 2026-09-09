@@ -6520,3 +6520,67 @@ controls).
 same way, 12 terms being worse conditioned than 9; they were left to run
 because confirming that costs nothing and distinguishing "degenerate above 7"
 from "degenerate at 9 only" is worth having.
+
+### 0f.72.6 THE PHASE-3 CARD **IS BUILT AND VERIFIED** — 28.4 GB in ten
+### minutes, and it is a SUBSAMPLE card, which changes the memory question
+### (2026-09-09, `22332184` COMPLETED)
+
+`zcard3` started at 03:43 and finished at **03:53:24, rc=0** — 10 min 12 s, not
+the hours 0f.64 budgeted. `make_joint_card.py --material` wrote
+**`cards/joint_mat_v3.hdf5`, 28.369 GB**, in 54.3 s and then **re-read both
+terms and verified that each parameter list is the one its configuration
+implies** (118.3 s). So the first row of 0f.64's gate table is satisfied and the
+second is no longer "NOT BUILT".
+
+**What is in it:**
+
+| | |
+|---|---|
+| hit-chi2 quadratic | 20 706 999 candidates, 92 parameters (dense Hessian) |
+| J/psi mass term | **645 517** candidates, 110 parameters (42 shared material amounts), 14 832 301 CSR group rows (22.98 groups/candidate), **18.99 GB of exponents** |
+| Z mass term | **481 020** candidates, 117 parameters (42 shared), 12 365 835 CSR rows (25.71 groups/candidate), **15.83 GB of exponents** |
+| hit classes | 18, 12.2 (J/psi) and 12.8 (Z) rows per candidate |
+| fit vector | 18 hit-resolution parameters + `m_Z`, `Gamma_Z`, `shape1-5` + the 92 calibration parameters; 50 flagged POI |
+| auxiliary bundle | `global_params`, 117 parameters |
+
+**THE CARD IS A SUBSAMPLE, AND THAT MATTERS FOR THE BLOCKER.** 645 k + 481 k
+candidates, against the phase-2 full card's 3 M + 3.68 M — a factor ~6 fewer.
+0f.65's hard requirement ("phase 3 MUST use the two-GPU candidate sharding")
+was measured on `joint_ok_full`, whose start-point Hessian assembly occupies
+141.4 GB of an H200's 143.8 GB at 99 % utilisation. **That measurement does not
+transfer to this card**, which is six times smaller in candidates and carries
+34.8 GB of exponents in total. Whether it fits on one device is therefore an
+open and cheap question, not settled in either direction — and it is NOT being
+claimed here that it does. Establishing it is one job.
+
+**Three parameters are unconstrained and the card says so rather than freezing
+them** (which is right: what a fit floats is a physics decision):
+```
+NOTHING in this card constrains: material_pp1_cables material_support_tube
+                                 material_thermal_screen
+-> add to the fit: --freezeParameters material_pp1_cables \
+                     material_support_tube material_thermal_screen
+```
+`material_pp1_cables` is touched by **no candidate on any leg**;
+`material_thermal_screen` and `material_support_tube` by **< 1 %**; and the
+hit-chi2 term is blind to those three plus `material_beampipe`. The whitened
+quadratic Hessian has **cond 1.8e32** with 4 directions below 1e-12 of the
+maximum and **cond 4.2e9 over the rest** — i.e. the ill-conditioning is exactly
+those four blind directions and nothing else.
+
+Where the material information actually is, by share of `sum_i max_tau |S|`:
+J/psi `material_tec_structure` 26.6 %, `material_tib_support` 16.3 %,
+`material_tob_support` 11.3 %, `material_tibtid_services` 8.3 %; Z
+`material_tib_support` 28.0 %, `material_tec_structure` 15.1 %,
+`material_tob_support` 11.7 %, `material_tibtid_services` 10.9 %.
+
+**The command the builder prints for the fit:**
+```
+rabbit_fit.py .../cards/joint_mat_v3.hdf5 -o out/ -t 0 --unblind \
+    --paramModel ExternalParams bundle:global_params
+```
+plus the three `--freezeParameters` above. **NOT RUN** — the wrap-up scope is
+the four items of the handoff, and launching a phase-3 fit is not one of them.
+The honest phase-3 status is now: **inputs ready, card BUILT and VERIFIED, fit
+not attempted, and the one-GPU/two-GPU question re-opened by the card being a
+subsample.**
