@@ -5496,3 +5496,80 @@ different draws, and the 500 k draw simply does not contain either bad
 candidate. There is nothing else different between the two cards: the smoke
 fit's success was luck of the draw, and every re-draw of a J/psi leg at this
 size is exposed.
+
+### 0f.59 `P2X` IS A MODEL-DOMAIN FAILURE: TWO CANDIDATES IN THREE MILLION,
+### AND THE BOUND IS ON THE WRONG COEFFICIENT — **DECISION NEEDED FROM DAVID**
+### (2026-09-08)
+
+Measured at the START point of `joint_ok_full` (`x` = all 103 defaults, no step
+proposed yet; job `22332382`, H200):
+
+```
+loss inf; grad NON-FINITE in 88 of 103; hess NON-FINITE in 10384 of 10609
+term 'jpsi' : nll -5327803.017379  min L_i -5.572e-04  NON-POSITIVE 2 of 3 000 000
+term 'zmass': nll +11087491.809631 min L_i +9.418e-05  non-positive 0
+non-finite rows: bfield_mode0..49 and the whole material block -- i.e. exactly
+what the J/psi term touches
+```
+
+| i | m [GeV] | `k = sigma_v` | class | `a_i` | `g_i` | `L_i` |
+|---:|---:|---:|---:|---:|---:|---:|
+| 84476 | 3.4230 | 0.07951 | 63 | +0.04538 | -0.02215 | **-5.572e-04** |
+| 2103551 | 3.4176 | 0.08488 | 63 | +0.04719 | -0.02235 | -8.763e-06 |
+
+Both in norm class 63, the widest: `sigma_phys = k m^p` = 0.377 and 0.409 GeV,
+i.e. **`sigma/m` = 11.0 % and 12.0 % on a J/psi**, ~4 sigma above the peak.
+`log` of a negative density takes the entire joint NLL, gradient and Hessian
+non-finite in one step. **Two candidates in three million, at the default
+parameter point.** So `P2X` is neither a minimiser failure (sec. 0f.56) nor the
+frozen-subspace drift (sec. 0f.54) -- it is a third thing.
+
+**WHY THE EXISTING GUARD MISSES THEM.** `corr_coeff_max = 0.08` bounds the
+QUADRATIC coefficient `|g_i|`, and these sit at 0.022 -- a factor 3.6 INSIDE
+it. What is large for them is the FIRST-order coefficient `a_i` together with a
+4-sigma argument, and **`a_i` has no declared domain at all**. The map
+`u_i(x) = sigma_i x + c_i x^2 + d_i` is truncated at first order in BOTH
+coefficients; sec. 0 declared the domain of one of them, because the Z leg only
+ever exercised that one. The 3 M J/psi leg exercises the other.
+
+**WHY `P2smoke` SURVIVED -- fully explained, nothing else differs.** `--maxn`
+is a RANDOM subsample, not a head slice (`make_card.py:400-403`,
+`rng.choice(idx, maxn, replace=False)`), so the 500 k is a 1-in-6 draw of the
+3 M and the chance of missing BOTH bad candidates is `(5/6)^2 = 69 %`.
+
+**THE OPTIONS AND THE RULING.**
+1. Re-scan `corr_coeff_max` on the J/psi leg -- **REJECTED as the fix**. It is
+   the wrong knob: reaching `|g| = 0.022` means dropping the bound by a factor
+   4, where 0.06 already bounds 1088 of 300 000 and 0.08 costs a measured
+   0.049 MeV on `m_Z`. **But the load-time override it would need is worth
+   having anyway** (bounding is clipping a stored per-candidate array, so it
+   needs no 10.7 GB rebuild) -- for BOTH coefficients, because it is what makes
+   the scan below affordable.
+2. Bound `a_i` the same way `g_i` is bounded -- **RIGHT IN PRINCIPLE, NOT THE
+   DEFAULT ON OUR SAY-SO.** It is the same device on the other coefficient of
+   the same expansion: a per-candidate constant computed from observables,
+   theta-independent, so it cannot deform the likelihood's theta-dependence --
+   the whole argument that made the `g` bound acceptable, verbatim. **But `a_i`
+   is load-bearing in a way `g_i` is not**: `g_i` carries only the quadratic
+   correction, while `a_i` carries the `(1 - a_i x)` Jacobian that sec. 0
+   records as NOT optional (without it the score at the truth is
+   `+a_i/sigma_bar_i`, a bias of order `a_i sigma_i` = **27 MeV at the Z**).
+   Bounding `g` degrades a correction; bounding `a` degrades the thing that
+   removes a 27 MeV bias. It therefore needs its OWN cost measurement, and it
+   is a change to `MASSCFTERM_SPEC`, which is David's.
+3. An upstream `sigma/m` selection on the J/psi leg -- **REJECTED**, standing
+   rule 3, and an 11 % candidate is the visible edge of a population.
+A clip or a floor on the DENSITY is on nobody's list.
+
+**WHAT IS BEING MEASURED BEFORE DAVID IS ASKED** (requested from the
+fit-infrastructure agent): `corr_a_max` behind a flag, default OFF; the scan
+ladder giving, per rung and per leg, the number bounded and the number of
+non-positive densities at the default point AND the four displaced points the
+original scan used; **the cost in MeV on `m_Z` and `Gamma_Z`** from the same
+fit with and without, against the 0.049 / 0.022 MeV precedent; whether the
+`|a_i| > a_max` population is the same candidates `g` already bounds; and the
+two candidates' `1/sigma^2` weight relative to the median J/psi candidate.
+
+**UNTIL DAVID RULES, `P2X` STAYS UNSUBMITTED.** Its
+`fitresults/native/rabbit_P2X.hdf5` and `.snapshot.hdf5` hold the UNMOVED start
+point and are not certifiable; `certtable.py` rejects them on EDM.
