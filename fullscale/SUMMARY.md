@@ -274,8 +274,15 @@ the gun, not of the reconstruction.
   0.48 sigma for `m_Z` and **227 sigma for `shape5`** — and at an active trust
   region the step follows the gradient, which is largest along the *stiffest*
   coordinate. That drove one card's density negative and produced a NaN.
-  Preconditioning (a change of variables, validated by requiring an already
-  converged cell to reproduce to 0.01 MeV) is under test.
+  The cell was recovered by warm-starting it from the inclusive fit's point
+  (same model, same five floating shapes) -- that is how the 4th cell of
+  section 4 was obtained. **The general cure -- preconditioning, i.e.
+  rescaling by the curvature so the trust region is spherical in `sigma`
+  units, a change of variables that leaves the minimum invariant -- was NOT
+  tested: the two control jobs were cancelled in the wrap-up. Whether the
+  ladder wants the change of variables rather than a warm start per row is an
+  OPEN question, not a tried-and-dropped one.** Its validation, when run, is
+  to require an already converged cell to reproduce to 0.01 MeV.
 * **`P2X`, the full joint fit, is a model-domain failure**, not a minimiser
   one: **2 candidates of 3 000 000** at `sigma/m` ~ 2.3-2.5 % on a J/psi, whose
   first-order coefficient `a_res/(sigma/m) = 1.95` against the `1.1-1.3` the
@@ -307,6 +314,7 @@ the gun, not of the reconstruction.
 | 6 | the `a`-coefficient deficit | bounded small; unquantified on `m_Z` | none proposed; both leading explanations excluded |
 | 7 | post-fit shape | `chi2/ndof = 4.75` over 240 bins | genuine few-% shape mismodelling; unchanged when the model subsample is grown 6.7x |
 | 8 | `k_ms = 1.0298 +- 0.0042` | 0.5 MeV | the multiple-scattering **tail** is ~3 % short; phase 3 is its test |
+| 9 | trust-region **preconditioning** | 0 on any value; a robustness item | UNTESTED (controls cancelled in the wrap-up). Without it every card in the family is one unlucky draw from the NaN of 5.9; the present remedy is a warm start per row |
 
 Items 1 and 2 together are larger than everything else combined, and **both are
 model/analysis effects, not detector or reconstruction effects.**
