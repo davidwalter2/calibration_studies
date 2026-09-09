@@ -17,12 +17,16 @@ each number was obtained is `STATE.md` (sections referenced inline) and
 Z -> mumu MC candidates, measured at the fitted minimum.** The machinery runs
 end to end — productions, per-candidate exports, card build, `rabbit_fit.py`,
 converged minima with an EDM, sandwich errors — including the joint J/psi + Z +
-hit-chi2 fit. **The closure is not yet established at that precision**, and the
-reason has changed twice this week: it is now dominated by two things that are
-both understood and both fixable, the `K(m)` shape truncation (a `+26.6 MeV`
-swing between 7 and 9 Legendre terms) and a conditioning artefact in the
-`eta`-band selector (which accounts for most of the 55 MeV `eta` spread).
-Neither is a detector or a reconstruction effect. **The verdict is in section 8.**
+hit-chi2 fit. **Inclusively the v form closes at -1.54 +- 2.31 MeV, and as of
+2026-09-09 the `eta` bands agree with it**: the 55 MeV band spread that had
+looked like an `eta`-dependent detector effect was the band SELECTOR, and on a
+safe band variable the spread collapses to -12.5 +- 5.9 MeV, the `chi2` against
+a common value falls from 93.8/2 to 6.7/2, and the bands' weighted mean equals
+the inclusive closure to three digits (section 5.5). **What is left between
+this and a demonstrated closure is ONE thing: the `K(m)` shape truncation** — a
++26.6 MeV swing between 7 and 9 Legendre terms in the m form, 2.4 MeV over
+5 -> 7 in the v form. It is a model/analysis effect, not a detector or a
+reconstruction one. **The verdict is in section 8.**
 
 ---
 
@@ -466,16 +470,35 @@ proper minimum with an EDM. Nothing in the detector modelling, the momentum
 scale, or the reconstruction has been shown to limit it: the per-leg momentum
 scale is flat in `eta` to **0.8e-4** (3.7 MeV on the mass) once it is measured
 in cells that cannot see the residual, and the `sigma/m` pattern that dominated
-this thread for a week is **not** a per-leg momentum bias. What limits the
-closure today is two analysis-level effects of comparable size — the `K(m)`
-shape truncation (**+26.6 MeV** between 7 and 9 terms, whose structural cure is
-a theory-predicted kernel that would *also* buy back a factor 1.5 in
-`sigma(m_Z)`) and a conditioning artefact in the `eta`-band selector (which
-predicts the per-band closures to within a few MeV and is testable in two
-hours). **Both are fixable without new data or new production.** The honest
-statement of feasibility is therefore: **the precision is demonstrated, the
-closure is not yet demonstrated, and the two things standing between them are
-identified, quantified, and cheap to test.**
+this thread for a week is **not** a per-leg momentum bias.
+
+**The `eta` non-closure is closed.** It was the band selector, and the
+confirming refit — five cards, predictions written down in advance — collapses
+the band spread from **+55.3 +- 6.2 to -12.5 +- 5.9 MeV**, changes its sign,
+drops the `chi2` against a common value from **93.8/2 to 6.7/2**, and lands the
+bands' weighted mean on the inclusive closure to three digits. The barrel
+`sigma/m` split changes sign and falls to 1.4 sigma, 0.7 sigma from its
+prediction. A **-12.5 +- 5.9 MeV (2.1 sigma)** residual survives, on a band
+variable that is still six times less clean than the generator one, and it is
+recorded as an upper bound rather than an effect.
+
+**So ONE thing now stands between this and a demonstrated closure: the `K(m)`
+shape truncation** — **+26.6 MeV** between 7 and 9 terms in the m form, 2.4 MeV
+over 5 -> 7 in the v form, whose structural cure is a theory-predicted kernel
+that would *also* buy back a factor 1.5 in `sigma(m_Z)`. It is fixable without
+new data or new production. The honest statement of feasibility is therefore:
+**the precision is demonstrated; the inclusive closure and the `eta` bands now
+agree with each other and with the generator; and the one thing still standing
+between that and a quotable closure is a shape-model truncation that is
+identified, quantified, and replaceable by theory.**
+
+`Gamma_Z` is a separate matter and is NOT ready: its `K`-truncation
+sensitivity is 7.5 MeV in the v form and 32.4 MeV in the m form against a
+4.2 MeV statistical error, so the truncation dominates in both formulations.
+
+Two pieces are explicitly **not run** and are not claimed: the momentum-scale
+transfer from the J/psi (phase 2, `P2X`, descending but not converged — section
+6 item 3) and the material amounts (phase 3, blocked on 2-GPU sharding — item 4).
 
 ---
 
