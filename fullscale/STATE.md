@@ -8,10 +8,10 @@ certified state), 0f.72 (why the confirming test had to be re-run) and 0f.72.2
 
 | what | where | result lands | done when |
 |---|---|---|---|
-| **`22354351`** the equivalence triple + the five SAFE-BAND rows | Engaging, `engaging/zrabbitvb_22354351.out` | `fitresults/native/rabbit_{n300kV,n300kW,n300kWK,VXetaB,VXetaT,VXetaE,VXetaBslo,VXetaBshi}.hdf5` | `#### <TAG> done ... rc=<rc>` per row. The triple LANDED and is in sec. 0f.72.1 |
-| **`22354353`** the K(m) ladder at 9 and 12 on the FLOORED cards | Engaging, `engaging/zrabbitvb_22354353.out` | `rabbit_{SVs9,SVs12,Ss12}.hdf5` | same. `SVs9` is descending and has NOT NaN'd, which the un-floored card did |
-| **`22336261` P2X** | Engaging | `fitresults/native/rabbit_P2X.hdf5` | descending: EDM 1.4e5 -> 189 over 11 Hessians in 3 h 45, condition number 3.1e19 -> 1.0e15. 36 h of walltime (`TimeLimit=1-12:00:00`, NOT the script's 5:45). **Submitted with `FRESH=1`, so a preemption requeue would restart it from the prefit point rather than its snapshot** — if it is requeued, resubmit with `FRESH=0` |
-| `22332184` `zcard3` phase-3 card build | Engaging, `mit_normal` | the ~36 GB phase-3 card | PENDING since 2026-09-08 20:18, estimated start **03:42**, then up to 11 h 45. It will not finish in this window |
+| ~~**`22354351`** the equivalence triple + the five SAFE-BAND rows~~ | — | — | **ALL EIGHT ROWS DONE.** The triple is sec. 0f.72.1 (bit-identical); the five band rows are sec. 0f.72.2/0f.72.3 and all five certify QUOTE. **0f.63 is established** |
+| **`22354353`** the K(m) ladder at 9 and 12 on the FLOORED cards | Engaging, `engaging/zrabbitvb_22354353.out` | `rabbit_{SVs9,SVs12,Ss12}.hdf5` | **`SVs9` FAILED, rc=1, after 96 Hessians — no density NaN (the floor works), an INDEFINITE HESSIAN (sec. 0f.72.5). The v-form ladder ends at 7.** `SVs12` then `Ss12` follow and are expected to fail alike |
+| **`22336261` P2X** | Engaging | `fitresults/native/rabbit_P2X.hdf5` | descending: EDM 1.4e5 -> **150** over 19 Hessians in 6 h 15, condition number 3.1e19 -> 1.0e15. Read the plateau per sec. 0f.72.5: a flat EDM here is a shelf, not a stall, but `SVs9` shows that passing the shelf does not imply certifying. 36 h of walltime (`TimeLimit=1-12:00:00`, NOT the script's 5:45). **Submitted with `FRESH=1`, so a preemption requeue would restart it from the prefit point rather than its snapshot** — if it is requeued, resubmit with `FRESH=0` |
+| ~~`22332184` `zcard3` phase-3 card build~~ | — | — | **DONE 03:53:24, rc=0, in 10 min 12 s**: `cards/joint_mat_v3.hdf5`, 28.369 GB, verified by re-reading both terms (sec. 0f.72.6). The FIT is not attempted |
 | `22315802 insitu-tnp` | Engaging | NOT MINE — another workstream, leave it | |
 
 **DEAD, and why (sec. 0f.72):** `22337999` (the first submission of the five
