@@ -911,3 +911,91 @@ minimiser on the full vector -> an exactly-null Hessian subspace ->
 `trust-exact`'s hard case walks in it). Measured displacements of the frozen
 `k_hit` run up to 0.126. `fullscale/STATE.md` sec. 0f.54. If any of your
 numbers came from a rabbit fit with frozen parameters, check them.
+
+---
+
+## 2026-09-09 — the phi harmonics ARE BPix-L1 ladder parity (ladder-index test)
+
+Written by the fullscale agent, taking up the ladder-index test handed over at
+the end of the phi section ("the ladder index is in the DetId, `(id>>8)&0xFF`,
+which would test the n=10 assignment head-on rather than through a share").
+Script: `p2_ladder.py`. Sample: mugun UL16 `conv_ref903x_full` +
+`blocks_mugun_ul16_260903x`, truth-referenced pull `x = z/(1 - a q z)`,
+`|x| < 30`, 319 850 good tracks.
+
+**Selection fix that matters.** A first pass counted 460 579 BPix-L1 "hits" on
+226 484 tracks (2.03/track) — those are *blocks*, and every pixel hit books a
+local-x AND a local-y block. The correct hit selection is
+`(b_sd==1) & (b_lay==1) & (b_isy==0)`. 222 674 tracks then have exactly one
+BPix-L1 hit; 20 distinct ladders, indices 1-20, as Phase-0 BPix geometry
+requires.
+
+### The result: a perfect parity alternation
+
+`<x>` per ladder alternates with ladder parity with no exception in 20 ladders
+(1e-3): odd +40.6 +30.2 +34.3 +26.6 +57.2 +34.9 +31.9 +42.4 +23.8 +15.4;
+even -43.7 -41.3 -51.4 -28.4 -35.0 -30.6 -35.2 -44.4 -36.2 -48.9.
+
+| quantity | value (1e-3) |
+|---|---|
+| odd ladders, n=107 902 | **+33.01 +- 3.15** |
+| even ladders, n=114 772 | **-38.77 +- 3.07** |
+| parity difference (even - odd) | **-71.58 +- 4.40  (16.3 sigma)** |
+| same, at fixed \|eta\| (12 quantile bins) | **-71.78 +- 4.24** |
+
+**Both harmonics are this and nothing else.** Transforming to ladder-local
+azimuth `phi - phi_lad`, `phi_lad = 2 pi (lad-1)/20`, kills both:
+
+| harmonic | global azimuth | ladder-local azimuth |
+|---|---|---|
+| n = 8 | +24.63 +- 3.00 | **-0.62 +- 3.00** |
+| n = 10 | +30.77 +- 3.00 | **+0.42 +- 3.00** |
+
+This answers the open question left in the phi section ("n = 8 is NOT explained
+by BPix-L1 geometry"). It is: n=8 is not a separate mode, it is leakage from
+the same 20-fold ladder pattern, which is not a pure sinusoid. The n=10
+assignment is confirmed head-on rather than through a share, and the "no
+BPix-L1 hit = 29 % of the sample" caveat is bypassed entirely — this test never
+uses that control.
+
+### It is charge-EVEN, so it is scale-like, not alignment-like
+
+| | q = +1 | q = -1 |
+|---|---|---|
+| odd ladders | +29.76 +- 4.45 | +36.25 +- 4.48 |
+| even ladders | -38.83 +- 4.33 | -38.71 +- 4.34 |
+| parity difference | -68.59 +- 6.21 | -74.96 +- 6.23 |
+
+charge-EVEN part **-71.77 +- 4.40**, charge-ODD part **+3.18 +- 4.40**
+(consistent with zero). A misalignment would be charge-odd. This is a
+CPE/incidence-angle effect that flips sign with the turbine tilt of alternate
+(inner/outer) ladders in a BPix-L1 pair.
+
+`|eta|` dependence of the parity difference (1e-3): -71.5 +- 10.4 (0-0.5),
+-26.9 +- 11.2 (0.5-0.9), -52.5 +- 10.9 (0.9-1.3), -69.5 +- 9.2 (1.3-1.8),
+**-112.7 +- 8.3 (1.8-2.4)**. Largest at shallow incidence, as a cluster-shape
+effect should be.
+
+### BUT it does NOT carry the bulk shift — this closes the phi lead as a lead
+
+The alternation is occupancy-balanced and averages away:
+
+| sample | `<x>` (1e-3) |
+|---|---|
+| all good, n=319 850 | -3.59 +- 1.84 |
+| has exactly one BPix-L1 hit, n=222 674 | **-3.99 +- 2.20** |
+| no BPix-L1 hit, n=93 369 | **-1.35 +- 3.40** |
+
+-2.6 +- 4.1 between them: nothing. Per `eta` band, has vs no BPix-L1:
+-6.79 +- 3.80 vs -0.36 +- 4.97 (`|eta|`<0.9), -6.08 +- 3.97 vs -0.84 +- 6.67
+(0.9-1.6), -1.04 +- 3.59 vs -3.57 +- 6.51 (1.6-2.4) — every band consistent.
+The residual -4e-3 of the BPix-L1 sample is just the small occupancy/magnitude
+imbalance of the alternation itself (107 902 x +33.01 + 114 772 x -38.77 over
+222 674 = -3.99), at 1.8 sigma.
+
+**Verdict.** The phi structure is a real, 16-sigma, charge-even BPix-L1 ladder
+CPE defect of amplitude +-36e-3 per track — worth reporting on its own — but it
+has zero net mean and is NOT the source of the bulk -6.3e-3 charge-even shift,
+and not of the mass-level endcap miss either. The phi lead is closed as a lead
+for the bulk. What survives is a per-track resolution/bias term that a
+ladder-parity (or incidence-angle) hit class would absorb.
