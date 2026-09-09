@@ -14,7 +14,12 @@
 set -uo pipefail
 ZMASS=$HOME/orcd/pool/zmass
 source $ZMASS/engaging/setup_env_engaging.sh
-export PYTHONPATH=$ZMASS/rabbit-vmass:$ZMASS/fullscale:$ZMASS/zchannel:${PYTHONPATH:-}
+export PYTHONPATH=$ZMASS/rabbit-vmass:$ZMASS/fullscale:$ZMASS/zchannel:$ZMASS/resolution/globalfit:${PYTHONPATH:-}
+# `make_joint_card.py --material` imports `make_global_term` (hence the
+# globalfit entry above), and `--whiten` makes it read the harmonic basis
+# and the 50-mode coefficients out of the `mfs` checkout -- a /work path
+# that does not exist here. Both are staged by `stage_engaging.sh code`.
+export MFS_DIR=$ZMASS/mfs
 cd $ZMASS/fullscale
 echo "############ phase-3 card  $(date +%H:%M:%S)"
 python3 -u make_joint_card.py --material \

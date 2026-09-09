@@ -291,7 +291,11 @@ def name_params(parmtype, subidx, groups_file, field_prior, mat_scale):
 # ---------------------------------------------------------------------------
 # physical scales (used by --whiten and by diagnose_quadratic.py)
 # ---------------------------------------------------------------------------
-MFS = "/work/submit/david_w/ZMass/mfs"
+# `mfs` supplies the harmonic basis the parmtype-14 whitening scales are
+# computed from. It is a sibling checkout on submit and a staged copy on
+# Engaging (which has neither /work nor /ceph), so the location is an
+# environment override rather than a constant.
+MFS = os.environ.get("MFS_DIR", "/work/submit/david_w/ZMass/mfs")
 DEFAULT_COEFFS = os.path.join(
     MFS, "data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt"
 )

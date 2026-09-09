@@ -48,6 +48,24 @@ if [ "$STAGE" = code ] || [ "$STAGE" = all ]; then
   # wums is NOT staged: it comes from PyPI (0.2.0) inside the env, because
   # rabbit needs wums.sparse_hist which submit's pinned 0.1.12 does not have.
 
+  # `resolution/globalfit/` is NOT covered by the line above: the rsync filter
+  # takes top-level .py only. `make_joint_card.py --material` imports
+  # `make_global_term` from it, and without it the phase-3 card build dies at
+  # `ModuleNotFoundError: No module named 'make_global_term'` (job 22328636).
+  rsync -a --include='*.py' --exclude='*' \
+      "$RES/globalfit/" $DEST/resolution/globalfit/
+
+  # ... and `make_global_term.param_scales` (what `--whiten` calls) needs the
+  # harmonic basis and the 50-mode coefficient table out of the `mfs` checkout,
+  # which is not on Engaging. Two files, so stage those rather than the tree;
+  # `MFS_DIR` in the batch script points the module at them.
+  echo "=== mfs (harmonic basis + the 50-mode coefficients, for --whiten)"
+  rsync -a "$ZM/mfs/harmonic_basis.py" $DEST/mfs/
+  rsync -a --relative \
+      "$ZM/mfs/./data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt" \
+      $DEST/mfs/
+
+
   echo "=== batch scripts"
   rsync -a "$ZM/calibration_studies/engaging/" $DEST/engaging/
 fi
