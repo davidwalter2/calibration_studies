@@ -100,8 +100,8 @@ mechanically by `certtable.py`. MeV from the generator
 | **inclusive, `K(m)` 5** | **-11.06 +- 2.27** | **-1.54 +- 2.08** |
 | `K(m)` 6 | -13.98 +- 2.22 | -3.92 +- 2.13 |
 | `K(m)` 7 | -17.24 +- 2.27 | -3.87 +- 2.28 |
-| **`K(m)` 9** | **+9.39 +- 2.31** | NOT CERTIFIED — running, 5.3 |
-| `K(m)` 12 | NOT CERTIFIED — running | NOT CERTIFIED — running |
+| **`K(m)` 9** | **+9.39 +- 2.31** | **NOT ATTAINABLE** — 96 Hessians, no density NaN, indefinite Hessian at the end point (5.3) |
+| `K(m)` 12 | NOT CERTIFIED — running | NOT CERTIFIED — running, expected to fail as 9 did |
 | `Gamma_Z`, `K` 5 / 6 / 7 / 9 | -5.26 / +27.16 / +8.96 / -1.79 | +6.81 / +14.28 / +12.86 / — |
 | `\|eta\|` lead < 0.9 | -26.60 +- 2.87 | -21.08 +- 3.24 |
 | 0.9 - 1.6 | +3.87 +- 3.88 | +12.39 +- 4.16 |
@@ -193,18 +193,25 @@ without its `K(m)` truncation beside it.**
 
 **The v form is far better behaved over 5/6/7 (-1.5 / -3.9 / -3.9 — 2.4 MeV,
 inside one sigma), and that is the number to quote as the truncation
-systematic today.** Its 9- and 12-term rungs are **NOT YET CERTIFIED**. Their
-first two attempts failed for two separate reasons, both now fixed: the
-positivity floor was at `unbinned.py`'s reference default 1e-9, which underflows
-in float64 (5.9), and the rebuilt cards then hit the staging defect of 5.10.
-The third attempt (Engaging `22354353`) is running with the floor at 1e-7 and
-**has not NaN'd in 50 Hessian evaluations**, so the floor did its job. Its EDM
-has been flat at ~1.1e4 for 25 iterations, which looks like a stall and is not:
-**the m-form 9-term rung that converged sat on the identical shelf** — first
-dip to 655 at iteration 11, bounce to 3.2e4, plateau at 10 300-10 600 for
-~20 iterations — and then fell to 1e-11 over 60 more, 98 Hessians and 4 h 23 in
-total. The v-form rung is at 50. So the plateau is a property of the 9-term
-model, not of the formulation or the minimiser.
+systematic. THE v-FORM LADDER ENDS AT 7**, and after three attempts the reason
+is localised. Attempt 1 died on a density NaN — the positivity floor was at
+`unbinned.py`'s reference default 1e-9, which underflows in float64 (5.9).
+Attempt 2 never loaded, on the staging defect of 5.10. **Attempt 3, with the
+floor at 1e-7, ran 96 Hessian evaluations in 2 h 26 with NO density NaN — the
+floor did its job — and then failed on the HESSIAN**: `scipy` raised
+`array must not contain infs or NaNs` in the subproblem and the postfit died on
+`Cholesky decomposition failed, Hessian is not positive-definite`. The run's own
+opening line gives the cause: the **Hessian diagonal spans 0.447 to 6.24e13**,
+fourteen orders of magnitude. (That line arrives labelled "2 floating
+parameters have an essentially zero Hessian diagonal ... `m_Z`, `Gamma_Z`",
+which is the pre-fix `warn_unconstrained` testing the diagonal instead of the
+row — a known false positive, 5.9. The diagnosis is wrong; the number is not.)
+
+So the degeneracy above 7 terms is neither the density, nor the floor, nor the
+formulation: it is the **conditioning of the 9-term Hessian**, i.e. the
+trust-radius scale defect of 5.9, and **preconditioning is the single named
+blocker**. It remains untested. The 12-term rungs are running and are expected
+to fail the same way.
 
 **The structural answer is a theory-predicted `K(m)`** — an NNLO parton
 luminosity in place of the floated LO kernel — which would also return the
@@ -427,15 +434,15 @@ cells and is not a property of every Engaging row.
 
 | # | item | size on `m_Z` | next step |
 |---|---|---:|---|
-| 1 | **`K(m)` truncation** | **+26.6 MeV** (7 -> 9) in the m form; **2.4 MeV** over 5 -> 7 in the v form, which is the number to quote today | the v-form 9- and 12-term rungs are on their third attempt (Engaging 22354353) after the floor fix and the staging fix; the 9-term rung has run 50 Hessians without a NaN and is on the same EDM shelf its converged m-form twin sat on for 20 iterations. Then replace the floated LO kernel with a theory-predicted `K(m)` — which also returns the x1.5 statistical penalty |
+| 1 | **`K(m)` truncation** | **+26.6 MeV** (7 -> 9) in the m form; **2.4 MeV** over 5 -> 7 in the v form, which is the number to quote | **the v-form ladder ENDS at 7**: the 9-term rung now runs 96 Hessians with no density NaN and fails on an indefinite Hessian whose diagonal spans 14 orders of magnitude (5.3). Two consequences — **preconditioning (item 9) is promoted from a robustness item to the blocker on the truncation systematic**, and the structural cure, a theory-predicted `K(m)` in place of the floated LO kernel (which also returns the x1.5 statistical penalty), is now the only route to a `K`-independent number |
 | 2 | ~~**`eta_lead` reco-`pT` selector**~~ | it WAS up to 45 MeV per band, 0 inclusive | **CLOSED (5.5)**: the safe-band refit collapses the spread from +55.3 to -12.5 MeV and changes its sign, `chi2` 93.8/2 -> 6.7/2, and the safe bands' weighted mean equals the inclusive closure. What is left is a **-12.5 +- 5.9 MeV (2.1 sigma)** residual whose own band variable is still 6x less clean than the gen one — an upper bound, not an effect |
-| 3 | the momentum scale from J/psi (phase 2) | not yet measured | **`P2X` is RUNNING and descending, not converged** (Engaging 22336261, 3 M J/psi + 3.68 M Z + the hit-chi2 quadratic, 95 floating of 103, exact delta-kernel J/psi term). 11 Hessian evaluations in 3 h 45: EDM 137 291 -> 99 172 -> 74 075 -> 27 665 -> 40 511 -> 12 359 -> 6 242 -> 2 103 -> 999 -> 203 -> **189**, against a 1e-3 target; the condition number fell from **3.1e19 to 1.0e15** as it left the start point. ~20 min per Hessian, 36 h of walltime, so it has room. It is NOT blocked on the gun check (5.9). **The remedy if it stalls is preconditioning at the trust-region level** — rescale by the curvature so the region is spherical in sigma units, a change of variables that leaves the minimum invariant — or the 2-GPU candidate sharding; NOT a resubmit, which would only repeat the same descent |
+| 3 | the momentum scale from J/psi (phase 2) | not yet measured | **`P2X` is RUNNING and descending, not converged** (Engaging 22336261, 3 M J/psi + 3.68 M Z + the hit-chi2 quadratic, 95 floating of 103, exact delta-kernel J/psi term). 18 Hessian evaluations in 5 h 50: EDM 137 291 -> 99 172 -> 74 075 -> 27 665 -> 40 511 -> 12 359 -> 6 242 -> 2 103 -> 999 -> 203 -> 189 -> 448 -> 466 -> 442 -> 191 -> 188 -> **184**, against a 1e-3 target; the condition number fell from **3.1e19 to 1.0e15** as it left the start point. ~20 min per Hessian and 36 h of walltime (`TimeLimit=1-12:00:00`, not the script's 5:45), so it has room. It is NOT blocked on the gun check (5.9). **Read its plateau carefully**: a flat EDM on this card family is a shelf, not a stall — the converged m-form 9-term rung sat on one for twenty iterations — but 5.3 shows that leaving the shelf is not sufficient either, since the v-form 9-term rung left its shelf and then failed on an indefinite Hessian. The one quantitative reason to expect `P2X` to fare better is its condition number, 1.0e15 against that card's 1e17-1e20. **The named remedy is preconditioning at the trust-region level** — rescale by the curvature so the region is spherical in sigma units, a change of variables that leaves the minimum invariant — or the 2-GPU candidate sharding; NOT a resubmit, which would only repeat the same descent. It was submitted with `FRESH=1`, so a preemption requeue would restart it from the prefit point: resubmit with `FRESH=0` if that happens |
 | 4 | the material amounts (phase 3) | not yet measured | needs 2-GPU candidate sharding: the phase-2 Hessian is **141.4 GB of an H200's 143.8 GB** |
 | 5 | GN second-order (Box) charge-odd bias | ~4 MeV (4.7e-5) | analytic correction from the exported steps |
 | 6 | the `a`-coefficient deficit | bounded small; unquantified on `m_Z` | none proposed; both leading explanations excluded |
 | 7 | post-fit shape | `chi2/ndof = 4.75` over 240 bins | genuine few-% shape mismodelling; unchanged when the model subsample is grown 6.7x |
 | 8 | `k_ms = 1.0298 +- 0.0042` | 0.5 MeV | the multiple-scattering **tail** is ~3 % short; phase 3 is its test |
-| 9 | trust-region **preconditioning** | 0 on any value; a robustness item | UNTESTED (controls cancelled in the wrap-up). Without it every card in the family is one unlucky draw from the NaN of 5.9; the present remedies are the positivity floor (5.9) and a warm start per row |
+| 9 | trust-region **preconditioning** | it is what bounds item 1, and it is the named remedy for item 3 | **PROMOTED from a robustness item to a blocker** (5.3): with the density NaN removed by the floor, the ill-conditioned Hessian is what stops the `K(m)` ladder above 7 terms. Still UNTESTED — the controls were cancelled in the wrap-up. Its validation is unchanged: require an already converged cell to reproduce to 0.01 MeV |
 | 10 | **staging discipline**: card and fitter must be the same rabbit | 0 on any value; cost 8 lost jobs | fixed and certified (5.10). The card builder on submit ran four commits ahead of the Engaging checkout for a whole day before anything noticed, because every crashed batch stage logged `rc=0` |
 
 Item 2 is now closed and item 1 is what is left: it is larger than everything

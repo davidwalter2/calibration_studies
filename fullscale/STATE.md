@@ -6466,3 +6466,57 @@ approximately the budget `Ss9` needed in iterations. So the handoff's reading �
 "NOT expected to certify" — is not supported by the trace: it is on the same
 shelf that a converged fit of this family sat on. What preconditioning would buy
 is margin, not the difference between converging and not.
+
+### 0f.72.5 THE v-FORM `K(m)` LADDER **ENDS AT 7** — the floor fixed the NaN,
+### and what is left is the HESSIAN, not the density (2026-09-09, `SVs9`)
+
+`SVs9` ran **96 Hessian evaluations in 2 h 26** on the floored card and then
+died, `rc=1` — the first time in this campaign that the batch driver has
+reported a non-zero exit code, because of 0f.72's `rc=$?` fix. It is a
+**different** failure from the one the floor was built for, and the two must not
+be conflated:
+
+| | un-floored card (`22315719`) | floored card (`22354353`) |
+|---|---|---|
+| how it ended | NaN in the DENSITY: a trust step drove a shape term to ~-1 and `log` of a non-positive `L_i` is `inf` | **no density NaN in 96 Hessians.** `scipy` raised `array must not contain infs or NaNs` inside the subproblem, and the POSTFIT then died on `Cholesky decomposition failed, Hessian is not positive-definite` (`tfhelpers.tf_edmval_cov`) |
+| result written | `meta` only | **`meta` only** — the "Results written" line prints before the postfit that fills `results`, so the file is again 11 920 bytes with no `results` group |
+
+**THE MEASURED CAUSE IS THE HESSIAN SCALE.** The run's own opening warning:
+
+```
+2 floating parameter(s) have an essentially zero Hessian diagonal
+(0.447 against a scale of 6.24e+13): ['m_Z', 'Gamma_Z']
+```
+
+**The diagnosis in that message is wrong** — this is the pre-`e006795`
+`warn_unconstrained`, which tests the DIAGONAL rather than the ROW, and `m_Z`
+and `Gamma_Z` are perfectly well constrained here through off-diagonal terms
+(0f.48 fixed exactly this false positive, and the fix is not in the staged
+checkout). **But the number in it is the real finding: the Hessian diagonal
+spans 0.447 to 6.24e13, fourteen orders of magnitude.** That is the
+trust-radius scale defect of 0f.60 in its purest form, and at 9 shape terms it
+is enough to make the Hessian indefinite at the end point.
+
+**SO THE LADDER ENDS AT 7 IN THE v FORM, AND THAT IS THE RESULT.** As 0f.71.8
+put it in advance: if the floored rungs still fail, "the shape basis itself is
+degenerate above 7 and the ladder ENDS at 7 — which is a result, not a
+failure". It does end there, and the degeneracy is now localised: not the
+density, not the floor, not the formulation, but the **conditioning of the
+9-term Hessian**. The truncation systematic to quote is therefore the v form's
+**2.4 MeV over `K` = 5..7**, inside one statistical sigma.
+
+**AND IT TEMPERS 0f.72.4's READING OF `P2X`.** `SVs9` did leave the shelf — the
+comparison with `Ss9` was right about that, EDM 1.1e4 -> 4.7e3 -> onward — but
+leaving the shelf turned out **not to be sufficient**: it left the shelf and
+then failed on the Hessian. So the correct statement about `P2X` is narrower
+than 0f.72.4's: its plateau is not evidence of a stall, but passing the plateau
+is not evidence that it will certify either. `P2X`'s condition number is
+**1.0e15**, two to five orders better than this card's 1e17-1e20, which is the
+one quantitative reason to expect it to fare better. **Preconditioning is now
+the single named blocker for both**, and it is untested (0f.70 cancelled its
+controls).
+
+`SVs12` and `Ss12` follow in the same allocation and are expected to fail the
+same way, 12 terms being worse conditioned than 9; they were left to run
+because confirming that costs nothing and distinguishing "degenerate above 7"
+from "degenerate at 9 only" is worth having.
