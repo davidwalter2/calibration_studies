@@ -306,6 +306,46 @@ the gun, not of the reconstruction.
   `trust-exact` is the campaign minimiser** whenever anything is frozen.
 * **`plot_closure.py` drew one series twice** (the v form overpainted the m
   form in the m form's colour) — every panel it had produced was affected.
+* **A card can out-run its fitter, silently.** `read_unbinned_terms_from_h5`
+  splats the card's stored `config` JSON into the term constructor, so a card
+  written by a newer rabbit than the one the fit runs on dies at load. The
+  submit-side card builder was four commits ahead of the Engaging checkout, and
+  one of those commits added one key (`corr_a_max`, inert at its default 0.0)
+  to `MassCFTerm.config()`. **Eight cards** — the five safe-band cards and the
+  three rebuilt K-ladder cards — were unloadable, which is why the confirming
+  refit and the floored ladder both died within minutes. Remedied by stripping
+  the inert key (`fullscale/cardkey.py`), which keeps every row of the certified
+  table on ONE code version, and certified by the equivalence triple of §5.10.
+* **Every crashed batch stage reported `rc=0`.** `rc=$?` sat on the same line as
+  a `date` command substitution and read the *echo's* status. Fixed; and the
+  batch driver now echoes the checkout, the freeze list and the extra flags per
+  row, which the single-row driver had already been fixed to do.
+
+### 5.10 The card/fitter version skew, and the certificate that closed it
+The card builder on submit ran four commits ahead of the Engaging checkout for
+a day. One of those commits added a single key to the term's stored `config`,
+and because `read_unbinned_terms_from_h5` splats that JSON into the constructor,
+**eight cards became unloadable** — the five safe-band cards of 5.5 and the
+three rebuilt K-ladder cards of 5.9. Both jobs died in minutes and both logged
+`rc=0`. Remedied by stripping the inert key, so every row stays on one code
+version, and certified by a three-row triple on the same 300 k card, same
+freeze, `trust-exact`:
+
+| | `n300kV` | `n300kW` | `n300kWK` |
+|---|---|---|---|
+| checkout | staged, old | new | new |
+| card | no keyword | no keyword | **keyword present (0.0)** |
+| `m_Z` [MeV] | -35.50531845604378 | -35.50531845604459 | -35.50531845604459 |
+| NLL | 874734.9966056047 | 874734.9966056045 | 874734.9966056045 |
+| EDM | 1.671e-12 | 1.671e-12 | 1.671e-12 |
+
+`W` and `WK` are **bit-identical** in all eleven parameters, the NLL and the
+EDM — the keyword at its default is exactly absent. `V` and `W` differ by one
+ulp in NLL and **8e-13 MeV** in `m_Z`, which is the newer checkout solving a
+7-dimensional problem instead of an 11-dimensional one with a null subspace;
+the minimum is the same. The frozen `k` sit at exactly 1.0 in both, so the
+1.2-1.6e-3 freeze displacement of the caveat in section 4 belongs to those two
+cells and is not a property of every Engaging row.
 
 ---
 
@@ -321,7 +361,8 @@ the gun, not of the reconstruction.
 | 6 | the `a`-coefficient deficit | bounded small; unquantified on `m_Z` | none proposed; both leading explanations excluded |
 | 7 | post-fit shape | `chi2/ndof = 4.75` over 240 bins | genuine few-% shape mismodelling; unchanged when the model subsample is grown 6.7x |
 | 8 | `k_ms = 1.0298 +- 0.0042` | 0.5 MeV | the multiple-scattering **tail** is ~3 % short; phase 3 is its test |
-| 9 | trust-region **preconditioning** | 0 on any value; a robustness item | UNTESTED (controls cancelled in the wrap-up). Without it every card in the family is one unlucky draw from the NaN of 5.9; the present remedy is a warm start per row |
+| 9 | trust-region **preconditioning** | 0 on any value; a robustness item | UNTESTED (controls cancelled in the wrap-up). Without it every card in the family is one unlucky draw from the NaN of 5.9; the present remedies are the positivity floor (5.9) and a warm start per row |
+| 10 | **staging discipline**: card and fitter must be the same rabbit | 0 on any value; cost 8 lost jobs | fixed and certified (5.10). The card builder on submit ran four commits ahead of the Engaging checkout for a whole day before anything noticed, because every crashed batch stage logged `rc=0` |
 
 Items 1 and 2 together are larger than everything else combined, and **both are
 model/analysis effects, not detector or reconstruction effects.**

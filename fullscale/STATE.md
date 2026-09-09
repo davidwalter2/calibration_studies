@@ -6209,3 +6209,118 @@ The eta non-closure is mostly the `eta_lead` selector (0f.63), whose confirming
 test (0f.66) is the highest-value remaining physics run. Step 3 (phase 2) is a
 convergence problem. Step 4 (phase 3) is documented as not feasible in the
 window (0f.64).
+
+---
+
+### 0f.72 THE CONFIRMING TEST DID NOT RUN BECAUSE THE CARDS OUT-RAN THE FITTER
+### — DIAGNOSIS, FIX, AND THE EQUIVALENCE CERTIFICATE (2026-09-09)
+
+**WHAT HAPPENED.** `22337999` (the five `z_VX_*` safe-band cards of 0f.66) died
+after 1 min 39 s and `22348542` (`SVs9`/`SVs12`/`Ss12` on the rebuilt floored
+cards of 0f.71.5) after 3 min 38 s, both with
+
+```
+TypeError: MassCFTerm.__init__() got an unexpected keyword argument 'corr_a_max'
+```
+
+and **both printed `rc=0` for every stage**, which is the second defect of
+0f.71.7 and is why neither failure announced itself.
+
+**THE MECHANISM.** `read_unbinned_terms_from_h5` (`unbinned.py:3150`) splats the
+card's stored `config` JSON into the term constructor as `**cfg`. So a card is
+only loadable by a rabbit **at least as new as the one that wrote it**. The
+cards are built on submit with `PYTHONPATH=.../ZMass/rabbit-vmass`, which is at
+`d0e7f58`; the Engaging checkout of the same name is at `35b93940`, four
+commits behind (`e006795` `warn_unconstrained`, `b8e12ce` the frozen subspace,
+`6b7bbaa` `corr_a_max`, `d0e7f58` the delta-kernel form). `6b7bbaa` added one
+key to `MassCFTerm.config()`, and from that moment every card built on submit
+was unloadable on Engaging. **Eight cards are affected** — the five `z_VX_*`
+and the three rebuilt K-ladder cards — i.e. every card built after ~21:40 on
+2026-09-08. Nothing physics-side was wrong with any of them.
+
+**THE DIFFERENCE IS EXACTLY ONE INERT KEY.** `cardkey.py --show` on the new
+card against the old one it is compared with:
+
+| key | `z_V_etaB` (certified) | `z_VX_etaB` (new) |
+|---|---|---|
+| `floor` / `floor_scale` | `softplus` / 1e-09 | `softplus` / 1e-09 |
+| `jensen_mode` / `_scale` / `_disc_floor` | `exact` / 1.0 / 0.1 | identical |
+| `corr_clip` / `corr_form` / `corr_coeff_max` | 0.0 / `fluctuation` / 0.08 | identical |
+| **`corr_a_max`** | **absent** | **0.0** |
+| `vpow` / `sigma_floor` | 1.264 / 0.2 | identical |
+
+and its only use is guarded by `if self.corr_a_max > 0.0:` — so at 0.0 it
+cannot reach the likelihood. The rebuilt K-ladder cards differ additionally by
+`floor_scale` 1e-09 -> **1e-07**, which is the deliberate fix of 0f.71.5.
+
+**THE FIX CHOSEN, AND WHY THAT ONE.** Two were available: stage the newer
+rabbit for these fits, or strip the inert key from the cards. **The key was
+stripped** (`cardkey.py --strip corr_a_max`, eight cards, in place), because it
+is the option that leaves *every row of the certified table on one code
+version*. Staging `d0e7f58` would also have brought `b8e12ce` — which changes
+the fit trajectory whenever anything is frozen, and these rows freeze
+`k_hit k_ms k_ioni k_rad` — so the new band rows would have been produced by a
+different minimiser from the lead-band rows they are compared against. That is
+avoidable, and a spread-to-spread comparison is not the place to spend it.
+
+**AND THE CERTIFICATE THAT BOTH REMEDIES ARE THE SAME.** Not asserted from the
+guard: measured, as a three-row triple on one 300 k card, same freeze, same
+method, in one allocation (`22354351`) —
+
+* `n300kV` staged `rabbit-vmass` `35b93940`, card without the key;
+* `n300kW` `rabbit-wrap` `d0e7f58`, the same card;
+* `n300kWK` `rabbit-wrap` `d0e7f58`, a copy of the card **carrying** the key.
+
+Results in 0f.72.1 below.
+
+**THE DRIVER DEFECTS, both fixed in `engaging/rabbit_vmass_batch.sbatch`.**
+1. It hard-coded `$ZMASS/rabbit-vmass` where `rabbit_vmass.sbatch` has taken a
+   `RABBIT=` override since 0f.65, and echoed neither the checkout nor the
+   freeze list nor `EXTRA`. It now takes the override, accepts a per-row
+   `tag@checkout` form (which is what makes the triple above a single
+   allocation), and echoes all three per row.
+2. `rc=$?` sat on the same line as a `date` command substitution, so it
+   reported the **echo's** status. Every crashed stage in this campaign logged
+   `rc=0`. Captured before the echo now.
+
+Tool: `fullscale/cardkey.py` (show / `--set` / `--strip` a config key, `-o` to
+edit a copy). Commit `35926c2`.
+
+### 0f.72.1 THE EQUIVALENCE TRIPLE — MEASURED, AND THE KEYWORD IS **EXACTLY**
+### A NO-OP (2026-09-09, `22354351`)
+
+`z_n300k`, 300 000 candidates, `--freezeParameters k_hit k_ms k_ioni k_rad`,
+scipy `trust-exact`, cold, three rows of one allocation, ~4-7 min each.
+
+| | `n300kV` | `n300kW` | `n300kWK` |
+|---|---|---|---|
+| checkout | `rabbit-vmass` `35b93940` | `rabbit-wrap` `d0e7f58` | `rabbit-wrap` `d0e7f58` |
+| card | `z_n300k` (no key) | `z_n300k` (no key) | `z_n300k_k` (**key = 0.0**) |
+| `m_Z` [MeV] | -35.50531845604378 | -35.50531845604459 | -35.50531845604459 |
+| `Gamma_Z` [MeV] | -421.0287901542844 | -421.0287901542842 | -421.0287901542842 |
+| NLL | 874734.9966056047 | 874734.9966056045 | 874734.9966056045 |
+| EDM | 1.6708159410501944e-12 | 1.6708157849120996e-12 | 1.6708157849120996e-12 |
+| frozen `k_hit/k_ms/k_ioni/k_rad` | **1.0 exactly** | **1.0 exactly** | **1.0 exactly** |
+
+**(1) `W` and `WK` are BIT-IDENTICAL** — every one of the eleven parameters,
+the NLL and the EDM agree in the last digit. So the presence of `corr_a_max` at
+its default 0.0 changes *nothing at all*: it is not "small", it is exactly
+absent, which is what the `> 0.0` guard says and is now measured rather than
+read.
+
+**(2) `V` against `W` differ by one ulp.** NLL by 2e-10 in 8.7e5 (2.3e-16
+relative, 1 ulp), `m_Z` by **8e-13 MeV** against a 6.8 MeV error, `Gamma_Z` by
+2e-13 MeV. They are not bit-identical, and the reason is understood: `b8e12ce`
+removes the frozen coordinates from the vector the minimiser sees, so scipy
+solves a 7-dimensional problem instead of an 11-dimensional one with a null
+subspace, and the arithmetic differs. The **minimum does not**.
+
+**(3) And the frozen parameters sit at exactly 1.0 in BOTH.** On this card the
+old freeze behaviour did not displace them at all, so the 1.2-1.6e-3
+displacement of the caveat on `SVetaBslo`/`SVetaEslo` is a property of those
+cells, not a systematic of every Engaging row.
+
+**RULING.** Both remedies of 0f.72 are equivalent, and the eight stripped cards
+are comparable with every row of the certified table. Because (1) is exact, a
+card carrying the key and a card without it are *the same card* to the fitter,
+so this certificate does not have to be repeated if the key reappears.
