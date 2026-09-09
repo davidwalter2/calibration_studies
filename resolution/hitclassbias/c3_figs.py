@@ -254,8 +254,12 @@ def main():
     for t_ in (ax, rx):
         t_.axhline(0, color="0.6", lw=1, ls=":")
         t_.legend(fontsize=13)
-    ax.set_ylabel(r"charge-EVEN $\langle x\rangle$ (sagitta) [$10^{-3}$]")
-    rx.set_ylabel(r"charge-ODD $\langle x\rangle$ (scale) [$10^{-3}$]")
+    ax.set_ylabel(r"even $\langle x\rangle$  [$10^{-3}$]", fontsize=17)
+    rx.set_ylabel(r"odd $\langle x\rangle$  [$10^{-3}$]", fontsize=17)
+    ax.text(0.02, 0.06, "charge-EVEN = sagitta (mirror-forbidden)",
+            transform=ax.transAxes, fontsize=13, color="0.3")
+    rx.text(0.02, 0.08, "charge-ODD = momentum scale (mirror-allowed)",
+            transform=rx.transAxes, fontsize=13, color="0.3")
     rx.set_xticks(xs2)
     rx.set_xticklabels(BANDLAB)
     ax.set_title("second-order Gauss-Newton bias vs measurement", fontsize=15)
