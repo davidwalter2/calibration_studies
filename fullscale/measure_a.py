@@ -69,6 +69,13 @@ def main():
                          "linearisation holds")
     ap.add_argument("--nsig", type=int, default=3)
     ap.add_argument("--nasym", type=int, default=3)
+    ap.add_argument("--gen-cells", action="store_true",
+                    help="ALSO measure `a` in cells of GENERATOR quantities "
+                         "(requires --aux). `asym` and `sigma/m` are both built "
+                         "from the REPORTED per-leg widths, which are "
+                         "sigma_bar(1 + a x): binning on them is a cut on the "
+                         "residual and attenuates the very slope being "
+                         "measured. Gen leg kinematics cannot be.")
     ap.add_argument("--aux", default=None,
                     help="auxgen npz aligned ROW BY ROW to --pairs; adds the "
                          "closed form 1 + f_hit - f_ioni from the Q matrix")
@@ -93,13 +100,17 @@ def main():
             raise SystemExit("aux `z` is not bit-identical to the pairs `z`")
         fhit = g["fhit"].astype(np.float64)
         fioni = g["fioni"].astype(np.float64)
+        gpt = np.stack([g["gpt_p"].astype(np.float64),
+                        g["gpt_m"].astype(np.float64)])
+        geta = np.stack([g["geta_p"].astype(np.float64),
+                         g["geta_m"].astype(np.float64)])
         fms = g["fms"].astype(np.float64)
         clo = np.abs(fhit + fms + fioni - 1.0)
         print("aux aligned: <f_hit> = %.5f  <f_ms> = %.5f  <f_ioni> = %.3e ; "
               "Q-matrix closure |f_hit+f_ms+f_ioni-1| mean %.2e max %.2e"
               % (fhit.mean(), fms.mean(), fioni.mean(), clo.mean(), clo.max()))
     else:
-        fhit = fioni = None
+        fhit = fioni = gpt = geta = None
 
     ok = (np.isfinite(z) & np.isfinite(sig) & (sig > 0) & np.isfinite(m) & (m > 0)
           & np.isfinite(sp) & np.isfinite(sm) & (sp > 0) & (sm > 0)
@@ -109,6 +120,7 @@ def main():
                                              (z, sig, m, vgf, fang, sp, sm, etal, w))
     if fhit is not None:
         fhit, fioni = fhit[ok], fioni[ok]
+        gpt, geta = gpt[:, ok], geta[:, ok]
     srel = sig / m
     s1 = sp ** 2 / (sp ** 2 + sm ** 2)
     asym = 2.0 * (s1 ** 2 + (1 - s1) ** 2) - 1.0
@@ -170,6 +182,30 @@ def main():
             m_ = ((srel >= qs[i]) & (srel < qs[i + 1])
                   & (asym >= qa[j]) & (asym < qa[j + 1]))
             row(f"sigma/m t{i+1}, asym t{j+1}", m_)
+    if a.gen_cells and gpt is not None:
+        print("\n--- GENERATOR cells: nothing here is built from the reported "
+              "widths ---")
+        # `max |eta|` of the two legs, the SAME definition the reco rows use
+        # (`etal = max(|etap|, |etam|)`), so the two are comparable; binning on
+        # the eta of the leading-pT leg instead is a different variable and
+        # gives visibly different numbers.
+        getal = np.max(np.abs(geta), axis=0)
+        gratio = gpt.min(axis=0) / np.maximum(gpt.max(axis=0), 1e-9)
+        gdeta = np.abs(geta[0] - geta[1])
+        for nm, v, nq in (("gen |eta| lead", getal, 0),
+                          ("gen pT ratio", gratio, 5),
+                          ("gen |d eta| legs", gdeta, 5)):
+            if nq == 0:
+                for lo, hi, lab in ((0, 0.9, "gen max|eta| < 0.9"),
+                                    (0.9, 1.6, "gen 0.9 - 1.6"),
+                                    (1.6, 3.0, "gen 1.6 - 3.0")):
+                    row(lab, (v >= lo) & (v < hi))
+                continue
+            q = np.percentile(v, np.linspace(0, 100, nq + 1))
+            for j in range(nq):
+                row(f"{nm} q{j+1}", (v >= q[j]) & (v < q[j + 1]))
+            print()
+
     print("\n`meas - spec` is the coefficient error the spec's form carries, in "
           "units of sigma/m.\nIf the leg-asymmetry term is the cause it must "
           "track `asym`, and `per-leg` must\nsit on `MEASURED` where `spec` "

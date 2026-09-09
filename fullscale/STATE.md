@@ -5174,3 +5174,57 @@ result files: `n300kfix` 1.26e-01, `RvfullX` 1.92e-02, `Sdc8W`/`Rdc8X`
 table is `SVetaBslo`** (barrel `sigma/m` LOW, -4.56 +- 3.69); the rest fail on
 EDM anyway. The staging of the fix to Engaging is HELD until `22315719` and
 `22333692` finish, so that every rung of the `K(m)` ladder is the same code.
+
+### 0f.57 BINNING ON `|eta|` IS SAFE (gen == reco to 0.002); BINNING ON `asym`
+### IS **NOT**, AND THE LEG-ASYMMETRY TERM IS EXCLUDED ON A SAFE VARIABLE
+### (2026-09-08)
+
+`auxgen` carries the gen leg momenta, so the `a` measurement can be repeated in
+cells that CANNOT see the residual (`measure_a.py --gen-cells`). Two things
+come out, and the second retracts a claim in `measure_a.py`'s own docstring.
+
+**1. `|eta|` binning is validated.** With the SAME definition
+(`max(|eta_p|, |eta_m|)`), gen and reco cells agree to 0.002 in
+`a/(sigma/m)` -- two orders below the effect:
+
+| band | reco `\|eta\|` | GEN `\|eta\|` | spec | deficit (gen) |
+|---|---:|---:|---:|---:|
+| < 0.9 | 1.2503 +- 0.0006 | **1.2485 +- 0.0006** | 1.2738 | -0.0254 |
+| 0.9-1.6 | 1.1667 +- 0.0003 | **1.1683 +- 0.0003** | 1.2046 | -0.0364 |
+| 1.6-3.0 | 1.2725 +- 0.0004 | **1.2724 +- 0.0004** | 1.3007 | -0.0283 |
+
+So the 2-4 % deficit is real and is not an artefact of conditioning on a
+reconstructed variable.
+
+**2. `asym` is NOT a safe binning variable** -- `measure_a.py`'s docstring
+says it is "to first order a property of the kinematics, not of the residual",
+and the data say otherwise. In `asym` quintiles the measured coefficient is
+1.078 / 1.030 / 0.986 / 1.093 / 1.332, i.e. deficits of **-0.148 / -0.206 /
+-0.247 / -0.150 / -0.044** -- every one far larger than the -0.025...-0.036 the
+safe `|eta|` cells give, and the `sigma/m` x `asym` grid is worse still
+(-0.15...-0.33). `asym` is built from the two REPORTED per-leg widths, each of
+which is `sigma_bar(1 + a q x)`, so binning on it is a (weaker) version of the
+forbidden `sigma/m` bin and it attenuates the slope. **Standing rule 3 extends
+to `asym`.**
+
+**3. And the leg-asymmetry term is excluded on a variable that IS safe.** The
+gen `pT` ratio `min/max` is the truth-level proxy for `asym` (q1 = most
+asymmetric, q5 = most symmetric):
+
+| gen `pT` ratio | q1 | q2 | q3 | q4 | q5 |
+|---|---:|---:|---:|---:|---:|
+| measured `a/(sigma/m)` | 1.2235 | 1.2161 | 1.2474 | 1.1890 | 1.1692 |
+| deficit | **-0.0801** | -0.0377 | -0.0014 | -0.0612 | **-0.0820** |
+
+The deficit is a **U**, equal at the two extremes and vanishing in the middle
+-- it does not track leg asymmetry at all, where the per-leg form predicts a
+monotone growth (`per-leg` runs 1.379 -> 1.301 across the same quintiles). Gen
+`|d eta|` between the legs gives +0.012 / -0.078 / -0.034 / -0.017 / -0.130,
+also non-monotone. **The per-leg asymmetry term is therefore excluded as the
+explanation of the deficit on a variable that cannot attenuate the slope**,
+which is a stronger statement than sec. 0f.45's, which used `asym` itself.
+
+What is left: the deficit is real, is 2-4 % in `|eta|` cells and 0-13 % in
+truth cells, is FOUR TIMES larger on the J/psi legs (-0.206) than on the Z legs
+(-0.052) at a seventh of the momentum, and is explained by neither the
+ionisation share (sec. 0f.51) nor the leg-asymmetry term (here).
