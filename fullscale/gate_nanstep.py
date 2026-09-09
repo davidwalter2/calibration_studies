@@ -228,7 +228,8 @@ def main():
                 pts += [(f"{nm}{d:+.0f}", {nm: +d}), (f"{nm}{-d:+.0f}", {nm: -d})]
         # the populations, and the weight of what goes wrong, ONCE
         for t in terms:
-            if not hasattr(t, "_fl_a") or t._fl_a is None:
+            if getattr(t, "_fl_a", None) is None or getattr(t, "_fl_g", None) is None:
+                print(f"  term '{t.name}': no fluctuation block, nothing to bound")
                 continue
             av = np.abs(np.asarray(t._fl_a))
             gv = np.abs(np.asarray(t._fl_g))
@@ -257,14 +258,20 @@ def main():
             for t in terms:
                 if hasattr(t, "set_corr_bounds"):
                     t.set_corr_bounds(a_max=amax)
-                av = np.abs(np.asarray(t._fl_a)) if t._fl_a is not None else None
-                gv = np.abs(np.asarray(t._fl_g)) if t._fl_g is not None else None
+                av = (np.abs(np.asarray(t._fl_a))
+                      if getattr(t, "_fl_a", None) is not None else None)
+                gv = (np.abs(np.asarray(t._fl_g))
+                      if getattr(t, "_fl_g", None) is not None else None)
                 # what the bound REACHED: recomputed against the unbounded a is
                 # not available after clipping, so count the saturated entries
-                nb = 0 if not amax else int(np.sum(av >= amax * (1 - 1e-12)))
-                nboth = (0 if not amax or not t.corr_coeff_max else
-                         int(np.sum((av >= amax * (1 - 1e-12))
-                                    & (gv >= t.corr_coeff_max * (1 - 1e-12)))))
+                nb = (0 if not amax or av is None
+                      else int(np.sum(av >= amax * (1 - 1e-12))))
+                nboth = (
+                    0
+                    if not amax or av is None or gv is None or not t.corr_coeff_max
+                    else int(np.sum((av >= amax * (1 - 1e-12))
+                                    & (gv >= t.corr_coeff_max * (1 - 1e-12))))
+                )
                 for label, over in pts:
                     x = x0.copy()
                     for k, v in over.items():
