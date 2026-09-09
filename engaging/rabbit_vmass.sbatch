@@ -18,7 +18,12 @@
 set -uo pipefail
 ZMASS=$HOME/orcd/pool/zmass
 source $ZMASS/engaging/setup_env_engaging.sh
-export PYTHONPATH=$ZMASS/rabbit-vmass:$ZMASS/fullscale:$ZMASS/zchannel:${PYTHONPATH:-}
+# RABBIT selects WHICH checkout the fit runs from. It exists so a change to
+# rabbit can be tested against a live campaign without touching the copy the
+# other jobs are running from: a preemptable job that is requeued re-reads
+# this script and would otherwise pick the change up mid-flight.
+RABBIT=${RABBIT:-$ZMASS/rabbit-vmass}
+export PYTHONPATH=$RABBIT:$ZMASS/fullscale:$ZMASS/zchannel:${PYTHONPATH:-}
 CARD=${CARD:?set CARD=...}
 TAG=${TAG:-rabbit}
 METHOD=${METHOD:-tf-trust-exact}
@@ -52,7 +57,7 @@ if [ -f "$SNAP" ] && [ "${FRESH:-0}" != "1" ]; then
     RESUME="--externalPostfit $SNAP"
 fi
 
-python3 -u $ZMASS/rabbit-vmass/bin/rabbit_fit.py "$CARD" \
+python3 -u $RABBIT/bin/rabbit_fit.py "$CARD" \
     $RESUME \
     --paramModel $MODEL \
     --minimizerMethod "$METHOD" \

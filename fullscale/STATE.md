@@ -5812,3 +5812,69 @@ This matters because the J/psi term is what fixes the scale through the field
 modes in phase 2, so a common offset in its kernel propagates directly to
 `m_Z`. It is NOT a defect that has been demonstrated -- it is a check that has
 not been done, and it belongs in front of the first quotable phase-2 number.
+
+### 0f.59 THE EXACT DELTA-KERNEL PATH REMOVES THE `P2X` NaN — ZERO NON-POSITIVE
+### DENSITIES ON BOTH LEGS AT ALL FIVE POINTS (2026-09-08, fit-infrastructure)
+
+The ruling of 0f.57/0f.58 implemented and MEASURED on the card that failed.
+`gate_nanstep.py --amax-scan 0` on `cards/joint_ok_full.hdf5`, all 103
+parameters at their defaults, with `--unbinnedDeltaKernelForm auto` -- so the
+delta-kernel J/psi term is in the EXACT residual form and the Z term is left in
+the fluctuation form, which is the treatment there:
+
+| a_max | term | point | bounded | non-positive | `min L_i` | nll |
+|---:|---|---|---:|---:|---:|---:|
+| 0 | jpsi | default | 0 | **0** | +7.392e-05 | -5310695.3320 |
+| 0 | jpsi | `m_Z` +30 | 0 | **0** | +7.392e-05 | -5310695.3320 |
+| 0 | jpsi | `m_Z` -30 | 0 | **0** | +7.392e-05 | -5310695.3320 |
+| 0 | jpsi | `Gamma_Z` +60 | 0 | **0** | +7.392e-05 | -5310695.3320 |
+| 0 | jpsi | `Gamma_Z` -60 | 0 | **0** | +7.392e-05 | -5310695.3320 |
+| 0 | zmass | default | 0 | **0** | +9.418e-05 | +11087491.8096 |
+| 0 | zmass | `m_Z` +30 | 0 | **0** | +9.594e-05 | +11087837.2121 |
+| 0 | zmass | `m_Z` -30 | 0 | **0** | +9.246e-05 | +11087547.7554 |
+| 0 | zmass | `Gamma_Z` +60 | 0 | **0** | +1.093e-04 | +11086514.9471 |
+| 0 | zmass | `Gamma_Z` -60 | 0 | **0** | +7.907e-05 | +11088911.7001 |
+
+`a_max = 0` means the diagnostic bound is OFF, as ruled: **nothing is bounded
+and nothing is clipped**. The two negative J/psi densities of 0f.57 are gone
+because the term is no longer evaluating a first-order truncation -- its `min
+L_i` is now positive and the leg's NLL moves from -5327803.02 to -5310695.33,
+the difference between an expansion and the thing it expands.
+
+**The wide-kernel arm needs no fallback today.** The ruling's item (2) asked
+for a per-candidate positivity check on the Z term with an exact `x`-space
+fallback for the failures, and for the count of Z candidates that need it. The
+count is **ZERO**, at the default point and at all four displaced points, with
+`min L_i` between 7.9e-05 and 1.1e-04 -- three to four orders of magnitude
+above zero, and the Z leg's `|a|` reaches 0.198 with 4445 of 3 682 662
+candidates already at the `|g|` bound. So the check is the deliverable and the
+fallback is not needed at this working point; if a future card produces one,
+`gate_nanstep.py --amax-scan` is what finds it.
+
+**`P2X` RESUBMITTED**: `22336261`, `mit_preemptable -G h200:1`, scipy
+`trust-exact`, `FRESH=1`, the same card / model / 8 frozen parameters as
+`22328595`, differing only in that the J/psi term now uses the exact residual
+form. It writes `fitresults/native/rabbit_P2X.hdf5`, replacing the stale
+start-point file. The gun cross-check of the delta-kernel move is `22336272`
+(`--unbinnedDeltaKernelForm auto`) against `22336273` (`off`) on
+`jpsigun_260903x_families.hdf5`: `alpha` must be unchanged.
+
+**How it is staged, and why it matters.** The fixes are in
+`~/orcd/pool/zmass/rabbit-wrap`, NOT in `rabbit-vmass`, and
+`engaging/rabbit_vmass.sbatch` now takes a `RABBIT=` override. A preemptable
+job that is requeued re-reads the script and would otherwise pick a mid-flight
+code change up, which would silently make the `K(m)` ladder's rungs
+incomparable. The three commits are `b8e12ce` (the frozen subspace), `6b7bbaa`
+(`corr_a_max`, default OFF) and `d0e7f58` (`set_corr_form` /
+`--unbinnedDeltaKernelForm`). Full rabbit suite on them: **177 passed**, plus 13
+pre-existing collection errors in `test_zgamma_kernel.py` and
+`test_unbinned_mass.py` (they take an `args` fixture that does not exist --
+they are script-style tests, unrelated to any of this).
+
+**PHASE 3 REQUIREMENT, recorded as asked.** The start-point Hessian of
+`joint_ok_full` occupies **141.4 GB of an H200's 143.8 GB** at 99 % GPU
+utilisation. Phase 2 at full size therefore has NO headroom on a single device,
+and the phase-3 card -- which adds a third term and the hit-class parameters --
+must use the two-GPU candidate sharding (`fullscale/shardobj.py`,
+`rabbit.unbinned.MassCFTerm.candidate_slice`) rather than one device. That is a
+hard requirement, not an optimisation.
