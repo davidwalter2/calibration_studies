@@ -5895,3 +5895,44 @@ and the phase-3 card -- which adds a third term and the hit-class parameters --
 must use the two-GPU candidate sharding (`fullscale/shardobj.py`,
 `rabbit.unbinned.MassCFTerm.candidate_slice`) rather than one device. That is a
 hard requirement, not an optimisation.
+
+### 0f.70 TWO CAUTIONS THAT TRAVEL WITH THE DELTA-KERNEL SWITCH — the NLL offset
+### and the FSR question (2026-09-08, fit-infrastructure)
+
+Both belong with 0f.65 and neither is an objection to it.
+
+**1. The J/psi leg's NLL is no longer comparable with any earlier number.**
+Moving that leg from the first-order fluctuation form to the exact residual
+form changes the FUNCTIONAL, not just its numerical conditioning: its NLL moves
+-5327803.02 -> -5310695.33, **17 108 units**, or ~0.0057 per candidate. An
+absolute NLL offset cannot by itself bias a parameter -- the two forms agree to
+the order of the expansion at a delta kernel, which is the whole justification
+for the switch -- but sec. 0f.16's acceptance test compares NLLs between fits,
+and any comparison that crosses this change is meaningless. Every phase-2 NLL
+recorded before `22336261` is on the other side of it.
+
+That makes the gun cross-check load-bearing rather than a formality:
+**`22336272`** (`--unbinnedDeltaKernelForm auto`) against **`22336273`**
+(`off`) on `jpsigun_260903x_families.hdf5`, identical in every other respect.
+`alpha` must land inside **+0.0512 +- 0.0167e-3**. If it does not, `P2X` is not
+certifiable however cleanly it converges, because transferring the momentum
+scale is the only reason the J/psi leg is in the fit. Report the pair before,
+or at least alongside, `P2X`.
+
+**2. The gun agreeing does not clear the FSR question of 0f.64.** The J/psi
+kernel is a delta at the **PDG** mass, but the J/psi MC radiates, so for a
+radiating candidate the post-FSR gen mass is not the PDG mass; the gun, by
+contrast, compares against each candidate's OWN gen mass. So the gun exercises
+the delta-kernel code path but NOT the mismatch, and `22336272`/`22336273`
+agreeing says the switch is faithful, not that the delta-at-PDG assumption is.
+The two must not be conflated when this is written up: they are a check of the
+IMPLEMENTATION and a question about the MODEL, and only the first is being
+answered here.
+
+**Queue, for the record.** `22334725` / `22334726`, the preconditioning
+controls of 0f.60 remedy (2), were CANCELLED by me rather than left queued:
+they are diagnostic, they were competing for the 4-GPU cap with the gun pair
+and `P2X`, and preconditioning is outside the wrap-up scope. The question they
+were to answer -- whether the ladder as a whole wants the change of variables
+rather than a warm start per row -- is unanswered and should be recorded as
+such.
