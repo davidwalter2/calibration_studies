@@ -140,6 +140,21 @@ def parse_args(argv=None):
                         "has LO <= |eta| < HI. A bias localised in eta points "
                         "at the field/alignment-like effects the joint fit can "
                         "absorb; one that is flat in eta does not.")
+    p.add_argument("--eta-max", type=float, nargs=2, default=None,
+                   metavar=("LO", "HI"),
+                   help="keep only LO <= max(|eta_p|, |eta_m|) < HI. THE SAFE "
+                        "BAND VARIABLE, and the one to use: --eta-lead picks "
+                        "the leg with the larger RECO pT, so when the legs "
+                        "have similar pT which one 'leads' is decided by which "
+                        "one fluctuated up and the band edge becomes a cut on "
+                        "the residual -- corr(|eta| lead, z) = +0.0203 against "
+                        "+0.0025 here and +0.0004 for the gen definition "
+                        "(STATE sec. 0f.63). max(|eta_p|, |eta_m|) does not "
+                        "depend on which leg leads and needs no truth. The two "
+                        "select DIFFERENT candidates (the max-band barrel "
+                        "requires BOTH legs central), so cards built with the "
+                        "two are not cell-by-cell comparable -- compare the "
+                        "SPREAD across bands.")
     p.add_argument("--lead-charge", choices=["any", "plus", "minus"],
                    default="any",
                    help="keep only candidates whose leading muon has this "
@@ -362,6 +377,13 @@ def select(d, args, log=print):
     if args.min_sigma_rel > 0:
         keep &= srel >= args.min_sigma_rel
         steps.append((f"sigma_m/m >= {args.min_sigma_rel:g}", keep.copy()))
+    if args.eta_max is not None:
+        etam_ = np.maximum(np.abs(np.asarray(d["etap"], np.float64)),
+                           np.abs(np.asarray(d["etam"], np.float64)))
+        lo_e, hi_e = args.eta_max
+        keep &= (etam_ >= lo_e) & (etam_ < hi_e)
+        steps.append((f"{lo_e:g} <= max(|eta_p|,|eta_m|) < {hi_e:g}",
+                      keep.copy()))
     if args.eta_lead is not None or args.lead_charge != "any" or \
             args.vgf_range is not None:
         ptp = np.asarray(d["ptp"], dtype=np.float64)

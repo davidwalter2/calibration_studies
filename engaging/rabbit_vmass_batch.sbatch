@@ -42,6 +42,11 @@ declare -A CARDS=(
   # inclusively, so this is the only clean separation.
   [SVetaBslo]=z_V_etaB_slo     [SVetaBshi]=z_V_etaB_shi
   [SVetaEslo]=z_V_etaE_slo     [SVetaEshi]=z_V_etaE_shi
+  # THE SAFE BAND DEFINITION, max(|eta_p|,|eta_m|) instead of the |eta| of the
+  # leg with the larger RECO pT: the latter makes the band edge a cut on the
+  # residual (corr 0.0203 against 0.0025). STATE sec. 0f.63/0f.66.
+  [VXetaB]=z_VX_etaB           [VXetaT]=z_VX_etaT      [VXetaE]=z_VX_etaE
+  [VXetaBslo]=z_VX_etaB_slo    [VXetaBshi]=z_VX_etaB_shi
 )
 FREEZE=${FREEZE:-k_hit k_ms k_ioni k_rad}
 METHOD=${METHOD:-trust-exact}
