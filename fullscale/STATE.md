@@ -39,7 +39,8 @@ the ONE command to run first.
 | inclusive, K(m) 5 | **-11.06 +- 2.27** | **-1.54 +- 2.08** |
 | K(m) 6 | -13.98 +- 2.22 | -3.92 +- 2.13 |
 | K(m) 7 | -17.24 +- 2.27 | -3.87 +- 2.28 |
-| `Gamma_Z` over K 5/6/7 | -5.26 / +27.16 / +8.96 | +6.81 / +14.28 / +12.86 |
+| **K(m) 9** | **+9.39 +- 2.31** | (`SVs9` running) |
+| `Gamma_Z` over K 5/6/7/9 | -5.26 / +27.16 / +8.96 / -1.79 | +6.81 / +14.28 / +12.86 / — |
 | `\|eta\|<0.9` | -26.60 +- 2.87 | -21.08 +- 3.24 |
 | `0.9-1.6` | +3.87 +- 3.88 | +12.39 +- 4.16 |
 | `1.6-3.0` | +16.55 +- 4.71 | +34.22 +- 5.47 |
@@ -54,8 +55,12 @@ The bias is a function of neither `sigma/m` alone nor `eta` alone.
 20.7 M, 95 free) converged at **EDM 6.2e-19**, `m_Z = +31.86 +- 5.78`. **NOT a
 closure** -- a subsample, and `theta = 0` is not the hit-chi2 minimum on this MC.
 
-**`K(m)` is not saturated**: 5->6 and 6->7 are 15.2 and 13.0 sigma in
-`2 deltaNLL`. K9/K12 are in flight.
+**`K(m)` is not saturated -- AND NOT FOR `m_Z` EITHER (sec. 0f.53)**: 5->6,
+6->7 and 7->9 are `2 dNLL` = 230.6 / 168.7 / 577.1, and **7 -> 9 moves the
+m-form `m_Z` by +26.6 MeV, 11.5 statistical errors**. Sec. 0b's "for `m_Z` the
+basis is saturated" is retracted. No closure number from this campaign may be
+quoted without its `K(m)` truncation beside it. `SVs9` running, `Ss12`/`SVs12`
+submitted as `22333692`.
 
 ## THE QUEUE, IN ORDER, WHEN `auxgen_jpsiv2.npz` LANDS
 
