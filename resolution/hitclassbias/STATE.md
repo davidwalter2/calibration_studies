@@ -1,3 +1,48 @@
+# RESUME HERE — 2026-09-08 (resumed session), PART 3 = the CONVERGENCE test
+
+## Status of PART 3
+* **Step 1 (jobs)**: three refits launched 20:00 EDT are RUNNING on submit50,
+  10 tasks in parallel each, ~5 min/task, ~12 min per wave of 10, so ~50 min
+  for 40 tasks. Progress: `ls -d <dir>/task_*/.complete | wc -l` (out of 40).
+* **Analysis chain, WRITTEN AND SMOKE-TESTED, ready to run**:
+
+  | script | what it does |
+  |---|---|
+  | `extract_conv.py` | per-track cache; now also writes `slot`, `geneta`, `qop_gen`, and takes `--ntasks` (needed to cut the 160-task baseline down to the same 40) |
+  | `conv_common.py` | the truth-referenced `x = z/(1-a q z)`, the bands, the charge-even/odd bootstrap estimators, and `pair()` |
+  | `c0_bitcheck.py` | `base` vs `260903x_m0`, EXACT equality track by track — the gate |
+  | `c1_conv.py` | per variant: (A) charge-even per band, (B) trim scan, (C) mixture at p90, (D) iteration census, (E) the sigma-scaling second-order test |
+  | `c2_pair.py` | PAIRED variant-to-variant `<dx>_even` per band + the mixture recomputed on the paired set |
+  | `c4_secondorder.py` | the no-free-parameter Box-bias prediction from `(d1, d2) = (seed->iter0, iter0->final)` |
+  | `c3_figs.py` | 5 panels, each with a ratio panel, into `~/public_html/cvh/260908_hitclassbias/` |
+
+* **Two facts established while waiting, both needed to read the results**:
+  1. The gun puts **TWO muons of OPPOSITE charge in each event** (999 of 1000
+     events in task_0000 have 2 candidates), so the pairing key is
+     `(run, lumi, event, charge)` — NOT the within-event slot, which shifts if
+     one candidate of a pair fails the covariance cut in one variant only.
+  2. The convergence break is on **`edmvalref`**, not `edmval`
+     (`ResidualGlobalCorrectionMakerG4e.cc:4351-4354`; `edmval` is O(1-30) at
+     the exported iteration while `edmvalref` is O(1e-7)). Its median is
+     2.8e-7 and **64 % of tracks have `edmvalref` > 1e-7**, so `tight` really
+     does buy extra iterations for most of the sample — the test has lever arm.
+  3. `gnDampAfter`/`gnDampFactor`/`nIters`/`edmConvergence` are all real,
+     wired cfi parameters (`:418-432`, `:4195-4198`, `:4351-4354`) — no silent
+     no-op.
+* `refParms_iter0` is filled at `iiter==0`, i.e. AFTER the first GN update
+  (`:4309-4311`), so `d1 = refParms_iter0[0] - trackParms[0]` is the first GN
+  step from the seed and `d2 = refParms[0] - refParms_iter0[0]` is everything
+  after it. That is what `c4_secondorder.py` regresses.
+
+## THE DECISION RULE (unchanged)
+If the bulk `-6.3e-3` and the `+21e-3` IN component SHRINK under `tight` or
+`damp`, the mechanism is incomplete convergence / seed dependence: quote the
+cost per track and the criterion to adopt. If they PERSIST, they are a
+property of the converged estimator, and `c4_secondorder.py` is the
+first-principles comparison.
+
+---
+
 # RESUME HERE — 2026-09-08, session ended mid-campaign
 
 ## What is RUNNING right now (detached, survives the session)

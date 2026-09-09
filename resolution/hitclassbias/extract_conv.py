@@ -29,10 +29,11 @@ def one(fn):
         a = f["tree"].arrays(BR, library="np")
     except Exception as e:
         return None, f"{fn}: {type(e).__name__} {e}"
-    o = {k: [] for k in ("run", "lumi", "event", "z", "sigma", "eta", "q",
-                         "vgf", "pt", "genpt", "niter", "edm", "edmref",
-                         "chi2n", "nvalid", "npixhit", "qop_seed", "qop_it0",
-                         "qop_ref", "flip")}
+    o = {k: [] for k in ("run", "lumi", "event", "slot", "z", "sigma", "eta",
+                         "geneta", "q", "vgf", "pt", "genpt", "niter", "edm",
+                         "edmref", "chi2n", "nvalid", "npixhit", "qop_seed",
+                         "qop_it0", "qop_ref", "qop_gen", "flip")}
+    seen = {}
     for ic in range(len(a["resinfcov"])):
         qg = a["genParms"][ic][0]
         c00 = float(a["refCov"][ic][0])
@@ -43,12 +44,18 @@ def one(fn):
         vb = np.asarray(a["resinfvarv"][ic], float)
         fam = pt[gi]
         sig = np.sqrt(c00)
-        o["run"].append(int(a["run"][ic]))
-        o["lumi"].append(int(a["lumi"][ic]))
-        o["event"].append(int(a["event"][ic]))
+        key = (int(a["run"][ic]), int(a["lumi"][ic]), int(a["event"][ic]))
+        o["run"].append(key[0])
+        o["lumi"].append(key[1])
+        o["event"].append(key[2])
+        o["slot"].append(seen.get(key, 0))
+        seen[key] = seen.get(key, 0) + 1
         o["z"].append((a["refParms"][ic][0] - qg) / sig)
         o["sigma"].append(sig)
         o["eta"].append(-np.log(np.tan((np.pi / 2. - a["refParms"][ic][1]) / 2.)))
+        o["geneta"].append(
+            -np.log(np.tan((np.pi / 2. - a["genParms"][ic][1]) / 2.)))
+        o["qop_gen"].append(float(qg))
         o["q"].append(np.sign(qg))
         o["vgf"].append(vb[(fam == 8) | (fam == 9)].sum() / c00)
         o["pt"].append(float(a["trackPt"][ic]))
@@ -71,6 +78,9 @@ def main():
     ap.add_argument("--prod", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--nproc", type=int, default=20)
+    ap.add_argument("--ntasks", type=int, default=0,
+                    help="cap on TASKS (0 = all); used for the like-for-like "
+                         "bit check against the 160-task baseline")
     a = ap.parse_args()
     import glob as _g
 
@@ -78,7 +88,7 @@ def main():
     stem = ("globalcor_resclosure"
             if _g.glob(f"{CEPH}/{a.prod}/task_*/globalcor_resclosure_*.root")
             else "globalcor")
-    fs = prodfiles.resolve(f"{CEPH}/{a.prod}/task_*/{stem}_0.root", 0)
+    fs = prodfiles.resolve(f"{CEPH}/{a.prod}/task_*/{stem}_0.root", a.ntasks)
     print(f"{a.prod}: {len(fs)} files", flush=True)
     with Pool(a.nproc) as p:
         res = p.map(one, fs)
