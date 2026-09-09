@@ -218,11 +218,18 @@ candidates' *true* masses by almost exactly what the fits report:
 | 0.9-1.6 | +0.6 | +12.39 +- 4.16 |
 | endcap | **+44.4** | +34.22 +- 5.47 |
 
-**The confirming test is three band cards with `eta_lead` replaced by
-`max(|eta_p|, |eta_m|)` — which does not depend on which leg leads and needs no
-truth — plus three warm refits, ~2 h.** The prediction is that the band spread
-collapses from 55 MeV to a few MeV. The inclusive fits carry no `eta_lead` cut
-and are unaffected.
+**The confirming test is RUNNING** (`22337999`): five cards built on
+`max(|eta_p|, |eta_m|)`, which does not depend on which leg leads and needs no
+truth (`corr(., z) = +0.0025` against `+0.0203`), fitted in the v form. Note
+the two definitions select different candidates — the max-band barrel needs
+BOTH legs central — so the comparison is **spread to spread**, not cell by
+cell. **The predictions were recorded before the fits landed** (STATE 0f.66):
+`A` per band goes from +2.572 / -0.066 / -4.867 to **-0.470 / +0.504 / +0.426**
+e-4, so the band spread should collapse from **+67.8 MeV to -8.2 MeV**; and the
+barrel `sigma/m` split should go from -36.3 to **+18.6 MeV** — changing sign
+but **not** vanishing, because the `sigma/m` cut is a cut on the residual
+whatever the band variable is. The inclusive fits carry no `eta_lead` cut and
+are unaffected.
 
 ### 5.6 The `a`-coefficient deficit — **OPEN, small on `m_Z`**
 `a = d ln sigma/dz` is measured directly and sits 2-4 % below the spec's

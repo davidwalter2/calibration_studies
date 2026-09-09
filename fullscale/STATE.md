@@ -5936,3 +5936,62 @@ and `P2X`, and preconditioning is outside the wrap-up scope. The question they
 were to answer -- whether the ladder as a whole wants the change of variables
 rather than a warm start per row -- is unanswered and should be recorded as
 such.
+
+### 0f.66 THE CONFIRMING TEST OF 0f.63: BANDS ON `max(|eta_p|,|eta_m|)` —
+### BUILT AND SUBMITTED, PREDICTIONS RECORDED IN ADVANCE (2026-09-08)
+
+`make_card.py --eta-max LO HI` (new) cuts on `max(|eta_p|, |eta_m|)`, which
+does not depend on which leg leads and needs no truth. Measured on the selected
+sample:
+
+| band variable | `corr(., z)` |
+|---|---:|
+| `\|eta\|` of the leading-**RECO**-`pT` leg (`--eta-lead`, every existing band card) | **+0.0203** |
+| **`max(\|eta_p\|,\|eta_m\|)`** (`--eta-max`, these cards) | **+0.0025** |
+| `\|eta\|` of the leading-**GEN**-`pT` leg (not usable in a card) | +0.0004 |
+| `min(\|eta_p\|,\|eta_m\|)` | -0.0042 |
+
+An 8x reduction, and comparable to the other safe handles (`chi2/ndof` +0.0004,
+gen-predicted `sigma/m` +0.0024). **It is not as clean as the gen variables**
+and that is stated wherever the result is quoted.
+
+**The two definitions select DIFFERENT candidates** — the max-band barrel needs
+BOTH legs central, so it holds 699 414 against the lead-band's 1 572 534. So
+the cards are NOT cell-by-cell comparable and **the comparison is the SPREAD
+across bands**, not any single band.
+
+**Five cards built** (`build_etamax.sh`, populations as predicted):
+`z_VX_etaB` 699 414, `z_VX_etaT` 1 257 175, `z_VX_etaE` 1 726 073, and the
+barrel `sigma/m` split at THIS barrel's own median 0.00853 (not the lead
+barrel's 0.01032): `z_VX_etaB_slo` 349 950, `z_VX_etaB_shi` 349 464.
+**Submitted as `22337999`**, v form, cold, scipy `trust-exact`, on
+`rabbit-vmass` — the same code as the band cards they are compared against.
+
+**THE PREDICTIONS, RECORDED BEFORE THE FITS LAND.** From the per-leg
+charge-even momentum bias `A` in the same cells (`legscale.py`; `dm/m = -A`):
+
+| | `A` [1e-4] per band | predicted fitted `m_Z` [MeV] | measured (lead bands) |
+|---|---|---:|---:|
+| lead bands (current) | +2.572 / -0.066 / -4.867 | -23.5 / +0.6 / +44.4 | **-21.08 / +12.39 / +34.22** |
+| **max bands (these)** | **-0.470 / +0.504 / +0.426** | **+4.3 / -4.6 / -3.9** | (running) |
+| band SPREAD, endcap - barrel | | **+67.8 -> -8.2 MeV** | 55.3 MeV measured |
+
+| | `dA` [1e-4] | predicted `d m_Z` [MeV] | measured (lead band) |
+|---|---:|---:|---:|
+| barrel `sigma/m` HIGH - LOW, lead band | +4.94 | -45.1 | **-36.34 +- 5.92** |
+| **barrel `sigma/m` HIGH - LOW, max band** | **-2.04** | **+18.6** | (running) |
+
+**So the prediction is that the 55 MeV band spread collapses to ~8 MeV and
+CHANGES SIGN, and that the barrel `sigma/m` split goes from -36 MeV to about
++19 MeV — i.e. it also changes sign but does NOT vanish.** That last point
+matters and was not obvious: the `sigma/m` cut is a cut on the residual
+*whatever the band variable is* (standing rule 3), so changing the band cannot
+remove the `sigma/m` selection effect, only the band's own. The clean version
+of that split needs the gen predictor of sec. 0f.63, which a card cannot cut on
+without truth.
+
+**ACCEPTANCE.** If the spread collapses to a few MeV, sec. 0f.63 is established
+and the `eta` residual is closed. If a spread remains, it is the true
+detector-side residual and is reported as such. Either way the numbers are
+certified value AND NLL AND EDM before they are quoted, and the comparison is
+spread-to-spread.
