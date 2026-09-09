@@ -9,20 +9,28 @@ the open physics. Everything below the horizontal rule predates this.**
 |---|---|---|---|
 | **auxgen J/psi v2** (the coordinator's, detached on **submit50**) | `logs/run_auxgen_260909b.log` | `runs/auxgen_jpsiv2.npz` | the log ends `-> .../auxgen_jpsiv2.npz` |
 | **auxgen DY v2** | — | **`runs/auxgen_dyv2.npz` HAS LANDED** (348 MB, 3 733 323 rows) | done |
-| `22315719` K(m) ladder | Engaging, `engaging/zrabbitvb_22315719.out` | `fitresults/native/rabbit_{Ss9,SVs9,Ss12,SVs12}.hdf5` | `#### <TAG> done ... rc=0` per row |
-| `22328595` **P2X** = phase 2 FULL card, scipy `trust-exact` | Engaging, `zrabbitv_22328595.out` | `fitresults/native/rabbit_P2X.hdf5` | `Results written in file ...` + `edmval:` |
+| `22315719` K(m) ladder | Engaging, `engaging/zrabbitvb_22315719.out` | `fitresults/native/rabbit_{Ss9,SVs9}.hdf5` | `#### <TAG> done ... rc=0` per row -- **`Ss9` LANDED and is certified (sec. 0f.53); `SVs9` running since 20:05** |
+| `22333692` K(m) 12 rungs (submitted 2026-09-08 20:45, the ladder job's walltime cannot hold them) | Engaging | `fitresults/native/rabbit_{Ss12,SVs12}.hdf5` | same |
+| ~~`22328595` **P2X**~~ | — | — | **FAILED on a NaN at the first step (sec. 0f.54-55). The file it wrote is the UNMOVED start point -- not a phase-2 number.** |
 | `22315802 insitu-tnp` | Engaging | NOT MINE -- another workstream, leave it | |
 
 `./collect.sh --summary` rsyncs Engaging and re-makes the certified table. It is
 the ONE command to run first.
 
-**Two jobs FAILED reproducibly and need a decision, not a resubmit:**
-* `22328533 SVetaEslo` (`z_V_etaE_slo`) -- `ValueError: Cholesky decomposition
-  failed, Hessian is not positive-definite`, twice. That card is genuinely
-  singular; it is the missing 4th cell of the fixed-`eta` `sigma/m` split.
-* `22328636` phase-3 card build on Engaging -- `ModuleNotFoundError: No module
-  named 'make_global_term'`: `resolution/globalfit/` was never staged there.
-  Stage it, or build the card on **submit50** (ceph works there).
+**The two failed jobs -- DIAGNOSED 2026-09-08, see sec. 0f.54-55:**
+* `SVetaEslo` and `P2X` fail the SAME way and the card is **NOT** singular.
+  Both are NaN inside scipy `trust-exact`; the `Cholesky ... not
+  positive-definite` is the downstream postfit at the UNMOVED start point, not
+  the cause. Both cards were scanned dataset by dataset and are NaN/inf-free.
+  The leading mechanism is sec. 0f.54: `--freezeParameters` uses
+  `tf.stop_gradient` only while the minimiser runs on the FULL vector, so the
+  four frozen `k` parameters are an exactly-null subspace of the Hessian --
+  scipy's trust-region HARD CASE -- and the step walks in it, through
+  `k_hit <= 0` and hence a non-positive density. Handed to the
+  fit-infrastructure agent with the evidence; the fix is to minimise over
+  `floating_indices`, NOT to regularise.
+* `22328636` phase-3 card build -- `resolution/globalfit/` was never staged to
+  Engaging. Being staged and resubmitted (`zcard3` 22332184).
 
 ## CERTIFIED (value AND NLL AND EDM, sec. 0f.16), MeV from the generator
 
