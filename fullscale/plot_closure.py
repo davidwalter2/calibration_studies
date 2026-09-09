@@ -76,10 +76,16 @@ def ledger(edm_tol=1e-3, nll_tol=0.01):
     return out
 
 
-def band(ax, cards, L, q, colour, label, marker):
+def band(ax, cards, L, q, colour, label, marker, keep=None):
+    """`keep` selects WHICH cards this series draws, at their index in `cards`.
+
+    Without it both the `m` and the `v` call drew EVERY card and the second
+    overplotted the first, so every panel showed one series in the other's
+    colour (the legend still claimed two).
+    """
     x, y, e, hollow = [], [], [], []
     for i, c in enumerate(cards):
-        if c not in L:
+        if c not in L or (keep is not None and c not in keep):
             continue
         r, good = L[c]
         if q not in r:
@@ -110,8 +116,9 @@ def panel(outdir, name, cards, ticks, q, title, ylabel, predict=None,
     ax, rx = fig.add_subplot(gs[0]), None
     mcards = [c for c in cards if not c.startswith(("z_V", "z_VK"))]
     vcards = [c for c in cards if c.startswith(("z_V", "z_VK"))]
-    xm = band(ax, cards, L, q, "#1f77b4", "m formulation", "o")
-    xv = band(ax, cards, L, q, "#d62728", "v formulation  (p = 1.264)", "s")
+    xm = band(ax, cards, L, q, "#1f77b4", "m formulation", "o", keep=mcards)
+    xv = band(ax, cards, L, q, "#d62728", "v formulation  (p = 1.264)", "s",
+              keep=vcards)
     ax.axhline(0.0, color="k", lw=1.2, ls="--")
     if predict:
         yy = [predict.get(c, np.nan) for c in cards]
@@ -123,7 +130,7 @@ def panel(outdir, name, cards, ticks, q, title, ylabel, predict=None,
                 markersize=8, ls=":", label="fit-free prediction, v form")
     ax.set_ylabel(ylabel)
     ax.set_xticks(range(len(ticks)))
-    ax.set_xticklabels([])
+    ax.tick_params(labelbottom=False)
     ax.set_xlim(-0.5, len(ticks) - 0.5)
     ax.legend(fontsize=13, ncol=1, loc="best")
     ax.set_title(title, fontsize=16)
@@ -166,14 +173,18 @@ def main():
           predict=PREDICT, predict_v=PREDICT_V)
     panel(out, "gz_kladder.png",
           ["z_full380_fl", "z_V_full", "z_full380_fl_s6", "z_V_s6",
-           "z_full380_fl_s7", "z_V_s7"],
-          ["5 terms", "", "6 terms", "", "7 terms", ""],
+           "z_full380_fl_s7", "z_V_s7", "z_full380_fl_s9", "z_V_s9",
+           "z_full380_fl_s12", "z_V_s12"],
+          ["5 terms", "", "6 terms", "", "7 terms", "", "9 terms", "",
+           "12 terms", ""],
           "Gamma_Z", r"$\Gamma_Z$ against the $K(m)$ truncation",
           r"$\Gamma_Z^{\rm fit}-\Gamma_Z^{\rm gen}$  [MeV]")
     panel(out, "mz_kladder.png",
           ["z_full380_fl", "z_V_full", "z_full380_fl_s6", "z_V_s6",
-           "z_full380_fl_s7", "z_V_s7"],
-          ["5 terms", "", "6 terms", "", "7 terms", ""],
+           "z_full380_fl_s7", "z_V_s7", "z_full380_fl_s9", "z_V_s9",
+           "z_full380_fl_s12", "z_V_s12"],
+          ["5 terms", "", "6 terms", "", "7 terms", "", "9 terms", "",
+           "12 terms", ""],
           "m_Z", r"$m_Z$ against the $K(m)$ truncation",
           r"$m_Z^{\rm fit}-m_Z^{\rm gen}$  [MeV]")
     panel(out, "mz_sigmasplit.png",
