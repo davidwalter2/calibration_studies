@@ -5068,15 +5068,11 @@ reach the trust boundary. So the frozen parameters take an arbitrary walk in
 their own subspace, of size set by the trust radius, and `delta` runs from
 1.8e-4 to **0.126**.
 
-**AND IT IS A CANDIDATE CAUSE OF THE TWO NaN FAILURES** (`SVetaEslo`, `P2X`):
-`k_hit` multiplies the Gaussian variance in the CF exponent
-(`-0.5 k_hit vgf t^2`), so a hard-case displacement through `k_hit <= 0` gives
-a non-positive density and `log` of it is the NaN. It fits every observation --
-the failure is on the FIRST step, the snapshot shows `x` unmoved (rabbit
-restores `cb.xval` on the exception), and `SVetaBslo` survived a LARGER first
-step (`edmval` 5816 against 3354) and came out with `delta` = 1.6e-3, i.e. it
-happened to land benignly in the same subspace. It also explains why the same
-joint card family converges at 500 k and fails at full size: it is a coin flip.
+**I PROPOSED THIS AS THE CAUSE OF THE TWO NaN FAILURES. IT IS NOT** -- see
+sec. 0f.56, which measures the actual step. The drift is real, is fixed, and
+would become the cause at a trust radius of ~1.5-2, but at the radius these
+fits use it is three orders of magnitude too small. Keep the two findings
+separate.
 
 **IT IS THE MINIMISER, NOT THE OUTPUT WRITER -- verified.** The displacement is
 present in `cb.xval` itself, i.e. in the vector the minimiser carried at the end
@@ -5118,3 +5114,63 @@ inclusive v-form row (`SVfullW`, `k` exactly 1) are NOT affected.
   colour. Every panel it has ever produced is affected. Fixed (`d363f92`).
 * `runs/auxgen_jpsiv2.npz` landed at 20:03 (7 923 460 rows, `z` and `sigma`
   bit-identical, `<f_hit>` 0.0996 `<f_ms>` 0.9001 `<f_ioni>` 3.2e-04).
+
+### 0f.56 THE NaN IS THE `K(m)` BLOCK: A TRUST RADIUS OF 1.0 IS **500 SIGMA**
+### ON `shape5` (2026-09-08, fit-infrastructure agent, measured)
+
+`gate_nanstep.py` reconstructs scipy `trust-exact` around the real Fitter on
+`z_V_etaE_slo` and reproduces the failed job's start point exactly
+(cond 2.06683e+08, `edmval` 3353.85). Then:
+
+* the FIRST trial point is `|dx| = 1` -- the initial trust radius -- and it is
+  **98.3 % along `shape5`** (`shape5` 0 -> -0.9835, `shape4` -0.178,
+  `shape3` -0.033, everything else < 0.005). There, 105 Hessian entries are
+  non-finite and the loss is `inf`;
+* bisecting `x0 -> x_bad`, the first non-positive density appears at
+  `t = 0.9815`: **one** candidate of 512 595 at `L_i = -2.5e-7`, with the
+  truncation normalisation `min Z_c` collapsed from 0.9775 to 0.0029;
+* coordinate-wise at the full step, **`shape5` alone gives 323 non-positive
+  densities** (`Z_c = 7.8e-4`) while `shape4`, `shape3`, `shape2`, `shape1`,
+  `m_Z`, `Gamma_Z` and all four `k` give **zero**.
+
+**So the NaN is the `K(m)` Legendre block, and specifically its highest-order
+term.** `sigma(shape5)` is 0.0020 in the inclusive fit, so a step of 1.0 is
+**500 sigma** in it.
+
+**AND THE UNDERLYING DEFECT IS SCALING, NOT THE ENDCAP.** The trust radius is
+in RAW parameter units and this card's parameters differ by three orders of
+magnitude in natural scale: `m_Z`/`Gamma_Z` have `sigma` of order 2-4 (MeV),
+the `k` order 1, the Legendre coefficients 0.002-0.04. A radius of 1.0 is
+~0.3 sigma for `m_Z` and ~500 sigma for `shape5`. That predicts the failure is
+one unlucky draw away on EVERY card in the ladder, which is consistent with it
+hitting `z_V_etaE_slo` and sparing `z_V_etaB_slo`; the card is **not**
+singular and sec. 0f.44's "genuinely singular" is retracted.
+
+The candidate fix that is neither a regulariser nor a change of physics is
+therefore **preconditioning** -- rescaling the parameters by their own
+curvature so the trust region is spherical in `sigma` units. It is a change of
+variables and leaves the minimum invariant; `f380refP` exists to test exactly
+that, and sec. 0f.14 dropped `--precondition` for a cause (the singular
+subproblem) that scipy's subproblem has since removed. It must be validated by
+re-running an ALREADY CONVERGED cell with and without it and requiring `m_Z` to
+agree to 0.01 MeV. David's two physics options (fewer `K(m)` terms for the
+sub-cells, or the inclusive `K(m)` held fixed there) remain available but both
+change what the sub-cell fits MEASURE, so they break the comparison with the
+three cells already certified and should be the fallback, not the first move.
+
+**`P2X` IS A THIRD THING**: its NaN is at the START point, `x` = all defaults,
+before the minimiser proposes anything -- scipy's `norm(hess, inf)` in
+`IterativeSubproblem.__init__` firing on the first construction. Under
+diagnosis (`22332382`).
+
+**The frozen-parameter drift of sec. 0f.54 is confirmed and fixed** (rabbit
+`vmass-conditioning`, `tests/test_frozen_subspace.py`, 7 tests). Measured on
+the same step it is +0.00117 on each `k` -- visible, and three orders too small
+to matter here; the density stays positive to `k_hit = -0.5` and `k_ms = -0.2`.
+It would become the cause at a radius of ~1.5-2. `delta = max|k-1|` over all 36
+result files: `n300kfix` 1.26e-01, `RvfullX` 1.92e-02, `Sdc8W`/`Rdc8X`
+1.46e-02, `P2smoke` 8.8e-03, `f380refX` 8.1e-03, `SVetaBslo` 1.6e-03,
+`Ss9` 1.8e-04, the other 28 exactly 0. **The only affected row in the certified
+table is `SVetaBslo`** (barrel `sigma/m` LOW, -4.56 +- 3.69); the rest fail on
+EDM anyway. The staging of the fix to Engaging is HELD until `22315719` and
+`22333692` finish, so that every rung of the `K(m)` ladder is the same code.
