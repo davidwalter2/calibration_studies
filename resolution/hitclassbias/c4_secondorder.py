@@ -18,12 +18,23 @@ GeV, since d is in GeV^-1). BOTH `d1` and `d2` are exported per track:
     d2 = refParms[0]       - refParms_iter0[0]  (the rest of the correction)
 
 The SAME curvature acts on the estimator's OWN statistical fluctuation, whose
-scale is sigma = sqrt(refCov[0]) rather than the seed offset. Box's bias is
-then, to O(sigma^2),
+scale is sigma = sqrt(refCov[0]) rather than the seed offset. The sign is NOT
+the same, and the derivation is worth writing out because getting it wrong
+flips the answer. With S = sum_i (m_i - f_i)^2, B = sum f'^2, C = sum f' f'',
+stationarity of S at theta-hat = theta* + delta gives
 
-    <Delta(q/p)> = (K/2) sigma^2      ->   <z> = (K/2) sigma,
+    0 = sum f' eps - delta B + delta sum f'' eps - (3/2) delta^2 C + ...
+    delta_1 = sum f' eps / B,
+    delta_2 = [delta_1 sum f'' eps - (3/2) delta_1^2 C] / B,
+    E[delta_1 sum f'' eps] = sigma^2 C / B,   E[delta_1^2] = sigma^2 / B,
+    E[delta_2] = (sigma^2 C/B - (3/2) sigma^2 C/B)/B = -(sigma_theta^2/2)(C/B),
 
-which is a PREDICTION with no free parameter once K is measured.
+while the NOISELESS two-step gives d2 = +(C/2B) d1^2, i.e. K = C/B. So
+
+    <Delta(q/p)> = -(K/2) sigma^2      ->   <z> = -(K/2) sigma,
+
+with the MINUS sign -- this is Box's (1971) formula, and the two-step
+regression measures exactly the C/B it needs. No free parameter.
 
 WHY THE LINEAR TERM MUST BE IN THE FIT. The seed is the generalTracks Kalman
 fit, which shares its hits with CVH, so d1 is correlated with the measurement
@@ -102,13 +113,13 @@ def run(V, rng, ntrim=0.99):
             continue
         b0, a, K, e = r
         s = sig[m].mean()
-        pred = 0.5 * K * s
+        pred = -0.5 * K * s     # Box: <z> = -(K/2) sigma
         # error on the prediction from the K error alone
         epred = 0.5 * e[2] * s
         out[qs] = (K, e[2], pred, epred, s)
         print(f"  {lab}  n={int(m.sum()):7d}   b0 {b0:+.3e}   a {a:+.5f}+-{e[1]:.5f}"
               f"   K {K:+.4e}+-{e[2]:.4e} GeV")
-        print(f"          -> predicted <z> = (K/2) sigma = "
+        print(f"          -> predicted <z> = -(K/2) sigma = "
               f"{pred*1e3:+8.3f} +- {epred*1e3:5.3f} e-3   "
               f"(<sigma> {s:.3e})")
     if len(out) == 2:
@@ -125,6 +136,40 @@ def run(V, rng, ntrim=0.99):
         print(f"   i.e. a PURE charge-odd prediction, and K_+ + K_- = "
               f"{kp+km:+.3e} +- {np.hypot(ekp,ekm):.3e} measures the chiral part)")
 
+    # <z> = -<K sigma>/2, NOT -<K><sigma>/2: K and sigma are correlated across
+    # tracks (K runs 1.5e+01 in the barrel to 4e+01 in the middle band). K is
+    # therefore refitted in quintiles of sigma and the prediction assembled
+    # bin by bin.
+    print("\n--- the same prediction with K refitted in quintiles of sigma ---")
+    print(f"  {'charge':8s}{'sigma bin':22s}{'<sigma>':>11s}{'K':>13s}"
+          f"{'-(K/2)<sigma>':>15s}{'weight':>9s}")
+    predq = {}
+    for qs in (+1, -1):
+        mq = g & (V.q == qs)
+        qe = np.percentile(sig[mq], [0, 20, 40, 60, 80, 100])
+        qe[-1] += 1e-12
+        tot, wsum = 0., 0.
+        for i in range(5):
+            mm = mq & (sig >= qe[i]) & (sig < qe[i + 1])
+            r = fit_quad(d1[mm], d2[mm])
+            if r is None:
+                continue
+            sb = sig[mm].mean()
+            pb = -0.5 * r[2] * sb
+            w = int(mm.sum())
+            tot += pb * w
+            wsum += w
+            print(f"  {qs:+8d}{f'{qe[i]:.3e}-{qe[i+1]:.3e}':22s}{sb:11.3e}"
+                  f"{r[2]:+13.4e}{pb*1e3:+15.3f}{w:9d}")
+        predq[qs] = tot / max(wsum, 1)
+        print(f"  {'':8s}{'-> combined':22s}{'':11s}{'':13s}"
+              f"{predq[qs]*1e3:+15.3f}")
+    if len(predq) == 2:
+        print(f"  sigma-binned PREDICTED charge-EVEN <z> = "
+              f"{0.5*(predq[1]+predq[-1])*1e3:+8.3f} e-3")
+        print(f"  sigma-binned PREDICTED charge-ODD  <z> = "
+              f"{0.5*(predq[1]-predq[-1])*1e3:+8.3f} e-3")
+
     print("\n--- the MEASURED moments on the same tracks, for comparison ---")
     for nm, fn in (("even", cc.even_mean), ("odd", cc.odd_mean)):
         v, e, n = fn(V.x, V.q, g, rng)
@@ -140,7 +185,7 @@ def run(V, rng, ntrim=0.99):
         pr = {}
         for qs in (+1, -1):
             r = fit_quad(d1[mb & (V.q == qs)], d2[mb & (V.q == qs)])
-            pr[qs] = (r[2], 0.5 * r[2] * sig[mb & (V.q == qs)].mean()) if r else (np.nan, np.nan)
+            pr[qs] = (r[2], -0.5 * r[2] * sig[mb & (V.q == qs)].mean()) if r else (np.nan, np.nan)
         pe = 0.5 * (pr[+1][1] + pr[-1][1])
         po = 0.5 * (pr[+1][1] - pr[-1][1])
         me, mee, _ = cc.even_mean(V.x, V.q, mb, rng)
@@ -156,7 +201,7 @@ def run(V, rng, ntrim=0.99):
         pr = {}
         for qs in (+1, -1):
             r = fit_quad(d1[mb & (V.q == qs)], d2[mb & (V.q == qs)])
-            pr[qs] = 0.5 * r[2] * sig[mb & (V.q == qs)].mean() if r else np.nan
+            pr[qs] = -0.5 * r[2] * sig[mb & (V.q == qs)].mean() if r else np.nan
         me, mee, n = cc.even_mean(V.x, V.q, mb, rng)
         mo, moe, _ = cc.odd_mean(V.x, V.q, mb, rng)
         print(f"  {lab:16s} n={n:7d}  pred even {0.5*(pr[1]+pr[-1])*1e3:+7.2f}"

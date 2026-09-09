@@ -34,6 +34,100 @@
   step from the seed and `d2 = refParms[0] - refParms_iter0[0]` is everything
   after it. That is what `c4_secondorder.py` regresses.
 
+## STEP 2 — THE BIT CHECK: PASSED (2026-09-08, on the first 21 `base` tasks)
+
+`c0_bitcheck.py --a data/conv_base_partial.npz --b data/conv_ref903x.npz`,
+41 985 paired tracks (0 unpaired on the `base` side):
+
+* **3 tracks of 41 985 (0.0071 %) have a different converged q/p**, and the
+  largest difference is **1e-4 sigma**. Every other exported variable
+  (`qop_seed`, `chi2n`, `nvalid`, `npixhit`, `pt`, `qop_gen`, `slot`) is
+  EXACTLY equal on every track.
+* The charge-even `<x>` per band agrees to the printed precision
+  (+5.36 / -5.24 / +3.23 e-3 in both).
+* The three tracks are the known CVH limit-cycle / anchoring non-determinism:
+  their `<niter>` is **5.67 against 2.19** for the sample, one goes 3 -> 5
+  iterations and one sits at the `nIters` cap of 10 with `edmref` ~ 1.
+  A moved build would change every track, not three.
+
+**The baseline is the same estimator. The variants can be compared to it.**
+Note for the record that CVH is NOT bit-reproducible run to run at the 1e-4
+level of tracks -- it is reproducible everywhere except on tracks that sit on
+an iteration boundary.
+
+## RESULT ALREADY IN HAND (does not depend on the three refits) — 2026-09-08
+
+### The second-order (Box) bias of the CONVERGED estimator: computed, and it is
+### charge-ODD, not charge-even
+`c4_secondorder.py` on the full 160-task baseline (319 854 tracks, 314 151
+after trimming the extreme 1 % in |d1| and |d2|).
+
+Regressing `d2 = b0 + a d1 + (K/2) d1^2` with
+`d1 = refParms_iter0[0] - trackParms[0]`, `d2 = refParms[0] - refParms_iter0[0]`:
+
+| charge | a | K [GeV] | predicted `<z> = -(K/2) sigma` |
+|---|---:|---:|---:|
+| q = +1 | +0.00010+-0.00003 | **+20.85 +- 0.30** | **-2.593 +- 0.038 e-3** |
+| q = -1 | +0.00025+-0.00003 | **-21.29 +- 0.32** | **+2.632 +- 0.039 e-3** |
+
+* `K_+ + K_- = -0.44 +- 0.44`, i.e. **K_- = -K_+ to 2 %**, exactly as the
+  mirror map (q/p -> -(q/p)) requires of any ACHIRAL estimator effect.
+* **PREDICTED charge-EVEN `<z>` = +0.019 +- 0.027 e-3** against a MEASURED
+  **-4.26 +- 1.75 e-3**: the second-order GN bias is ~200x too small in the
+  channel of interest, and it is small BY SYMMETRY, not by accident.
+* **PREDICTED charge-ODD `<z>` = -2.61 +- 0.03 e-3**, measured (on `x`)
+  -1.46 +- 1.90 e-3 -- consistent. In physical terms that is a MOMENTUM SCALE
+  bias of `-2.6e-3 * sigma_rel` = **-4.7e-5 at sigma_rel = 0.018**, i.e. about
+  5x the 1e-5 Z-mass target, and it is a property of the estimator, not of the
+  detector.
+* The linear coefficient `a` is +1e-4 to +2.5e-4, i.e. the seed-noise
+  contamination the linear column is there to absorb is negligible: `d2` is
+  essentially PURE quadratic in `d1`. `rms(d1)/<sigma> = 0.28` and the fit
+  range reaches 1.45 sigma, so applying K at the sigma scale is interpolation,
+  not extrapolation.
+
+**Derivation of the sign** (it flips the answer, so it is written out in the
+script docstring): with `B = sum f'^2`, `C = sum f' f''`, the stationarity
+expansion gives `E[delta_2] = -(sigma_theta^2/2)(C/B)` while the NOISELESS
+two-step gives `d2 = +(C/2B) d1^2`, so `K = C/B` and the bias carries a MINUS.
+This is Box (1971).
+
+### The CHARGE STRUCTURE, which is the sharp statement
+Under the mirror map (reflection in a plane containing the beam) a `+` track
+maps to a `-` track and `q/p -> -(q/p)`, so `Delta(q/p) -> -Delta(q/p)`:
+
+* charge-**ODD** `<z>` == a charge-INDEPENDENT momentum shift == a SCALE bias.
+  Allowed by the mirror. This is where a second-order estimator bias, an
+  energy-loss mismodelling or a field-scale error lives.
+* charge-**EVEN** `<z>` == a charge-DEPENDENT momentum shift == a SAGITTA-like
+  bias. FORBIDDEN by the mirror. It can only be sourced by something CHIRAL:
+  the module layout (tilted BPix ladders, the FPix turbine, stereo angles), a
+  Lorentz-drift CPE bias with a fixed azimuthal sense, or a residual
+  azimuthal-twist misalignment.
+
+So the target `-6.3e-3` is a sagitta-type bias and it CANNOT be a generic
+second-order estimator bias -- which is what the numbers above then confirm
+numerically, with the data's own K.
+
+### What SHAPE the charge-even shift has (`c5_scaling.py`, full baseline)
+Per-track regression, every regressor entered as `f` (even) and `q f` (odd),
+318 239 tracks with |x| < 10 and sigma_rel < 0.1:
+
+| shape | meaning | even coefficient | dchi2 (even, odd already in) |
+|---|---|---:|---:|
+| `c sigma_rel` | second order | -0.118 +- 0.083 (1.4s) | 2.09 |
+| `D/sigma` | fixed additive `Delta(q/p)` | -0.0094 +- 0.0039 (2.4s) | 6.10 |
+| `D_T/(sigma cosh eta)` | fixed `Delta(q/pT)`, a sagitta | -0.0187 +- 0.0068 (2.8s) | **7.91** |
+| constant | the per-band null shape | -0.0037 +- 0.0018 (2.0s) | 4.37 |
+
+i.e. `Delta(q/pT) = -1.87e-6 GeV^-1` (the AN's misalignment bound is
+|M| < 1e-4 GeV^-1, so this is 50x inside it). The exogenous GEN pT x GEN |eta|
+grid (24 cells, sigma_rel lever arm 4.96) says the same with the same ranking.
+**The data mildly PREFER a fixed sagitta offset over an O(sigma) second-order
+bias, but dchi2 ~ 6 is a preference, not a discrimination.**
+
+---
+
 ## THE DECISION RULE (unchanged)
 If the bulk `-6.3e-3` and the `+21e-3` IN component SHRINK under `tight` or
 `damp`, the mechanism is incomplete convergence / seed dependence: quote the

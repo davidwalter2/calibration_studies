@@ -68,9 +68,36 @@ def main():
             row += f"  {v*1e3:+7.2f}+-{e*1e3:4.2f}"
         print(f"  {nm:12s} charge-even <x> per band (1e-3): {row}")
 
-    print("\nVERDICT: " + ("BIT-IDENTICAL -- the baseline is the same estimator"
-                           if nbad == 0 else
-                           f"NOT identical in {nbad} variable(s) -- STOP"))
+    # WHICH tracks differ, and are they the known non-determinism or a moved
+    # build? A moved build changes EVERY track; the CVH limit-cycle /
+    # anchoring-recovery non-determinism changes a handful, and only tracks
+    # that sat on an iteration boundary.
+    dq = np.asarray(A.d["qop_ref"], float)[ia] - np.asarray(B.d["qop_ref"], float)[ib]
+    bad = np.where(dq != 0)[0]
+    frac = len(bad) / len(ia)
+    print(f"\n=== tracks whose converged q/p differs: {len(bad)} / {len(ia)} "
+          f"({100*frac:.4f} %) ===")
+    for k in bad[:12]:
+        print(f"  run/lumi/event {A.d['run'][ia[k]]}/{A.d['lumi'][ia[k]]}/"
+              f"{A.d['event'][ia[k]]} q={A.q[ia[k]]:+.0f}  "
+              f"niter {B.d['niter'][ib[k]]}->{A.d['niter'][ia[k]]}  "
+              f"edmref {B.d['edmref'][ib[k]]:.2e}->{A.d['edmref'][ia[k]]:.2e}  "
+              f"dq/p {dq[k]:+.3e} ({dq[k]/B.sigma[ib[k]]:+.4f} sigma)")
+    if len(bad):
+        print(f"  <niter> of the differing tracks {B.d['niter'][ib[bad]].mean():.2f} "
+              f"vs {B.d['niter'][ib].mean():.2f} for all")
+        print(f"  max |dq/p| / sigma = "
+              f"{np.abs(dq[bad]/B.sigma[ib[bad]]).max():.4f}")
+
+    ok = frac < 1e-3
+    print("\nVERDICT: " + (
+        "BIT-IDENTICAL -- the baseline is the same estimator" if len(bad) == 0
+        else (f"REPRODUCED -- {len(bad)} track(s) of {len(ia)} differ "
+              f"({100*frac:.4f} %), the known CVH limit-cycle / anchoring "
+              f"non-determinism; the charge-even statistic is unchanged"
+              if ok else
+              f"NOT reproduced -- {100*frac:.2f} % of tracks differ, the build "
+              f"or the configuration MOVED. STOP.")))
 
 
 if __name__ == "__main__":
