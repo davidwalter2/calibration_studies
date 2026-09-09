@@ -993,6 +993,14 @@ def build_jpsi(args, log=print, matctx=None):
         corr_form=args.corr_form,
         norm_window=(lo, hi), norm_tpoints=jargs.norm_tpoints,
         upsample=args.fit_upsample_jpsi,
+        # The positivity floor was MISSING here until 2026-09-09, so the J/psi
+        # leg of every joint card ran at MassCFTerm's own 1e-9 while the Z leg
+        # (built through `make_card.build`) took whatever --floor-scale said.
+        # Two of 3 000 000 J/psi candidates have a Fourier-reconstructed
+        # density that undershoots to ~-6e-4, which underflowed 1e-9 to exactly
+        # zero and took the joint NLL to inf AT THE START POINT -- that is what
+        # made P2X's gradient non-finite in 88 of 103 components.
+        floor_scale=jargs.floor_scale,
         chunk=args.chunk, channel="jpsi")
 
     if matctx is None:

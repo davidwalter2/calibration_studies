@@ -37,6 +37,12 @@ mkdir -p $OUT
 cd $ZMASS/fullscale
 
 echo "############ $TAG  $(date +%H:%M:%S)  card $CARD  method $METHOD"
+# RABBIT and EXTRA decide WHICH code and WHICH functional a fit runs, and
+# until 2026-09-09 neither was echoed -- so no log in this campaign recorded
+# them, and the GUNauto/GUNoff pair of 0f.70 came back bit-identical with no
+# way to tell from the log whether the switch had engaged. See STATE 0f.71.6.
+echo "############   RABBIT=$RABBIT"
+echo "############   EXTRA=${EXTRA:-<none>}"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || true
 
 # the gate first: the Fitter must reproduce the standalone drivers before any

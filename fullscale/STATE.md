@@ -5995,3 +5995,196 @@ and the `eta` residual is closed. If a spread remains, it is the true
 detector-side residual and is reported as such. Either way the numbers are
 certified value AND NLL AND EDM before they are quoted, and the comparison is
 spread-to-spread.
+
+---
+
+# 0f.71  STEP 2 CERTIFIED — THE v FORM CLOSES THE INCLUSIVE Z (2026-09-09)
+
+*(Numbering: appended as 0f.55, renumbered to 0f.71 on discovering that the
+fit-infrastructure agent had already reached 0f.70. No text of theirs was
+touched. Two of my conclusions are corrected below against their 0f.63 and
+0f.65, which I had not read when I wrote them — the corrections are marked.)*
+
+## 0f.71.1  The v form closes the inclusive Z; the m form does not
+
+Full statistics, 3 682 662 candidates, K(m) 5 terms, all four-part certified
+(value + NLL + EDM + POI step) by `certtable.py`. Errors are the inverse
+Hessian x 1.109 (MiNNLO sandwich). Note the resolution knobs are NOT frozen in
+these cards -- checked in the job logs, against the step-2 spec.
+
+| form | m_Z - gen [MeV] | verdict |
+|---|---|---|
+| m (`z_full380_fl`) | **-11.06 +- 2.29** | 4.8 sigma miss |
+| v (`z_V_full`) | **-1.54 +- 2.31** | **0.7 sigma -- CLOSES** |
+
+Two independent converged runs of the v card agree: `RvfullX` -1.533 and
+`SVfullW` -1.538. **The -11 MeV is a property of the m parameterisation, not of
+the data.** It does not survive the change of variable.
+
+## 0f.71.2  The K(m) ladder -- the v form is also the stable one
+
+| K | m form m_Z | m form Gamma_Z | v form m_Z | v form Gamma_Z |
+|---|---|---|---|---|
+| 5 | -11.06 +- 2.29 | -5.26 +- 4.19 | **-1.54 +- 2.31** | **+6.81 +- 4.21** |
+| 6 | -13.98 +- 2.27 | +27.16 +- 4.38 | -3.92 +- 2.36 | +14.28 +- 4.16 |
+| 7 | -17.23 +- 2.32 | +8.96 +- 4.55 | -3.87 +- 2.53 | +12.86 +- 4.83 |
+| 9 | +9.39 +- 2.56 | -1.79 +- 5.09 | (failed, 0f.71.5) | |
+| 12 | (failed) | | (failed) | |
+
+m form: 26.6 MeV of m_Z spread over 5->9, not monotone (-11, -14, -17, +9).
+v form: **2.4 MeV over 5->7**, inside one sigma.
+
+**Gamma_Z's K-truncation sensitivity is the real limit, in BOTH forms**:
+7.5 MeV in the v form (5->6), 32.4 MeV in the m form, against a 4.2 MeV
+statistical error. **Gamma_Z is not quotable at its statistical precision;
+m_Z in the v form is.**
+
+## 0f.71.3  The eta bands -- SUPERSEDED BY 0f.63, READ THAT FIRST
+
+The certified v-form band values are -21.09 +- 3.19 / +12.39 +- 4.21 /
++34.22 +- 5.30, weighted mean -0.79 against the inclusive -1.54, chi2 vs a
+common value 93.8/2.
+
+**I first wrote this up as "the inclusive closure is a cancellation between
+physically inconsistent eta bands". That reading is WRONG and 0f.63 already had
+the answer**: the bands are cut on `eta_lead` defined from the **RECO** pT
+(`make_card.py:365-375`), which is the fifth conditioning trap --
+`corr(|eta|_lead_reco, z) = +0.0203` against `+0.0004` for the gen definition,
+a factor of 50 -- and 0f.63's predicted `-A` per band (-23.4 / +0.6 / +44.4
+MeV) reproduces the fitted band values. **So the 55 MeV band spread is mostly
+the selector, not an eta-dependent detector effect.** The inclusive fits carry
+no `eta_lead` cut and are unaffected, so 0f.71.1 stands as written. The
+confirming test is 0f.66 (bands on `max(|eta_p|, |eta_m|)`).
+
+What I can add is that the same trap explains the ROW I supplied: the 2x2
+`sigma/m` x eta cells of 0f.62 are cut on the same reco `eta_lead`.
+
+## 0f.71.4  The 2x2 sigma/m x eta split, with the sandwich applied
+
+`z_V_etaE_slo` -- the cell recorded as "reproducibly singular, needs a
+decision" -- landed with the warm start of 0f.60. All four cells, v form,
+errors x 1.109:
+
+| | sigma/m low | sigma/m high | slope (high - low) |
+|---|---|---|---|
+| barrel | -4.56 +- 4.10 | -40.90 +- 5.14 | **-36.3 +- 6.6 (5.5 sigma)** |
+| endcap | +28.38 +- 5.75 | +65.87 +- 9.64 | **+37.5 +- 11.2 (3.3 sigma)** |
+
+The slopes have **opposite signs**; difference +73.8 +- 13.0 (5.7 sigma). A
+pure scale error on sigma would give the same sign in both. Per 0f.63 this is
+to be read through the selector: on the GEN predictor the barrel slope
+collapses from +4.94e-4 to -0.03 +- 0.18e-4.
+
+**The "z_V_etaE_slo is reproducibly singular" open item is CLOSED** -- it was
+never singular. `gate_nanstep.py` (22332426) shows the start point is clean
+(cond 2.07e8, edm 3354) and the first trust step drives `shape5` to -0.983,
+where **323** candidates get a non-positive density; one-coordinate-at-a-time
+proves it is `shape5` alone.
+
+## 0f.71.5  The K-ladder NaNs are the softplus floor, and the CARD sets it
+
+`z_V_s9`, `z_full380_fl_s12`, `z_V_s12` all die the same way: EDM walks
+10585 -> 575, condition number 1e17-1e20 throughout, then NaN. Same mechanism
+as `z_V_etaE_slo` above -- a trust step drives a high shape term to ~-1 and the
+density goes negative, `log` of it is `inf`.
+
+**`make_card.py` bakes `floor_scale` into the CARD, and only
+`build_resid_bands.sh` ever passed `--floor-scale 1e-7`.** Every other card was
+built at `unbinned.py`'s reference default `FLOOR_SCALE = 1e-9`, which
+underflows in float64.
+
+FIXED, two one-line changes (commit below):
+* `make_card.py --floor-scale` default 0.0 -> **1e-7**, and its help corrected:
+  it used to say this "matters where the model has no smooth physics kernel to
+  fill the tail -- i.e. --residual-mode", which is not true.
+* `make_joint_card.py`: the `common` kwargs of the hand-built J/psi term never
+  passed `floor_scale` at all, so the J/psi leg of **every** joint card ran at
+  1e-9 regardless of what was asked for. Now passes `jargs.floor_scale`.
+
+A floor does not paper over a bad model: it makes the objective *evaluable* at
+a bad trial point so the trust region can REJECT that point, instead of the
+whole fit dying on a NaN. 1e-7 against a peak density of ~0.4 is a 2.5e-7
+relative bias; 1e-4 is too aggressive (it moved alpha to +71 +- 25 MeV).
+
+**CORRECTION to what I first wrote here.** I recorded this as "every remaining
+failure is ONE bug, the floor", including `P2X`. That is wrong for `P2X`:
+0f.59/0f.61 had already diagnosed its two negative J/psi densities and 0f.65
+had already REMEDIED it a different way -- by putting the J/psi leg in the
+exact residual (delta-kernel) form, measured to give zero non-positive
+densities at five points. The floor is a separate and complementary remedy that
+covers the K-ladder, which the delta-kernel switch does not touch. Only the
+K-ladder cards are being rebuilt.
+
+Rebuilt with the floor: `z_V_s9`, `z_V_s12`, `z_full380_fl_s12`.
+NOT rebuilt: every card whose fit already converged -- their NLLs are in the
+certified table and a floor change would make them incomparable. The ladder
+therefore mixes floors across rungs; that is safe because rungs are different
+models and only their m_Z values are compared, never their NLLs.
+
+## 0f.71.6  THE GUN CROSS-CHECK OF 0f.70 IS INCONCLUSIVE — IT DID NOT ENGAGE
+
+0f.70 made this load-bearing: "`alpha` must land inside +0.0512 +- 0.0167e-3.
+If it does not, `P2X` is not certifiable however cleanly it converges."
+
+`22336272` (`GUNauto`) and `22336273` (`GUNoff`) both landed. They are
+**bit-identical**:
+
+| | alpha | NLL | EDM |
+|---|---|---|---|
+| `GUNauto` | **+0.2089 +- 0.0168e-3** | -588354.360433 | 8.226e-11 |
+| `GUNoff` | **+0.2089 +- 0.0168e-3** | -588354.360433 | 8.226e-11 |
+
+Identical to the last digit in all three columns. **A switch that changes the
+functional cannot leave the NLL bit-identical** -- on the joint card 0f.65
+measured the same switch moving the J/psi NLL by 17 108 units. And the gun card
+IS a delta-kernel card (it compares each candidate against its own gen mass),
+which is precisely the case `auto` is supposed to change. So the switch did not
+engage and **the pair tests nothing**.
+
+**Why it did not engage -- and a correction to my own first draft of this
+section.** I first wrote that the flag "does not exist in either checkout".
+That was wrong: I grepped `bin/rabbit_fit.py`, and the flag lives in
+`rabbit/parsing.py`. Checked properly, on Engaging:
+
+| checkout | `unbinnedDeltaKernelForm` in `rabbit/parsing.py` | `set_corr_form`/`corr_a_max` in `rabbit/unbinned.py` |
+|---|---|---|
+| `rabbit-vmass` | **0** | **0** |
+| `rabbit-wrap` | 1 | 12 |
+
+**0f.65 is right that the fix is staged, and it is staged only in
+`rabbit-wrap`.** But `engaging/rabbit_vmass.sbatch:25` reads
+`RABBIT=${RABBIT:-$ZMASS/rabbit-vmass}` -- it defaults to the checkout WITHOUT
+the fix -- and its header `echo` (line 39) prints `TAG`, `CARD` and `METHOD`
+but **neither `RABBIT` nor `EXTRA`**, so no log in this campaign records which
+rabbit or which flags a fit ran with. The bit-identical pair is what a run with
+`RABBIT` unset and no flag would produce.
+
+**Consequences.**
+1. **`P2X` (`22336261`) is not certifiable as it stands**, by 0f.70's own rule:
+   the check that was to license it did not run. It is separately not
+   converging -- 6 Hessian evaluations in 2 h 17 min, condition number 1e19,
+   EDM 12 359 against a 1e-3 target.
+2. `alpha = +0.2089e-3` is the KNOWN *unclamped* gun ditrack value (memory:
+   momentum-floor-clamped daughters, 12 % of the sample), not the +0.0512e-3 of
+   the corrected card. So `jpsigun_260903x_families.hdf5` is also not the card
+   0f.70's acceptance window was derived on. **The window and the card must be
+   matched before the check is re-run** -- otherwise a correct switch will look
+   like a 9-sigma failure.
+3. **`rabbit_vmass.sbatch` must echo `RABBIT` and `EXTRA`.** Fixed in the same
+   commit as the floor. Without it no fit in this campaign is reproducible from
+   its log, which is a §0f.16 problem, not a convenience.
+
+None of this overturns 0f.65's own measurement, which was made directly with
+`gate_nanstep.py --amax-scan` and stands. What it overturns is only the claim
+that the gun pair validated the switch.
+
+## 0f.71.7  Two operational defects found while reading the logs
+
+1. **The batch driver reports `rc=0` on a crashed `python3`.** Every stage in
+   `zrabbitvb_22315719.out` ends `done ... rc=0` including the four that
+   raised: `rc=$?` is capturing the `echo`, not the python. Anything that
+   trusted an exit code must be re-checked against the hdf5 content -- which is
+   what `certtable.py` does, so the certified table itself is safe.
+2. **Two jobs ran the same stage list concurrently on node4601** (`22315719`
+   and `22333692` both did `Ss12`/`SVs12`); the second died with
+   `BlockingIOError ... unable to lock file` on the shared output path.

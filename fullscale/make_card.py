@@ -117,16 +117,26 @@ def parse_args(argv=None):
                         "Srad_im)`. Without it there is no way to ask for a "
                         "non-default fixed value: --fix fixes at the default "
                         "and --start-from only seeds FREE parameters.")
-    p.add_argument("--floor-scale", type=float, default=0.0,
-                   help="softness of the positivity floor on L_i; 0 keeps "
-                        "MassCFTerm's own default (1e-9), which is a HARD clip "
-                        "in practice: a single candidate whose Fourier-"
-                        "reconstructed density undershoots to a small negative "
-                        "value underflows it to exactly 0 and takes the whole "
-                        "NLL to -inf. Against a peak density of ~0.4 a scale of "
-                        "1e-6 is a 3e-6 relative bias and keeps log finite. "
-                        "Matters where the model has no smooth physics kernel "
-                        "to fill the tail -- i.e. --residual-mode.")
+    p.add_argument("--floor-scale", type=float, default=1e-7,
+                   help="softness of the positivity floor on L_i. A single "
+                        "candidate whose Fourier-reconstructed density "
+                        "undershoots to a small negative value underflows "
+                        "MassCFTerm's own default (1e-9) to exactly 0 and takes "
+                        "the whole NLL to -inf. Against a peak density of ~0.4 "
+                        "the 1e-7 default here is a 2.5e-7 relative bias and "
+                        "keeps log finite; 1e-4 is too aggressive (it moved "
+                        "alpha to +71 +- 25 MeV). Pass 0 to fall back to "
+                        "MassCFTerm's 1e-9. "
+                        "NOT residual-mode-only, which is what this help used "
+                        "to say: on 2026-09-09 `gate_nanstep.py` showed the "
+                        "1e-9 default is what killed the full physics-kernel "
+                        "cards too -- `joint_ok_full` had 2 of 3 000 000 J/psi "
+                        "candidates already negative AT THE START POINT (loss "
+                        "inf, gradient non-finite in 88 of 103 components), and "
+                        "`z_V_etaE_slo` / `z_V_s9` / `z_*_s12` all died when a "
+                        "trust-region step drove a high shape term to ~-1 and "
+                        "made 300+ densities negative. Every one of those cards "
+                        "was built without an explicit --floor-scale.")
     p.add_argument("--max-resid", type=float, default=10.0,
                    help="residual-mode only: keep |m_reco - m_gen| below this "
                         "[GeV]. A delta kernel convolved with the resolution "
