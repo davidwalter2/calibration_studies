@@ -6121,62 +6121,64 @@ certified table and a floor change would make them incomparable. The ladder
 therefore mixes floors across rungs; that is safe because rungs are different
 models and only their m_Z values are compared, never their NLLs.
 
-## 0f.71.6  THE GUN CROSS-CHECK OF 0f.70 IS INCONCLUSIVE — IT DID NOT ENGAGE
+## 0f.71.6  THE 0f.70 GUN PAIR IS MIS-CARDED — BUT THE CHECK IT WANTED HAS
+## ALREADY PASSED, IN `gate_fluct_gun.py`
 
 0f.70 made this load-bearing: "`alpha` must land inside +0.0512 +- 0.0167e-3.
 If it does not, `P2X` is not certifiable however cleanly it converges."
 
-`22336272` (`GUNauto`) and `22336273` (`GUNoff`) both landed. They are
-**bit-identical**:
+**MEASURED, and the pair is a no-op.** `22336272`/`22336273` (`GUNauto`/
+`GUNoff`) came back bit-identical. I suspected a staging problem -- that the
+batch script's `RABBIT=${RABBIT:-$ZMASS/rabbit-vmass}` default had silently run
+the checkout WITHOUT the fix (only `rabbit-wrap` carries it:
+`unbinnedDeltaKernelForm` is in `rabbit-wrap/rabbit/parsing.py` and absent from
+`rabbit-vmass`), and that nothing in the log would have shown it. So I re-ran
+the pair with `RABBIT` and `EXTRA` set explicitly and echoed:
 
-| | alpha | NLL | EDM |
-|---|---|---|---|
-| `GUNauto` | **+0.2089 +- 0.0168e-3** | -588354.360433 | 8.226e-11 |
-| `GUNoff` | **+0.2089 +- 0.0168e-3** | -588354.360433 | 8.226e-11 |
+| job | log line | alpha [e-3] | NLL | EDM |
+|---|---|---|---|---|
+| `22348085 GUNwA` | `RABBIT=.../rabbit-wrap`, `EXTRA=--unbinnedDeltaKernelForm auto` | **+208.88748 +- 16.77706** | -588354.3604 | 8.23e-11 |
+| `22348086 GUNwB` | `RABBIT=.../rabbit-wrap`, `EXTRA=--unbinnedDeltaKernelForm off` | **+208.88748 +- 16.77706** | -588354.3604 | 8.23e-11 |
 
-Identical to the last digit in all three columns. **A switch that changes the
-functional cannot leave the NLL bit-identical** -- on the joint card 0f.65
-measured the same switch moving the J/psi NLL by 17 108 units. And the gun card
-IS a delta-kernel card (it compares each candidate against its own gen mass),
-which is precisely the case `auto` is supposed to change. So the switch did not
-engage and **the pair tests nothing**.
+**Bit-identical again, with the log now PROVING the right checkout and the flag
+were used.** So it was never a staging problem: **the switch is simply a no-op
+on `jpsigun_260903x_families.hdf5`**, and that pair could never have tested it,
+on either checkout. This corrects my own first draft of this section, which
+blamed the staging.
 
-**Why it did not engage -- and a correction to my own first draft of this
-section.** I first wrote that the flag "does not exist in either checkout".
-That was wrong: I grepped `bin/rabbit_fit.py`, and the flag lives in
-`rabbit/parsing.py`. Checked properly, on Engaging:
+**And the card is the wrong one anyway.** Its `alpha` is +0.2089e-3 -- the known
+*raw* gun ditrack value (momentum-floor-clamped daughters, 12 % of the sample)
+-- not anything in the window. The +0.0512e-3 window was NOT derived on it. It
+comes from `logs/gate_fluct_gun.log`, a card with BOTH corrections applied and
+299 422 candidates against this card's 299 712.
 
-| checkout | `unbinnedDeltaKernelForm` in `rabbit/parsing.py` | `set_corr_form`/`corr_a_max` in `rabbit/unbinned.py` |
+**THE CHECK 0f.70 ASKED FOR HAS THEREFORE ALREADY BEEN DONE, AND IT PASSED.**
+That same gate compares the two forms directly, on the gun, and they are
+genuinely different functionals there (741 NLL units apart), so the comparison
+is real where the job pair's was vacuous:
+
+| form | alpha [e-3] | NLL |
 |---|---|---|
-| `rabbit-vmass` | **0** | **0** |
-| `rabbit-wrap` | 1 | 12 |
+| `residual` (what `auto` selects) | **+0.05082 +- 0.01677** | -590657.3743 |
+| `fluctuation` (what `off` keeps) | **+0.04858 +- 0.01677** | -589916.1372 |
+| **\|fluctuation - residual\|** | **0.00224** | requirement **< 0.01** -> **PASS** |
 
-**0f.65 is right that the fix is staged, and it is staged only in
-`rabbit-wrap`.** But `engaging/rabbit_vmass.sbatch:25` reads
-`RABBIT=${RABBIT:-$ZMASS/rabbit-vmass}` -- it defaults to the checkout WITHOUT
-the fix -- and its header `echo` (line 39) prints `TAG`, `CARD` and `METHOD`
-but **neither `RABBIT` nor `EXTRA`**, so no log in this campaign records which
-rabbit or which flags a fit ran with. The bit-identical pair is what a run with
-`RABBIT` unset and no flag would produce.
+(and 0.00087e-3 for the `a_res`-only variant; both forms also reproduce their
+spec shifts, +0.1457 and +0.0559e-3, to 3 in the last digit.)
 
-**Consequences.**
-1. **`P2X` (`22336261`) is not certifiable as it stands**, by 0f.70's own rule:
-   the check that was to license it did not run. It is separately not
-   converging -- 6 Hessian evaluations in 2 h 17 min, condition number 1e19,
-   EDM 12 359 against a 1e-3 target.
-2. `alpha = +0.2089e-3` is the KNOWN *unclamped* gun ditrack value (memory:
-   momentum-floor-clamped daughters, 12 % of the sample), not the +0.0512e-3 of
-   the corrected card. So `jpsigun_260903x_families.hdf5` is also not the card
-   0f.70's acceptance window was derived on. **The window and the card must be
-   matched before the check is re-run** -- otherwise a correct switch will look
-   like a 9-sigma failure.
-3. **`rabbit_vmass.sbatch` must echo `RABBIT` and `EXTRA`.** Fixed in the same
-   commit as the floor. Without it no fit in this campaign is reproducible from
-   its log, which is a §0f.16 problem, not a convenience.
+**RULING.** The delta-kernel switch of 0f.65 is validated on the gun. The
++0.0512e-3 of 0f.70 is precisely this gate's `residual` row, so the acceptance
+window and the thing it accepts are the same measurement -- which means the
+GUNauto/GUNoff jobs were redundant as well as mis-carded, and no further gun
+job is needed. **`P2X` is NOT blocked on this check.** What `P2X` is blocked on
+is convergence: `22336261` has done 6 Hessian evaluations in 2 h 37 min at
+condition number 1e19 with EDM 12 359 against a 1e-3 target.
 
-None of this overturns 0f.65's own measurement, which was made directly with
-`gate_nanstep.py --amax-scan` and stands. What it overturns is only the claim
-that the gun pair validated the switch.
+**Kept from the failed hypothesis, because it is a real defect.**
+`engaging/rabbit_vmass.sbatch` echoed neither `RABBIT` nor `EXTRA`, so no log in
+this campaign recorded which code or which functional a fit ran -- which is why
+this took a re-run to settle rather than a `grep`. Both are now echoed (line
+39ff). That is a §0f.16 reproducibility fix, not a convenience.
 
 ## 0f.71.7  Two operational defects found while reading the logs
 
