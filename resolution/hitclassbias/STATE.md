@@ -62,6 +62,76 @@ recorded conclusion. Anyone reusing `resinfv` / `resinfbv` for an ODD-moment
 
 ---
 
+
+## ADDENDUM (hit-class agent, 2026-09-08 late) — the 160-task pass, and where
+## the phi harmonics live
+
+### (a) PART 3 confirmed at FULL statistics (160/160 tasks, 319 8xx tracks each)
+The three variants finished; caches `data/conv_{base,tight,damp}_t160.npz`,
+output `out_conv_t160.txt` (the 40-task record in `out_conv.txt` and
+`data/conv_*_t40.npz` is untouched). Paired on `slot`:
+
+| | base -> tight | base -> damp |
+|---|---:|---:|
+| paired tracks | 319 851 | 319 833 |
+| q/p moved at all | 47.56 % | **98.73 %** |
+| median moved \|dq/p\|/(q/p) | 2.54e-07 | 2.47e-06 |
+| `<niter>` | 2.188 -> 2.868 | 2.188 -> 3.493 |
+| chi2/ndof improved for | **0.00 %** of tracks | **0.00 %** |
+| **paired `<dx>_even`, ALL** | **-0.001 +- 0.001 e-3** | **-0.000 +- 0.002 e-3** |
+| statistic, barrel | -5.21 -> -5.21 | -5.21 -> -5.20 |
+| middle | -4.36 -> -4.36 | -4.36 -> -4.36 |
+| endcap | -1.95 -> -1.95 | -2.01 -> -2.01 |
+| mixture OUT | -6.49+-1.88 -> -6.51+-1.93 | -6.57+-1.92 -> -6.56+-1.93 |
+
+At 4x the 40-task statistics the paired shift is **< 0.005e-3, more than
+1000x below the -6.3e-3 bulk**, with errors of 0.001-0.002e-3. The 40-task
+conclusion is confirmed, not merely unrefuted.
+
+### (b) The azimuthal segmentation, counted from the DetIds in this sample
+| structure | count | harmonic it can make |
+|---|---:|---|
+| **TEC petals per wheel** | **8** | **n = 8** |
+| **BPix L1 ladders** | **20** | inner/outer alternation -> **n = 10** |
+| BPix L2 / L3 ladders | 32 / 44 | n = 16 / 22 |
+| FPix blades, panels | 24, 2 | n = 24 / 12 |
+| TIB strings | 30 / 38 / 45 / 56 | -- |
+| TOB rods | 42 / 48 / 54 / 60 / 66 / 74 | -- |
+
+n = 8 and n = 10 are the only two that match a real structure, and they are
+exactly the two the scan finds (`A_sin` +18.04 and +21.81 +- 2.50 on the full
+sample; n = 12, 16, 24 are at -6.3, -5.2, -2.7).
+
+### (c) BUT the two harmonics are NOT separable by subdetector, and BOTH are
+### carried by tracks with a BPix LAYER-1 hit (5.4 sigma, eta-controlled)
+Splitting on the influence-weighted share does NOT give one harmonic to TEC
+and the other to BPix-L1 -- both rise with both shares -- and the TEC and TOB
+shares are `corr = +0.886` and `-0.861` with `|eta|`, so those splits are
+`|eta|` in disguise. The BPix-L1 share is not (`corr = -0.137`), and it is the
+one that separates:
+
+| at FIXED `\|eta\|` (12 quantile bins) | has BPix-L1 hit | no BPix-L1 hit | difference |
+|---|---:|---:|---:|
+| `A_sin(n=8)` | +24.00 +- 2.97 | **+3.59 +- 4.63** | +20.40 +- 5.50 (3.7 s) |
+| `A_sin(n=10)` | +30.46 +- 2.97 | **+0.82 +- 4.63** | **+29.64 +- 5.50 (5.4 s)** |
+| n | 226 481 | 93 369 | |
+
+**Tracks without a BPix layer-1 hit show NO phi modulation at either
+harmonic.** That localises the effect to the innermost pixel layer, which is
+also where PART 1 measured by far the largest CPE location bias
+(BPix-1 +0.227 sigma_CPE = +2.71 um, skew +0.302, against +0.058 and +0.044 in
+L2 and L3 and null in every strip subdetector).
+
+HYPOTHESIS, not established: `n = 10` is the BPix-L1 inner/outer ladder
+alternation (20 ladders -> 10 pairs). `n = 8` is NOT explained by BPix-L1
+geometry, so either the two harmonics have different origins and only the
+lever arm to the innermost radius is common, or the split-by-share is too blunt
+to separate them. CAVEAT: "no BPix-L1 hit" is 29 % of the sample and may be a
+peculiar population in ways the `|eta|` control does not cover.
+
+Script: `p1_phi_origin.py`. Data: `data/conv_ref903x_full.npz` joined to
+`data/blocks_mugun_ul16_260903x.npz` (verified aligned, max |dz| = 0.0).
+
 # RESUME HERE — 2026-09-08 (night), PART 3 = the CONVERGENCE test, DONE
 
 ## THE ANSWER
