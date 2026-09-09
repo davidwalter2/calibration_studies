@@ -6190,3 +6190,22 @@ this took a re-run to settle rather than a `grep`. Both are now echoed (line
 2. **Two jobs ran the same stage list concurrently on node4601** (`22315719`
    and `22333692` both did `Ss12`/`SVs12`); the second died with
    `BlockingIOError ... unable to lock file` on the shared output path.
+
+## 0f.71.8  QUEUED AT HANDOFF (2026-09-09 00:30)
+
+| job | what | expect |
+|---|---|---|
+| `22348542` | `SVs9 SVs12 Ss12` on the **rebuilt floored cards**, `trust-exact`, `FRESH=1` | completes the K(m) ladder to 9 and 12 in both forms. If the floor is the whole story these converge; if they still NaN, the shape basis itself is degenerate above 7 and the ladder ENDS at 7 -- which is a result, not a failure, and would make the v form's 2.4 MeV spread over 5..7 the truncation systematic to quote. |
+| `22336261` | `P2X`, still descending | NOT expected to certify: 6 Hessians in 2 h 37 min, cond 1e19, EDM 12 359 vs 1e-3. Now known NOT to be blocked on the gun check (0f.71.6) -- only on convergence. Needs preconditioning or the two-GPU sharding of 0f.65, not a resubmit. |
+| `22332184` | `zcard3` (phase-3 card build), PENDING on `mit_normal` | `resolution/globalfit/make_global_term.py` IS now staged (it was the old `ModuleNotFoundError`). |
+
+Cancelled by me: `22333692` (`SVs12` on the un-floored card, condition number
+2.4e24, superseded by the rebuild).
+
+**The one-line state of the campaign.** Step 1 (certified table) and step 2
+(v-form Z closure) are DONE and quotable: **m_Z closes inclusively in the v form
+at -1.54 +- 2.31 MeV**. `Gamma_Z` is limited by K-truncation, not statistics.
+The eta non-closure is mostly the `eta_lead` selector (0f.63), whose confirming
+test (0f.66) is the highest-value remaining physics run. Step 3 (phase 2) is a
+convergence problem. Step 4 (phase 3) is documented as not feasible in the
+window (0f.64).
