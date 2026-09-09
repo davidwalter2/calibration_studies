@@ -1,0 +1,44 @@
+NVIDIA H200, 143771 MiB
+############ SVetaEslo  19:27:03  card /home/david_w/orcd/pool/zmass/cards/z_V_etaE_slo.hdf5  method trust-exact 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788910029.951551 2219495 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788910067.996127 2219495 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'zmass' (kind MassCF, channel z): 512595 candidates, 16 chunk(s) of 32768, parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 2 POI(s) ['m_Z', 'Gamma_Z'], 9 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 2 parameters: ['m_Z', 'Gamma_Z'][0m
+[38;21mINFO:fitter.py: unbinned term 'zmass': 512595 candidates in 16 chunk(s) of 32768, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-exact options={}[0m
+[38;21mINFO:fitter.py:   - Condition number: 206682927.1552147[0m
+[38;21mINFO:fitter.py:   - edmval: 3353.8493888763883[0m
+[38;21mINFO:fitter.py:   - Condition number: nan[0m
+[38;21mINFO:fitter.py:   - edmval: nan[0m
+[33;21mWARNING:fitter.py: Minimizer raised: array must not contain infs or NaNs[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (minimizer-failed) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.snapshot.hdf5[0m
+[38;21mINFO:snapshot.py: Wrote parameter snapshot (converged) to /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.snapshot.hdf5; resume with --externalPostfit /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.snapshot.hdf5[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+Results written in file /home/david_w/orcd/pool/zmass/fitresults/native/rabbit_SVetaEslo.hdf5
+Traceback (most recent call last):
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 1089, in <module>
+    main()
+    ~~~~^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 1056, in main
+    fit(args, ifitter, ws, dofit=ifit >= 0 and not args.noFit)
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/bin/rabbit_fit.py", line 627, in fit
+    edmval, cov = fitter.edmval_cov(grad, hess)
+                  ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/fitter.py", line 1057, in edmval_cov
+    edmval, cov = edmval_cov(subgrad, subhess)
+                  ~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/tfhelpers.py", line 72, in edmval_cov
+    return tf_edmval_cov(grad, hess)
+  File "/home/david_w/orcd/pool/zmass/rabbit-vmass/rabbit/tfhelpers.py", line 54, in tf_edmval_cov
+    raise ValueError(
+        "Cholesky decomposition failed, Hessian is not positive-definite"
+    )
+ValueError: Cholesky decomposition failed, Hessian is not positive-definite
+############ SVetaEslo done 19:30:27 rc=0

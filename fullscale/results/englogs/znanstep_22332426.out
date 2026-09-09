@@ -1,0 +1,58 @@
+############ nanstep SVetaEslo  20:30:20  card /home/david_w/orcd/pool/zmass/cards/z_V_etaE_slo.hdf5
+NVIDIA L40S, 46068 MiB
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788913833.735000 1636692 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788913869.223190 1636692 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+z_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[nanstep] /home/david_w/orcd/pool/zmass/cards/z_V_etaE_slo.hdf5: 1 unbinned term(s), 0 external, loaded in 24 s
+  11 parameters, 7 floating, frozen [np.str_('k_hit'), np.str_('k_ioni'), np.str_('k_ms'), np.str_('k_rad')]
+
+--- START POINT (parameter defaults)
+  loss -1365121.5503711042  grad finite  hess finite
+  cond 2.06683e+08  edm 3353.85
+  term 'zmass': nll -1363578.950240  min L_i 0.178731  non-positive 0  nan 0  min Z_c 0.977475 (non-positive 0, nan 0)
+
+--- running scipy trust-exact (no preconditioning, as rabbit does)
+  [hess  1] |x-x0| 0  loss -1365121.550371  OK
+  [hess  2] |x-x0| 1  loss inf  105 NON-FINITE
+  MINIMIZER RAISED: ValueError: array must not contain infs or NaNs
+
+--- the trial point it aborted at: |dx| = 1
+      shape5                     +0 ->    -0.983486  (d = -0.983486)
+      shape4                     +0 ->    -0.177816  (d = -0.177816)
+      shape3                     +0 ->   -0.0331368  (d = -0.0331368)
+      shape2                     +0 ->  +0.00427355  (d = +0.00427355)
+      shape1                     +0 ->  +0.00353975  (d = +0.00353975)
+      m_Z                        +0 ->  +0.00117969  (d = +0.00117969)
+      Gamma_Z                    +0 ->  +0.00117829  (d = +0.00117829)
+      k_ms                       +1 ->     +1.00117  (d = +0.00117255)
+      k_ioni                     +1 ->     +1.00117  (d = +0.00117255)
+      k_rad                      +1 ->     +1.00117  (d = +0.00117255)
+      k_hit                      +1 ->     +1.00117  (d = +0.00117255)
+
+--- FIRST non-positive density along the step at t = 0.98145 (last good 0.98145), term 'zmass'
+    min L_i -2.50547e-07, 1 non-positive, 0 nan, min Z_c 0.00286886 (0 non-positive)
+              i          m      sigma  class        a_i        g_i          L_i
+         232553     0.1947    0.00429     36  -0.002184   0.006929   -2.505e-07
+      shape5                     +0 ->    -0.965242
+      shape4                     +0 ->    -0.174518
+      shape3                     +0 ->   -0.0325221
+      shape2                     +0 ->  +0.00419428
+      shape1                     +0 ->  +0.00347408
+      m_Z                        +0 ->  +0.00115781
+      Gamma_Z                    +0 ->  +0.00115643
+      k_ms                       +1 ->     +1.00115
+
+--- one coordinate at a time, at the FULL step size
+      shape5           d -0.983486: min L_i -1.19919, 323 non-positive, 0 nan, min Z_c 0.00077939
+      shape4           d -0.177816: min L_i 0.150879, 0 non-positive, 0 nan, min Z_c 0.983741
+      shape3           d -0.0331368: min L_i 0.171008, 0 non-positive, 0 nan, min Z_c 0.976786
+      shape2           d +0.00427355: min L_i 0.179932, 0 non-positive, 0 nan, min Z_c 0.977343
+      shape1           d +0.00353975: min L_i 0.179363, 0 non-positive, 0 nan, min Z_c 0.977515
+      m_Z              d +0.00117969: min L_i 0.178731, 0 non-positive, 0 nan, min Z_c 0.977475
+      Gamma_Z          d +0.00117829: min L_i 0.178731, 0 non-positive, 0 nan, min Z_c 0.977475
+      k_ms             d +0.00117255: min L_i 0.178732, 0 non-positive, 0 nan, min Z_c 0.977475
+      k_ioni           d +0.00117255: min L_i 0.178731, 0 non-positive, 0 nan, min Z_c 0.977475
+      k_rad            d +0.00117255: min L_i 0.178731, 0 non-positive, 0 nan, min Z_c 0.977475
+############ done 20:36:51 rc=0

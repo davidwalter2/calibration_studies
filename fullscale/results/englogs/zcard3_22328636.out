@@ -1,0 +1,9 @@
+############ phase-3 card  19:27:01
+Traceback (most recent call last):
+  File "/orcd/pool/005/david_w/zmass/fullscale/make_joint_card.py", line 1466, in <module>
+    main()
+    ~~~~^^
+  File "/orcd/pool/005/david_w/zmass/fullscale/make_joint_card.py", line 1112, in main
+    import make_global_term as mgt
+ModuleNotFoundError: No module named 'make_global_term'
+############ done 19:27:06 rc=0

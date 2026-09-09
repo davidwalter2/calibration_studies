@@ -1,0 +1,10 @@
+############ nanstep P2X  20:33:15  card /home/david_w/orcd/pool/zmass/cards/joint_ok_full.hdf5
+NVIDIA H200, 143771 MiB
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788913997.634142  234013 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1788913999.439662  234013 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+calib_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[nanstep] /home/david_w/orcd/pool/zmass/cards/joint_ok_full.hdf5: 2 unbinned term(s), 1 external, loaded in 514 s
+External likelihood term 'hitchi2': the Hessian is singular and the gradient has a component outside its range, so the term is unbounded below and cannot be centered. Using the pseudo-inverse for the in-range part; absolute NLL values remain offset.
+  103 parameters, 95 floating, frozen [np.str_('k_hit'), np.str_('k_ioni'), np.str_('k_ms'), np.str_('k_rad'), np.str_('material_beampipe'), np.str_('material_pp1_cables'), np.str_('material_support_tube'), np.str_('material_thermal_screen')]
