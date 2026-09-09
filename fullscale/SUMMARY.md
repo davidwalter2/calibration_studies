@@ -1,6 +1,6 @@
 # Full-scale feasibility study — `m_Z` and `Gamma_Z` from the unbinned CVH mass likelihood
 
-**Status 2026-09-08.** Written for David and the group leader. Everything here
+**Status 2026-09-09.** Written for David and the group leader. Everything here
 is measured; nothing is projected unless it says so. The running log of how
 each number was obtained is `STATE.md` (sections referenced inline) and
 `STATE_log.md`; figures are at `~/public_html/cvh/260908_fullscale/`.
@@ -298,8 +298,17 @@ the gun, not of the reconstruction.
   delta-kernel terms (J/psi) move to the **exact residual form**, which is
   positive by construction and coincides with the fluctuation form at a delta
   kernel; wide-kernel terms (Z) keep the fluctuation form with a per-candidate
-  positivity check and an exact x-space fallback. Implementation in
-  `rabbit-vmass`, resubmission pending its gun verification.
+  positivity check and an exact x-space fallback. Implemented, and MEASURED on
+  the card that failed: with the delta-kernel J/psi term in the exact residual
+  form, `gate_nanstep.py --amax-scan 0` finds **zero** non-positive densities on
+  either leg at the default point and at four displaced points, with
+  `min L_i` between 7.9e-05 and 1.1e-04 — so the wide-kernel fallback is not
+  needed at this working point and the diagnostic bound is off. The switch is
+  validated on the J/psi gun, where the two forms are genuinely different
+  functionals (741 NLL units apart) and agree on `alpha` to **0.0022e-3**
+  against a 0.01e-3 gate. Its cost is that the J/psi leg's NLL moved by
+  **17 108 units**, so no phase-2 NLL from before it is comparable with one
+  after it. Refitting as `P2X`; see section 6 item 3 for where it stands.
 * **Convergence is EDM, never `|g|_inf`** — POIs sat 1-5 sigma off under the
   latter. Both TF minimiser ports fail the trust-region subproblem at full
   statistics, and `trust-krylov` stops at indefinite points; **scipy
@@ -355,7 +364,7 @@ cells and is not a property of every Engaging row.
 |---|---|---:|---|
 | 1 | **`K(m)` truncation** | **+26.6 MeV** (7 -> 9) | the v-form 9- and 12-term rungs (in flight); then replace the floated LO kernel with a theory-predicted `K(m)` — which also returns the x1.5 statistical penalty |
 | 2 | **`eta_lead` reco-`pT` selector** | up to **45 MeV per band**, 0 inclusive | three band cards with `max(\|eta_p\|,\|eta_m\|)` + three warm refits, ~2 h. **Highest value per hour in the list** |
-| 3 | the momentum scale from J/psi (phase 2) | not yet measured | `P2X` with the exact J/psi delta-kernel path |
+| 3 | the momentum scale from J/psi (phase 2) | not yet measured | **`P2X` is RUNNING and descending, not converged** (Engaging 22336261, 3 M J/psi + 3.68 M Z + the hit-chi2 quadratic, 95 floating of 103, exact delta-kernel J/psi term). 11 Hessian evaluations in 3 h 45: EDM 137 291 -> 99 172 -> 74 075 -> 27 665 -> 40 511 -> 12 359 -> 6 242 -> 2 103 -> 999 -> 203 -> **189**, against a 1e-3 target; the condition number fell from **3.1e19 to 1.0e15** as it left the start point. ~20 min per Hessian, 36 h of walltime, so it has room. It is NOT blocked on the gun check (5.9). **The remedy if it stalls is preconditioning at the trust-region level** — rescale by the curvature so the region is spherical in sigma units, a change of variables that leaves the minimum invariant — or the 2-GPU candidate sharding; NOT a resubmit, which would only repeat the same descent |
 | 4 | the material amounts (phase 3) | not yet measured | needs 2-GPU candidate sharding: the phase-2 Hessian is **141.4 GB of an H200's 143.8 GB** |
 | 5 | GN second-order (Box) charge-odd bias | ~4 MeV (4.7e-5) | analytic correction from the exported steps |
 | 6 | the `a`-coefficient deficit | bounded small; unquantified on `m_Z` | none proposed; both leading explanations excluded |
@@ -415,7 +424,7 @@ identified, quantified, and cheap to test.**
 |---|---|
 | running log, all sections | `fullscale/STATE.md` (start at "RESUME HERE"), `fullscale/STATE_log.md` |
 | certified table | `fullscale/collect.sh --summary` (rsyncs Engaging, re-makes it) |
-| figures | `~/public_html/cvh/260908_fullscale/` — `mz_kladder.png`, `mz_eta.png`, `mz_sigmasplit.png`, `mz_variants.png`, `gz_kladder.png`, `am_closed.png`, `mixture_legs.png`; hit-class panels in `260908_hitclassbias/` |
+| figures | `~/public_html/cvh/260909_fullscale/` (redrawn from the final certified table) — `mz_kladder.png`, `mz_eta.png`, `mz_sigmasplit.png`, `mz_variants.png`, `gz_kladder.png`; the 09-08 set, plus `am_closed.png` and `mixture_legs.png`, in `260908_fullscale/`; hit-class panels in `260908_hitclassbias/` |
 | tools written this week | `legscale.py`, `mixture_legs.py`, `measure_a.py --aux --gen-cells`, `oddmoment/aux_gen.py`, `oddmoment/aux_seed.py`, `model_odd_mass.py`, `certtable.py`, `plot_closure.py`, `plot_mixture.py` |
 | caches | `fullscale/runs/{zpairs_dyv2_full,jpairs_v2_n600,auxgen_dyv2,auxgen_jpsiv2,auxseed_dyv2,auxseed_jpsiv2}.npz` |
 | the fit code | `rabbit-vmass`, branch `vmass-conditioning` |

@@ -8,6 +8,11 @@ drawn hollow and labelled, never silently) and makes:
   * `mz_eta_<form>.png`  -- `m_Z` closure against the leading-muon |eta| band,
     m form and v form on the same axes, with the fit-free prediction of
     sec. 0f.1 overlaid and a PULL panel underneath;
+  * `mz_eta_safe.png`    -- the SAME `eta` bands with the two band DEFINITIONS
+    against each other: the `|eta|` of the RECO-leading leg (a cut on the
+    residual, `corr = +0.0203`) and `max(|eta_p|,|eta_m|)` (`corr = +0.0025`),
+    with the pre-registered prediction of STATE 0f.66 overlaid. The two
+    definitions select different candidates, so the comparison is the SPREAD;
   * `gz_kladder.png`     -- `Gamma_Z` against the number of `K(m)` terms;
   * `mz_variants.png`    -- the inclusive `m_Z` ladder over the model variants.
 
@@ -36,6 +41,11 @@ PREDICT = {"z_full380_fl": -15.33, "z_M_etaB": -12.04,
            "z_M_etaT": -16.50, "z_M_etaE": -25.61}
 PREDICT_V = {"z_V_full": +0.30, "z_V_etaB": -0.23,
              "z_V_etaT": +0.44, "z_V_etaE": +0.20}
+# STATE 0f.66, RECORDED BEFORE THE FITS LANDED: `dm/m = -A`, with the per-leg
+# charge-even momentum bias `A` measured in the SAME cells the card selects
+# (`legscale.py`, 5 % trim, bootstrap over candidates).
+PREDICT_LEAD = {"z_V_etaB": -23.4, "z_V_etaT": +0.6, "z_V_etaE": +44.4}
+PREDICT_SAFE = {"z_VX_etaB": +4.3, "z_VX_etaT": -4.6, "z_VX_etaE": -3.9}
 
 
 def ledger(edm_tol=1e-3, nll_tol=0.01):
@@ -108,6 +118,67 @@ def band(ax, cards, L, q, colour, label, marker, keep=None):
     return x, y, e, hollow
 
 
+def panel_bandpair(outdir, name):
+    """The two band DEFINITIONS on one axis (STATE 0f.63/0f.66/0f.72.2).
+
+    Both card families are v-form, so `panel`'s m/v split cannot separate them
+    -- the series are keyed on the card list instead, and each carries its own
+    pre-registered prediction. The x positions are the bands; the two
+    definitions select DIFFERENT candidates, so the readable quantity is the
+    SPREAD of each series, not any single point.
+    """
+    L = ledger()
+    lead = ["z_V_etaB", "z_V_etaT", "z_V_etaE"]
+    safe = ["z_VX_etaB", "z_VX_etaT", "z_VX_etaE"]
+    ticks = [r"$|\eta|<0.9$", r"$0.9-1.6$", r"$1.6-3.0$"]
+    fig, ax = plt.subplots(figsize=(9.0, 6.4))
+    for cards, colour, mk, lab, pred, dx in (
+            (lead, "#1f77b4", "o",
+             r"band $=|\eta|$ of the RECO-leading leg   "
+             r"($\rho=+0.020$)", PREDICT_LEAD, -0.06),
+            (safe, "#d62728", "s",
+             r"band $=\max(|\eta_+|,|\eta_-|)$   ($\rho=+0.0025$)",
+             PREDICT_SAFE, +0.06)):
+        x, y, e, ho = [], [], [], []
+        for i, c in enumerate(cards):
+            if c not in L:
+                continue
+            r, good = L[c]
+            if "m_Z" not in r:
+                continue
+            x.append(i + dx); y.append(r["m_Z"][0]); e.append(r["m_Z"][1])
+            ho.append(not good)
+        x, y, e, ho = map(np.asarray, (x, y, e, ho))
+        if len(x):
+            m = ~ho
+            if m.any():
+                ax.errorbar(x[m], y[m], yerr=e[m], fmt=mk, color=colour,
+                            label=lab, markersize=9, capsize=4, lw=2)
+            if (~m).any():
+                ax.errorbar(x[~m], y[~m], yerr=e[~m], fmt=mk, color=colour,
+                            markerfacecolor="none", markersize=9, capsize=4,
+                            lw=2, alpha=0.45, label=f"{lab} (NOT converged)")
+            sp = float(np.nanmax(y) - np.nanmin(y)) if len(y) > 1 else np.nan
+            logger.info(f"{name}: {cards[0][:6]} spread {sp:+.1f} MeV")
+        ax.plot([i + dx for i in range(len(cards))],
+                [pred.get(c, np.nan) for c in cards], "v", color=colour,
+                alpha=0.45, markersize=8, ls=":",
+                label=r"  $\hookrightarrow$ its prediction $-A$"
+                      " (pre-registered)")
+    ax.axhline(0.0, color="k", lw=1.2, ls="--")
+    ax.set_xticks(range(len(ticks)))
+    ax.set_xticklabels(ticks, fontsize=14)
+    ax.set_xlim(-0.5, len(ticks) - 0.5)
+    ax.set_ylabel(r"$m_Z^{\rm fit}-m_Z^{\rm gen}$  [MeV]")
+    ax.set_title(r"the $\eta$ band spread is the band SELECTOR", fontsize=16)
+    ax.legend(fontsize=12, loc="best")
+    os.makedirs(outdir, exist_ok=True)
+    o = os.path.join(outdir, name)
+    fig.savefig(o, bbox_inches="tight", dpi=140)
+    plt.close(fig)
+    logger.info(f"wrote {o}")
+
+
 def panel(outdir, name, cards, ticks, q, title, ylabel, predict=None,
           predict_v=None):
     L = ledger()
@@ -171,6 +242,13 @@ def main():
           "m_Z", r"$m_Z$ closure per $|\eta_{\rm lead}|$ band",
           r"$m_Z^{\rm fit}-m_Z^{\rm gen}$  [MeV]",
           predict=PREDICT, predict_v=PREDICT_V)
+    panel_bandpair(out, "mz_eta_safe.png")
+    panel(out, "mz_sigmasplit_safe.png",
+          ["z_V_etaB_slo", "z_V_etaB_shi", "z_VX_etaB_slo", "z_VX_etaB_shi"],
+          [r"lead band, low $\sigma/m$", r"lead band, high",
+           r"safe band, low", r"safe band, high"],
+          "m_Z", r"the barrel $\sigma/m$ split, both band definitions",
+          r"$m_Z^{\rm fit}-m_Z^{\rm gen}$  [MeV]")
     panel(out, "gz_kladder.png",
           ["z_full380_fl", "z_V_full", "z_full380_fl_s6", "z_V_s6",
            "z_full380_fl_s7", "z_V_s7", "z_full380_fl_s9", "z_V_s9",
