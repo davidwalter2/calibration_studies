@@ -22,13 +22,17 @@ the ONE command to run first.
   Both are NaN inside scipy `trust-exact`; the `Cholesky ... not
   positive-definite` is the downstream postfit at the UNMOVED start point, not
   the cause. Both cards were scanned dataset by dataset and are NaN/inf-free.
-  The leading mechanism is sec. 0f.54: `--freezeParameters` uses
-  `tf.stop_gradient` only while the minimiser runs on the FULL vector, so the
-  four frozen `k` parameters are an exactly-null subspace of the Hessian --
-  scipy's trust-region HARD CASE -- and the step walks in it, through
-  `k_hit <= 0` and hence a non-positive density. Handed to the
-  fit-infrastructure agent with the evidence; the fix is to minimise over
-  `floating_indices`, NOT to regularise.
+  **MEASURED (sec. 0f.56)**: `SVetaEslo`'s first trial point is `|dx| = 1`, the
+  initial trust radius, and it is **98.3 % along `shape5`**, whose `sigma` is
+  0.0020 -- a **500 sigma** step. `shape5` alone drives 323 candidate densities
+  non-positive; `m_Z`, `Gamma_Z`, `shape1-4` and all four `k` drive ZERO. The
+  defect is the trust radius being in RAW parameter units on a card whose
+  parameters span three orders of magnitude in natural scale, so the fix is
+  **preconditioning** (a change of variables, not a regulariser), validated by
+  re-running an already-converged cell with and without it. `P2X` is a third
+  thing: NaN at the START point, in scipy's `norm(hess, inf)` on the first
+  `IterativeSubproblem` construction; under diagnosis.
+  Sec. 0f.54's frozen-parameter drift is REAL and FIXED but is NOT this NaN.
 * `22328636` phase-3 card build -- `resolution/globalfit/` was never staged to
   Engaging. Being staged and resubmitted (`zcard3` 22332184).
 
