@@ -220,6 +220,80 @@ def main():
     ax.legend(fontsize=13)
     rx.legend(fontsize=12)
     save(fig, outdir, "conv_dqop")
+
+    # ---- 6. the Box prediction against the measurement, both channels ------
+    import c4_secondorder as c4                                   # noqa: E402
+    fig, (ax, rx) = plt.subplots(2, 1, figsize=(9, 8), sharex=True,
+                                 gridspec_kw={"height_ratios": [2.2, 1],
+                                              "hspace": 0.07})
+    ref_full = cc.Var("data/conv_ref903x_full.npz", "baseline 160 tasks")
+    d1 = (ref_full.d["qop_it0"] - ref_full.d["qop_seed"]).astype(float)
+    d2 = (ref_full.d["qop_ref"] - ref_full.d["qop_it0"]).astype(float)
+    g = ref_full.good
+    g &= (np.abs(d1) < np.percentile(np.abs(d1[g]), 99)) &          (np.abs(d2) < np.percentile(np.abs(d2[g]), 99))
+    xs2 = np.arange(3)
+    for ib in range(3):
+        pr = {}
+        for qq in (+1, -1):
+            m = g & (ref_full.band == ib) & (ref_full.q == qq)
+            r = c4.fit_quad(d1[m], d2[m])
+            pr[qq] = -0.5 * r[2] * ref_full.sigma[m].mean()
+        for tgt, val, c, lb in ((ax, 0.5 * (pr[1] + pr[-1]), "#2ca02c",
+                                 "Box prediction"),
+                                (rx, 0.5 * (pr[1] - pr[-1]), "#2ca02c",
+                                 "Box prediction")):
+            tgt.plot([ib - 0.3, ib + 0.3], [val * 1e3] * 2, "-", color=c, lw=3,
+                     label=lb if ib == 0 else None)
+        m = g & (ref_full.band == ib)
+        ve, ee, _ = cc.even_mean(ref_full.x, ref_full.q, m, rng)
+        vo, eo, _ = cc.odd_mean(ref_full.x, ref_full.q, m, rng)
+        ax.errorbar([ib], [ve * 1e3], yerr=[ee * 1e3], fmt="o", color="k", ms=8,
+                    capsize=4, label="measured" if ib == 0 else None)
+        rx.errorbar([ib], [vo * 1e3], yerr=[eo * 1e3], fmt="o", color="k", ms=8,
+                    capsize=4, label="measured" if ib == 0 else None)
+    for t_ in (ax, rx):
+        t_.axhline(0, color="0.6", lw=1, ls=":")
+        t_.legend(fontsize=13)
+    ax.set_ylabel(r"charge-EVEN $\langle x\rangle$ (sagitta) [$10^{-3}$]")
+    rx.set_ylabel(r"charge-ODD $\langle x\rangle$ (scale) [$10^{-3}$]")
+    rx.set_xticks(xs2)
+    rx.set_xticklabels(BANDLAB)
+    ax.set_title("second-order Gauss-Newton bias vs measurement", fontsize=15)
+    save(fig, outdir, "conv_boxbias")
+
+    # ---- 7. phi structure --------------------------------------------------
+    if "genphi" in ref_full.d:
+        fig, (ax, rx) = plt.subplots(2, 1, figsize=(9, 8), sharex=True,
+                                     gridspec_kw={"height_ratios": [2.2, 1],
+                                                  "hspace": 0.07})
+        ph = ref_full.d["genphi"].astype(float)
+        eb = np.linspace(-np.pi, np.pi, 13)
+        cn = 0.5 * (eb[1:] + eb[:-1])
+        vs, es = [], []
+        for i in range(12):
+            m = ref_full.good & (ph >= eb[i]) & (ph < eb[i + 1])
+            v, e, _ = cc.even_mean(ref_full.x, ref_full.q, m, rng, 150)
+            vs.append(v * 1e3)
+            es.append(e * 1e3)
+        vs, es = np.asarray(vs), np.asarray(es)
+        w = 1 / es ** 2
+        mu = (vs * w).sum() / w.sum()
+        ax.errorbar(cn, vs, yerr=es, fmt="o", color="k", ms=8, capsize=4,
+                    label=r"charge-even, all $\eta$")
+        ax.axhline(mu, color="#d62728", lw=2,
+                   label=fr"flat, $\mu={mu:+.2f}\times10^{{-3}}$")
+        ax.axhline(0, color="0.6", lw=1, ls=":")
+        rx.errorbar(cn, (vs - mu) / es, yerr=np.ones(12), fmt="o", color="k",
+                    ms=7, capsize=3)
+        rx.axhline(0, color="0.6", lw=1, ls=":")
+        chi2 = float((w * (vs - mu) ** 2).sum())
+        rx.set_ylabel(r"pull vs flat")
+        rx.set_xlabel(r"generated $\phi$")
+        ax.set_ylabel(r"charge-even $\langle x\rangle$  [$10^{-3}$]")
+        ax.set_title(fr"$\chi^2$(flat) $= {chi2:.1f}/11$  (ideal geometry)",
+                     fontsize=15)
+        ax.legend(fontsize=13)
+        save(fig, outdir, "conv_phi")
     logger.info(f"figures -> {outdir}")
 
 

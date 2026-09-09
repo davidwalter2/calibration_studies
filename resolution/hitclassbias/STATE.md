@@ -128,6 +128,73 @@ bias, but dchi2 ~ 6 is a preference, not a discrimination.**
 
 ---
 
+## NEW RESULT — THE CHARGE-EVEN SHIFT IS STRONGLY PHI-MODULATED (n = 8 and n = 10)
+
+`c6_phi.py` on the full 160-task baseline. This was NOT in the brief; it fell
+out of adding `genphi` to the cache for a null test that turned out not to be
+null.
+
+**Unbinned harmonic scan** (amplitudes `2<x cos/sin(n phi)>`, charge-even; no
+binning, hence no aliasing -- a 24-bin scan folds n = 14/16/17 onto 10/8/7 and
+is what almost sent this the wrong way):
+
+| n | cos [1e-3] | sin [1e-3] | power |
+|---|---:|---:|---:|
+| 7 | +6.52+-2.55 | +5.54+-2.56 | 11.2 |
+| **8** | +4.07+-2.56 | **+18.96+-2.55** | **57.7** |
+| **10** | +0.51+-2.55 | **+21.62+-2.55** | **71.7** |
+| 14 | +5.50+-2.55 | +6.58+-2.55 | 11.3 |
+| 17 | -10.41+-2.56 | +3.59+-2.55 | 18.6 |
+
+Total power n = 1..40 is **281.5 for 80 dof**. The mean over phi is the
+familiar -3 to -4e-3; the MODULATION is five times larger.
+
+**It is real, not a machinery artefact:**
+* PERMUTATION null (phi reassigned at random): chi2(no effect) = 11.1 / 7.0 /
+  16.4 for 12 bins -- the estimator and its errors are correct.
+* SPLIT-HALF on the LUMI parity (disjoint event sets): 24-bin
+  chi2(A == B) = 20.9/24 and **corr(A, B) = +0.75**; per-bin the two halves
+  track each other (e.g. bin 5: -27.9 vs -24.9). A fluctuation cannot do that.
+* It survives every tail cut (chi2 rises, not falls, from |x| < 30 to |x| < 5)
+  and the within-pair correlation of the gun's two muons is -0.0007, so the
+  bootstrap is not being fooled by event-level correlation.
+* The gun is phi-uniform and charge-balanced in every bin (frac q+ = 0.4968 to
+  0.5020) and its two muons are NOT back-to-back (median |dphi| = 1.57), so
+  the charge-even average at fixed phi is well defined.
+
+**Where the two harmonics live:**
+
+| selection | n=8 sin | n=10 sin |
+|---|---:|---:|
+| barrel | +11.5+-4.2 | +10.6+-4.2 |
+| middle | +18.3+-4.7 | +22.5+-4.7 |
+| endcap | +28.0+-4.4 | +33.3+-4.4 |
+| nValidPixelHits >= 3 | +22.4+-4.0 | **+26.5+-4.0** |
+| nValidPixelHits <= 1 | +24.7+-5.6 | **+7.7+-5.6** |
+
+Both GROW with |eta|. **n = 10 is carried by the pixel-rich tracks and dies on
+the pixel-poor ones; n = 8 is indifferent to the pixel content.** The natural
+identifications in the Phase-0 2016 geometry are
+
+* **n = 10 <- BPix layer 1, 20 ladders in an alternating inner/outer
+  (turbine) arrangement**: the inner/outer pattern has period 2 ladders = 18
+  deg = the n = 10 harmonic, and PART 1 measured exactly the ingredient it
+  needs -- a **+0.227 sigma_CPE location bias in BPix-1 local x**, whose
+  BENDING-SENSE projection flips with the ladder orientation. Averaged over
+  phi that bias buys only +1e-3 (PART 1's null result); MODULATED at the
+  ladder frequency it does not average away, and it is +21e-3.
+* **n = 8 <- TEC petals** (8 per disk face), which is also why it is
+  independent of the pixel content and grows into the endcap.
+
+**This does not explain the phi-averaged -6.3e-3** -- these harmonics
+integrate to zero over phi by construction -- but it is the missing piece of
+PART 1: the CPE location bias IS producing a large sagitta bias, just not a
+phi-uniform one. In size, `<x> ~ 25e-3` at `sigma_rel ~ 0.03`, `p ~ 100 GeV`
+is `Delta(q/pT) ~ 4e-5 GeV^-1`, i.e. the same order as the AN's misalignment
+bound |M| < 1e-4 GeV^-1 -- on IDEAL geometry, where there is no misalignment
+at all. HYPOTHESIS for the identification; ESTABLISHED for the existence,
+the frequencies, and the pixel/eta dependence.
+
 ## THE DECISION RULE (unchanged)
 If the bulk `-6.3e-3` and the `+21e-3` IN component SHRINK under `tight` or
 `damp`, the mechanism is incomplete convergence / seed dependence: quote the

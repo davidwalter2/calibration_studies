@@ -30,7 +30,8 @@ def one(fn):
     except Exception as e:
         return None, f"{fn}: {type(e).__name__} {e}"
     o = {k: [] for k in ("run", "lumi", "event", "slot", "z", "sigma", "eta",
-                         "geneta", "q", "vgf", "pt", "genpt", "niter", "edm",
+                         "geneta", "phi", "genphi", "q", "vgf", "pt",
+                         "genpt", "niter", "edm",
                          "edmref", "chi2n", "nvalid", "npixhit", "qop_seed",
                          "qop_it0", "qop_ref", "qop_gen", "flip")}
     seen = {}
@@ -56,6 +57,12 @@ def one(fn):
         o["geneta"].append(
             -np.log(np.tan((np.pi / 2. - a["genParms"][ic][1]) / 2.)))
         o["qop_gen"].append(float(qg))
+        # phi is kept because a chiral source of a SAGITTA bias (a Lorentz-drift
+        # CPE bias, a module-orientation effect) is phi-uniform in the global
+        # frame, while a residual azimuthal weak mode is not -- so phi is the
+        # cheap discriminator between them.
+        o["phi"].append(float(a["refParms"][ic][2]))
+        o["genphi"].append(float(a["genParms"][ic][2]))
         o["q"].append(np.sign(qg))
         o["vgf"].append(vb[(fam == 8) | (fam == 9)].sum() / c00)
         o["pt"].append(float(a["trackPt"][ic]))
