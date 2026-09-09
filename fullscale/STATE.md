@@ -20,6 +20,20 @@ the open physics. Everything below the horizontal rule predates this.**
 `./collect.sh --summary` rsyncs Engaging and re-makes the certified table. It is
 the ONE command to run first.
 
+**SECTION-NUMBER MAP (2026-09-08).** Two agents appended concurrently and
+collided three times. The fit-infrastructure agent's sections were renumbered;
+its own report and commit messages use the ORIGINAL numbers, so:
+
+| it called it | it is now | subject |
+|---|---|---|
+| 0f.56 | **0f.60** | the trust-radius scale defect, the frozen-parameter audit, the staging fix |
+| 0f.57 | **0f.61** | `P2X`'s two candidates, and why `P2smoke` survived |
+| 0f.58 | **0f.62** | the 4th cell, the slopes, and the m-form correction |
+| 0f.59 | **0f.65** | the five-point zero-non-positive table and the resubmission |
+
+Mine are 0f.51-0f.59 and 0f.63-0f.64. No text was changed in any of them.
+From here: I take 0f.66+, the fit-infrastructure agent takes 0f.70+.
+
 **The two failed jobs -- DIAGNOSED 2026-09-08, see sec. 0f.54-55:**
 * `SVetaEslo` and `P2X` fail the SAME way and the card is **NOT** singular.
   Both are NaN inside scipy `trust-exact`; the `Cholesky ... not
