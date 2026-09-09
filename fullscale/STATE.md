@@ -5427,3 +5427,64 @@ the start-point Hessian of the phase-2 full card sits at **141.4 GB of an
 H200's 143.8 GB** at 99 % utilisation, i.e. that fit is at 98 % of the largest
 card available.
 
+
+### 0f.57 `P2X` IS A DIFFERENT FAILURE: TWO J/psi CANDIDATES WHOSE MODELLED
+### DENSITY IS NEGATIVE AT THE DEFAULT POINT (2026-09-08, fit-infrastructure)
+
+`22328595 P2X` printed ONE `--diagnostics` pair and it was already `nan`, so by
+sec. 0f.56's rule the failure is at the START point -- before the minimiser
+proposes anything. Neither the `K(m)` step of 0f.56 nor the frozen subspace can
+explain it, and both are excluded.
+
+`gate_nanstep.py --no-min` on `joint_ok_full` at `x` = all 103 defaults
+(`22332382`, H200):
+
+| | |
+|---|---|
+| loss | `inf` |
+| gradient | NON-FINITE in **88 of 103** components |
+| Hessian | NON-FINITE in **10 384 of 10 609** entries |
+| term `jpsi` | nll -5327803.017379, `min L_i` **-5.572e-04**, **2** non-positive of 3 000 000, `min Z_c` 0.99879 |
+| term `zmass` | nll +11087491.809631, `min L_i` +9.418e-05, **0** non-positive, `min Z_c` 0.97674 |
+| the non-finite rows | `bfield_mode0..49` and the material block -- everything the J/psi term touches |
+
+| i | m [GeV] | `k = sigma_v` | class | `a_i` | `g_i` | `L_i` |
+|---:|---:|---:|---:|---:|---:|---:|
+| 84 476 | 3.4230 | 0.07951 | 63 | +0.04538 | -0.02215 | **-5.572e-04** |
+| 2 103 551 | 3.4176 | 0.08488 | 63 | +0.04719 | -0.02235 | **-8.763e-06** |
+
+Both are in norm class **63**, the widest, with physical resolution
+`sigma_phys = k m^p` = 0.377 and 0.409 GeV -- **`sigma/m` = 11.0 % and 12.0 % on
+a J/psi** -- and sit ~4 sigma above the peak, where the density is
+`1e-4`-`1e-6` of a typical candidate's 0.18 and a small negative correction
+flips its sign. `log` of it takes the whole joint NLL, gradient and Hessian
+non-finite at once. The Z leg is clean.
+
+**The existing guard does not catch them and is not supposed to.**
+`corr_coeff_max = 0.08` bounds the QUADRATIC coefficient `|g_i|`, and these have
+`|g_i| = 0.022`. `_build_fluct`'s own record is that 0.08 was chosen by scanning
+the 300 k Z card for the largest value leaving NO non-positive density, and that
+the bounded population "all have `sigma_m/m > 0.066`". These two ARE in that
+population, ARE inside the bound, and still go negative -- because what is large
+for them is the FIRST-order coefficient `a_i` and the 4-sigma argument, neither
+of which has a declared domain. The first-order truncation is first order in
+BOTH coefficients and only one of them is bounded.
+
+**Not resubmitted.** It would fail identically. `rabbit_P2X.hdf5` (written
+before the postfit crash, holding the unmoved start point) and
+`rabbit_P2X.snapshot.hdf5` are both stale and neither is certifiable.
+
+**The options, for the owner of `MASSCFTERM_SPEC` to choose between.**
+(1) re-scan `corr_coeff_max` on the J/psi leg the way 0.08 was chosen on the Z
+leg -- the sanctioned theta-independent device, but the coefficients are baked
+in at card CONSTRUCTION, so it means rebuilding the 10.7 GB card unless a
+load-time override is added; (2) bound `a_i` the same way `g_i` is bounded --
+the same device applied to the other coefficient of the same expansion, still a
+per-candidate constant computed from observables; (3) an upstream `sigma/m`
+selection on the J/psi leg, which is NOT recommended (STATE rule 3, and an 11 %
+candidate is only the visible edge of that population). **A clip or a floor on
+the density is not on the list and was not used.**
+
+Recorded in passing: the start-point Hessian of `joint_ok_full` occupies
+**141.4 GB of an H200's 143.8 GB** at 99 % utilisation. Phase 2 at full size is
+at 98 % of the largest card available, so it has no headroom for a third term.
