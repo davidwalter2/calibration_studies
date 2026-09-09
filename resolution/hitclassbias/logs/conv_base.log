@@ -1,10 +1,50 @@
-[run ] mugun_ul16_260909_conv_base 0
-[run ] mugun_ul16_260909_conv_base 1
-[run ] mugun_ul16_260909_conv_base 2
-[run ] mugun_ul16_260909_conv_base 3
-[run ] mugun_ul16_260909_conv_base 4
-[run ] mugun_ul16_260909_conv_base 5
-[run ] mugun_ul16_260909_conv_base 6
-[run ] mugun_ul16_260909_conv_base 7
-[run ] mugun_ul16_260909_conv_base 8
-[run ] mugun_ul16_260909_conv_base 9
+[skip] mugun_ul16_260909_conv_base 0
+[skip] mugun_ul16_260909_conv_base 1
+[skip] mugun_ul16_260909_conv_base 2
+[skip] mugun_ul16_260909_conv_base 3
+[skip] mugun_ul16_260909_conv_base 5
+[skip] mugun_ul16_260909_conv_base 4
+[skip] mugun_ul16_260909_conv_base 6
+[skip] mugun_ul16_260909_conv_base 8
+[skip] mugun_ul16_260909_conv_base 7
+[skip] mugun_ul16_260909_conv_base 9
+[skip] mugun_ul16_260909_conv_base 10
+[skip] mugun_ul16_260909_conv_base 11
+[skip] mugun_ul16_260909_conv_base 12
+[skip] mugun_ul16_260909_conv_base 13
+[skip] mugun_ul16_260909_conv_base 14
+[skip] mugun_ul16_260909_conv_base 16
+[skip] mugun_ul16_260909_conv_base 15
+[skip] mugun_ul16_260909_conv_base 17
+[skip] mugun_ul16_260909_conv_base 18
+[skip] mugun_ul16_260909_conv_base 19
+[skip] mugun_ul16_260909_conv_base 20
+[skip] mugun_ul16_260909_conv_base 21
+[skip] mugun_ul16_260909_conv_base 22
+[skip] mugun_ul16_260909_conv_base 23
+[skip] mugun_ul16_260909_conv_base 24
+[skip] mugun_ul16_260909_conv_base 25
+[skip] mugun_ul16_260909_conv_base 27
+[skip] mugun_ul16_260909_conv_base 26
+[skip] mugun_ul16_260909_conv_base 28
+[skip] mugun_ul16_260909_conv_base 30
+[skip] mugun_ul16_260909_conv_base 29
+[skip] mugun_ul16_260909_conv_base 31
+[skip] mugun_ul16_260909_conv_base 32
+[skip] mugun_ul16_260909_conv_base 33
+[skip] mugun_ul16_260909_conv_base 35
+[skip] mugun_ul16_260909_conv_base 36
+[skip] mugun_ul16_260909_conv_base 34
+[skip] mugun_ul16_260909_conv_base 37
+[skip] mugun_ul16_260909_conv_base 38
+[skip] mugun_ul16_260909_conv_base 39
+[run ] mugun_ul16_260909_conv_base 40
+[run ] mugun_ul16_260909_conv_base 41
+[run ] mugun_ul16_260909_conv_base 42
+[run ] mugun_ul16_260909_conv_base 43
+[run ] mugun_ul16_260909_conv_base 44
+[run ] mugun_ul16_260909_conv_base 45
+[run ] mugun_ul16_260909_conv_base 46
+[run ] mugun_ul16_260909_conv_base 47
+[run ] mugun_ul16_260909_conv_base 48
+[run ] mugun_ul16_260909_conv_base 49

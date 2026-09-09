@@ -1,0 +1,10 @@
+=== extracting base
+resolution_trackres_mugun_ul16_260909_conv_base: 40 files
+wrote data/conv_base.npz: 79965 tracks
+=== extracting tight
+resolution_trackres_mugun_ul16_260909_conv_tight: 40 files
+wrote data/conv_tight.npz: 79966 tracks
+=== extracting damp
+resolution_trackres_mugun_ul16_260909_conv_damp: 40 files
+wrote data/conv_damp.npz: 79961 tracks
+wrote out_conv.txt

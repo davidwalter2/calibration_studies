@@ -1,3 +1,81 @@
+# PART 3 RESULT (2026-09-08, 40/160 tasks) — THE FIT IS NOT CONVERGED FOR ~15 % OF TRACKS
+
+The three variants COMPLETED on 40 tasks (79 965 tracks each) and the 160-task
+extension is running detached (same commands, `NT=160`). Numbers below are the
+40-task set, paired on (run, lumi, event); 40 000 tracks common to all four.
+
+## The knobs did what they should
+| variant | `<niter>` | niter distribution | wall/task | cost |
+|---|---:|---|---:|---:|
+| base | 2.19 | 2: 81.2 %, 3: 18.7 % | 669 s | -- |
+| tight | 2.87 | 2: 16.6 %, 3: 81.8 %, >=4: 1.5 % | 753 s | **+12.6 %** |
+| damp | 3.50 | 2: 34.6 %, 3: 21.3 %, 4: 20.1 %, 5: 13.9 %, >=6: 10 % | 947 s | **+41.6 %** |
+
+`base` vs the `260903x_m0` production on the same 40 tasks: **2 tracks of
+40 000 differ** (max |dz| 7.8e-4, median 0) -- reproducible, the two areas are
+the same build. The variants are interpreted against `base`.
+
+## THE HEADLINE: 15 % of single-track fits are not converged, and they are invisible
+
+Per-track change when the tolerance is tightened 1e-5 -> 1e-7:
+
+| |z_tight - z_base| > | 1e-4 | 1e-3 | 0.01 | 0.1 | 0.5 | 1.0 | 3.0 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| fraction | 23.4 % | 21.4 % | 21.3 % | 20.1 % | **15.4 %** | **10.1 %** | 0.8 % |
+| damp | 80.9 % | 49.1 % | 48.9 % | 46.3 % | **35.0 %** | 22.9 % | 2.0 % |
+
+The MEDIAN change is 0.0000 and the 90th percentile is 1.01 sigma: about 79 %
+of tracks are converged to <1e-4 sigma and the rest move by O(1) sigma. The
+unconverged fraction is **FLAT in eta** (15.48 / 14.82 / 15.88 %).
+
+**And they are indistinguishable from the converged ones in every diagnostic
+the maker exports:**
+
+| | frac | `<niter>` | chi2/ndof | sigma_rel | nvalid | npixhit | log10 edmval | `<z>`_even |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| unconverged | 0.154 | 2.189 | 1.006 | 0.0203 | 17.27 | 2.249 | 0.600 | **-21.41e-3** |
+| converged | 0.846 | 2.191 | 0.998 | 0.0203 | 17.19 | 2.239 | 0.615 | **-0.31e-3** |
+
+**The charge-even shift lives entirely in the unconverged 15 %**:
+0.846 x (-0.31) + 0.154 x (-21.41) = -3.56e-3, which is the base sample's
+inclusive value. The converged 85 % sit at -0.31e-3, i.e. at ZERO.
+(CAVEAT: the partition is defined by the PAIR `z_tight - z_base`, so it is not
+a selection on `z_base` alone but it is not independent of it either. The
+selection-free version is the paired inclusive shift below.)
+
+## The selection-free numbers, and why 40 tasks is not yet enough
+Paired charge-even shift, truth-referenced, all bands:
+**tight - base = +3.37 +- 3.45e-3**, **damp - base = +5.21 +- 5.19e-3**
+(on raw z: +4.04 and +6.09). Both POSITIVE, both about the size of the
+-6.3e-3 bulk, both ~1 sigma. Per band, tight-base = +9.66 +- 5.75 /
++4.76 +- 6.55 / -4.98 +- 5.60.
+
+And the mean shift is ALL tail: trimmed at |dz| < 0.5 it is +0.64 / +1.40 /
+-0.05 (tight) and +0.74 / +2.99 / -2.39 (damp), i.e. zero, against
++11.64 / +4.32 / -4.80 and +6.62 / +8.72 / +3.18 untrimmed.
+
+**160 tasks will give +-1.7e-3 on the paired shift, a 2.5-3.7 sigma
+discrimination between "the bulk vanishes" (+6.3) and "it persists" (0).**
+That run is live; re-extract with `extract_conv.py` and re-run
+`s8_variants.py`, `s9_who_moved.py`, `s10_tail.py`, `s11_unconv.py`.
+
+## What is already ESTABLISHED regardless of the 160-task outcome
+* The CVH single-track fit at the default `edmConvergence = 1e-5` leaves
+  **15 % of tracks moving by more than half their own resolution** and 10 % by
+  more than a full sigma when the tolerance is tightened 100x. The maker's own
+  comment already says the iteration does not monotonically decrease the chi2
+  because every iteration re-propagates and re-linearises; this measures what
+  that costs.
+* **No exported per-track diagnostic identifies them** -- `niter`, `edmval`,
+  `chi2/ndof`, `sigma_rel`, hit counts are all equal to 3 decimal places
+  between the two populations. (`edmval` is stored but the criterion uses
+  `edmvalref` on the reference block; both were extracted and neither
+  separates them.)
+* The price of fixing it is **+12.6 % wall time** for `edmConvergence=1e-7`
+  (`<niter>` 2.19 -> 2.87), or +41.6 % for the damped path.
+
+---
+
 # RESUME HERE — 2026-09-08 (resumed session), PART 3 = the CONVERGENCE test
 
 ## Status of PART 3

@@ -1,0 +1,189 @@
+
+==============================================================================
+=== VARIANT conv_base_t40   79965 tracks, 79965 with a finite x
+==============================================================================
+
+(A) charge-even <x> per eta band, units 1e-3 (charge-ODD in brackets = control)
+    barrel |eta|<0.9   n=  29870   even   -4.29+-6.21   [odd    +1.77+- 6.12]
+    middle 0.9-1.6     n=  23364   even  -10.04+-7.32   [odd    -5.62+- 6.52]
+    endcap 1.6-2.4     n=  26731   even   +5.17+-6.31   [odd    +1.82+- 6.22]
+    ALL BANDS                    even   -2.42+-3.79   (chi2  2.6/2 for eta-independence)
+
+(B) trim scan  m_implied(T) = <x>_even,|x|<T / f(T), units 1e-3 (FLAT = core shift)
+    band                     T=1       T=2       T=3       T=5      T=10     T=inf
+    barrel                 -9.37     -5.88     -4.90     -5.51     -3.79     -4.29
+    middle                -13.11    -14.82     -8.85     -7.08     -7.10    -10.04
+    endcap                 -2.01     +8.17     +6.33     +5.65     +5.17     +5.17
+
+(C) mixture at the 90th percentile of |seed->final dq/p|
+    IN  (top 10%)    +41.87+-58.04( 2.4%)  +29.49+-34.53( 6.9%)  +16.64+-14.39(21.2%)   comb  +19.71+-12.95 (chi2  0.3/2)
+    OUT (rest)        -5.44+- 6.19(97.6%)  -13.02+- 6.61(93.1%)   +1.97+- 6.66(78.8%)   comb   -5.53+-3.74 (chi2  2.6/2)
+    what the IN population is:
+                               frac    <niter>  chi2/ndof  sigma_rel   <nvalid>     <npix>     rms(x)      <edm>
+      IN  (top 10%)          0.1000     2.7200     1.1030     0.0388    16.9912     1.6719     1.2052     2.1335
+      OUT (rest)             0.9000     2.1308     0.9873     0.0182    17.2347     2.3033     1.0291     4.5571
+
+(D) iteration census
+    niter  mean  2.190  max 10   2:81.26%, 3:18.64%, 4: 0.06%, 5: 0.01%, 6: 0.00%, 7: 0.00%, 10: 0.02%
+    at the iteration cap (10): 15 tracks (0.0188 %)   edmref >= 1e-7 for 65.66 %, >= 1e-5 for 0.0188 %
+    edmval median 4.350e+00  p90 5.945e+01  p99 3.935e+02  max 9.061e+03
+    chi2/ndof mean 0.99887  median 0.94202
+    nChargeFlipProtect>0: 0 / 79965
+    |seed->final dq/p| mean 0.00478  p90 0.00939
+    |iter0->final dq/p| mean 3.846e-05  p90 8.530e-05
+
+(E) SECOND-ORDER TEST: how does the charge-even mean scale with the fit error?
+    A second-order (Box) bias of a nonlinear least-squares estimator is O(sigma^2)
+    in the PARAMETER, hence O(sigma) in the PULL: <x> = c * sigma_rel, LINEAR THROUGH
+    THE ORIGIN, with c = the relative curvature bias per unit sigma_rel^2. A fixed
+    hit-LOCATION bias is O(sigma^0) in the parameter and gives <x> ~ 1/sigma_rel.
+    Bins are in GEN pT, which is exogenous -- binning on the FITTED sigma or the
+    reco pT is the conditioning trap this campaign has now hit four times.
+
+    binned in GEN pT
+    bin                         <sigma_rel>        n          <x>_even         <x>_odd
+       20.0004-27.9173           0.01818    15993        -2.84+-8.55      -4.39+-8.87
+       27.9173-36.0371           0.01907    15993        -7.80+-8.18      +2.10+-7.50
+       36.0371-44.0088           0.02012    15993        +7.17+-7.87      +2.97+-8.41
+       44.0088-52.0331           0.02156    15993        -5.65+-7.50      -3.77+-8.02
+       52.0331-59.9997           0.02249    15993        -4.86+-7.59      +1.15+-8.39
+    second-order   <x> = c sigma_rel : c = -0.1390 +- 0.1727   chi2   2.18/4
+    location       <x> = A / sigma_rel: A = -55.941e-6          chi2   2.22/4
+    no scaling     <x> = const        : -2.81e-3             chi2   2.20/4
+
+    binned in reco sigma_rel (cross-check)
+    bin                         <sigma_rel>        n          <x>_even         <x>_odd
+        0.0062-0.0118            0.01031    15993       -11.54+-9.04     +18.56+-8.73
+        0.0118-0.0159            0.01341    15993        -3.52+-8.52      -6.75+-8.52
+        0.0159-0.0195            0.01796    15993        +2.55+-7.51     +17.04+-7.70
+        0.0195-0.0243            0.02125    15993        -6.78+-7.56     -17.35+-8.14
+        0.0243-0.8569            0.03848    15993        +5.65+-7.87     -13.69+-8.24
+    second-order   <x> = c sigma_rel : c = -0.0073 +- 0.1556   chi2   3.24/4
+    location       <x> = A / sigma_rel: A = -60.756e-6          chi2   2.14/4
+    no scaling     <x> = const        : -2.22e-3             chi2   2.86/4
+
+==============================================================================
+=== VARIANT conv_tight_t40   79966 tracks, 79966 with a finite x
+==============================================================================
+
+(A) charge-even <x> per eta band, units 1e-3 (charge-ODD in brackets = control)
+    barrel |eta|<0.9   n=  29870   even   -4.29+-6.19   [odd    +1.77+- 6.58]
+    middle 0.9-1.6     n=  23364   even  -10.04+-6.74   [odd    -5.62+- 7.03]
+    endcap 1.6-2.4     n=  26732   even   +5.15+-5.72   [odd    +1.80+- 6.17]
+    ALL BANDS                    even   -2.23+-3.57   (chi2  3.1/2 for eta-independence)
+
+(B) trim scan  m_implied(T) = <x>_even,|x|<T / f(T), units 1e-3 (FLAT = core shift)
+    band                     T=1       T=2       T=3       T=5      T=10     T=inf
+    barrel                 -9.23     -5.88     -4.90     -5.50     -3.79     -4.29
+    middle                -12.94    -14.82     -8.85     -7.08     -7.10    -10.04
+    endcap                 -2.08     +8.13     +6.31     +5.64     +5.15     +5.15
+
+(C) mixture at the 90th percentile of |seed->final dq/p|
+    IN  (top 10%)    +41.87+-65.01( 2.4%)  +28.25+-34.06( 6.9%)  +16.79+-14.48(21.2%)   comb  +19.49+-13.06 (chi2  0.2/2)
+    OUT (rest)        -5.44+- 5.78(97.6%)  -12.92+- 7.31(93.1%)   +1.90+- 6.68(78.8%)   comb   -5.10+-3.75 (chi2  2.2/2)
+    what the IN population is:
+                               frac    <niter>  chi2/ndof  sigma_rel   <nvalid>     <npix>     rms(x)      <edm>
+      IN  (top 10%)          0.1000     3.1213     1.1031     0.0389    16.9926     1.6718     1.2051     2.1303
+      OUT (rest)             0.9000     2.8423     0.9873     0.0182    17.2345     2.3033     1.0292     4.5545
+
+(D) iteration census
+    niter  mean  2.870  max 20   2:16.86%, 3:81.50%, 4: 1.29%, 5: 0.16%, 6: 0.04%, 7: 0.03%, 8: 0.01%, 9: 0.01%, 10: 0.00%, 11: 0.00%, 20: 0.11%
+    at the iteration cap (20): 91 tracks (0.1138 %)   edmref >= 1e-7 for 0.11 %, >= 1e-5 for 0.0175 %
+    edmval median 4.347e+00  p90 5.938e+01  p99 3.938e+02  max 9.061e+03
+    chi2/ndof mean 0.99887  median 0.94204
+    nChargeFlipProtect>0: 0 / 79966
+    |seed->final dq/p| mean 0.00478  p90 0.00939
+    |iter0->final dq/p| mean 3.851e-05  p90 8.523e-05
+
+(E) SECOND-ORDER TEST: how does the charge-even mean scale with the fit error?
+    A second-order (Box) bias of a nonlinear least-squares estimator is O(sigma^2)
+    in the PARAMETER, hence O(sigma) in the PULL: <x> = c * sigma_rel, LINEAR THROUGH
+    THE ORIGIN, with c = the relative curvature bias per unit sigma_rel^2. A fixed
+    hit-LOCATION bias is O(sigma^0) in the parameter and gives <x> ~ 1/sigma_rel.
+    Bins are in GEN pT, which is exogenous -- binning on the FITTED sigma or the
+    reco pT is the conditioning trap this campaign has now hit four times.
+
+    binned in GEN pT
+    bin                         <sigma_rel>        n          <x>_even         <x>_odd
+       20.0004-27.9173           0.01818    15993        -2.84+-8.40      -4.39+-8.74
+       27.9173-36.0373           0.01907    15993        -7.79+-7.97      +2.10+-8.05
+       36.0373-44.0092           0.02012    15993        +7.17+-8.28      +2.97+-8.43
+       44.0092-52.0335           0.02154    15993        -5.47+-7.64      -3.58+-8.31
+       52.0335-59.9997           0.02254    15994        -5.08+-8.19      +0.93+-8.10
+    second-order   <x> = c sigma_rel : c = -0.1474 +- 0.1772   chi2   2.02/4
+    location       <x> = A / sigma_rel: A = -59.205e-6          chi2   2.06/4
+    no scaling     <x> = const        : -2.98e-3             chi2   2.04/4
+
+    binned in reco sigma_rel (cross-check)
+    bin                         <sigma_rel>        n          <x>_even         <x>_odd
+        0.0062-0.0118            0.01031    15993       -11.54+-9.06     +18.56+-8.47
+        0.0118-0.0159            0.01341    15993        -3.52+-8.97      -6.75+-8.14
+        0.0159-0.0195            0.01796    15993        +2.55+-8.21     +17.04+-7.56
+        0.0195-0.0243            0.02125    15993        -6.78+-8.59     -17.35+-8.24
+        0.0243-0.8569            0.03851    15994        +5.62+-8.46     -13.72+-8.41
+    second-order   <x> = c sigma_rel : c = -0.0082 +- 0.1687   chi2   2.94/4
+    location       <x> = A / sigma_rel: A = -63.472e-6          chi2   1.85/4
+    no scaling     <x> = const        : -2.39e-3             chi2   2.56/4
+
+==============================================================================
+=== VARIANT conv_damp_t40   79961 tracks, 79961 with a finite x
+==============================================================================
+
+(A) charge-even <x> per eta band, units 1e-3 (charge-ODD in brackets = control)
+    barrel |eta|<0.9   n=  29870   even   -4.29+-6.05   [odd    +1.74+- 6.16]
+    middle 0.9-1.6     n=  23364   even  -10.04+-7.29   [odd    -5.68+- 6.43]
+    endcap 1.6-2.4     n=  26727   even   +5.00+-6.40   [odd    +1.98+- 5.97]
+    ALL BANDS                    even   -2.61+-3.76   (chi2  2.5/2 for eta-independence)
+
+(B) trim scan  m_implied(T) = <x>_even,|x|<T / f(T), units 1e-3 (FLAT = core shift)
+    band                     T=1       T=2       T=3       T=5      T=10     T=inf
+    barrel                 -8.90     -5.88     -4.90     -5.50     -3.79     -4.29
+    middle                -13.12    -14.80     -8.85     -7.08     -7.09    -10.04
+    endcap                 -2.20     +7.94     +6.15     +5.49     +5.00     +5.00
+
+(C) mixture at the 90th percentile of |seed->final dq/p|
+    IN  (top 10%)    +42.85+-64.04( 2.4%)  +29.60+-36.11( 6.9%)  +15.95+-14.38(21.2%)   comb  +18.87+-13.08 (chi2  0.3/2)
+    OUT (rest)        -5.47+- 5.45(97.6%)  -13.02+- 6.85(93.1%)   +1.95+- 6.75(78.8%)   comb   -5.44+-3.61 (chi2  2.4/2)
+    what the IN population is:
+                               frac    <niter>  chi2/ndof  sigma_rel   <nvalid>     <npix>     rms(x)      <edm>
+      IN  (top 10%)          0.1000     5.5955     1.1032     0.0387    16.9955     1.6732     1.2051     1.0682
+      OUT (rest)             0.9000     3.2671     0.9873     0.0182    17.2346     2.3032     1.0291     2.2773
+
+(D) iteration census
+    niter  mean  3.500  max 30   2:34.43%, 3:21.33%, 4:20.17%, 5:13.75%, 6: 6.77%, 7: 2.44%, 8: 0.70%, 9: 0.23%, 10: 0.09%, 11: 0.03%, 12: 0.02%, 13: 0.01%
+    at the iteration cap (30): 17 tracks (0.0213 %)   edmref >= 1e-7 for 0.02 %, >= 1e-5 for 0.0188 %
+    edmval median 2.173e+00  p90 2.971e+01  p99 1.970e+02  max 4.532e+03
+    chi2/ndof mean 0.99888  median 0.94206
+    nChargeFlipProtect>0: 0 / 79961
+    |seed->final dq/p| mean 0.00477  p90 0.00939
+    |iter0->final dq/p| mean 3.546e-05  p90 8.025e-05
+
+(E) SECOND-ORDER TEST: how does the charge-even mean scale with the fit error?
+    A second-order (Box) bias of a nonlinear least-squares estimator is O(sigma^2)
+    in the PARAMETER, hence O(sigma) in the PULL: <x> = c * sigma_rel, LINEAR THROUGH
+    THE ORIGIN, with c = the relative curvature bias per unit sigma_rel^2. A fixed
+    hit-LOCATION bias is O(sigma^0) in the parameter and gives <x> ~ 1/sigma_rel.
+    Bins are in GEN pT, which is exogenous -- binning on the FITTED sigma or the
+    reco pT is the conditioning trap this campaign has now hit four times.
+
+    binned in GEN pT
+    bin                         <sigma_rel>        n          <x>_even         <x>_odd
+       20.0004-27.9173           0.01818    15992        -2.85+-9.10      -4.43+-9.15
+       27.9173-36.0363           0.01907    15992        -7.75+-8.45      +2.10+-8.32
+       36.0363-44.0082           0.02012    15991        +7.29+-7.90      +2.78+-7.89
+       44.0082-52.0330           0.02153    15993        -5.90+-8.43      -3.50+-8.05
+       52.0330-59.9997           0.02244    15993        -5.05+-7.86      +1.25+-7.68
+    second-order   <x> = c sigma_rel : c = -0.1311 +- 0.1818   chi2   2.18/4
+    location       <x> = A / sigma_rel: A = -52.371e-6          chi2   2.21/4
+    no scaling     <x> = const        : -2.64e-3             chi2   2.19/4
+
+    binned in reco sigma_rel (cross-check)
+    bin                         <sigma_rel>        n          <x>_even         <x>_odd
+        0.0062-0.0118            0.01031    15992       -11.47+-9.10     +18.60+-8.56
+        0.0118-0.0159            0.01341    15992        -3.54+-8.21      -6.80+-8.21
+        0.0159-0.0195            0.01796    15992        +2.59+-7.76     +17.26+-8.33
+        0.0195-0.0243            0.02125    15992        -7.04+-7.82     -17.58+-8.13
+        0.0243-0.8569            0.03840    15993        +5.54+-7.72     -13.53+-7.61
+    second-order   <x> = c sigma_rel : c = -0.0056 +- 0.1553   chi2   3.21/4
+    location       <x> = A / sigma_rel: A = -60.807e-6          chi2   2.12/4
+    no scaling     <x> = const        : -2.22e-3             chi2   2.84/4

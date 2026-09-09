@@ -1,0 +1,594 @@
+=== extracting base
+resolution_trackres_mugun_ul16_260909_conv_base: 40 files
+wrote data/conv_base.npz: 79965 tracks
+=== extracting tight
+resolution_trackres_mugun_ul16_260909_conv_tight: 40 files
+wrote data/conv_tight.npz: 79966 tracks
+=== extracting damp
+resolution_trackres_mugun_ul16_260909_conv_damp: 40 files
+wrote data/conv_damp.npz: 79961 tracks
+
+
+############ python3 c0_bitcheck.py --a data/conv_base.npz --b data/conv_ref903x.npz ############
+base: 79965 tracks   260903x_m0: 79965 tracks
+paired on (run,lumi,event,charge): 79965
+  unpaired in base: 0   in 260903x_m0: 0
+
+=== EXACT equality, track by track ===
+  qop_ref    identical=False  ndiff=      3  max|d|=1.118e-08  max rel=1.238e-06
+  qop_it0    identical=False  ndiff=      1  max|d|=1.284e-04  max rel=9.847e-03
+  qop_seed   identical=True   ndiff=      0  max|d|=0.000e+00  max rel=0.000e+00
+  sigma      identical=False  ndiff=      3  max|d|=1.682e-07  max rel=9.862e-04
+  z          identical=False  ndiff=      3  max|d|=7.828e-04  max rel=1.075e-03
+  chi2n      identical=True   ndiff=      0  max|d|=0.000e+00  max rel=0.000e+00
+  niter      identical=False  ndiff=      1  max|d|=2.000e+00  max rel=6.667e-01
+  nvalid     identical=True   ndiff=      0  max|d|=0.000e+00  max rel=0.000e+00
+  npixhit    identical=True   ndiff=      0  max|d|=0.000e+00  max rel=0.000e+00
+  edm        identical=False  ndiff=      3  max|d|=3.107e+01  max rel=5.826e-01
+  edmref     identical=False  ndiff=      3  max|d|=1.460e+00  max rel=9.326e-01
+  vgf        identical=False  ndiff=      3  max|d|=1.208e-04  max rel=7.522e-04
+  pt         identical=True   ndiff=      0  max|d|=0.000e+00  max rel=0.000e+00
+  eta        identical=False  ndiff=      1  max|d|=5.960e-07  max rel=3.625e-07
+  qop_gen    identical=True   ndiff=      0  max|d|=0.000e+00  max rel=0.000e+00
+  slot       identical=True   ndiff=      0  max|d|=0.000e+00  max rel=0.000e+00
+
+=== the statistic itself ===
+  base         charge-even <x> per band (1e-3):     -4.29+-6.04   -10.04+-7.32    +5.17+-6.55
+  260903x_m0   charge-even <x> per band (1e-3):     -4.29+-6.27   -10.04+-7.16    +5.17+-6.21
+
+=== tracks whose converged q/p differs: 3 / 79965 (0.0038 %) ===
+  run/lumi/event 1/4/38 q=+1  niter 3->5  edmref 4.38e-06->2.95e-07  dq/p -5.588e-09 (-0.0000 sigma)
+  run/lumi/event 1/12/560 q=-1  niter 4->4  edmref 2.79e-07->1.10e-07  dq/p +9.313e-10 (+0.0000 sigma)
+  run/lumi/event 1/21/485 q=+1  niter 10->10  edmref 1.95e+00->4.86e-01  dq/p -1.118e-08 (-0.0001 sigma)
+  <niter> of the differing tracks 5.67 vs 2.19 for all
+  max |dq/p| / sigma = 0.0001
+
+VERDICT: REPRODUCED -- 3 track(s) of 79965 differ (0.0038 %), the known CVH limit-cycle / anchoring non-determinism; the charge-even statistic is unchanged
+
+
+############ python3 c1_conv.py data/conv_base.npz data/conv_tight.npz data/conv_damp.npz ############
+
+==============================================================================
+=== VARIANT conv_base   79965 tracks, 79965 with a finite x
+==============================================================================
+
+(A) charge-even <x> per eta band, units 1e-3 (charge-ODD in brackets = control)
+    barrel |eta|<0.9   n=  29870   even   -4.29+-6.21   [odd    +1.77+- 6.12]
+    middle 0.9-1.6     n=  23364   even  -10.04+-7.32   [odd    -5.62+- 6.52]
+    endcap 1.6-2.4     n=  26731   even   +5.17+-6.31   [odd    +1.82+- 6.22]
+    ALL BANDS                    even   -2.42+-3.79   (chi2  2.6/2 for eta-independence)
+
+(B) trim scan  m_implied(T) = <x>_even,|x|<T / f(T), units 1e-3 (FLAT = core shift)
+    band                     T=1       T=2       T=3       T=5      T=10     T=inf
+    barrel                 -9.37     -5.88     -4.90     -5.51     -3.79     -4.29
+    middle                -13.11    -14.82     -8.85     -7.08     -7.10    -10.04
+    endcap                 -2.01     +8.17     +6.33     +5.65     +5.17     +5.17
+
+(C) mixture at the 90th percentile of |seed->final dq/p|
+    IN  (top 10%)    +41.87+-58.04( 2.4%)  +29.49+-34.53( 6.9%)  +16.64+-14.39(21.2%)   comb  +19.71+-12.95 (chi2  0.3/2)
+    OUT (rest)        -5.44+- 6.19(97.6%)  -13.02+- 6.61(93.1%)   +1.97+- 6.66(78.8%)   comb   -5.53+-3.74 (chi2  2.6/2)
+    what the IN population is:
+                               frac    <niter>  chi2/ndof  sigma_rel   <nvalid>     <npix>     rms(x)      <edm>
+      IN  (top 10%)          0.1000     2.7200     1.1030     0.0388    16.9912     1.6719     1.2052     2.1335
+      OUT (rest)             0.9000     2.1308     0.9873     0.0182    17.2347     2.3033     1.0291     4.5571
+
+(D) iteration census
+    niter  mean  2.190  max 10   2:81.26%, 3:18.64%, 4: 0.06%, 5: 0.01%, 6: 0.00%, 7: 0.00%, 10: 0.02%
+    at the iteration cap (10): 15 tracks (0.0188 %)   edmref >= 1e-7 for 65.66 %, >= 1e-5 for 0.0188 %
+    edmval median 4.350e+00  p90 5.945e+01  p99 3.935e+02  max 9.061e+03
+    chi2/ndof mean 0.99887  median 0.94202
+    nChargeFlipProtect>0: 0 / 79965
+    |seed->final dq/p| mean 0.00478  p90 0.00939
+    |iter0->final dq/p| mean 3.846e-05  p90 8.530e-05
+
+(E) SECOND-ORDER TEST: how does the charge-even mean scale with the fit error?
+    A second-order (Box) bias of a nonlinear least-squares estimator is O(sigma^2)
+    in the PARAMETER, hence O(sigma) in the PULL: <x> = c * sigma_rel, LINEAR THROUGH
+    THE ORIGIN, with c = the relative curvature bias per unit sigma_rel^2. A fixed
+    hit-LOCATION bias is O(sigma^0) in the parameter and gives <x> ~ 1/sigma_rel.
+    Bins are in GEN pT, which is exogenous -- binning on the FITTED sigma or the
+    reco pT is the conditioning trap this campaign has now hit four times.
+
+    binned in GEN pT
+    bin                         <sigma_rel>        n          <x>_even         <x>_odd
+       20.0004-27.9173           0.01818    15993        -2.84+-8.55      -4.39+-8.87
+       27.9173-36.0371           0.01907    15993        -7.80+-8.18      +2.10+-7.50
+       36.0371-44.0088           0.02012    15993        +7.17+-7.87      +2.97+-8.41
+       44.0088-52.0331           0.02156    15993        -5.65+-7.50      -3.77+-8.02
+       52.0331-59.9997           0.02249    15993        -4.86+-7.59      +1.15+-8.39
+    second-order   <x> = c sigma_rel : c = -0.1390 +- 0.1727   chi2   2.18/4
+    location       <x> = A / sigma_rel: A = -55.941e-6          chi2   2.22/4
+    no scaling     <x> = const        : -2.81e-3             chi2   2.20/4
+
+    binned in reco sigma_rel (cross-check)
+    bin                         <sigma_rel>        n          <x>_even         <x>_odd
+        0.0062-0.0118            0.01031    15993       -11.54+-9.04     +18.56+-8.73
+        0.0118-0.0159            0.01341    15993        -3.52+-8.52      -6.75+-8.52
+        0.0159-0.0195            0.01796    15993        +2.55+-7.51     +17.04+-7.70
+        0.0195-0.0243            0.02125    15993        -6.78+-7.56     -17.35+-8.14
+        0.0243-0.8569            0.03848    15993        +5.65+-7.87     -13.69+-8.24
+    second-order   <x> = c sigma_rel : c = -0.0073 +- 0.1556   chi2   3.24/4
+    location       <x> = A / sigma_rel: A = -60.756e-6          chi2   2.14/4
+    no scaling     <x> = const        : -2.22e-3             chi2   2.86/4
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitclassbias/c1_conv.py", line 187, in <module>
+    main()
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitclassbias/c1_conv.py", line 183, in main
+    run(cc.Var(p), rng)
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitclassbias/conv_common.py", line 36, in __init__
+    self.d = {k: d[k] for k in d.files}
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitclassbias/conv_common.py", line 36, in <dictcomp>
+    self.d = {k: d[k] for k in d.files}
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_npyio_impl.py", line 256, in __getitem__
+    return format.read_array(bytes,
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/format.py", line 858, in read_array
+    data = _read_bytes(fp, read_size, "array data")
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/format.py", line 993, in _read_bytes
+    r = fp.read(size - len(data))
+  File "/usr/lib64/python3.9/zipfile.py", line 942, in read
+    data = self._read1(n)
+  File "/usr/lib64/python3.9/zipfile.py", line 1010, in _read1
+    data += self._read2(n - len(data))
+  File "/usr/lib64/python3.9/zipfile.py", line 1045, in _read2
+    raise EOFError
+EOFError
+
+
+############ python3 c2_pair.py --a data/conv_base.npz --b data/conv_tight.npz --na base --nb tight ############
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitclassbias/c2_pair.py", line 122, in <module>
+    main()
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitclassbias/c2_pair.py", line 40, in main
+    B = cc.Var(args.b, args.nb)
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitclassbias/conv_common.py", line 35, in __init__
+    d = np.load(path)
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_npyio_impl.py", line 472, in load
+    ret = NpzFile(fid, own_fid=own_fid, allow_pickle=allow_pickle,
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_npyio_impl.py", line 190, in __init__
+    _zip = zipfile_factory(fid)
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_npyio_impl.py", line 102, in zipfile_factory
+    return zipfile.ZipFile(file, *args, **kwargs)
+  File "/usr/lib64/python3.9/zipfile.py", line 1284, in __init__
+    self._RealGetContents()
+  File "/usr/lib64/python3.9/zipfile.py", line 1351, in _RealGetContents
+    raise BadZipFile("File is not a zip file")
+zipfile.BadZipFile: File is not a zip file
+
+
+############ python3 c2_pair.py --a data/conv_base.npz --b data/conv_damp.npz --na base --nb damp ############
+
+==============================================================================
+=== PAIRED base -> damp
+==============================================================================
+base: 79965   damp: 79961   paired 79958
+
+tracks whose q/p MOVED at all: 78974 / 79958 (98.769 %)
+   among those: median |dq/p| = 2.467e-06   p90 6.083e-06   max 1.501e-03
+niter: <A> 2.1897 -> <B> 3.4998   <dniter> +1.3101
+chi2/ndof: <A> 0.998894 -> <B> 0.998894   <dchi2n> +0.000e+00   (improved for 0.00 % of tracks)
+sigma: <d sigma/sigma> +9.806e-07
+
+=== per-track CHANGE, charge-even and charge-odd, per eta band ===
+band                   <d(q/p)/(q/p)>_even                  _odd      <dx>_even (1e-3)
+barrel                 +8.675e-09+- 1.4e-08     -3.789e-07         +0.001+-0.001
+middle                 +6.037e-08+- 5.9e-08     -1.034e-06         +0.003+-0.003
+endcap                 -6.498e-08+- 8.6e-08     -5.971e-07         -0.003+-0.004
+ALL                    -8.330e-10+- 3.4e-08                        +0.000+-0.002   (<dz>_even +0.000+-0.002 e-3)
+
+=== the STATISTIC in each variant on the SAME paired tracks ===
+band                                base                  damp        B - A (paired)
+barrel                      -4.29+-6.22          -4.29+-6.30         +0.001+-0.001
+middle                     -10.04+-6.96         -10.04+-6.82         +0.003+-0.003
+endcap                      +5.04+-6.17          +5.04+-6.17         -0.003+-0.004
+
+=== the MIXTURE, recomputed in each variant on the paired set ===
+  base         IN   +42.49+-57.56  +29.57+-32.46  +15.85+-14.64   comb  +19.41+-13.00
+  base         OUT   -5.46+- 6.04  -13.02+- 7.16   +2.03+- 7.10   comb   -5.44+-3.87
+  damp         IN   +43.47+-58.45  +29.56+-35.18  +16.06+-14.31   comb  +19.23+-12.93
+  damp         OUT   -5.48+- 6.08  -13.02+- 6.69   +1.97+- 7.37   comb   -5.94+-3.84
+  paired B-A inside A's populations:
+    IN  <dx>_even =   -0.002+-0.003 e-3  (n=7996)
+    OUT <dx>_even =   +0.001+-0.002 e-3  (n=71962)
+
+
+############ python3 c2_pair.py --a data/conv_tight.npz --b data/conv_damp.npz --na tight --nb damp ############
+
+==============================================================================
+=== PAIRED tight -> damp
+==============================================================================
+tight: 79966   damp: 79961   paired 79959
+
+tracks whose q/p MOVED at all: 78962 / 79959 (98.753 %)
+   among those: median |dq/p| = 2.473e-06   p90 6.094e-06   max 1.501e-03
+niter: <A> 2.8702 -> <B> 3.4998   <dniter> +0.6297
+chi2/ndof: <A> 0.998889 -> <B> 0.998889   <dchi2n> +0.000e+00   (improved for 0.00 % of tracks)
+sigma: <d sigma/sigma> -7.195e-07
+
+=== per-track CHANGE, charge-even and charge-odd, per eta band ===
+band                   <d(q/p)/(q/p)>_even                  _odd      <dx>_even (1e-3)
+barrel                 +6.059e-09+- 1.4e-08     -3.789e-07         +0.001+-0.001
+middle                 +6.977e-08+- 5.8e-08     -1.036e-06         +0.004+-0.003
+endcap                 -6.690e-08+- 8.1e-08     -5.725e-07         -0.003+-0.004
+ALL                    +2.335e-10+- 3.3e-08                        +0.000+-0.002   (<dz>_even +0.000+-0.002 e-3)
+
+=== the STATISTIC in each variant on the SAME paired tracks ===
+band                               tight                  damp        B - A (paired)
+barrel                      -4.29+-6.11          -4.29+-6.42         +0.001+-0.001
+middle                     -10.04+-7.03         -10.04+-6.76         +0.004+-0.003
+endcap                      +5.01+-6.43          +5.01+-6.02         -0.003+-0.004
+
+=== the MIXTURE, recomputed in each variant on the paired set ===
+  tight        IN   +42.49+-59.20  +29.57+-32.85  +16.08+-14.97   comb  +19.61+-13.27
+  tight        OUT   -5.46+- 6.11  -13.02+- 7.18   +1.93+- 6.53   comb   -5.08+-3.79
+  damp         IN   +43.47+-58.31  +29.56+-34.23  +16.01+-13.34   comb  +18.92+-12.16
+  damp         OUT   -5.48+- 6.46  -13.02+- 6.48   +1.95+- 7.18   comb   -6.01+-3.86
+  paired B-A inside A's populations:
+    IN  <dx>_even =   -0.002+-0.003 e-3  (n=7996)
+    OUT <dx>_even =   +0.001+-0.002 e-3  (n=71963)
+
+
+############ python3 c4_secondorder.py data/conv_base.npz data/conv_damp.npz ############
+
+==============================================================================
+=== SECOND-ORDER GN BIAS -- conv_base
+==============================================================================
+tracks used 78535 of 79965 (|d1| < 3.608e-04, |d2| < 5.088e-06 GeV^-1)
+scales:  rms(d1) 6.9276e-05   rms(d2) 7.2188e-07   <sigma> 2.4784e-04   rms(d1)/<sigma> 0.28
+
+--- d2 = b0 + a d1 + (K/2) d1^2, fitted per charge ---
+  q = +1  n=  39255   b0 +5.145e-08   a -0.00003+-0.00005   K +2.1210e+01+-6.1032e-01 GeV
+          -> predicted <z> = -(K/2) sigma =   -2.640 +- 0.076 e-3   (<sigma> 2.489e-04)
+  q = -1  n=  39280   b0 -5.758e-08   a +0.00022+-0.00005   K -2.1952e+01+-6.1226e-01 GeV
+          -> predicted <z> = -(K/2) sigma =   +2.709 +- 0.076 e-3   (<sigma> 2.468e-04)
+
+  PREDICTED charge-EVEN <z> =   +0.034 +- 0.054 e-3
+  PREDICTED charge-ODD  <z> =   -2.674 +- 0.054 e-3
+  (K_+ +2.1210e+01, K_- -2.1952e+01; the mirror argument says K_- = -K_+,
+   i.e. a PURE charge-odd prediction, and K_+ + K_- = -7.427e-01 +- 8.645e-01 measures the chiral part)
+
+--- the same prediction with K refitted in quintiles of sigma ---
+  charge  sigma bin                 <sigma>            K  -(K/2)<sigma>   weight
+        +11.082e-04-1.785e-04     1.534e-04  +3.3981e+01         -2.606     7851
+        +11.785e-04-2.128e-04     1.961e-04  +2.7521e+01         -2.699     7851
+        +12.128e-04-2.509e-04     2.308e-04  +2.9297e+01         -3.381     7851
+        +12.509e-04-3.135e-04     2.786e-04  +1.2118e+01         -1.688     7851
+        +13.135e-04-1.926e-03     3.857e-04  +2.2007e+01         -4.244     7851
+          -> combined                                            -2.924
+        -11.068e-04-1.780e-04     1.533e-04  -4.3566e+01         +3.339     7856
+        -11.780e-04-2.114e-04     1.951e-04  -2.4082e+01         +2.349     7856
+        -12.114e-04-2.496e-04     2.294e-04  -1.6054e+01         +1.842     7856
+        -12.496e-04-3.075e-04     2.758e-04  -2.1973e+01         +3.030     7856
+        -13.075e-04-2.203e-03     3.802e-04  -2.0751e+01         +3.945     7856
+          -> combined                                            +2.901
+  sigma-binned PREDICTED charge-EVEN <z> =   -0.011 e-3
+  sigma-binned PREDICTED charge-ODD  <z> =   -2.912 e-3
+
+--- the MEASURED moments on the same tracks, for comparison ---
+  MEASURED charge-EVEN  <x> =   -2.968+-3.647 e-3    (<z> =   -2.775+-3.679 e-3)
+  MEASURED charge-ODD   <x> =   -2.812+-3.333 e-3    (<z> =  -17.449+-3.712 e-3)
+
+--- per eta band: K, the prediction, and the measurement ---
+  band                K_+          K_-    pred even    pred odd       meas even        meas odd
+  barrel       +1.403e+01   -1.300e+01        -0.09       -1.86      -2.84+-6.30      -1.74+-6.23
+  middle       +4.648e+01   -4.303e+01        -0.24       -6.00     -11.07+-6.66      -6.58+-6.44
+  endcap       +9.402e+00   -1.529e+01        +0.29       -1.23      +4.03+-6.93      -0.65+-6.01
+
+--- the same, inside the OUT (bulk) and IN populations ---
+  OUT (bulk 90%)   n=  71506  pred even   +0.22  pred odd   -3.91   meas even   -5.52+-3.66   meas odd   +0.74+-3.48
+  IN  (top 10%)    n=   7029  pred even   -0.06  pred odd   -1.14   meas even  +22.30+-13.13   meas odd  -38.44+-13.87
+
+==============================================================================
+=== SECOND-ORDER GN BIAS -- conv_damp
+==============================================================================
+tracks used 78532 of 79961 (|d1| < 3.601e-04, |d2| < 5.004e-06 GeV^-1)
+scales:  rms(d1) 6.9227e-05   rms(d2) 6.8846e-07   <sigma> 2.4782e-04   rms(d1)/<sigma> 0.28
+
+--- d2 = b0 + a d1 + (K/2) d1^2, fitted per charge ---
+  q = +1  n=  39257   b0 +4.445e-08   a -0.00002+-0.00005   K +2.0578e+01+-5.8410e-01 GeV
+          -> predicted <z> = -(K/2) sigma =   -2.561 +- 0.073 e-3   (<sigma> 2.489e-04)
+  q = -1  n=  39275   b0 -4.987e-08   a +0.00022+-0.00005   K -2.1277e+01+-5.8562e-01 GeV
+          -> predicted <z> = -(K/2) sigma =   +2.625 +- 0.072 e-3   (<sigma> 2.467e-04)
+
+  PREDICTED charge-EVEN <z> =   +0.032 +- 0.051 e-3
+  PREDICTED charge-ODD  <z> =   -2.593 +- 0.051 e-3
+  (K_+ +2.0578e+01, K_- -2.1277e+01; the mirror argument says K_- = -K_+,
+   i.e. a PURE charge-odd prediction, and K_+ + K_- = -6.993e-01 +- 8.271e-01 measures the chiral part)
+
+--- the same prediction with K refitted in quintiles of sigma ---
+  charge  sigma bin                 <sigma>            K  -(K/2)<sigma>   weight
+        +11.082e-04-1.785e-04     1.534e-04  +3.3998e+01         -2.607     7852
+        +11.785e-04-2.128e-04     1.961e-04  +2.6990e+01         -2.647     7851
+        +12.128e-04-2.509e-04     2.308e-04  +2.8684e+01         -3.311     7851
+        +12.509e-04-3.135e-04     2.786e-04  +1.1897e+01         -1.657     7851
+        +13.135e-04-1.926e-03     3.856e-04  +2.1443e+01         -4.134     7852
+          -> combined                                            -2.871
+        -11.068e-04-1.780e-04     1.533e-04  -4.2844e+01         +3.283     7855
+        -11.780e-04-2.114e-04     1.951e-04  -2.3830e+01         +2.325     7855
+        -12.114e-04-2.496e-04     2.294e-04  -1.5157e+01         +1.739     7855
+        -12.496e-04-3.075e-04     2.758e-04  -2.1497e+01         +2.964     7855
+        -13.075e-04-2.202e-03     3.802e-04  -2.0314e+01         +3.861     7855
+          -> combined                                            +2.834
+  sigma-binned PREDICTED charge-EVEN <z> =   -0.018 e-3
+  sigma-binned PREDICTED charge-ODD  <z> =   -2.853 e-3
+
+--- the MEASURED moments on the same tracks, for comparison ---
+  MEASURED charge-EVEN  <x> =   -2.900+-3.426 e-3    (<z> =   -2.709+-3.618 e-3)
+  MEASURED charge-ODD   <x> =   -2.936+-3.727 e-3    (<z> =  -17.571+-3.526 e-3)
+
+--- per eta band: K, the prediction, and the measurement ---
+  band                K_+          K_-    pred even    pred odd       meas even        meas odd
+  barrel       +1.345e+01   -1.271e+01        -0.07       -1.80      -2.75+-5.81      -1.87+-6.08
+  middle       +4.544e+01   -4.157e+01        -0.26       -5.83     -11.06+-7.08      -6.65+-6.62
+  endcap       +9.250e+00   -1.487e+01        +0.28       -1.20      +4.11+-6.22      -0.81+-5.99
+
+--- the same, inside the OUT (bulk) and IN populations ---
+  OUT (bulk 90%)   n=  71508  pred even   +0.23  pred odd   -3.74   meas even   -5.48+-3.92   meas odd   +0.65+-3.93
+  IN  (top 10%)    n=   7024  pred even   -0.06  pred odd   -1.10   meas even  +22.73+-14.06   meas odd  -38.95+-13.54
+
+
+############ python3 c5_scaling.py data/conv_base.npz data/conv_damp.npz ############
+
+==============================================================================
+=== SHAPE OF THE CHARGE-EVEN SHIFT -- conv_base
+    79562 tracks of 79965 (|x| < 10.0)
+==============================================================================
+
+  regressor ranges: sigma_rel 0.00624-0.09948, sigma 1.068e-04-1.667e-03 GeV^-1
+
+  --- ONE SHAPE AT A TIME (with its charge-odd twin as the control) ---
+  model                                         even coeff             odd coeff dchi2 even|odd
+  M1  c sigma_rel  (2nd order)          -0.081178+-    0.17     -0.38218+-    0.17           0.25
+  M2  D/sigma      (fixed dq/p)        -0.0021543+-  0.0077    -0.033771+-  0.0077           0.08
+  M2T D_T/(s cosh eta) (sagitta)         -0.01303+-   0.014    -0.052222+-   0.014           0.96
+  M3  constant pull                    -0.0017201+-  0.0036   -0.0031962+-  0.0036           0.24
+
+  --- ALL FOUR TOGETHER (even + odd columns) ---
+  M1  c sigma_rel  (2nd order)           -0.98458+-    0.55      -3.3772+-    0.55
+  M2  D/sigma      (fixed dq/p)         +0.049027+-    0.03      -0.1963+-    0.03
+  M2T D_T/(s cosh eta) (sagitta)         -0.10989+-   0.047     -0.39376+-   0.047
+  M3  constant pull                     +0.021699+-   0.019     +0.24531+-   0.019
+  joint dchi2 vs no effect = 223.62 for 8 parameters
+
+  --- what each single fit MEANS physically ---
+    M1  relative curvature bias = -0.0812 sigma_rel^2 (0.5 sigma); at sigma_rel = 0.018 that is -26.302e-6 relative
+    M2  Delta(q/p)  = -0.2154e-6 GeV^-1  (0.3 sigma)
+    M2T Delta(q/pT) = -1.3030e-6 GeV^-1 (1.0 sigma)  [the AN's |M| bound is 1e-4 GeV^-1]
+    M3  <x> = -1.720e-3 (0.5 sigma)
+
+  --- exogenous GEN pT x GEN |eta| grid, 24 cells, sigma_rel lever arm 4.95 ---
+  cell                               <sigma_rel>     <x>_even (1e-3)
+  pT 20-30 |eta| 0.00-0.40               0.00956         -3.99+-17.68
+  pT 30-40 |eta| 0.00-0.40               0.01022        -27.32+-17.76
+  pT 40-50 |eta| 0.00-0.40               0.01100         +4.76+-18.25
+  pT 20-30 |eta| 0.40-0.80               0.01143         +3.35+-20.97
+  pT 50-60 |eta| 0.00-0.40               0.01172        +22.36+-17.00
+  pT 30-40 |eta| 0.40-0.80               0.01202         -7.88+-18.37
+  pT 40-50 |eta| 0.40-0.80               0.01260        -47.16+-19.22
+  pT 50-60 |eta| 0.40-0.80               0.01323         -4.68+-15.04
+  pT 20-30 |eta| 0.80-1.20               0.01563         +1.91+-18.03
+  pT 30-40 |eta| 0.80-1.20               0.01632        +31.16+-20.96
+  pT 40-50 |eta| 0.80-1.20               0.01709        -35.44+-17.46
+  pT 50-60 |eta| 0.80-1.20               0.01792         -6.92+-18.06
+  pT 20-30 |eta| 1.20-1.60               0.01849        -17.81+-18.55
+  pT 30-40 |eta| 1.20-1.60               0.01946         -3.66+-19.37
+  pT 20-30 |eta| 1.60-2.00               0.01960         -2.65+-17.19
+  pT 40-50 |eta| 1.20-1.60               0.02030        +12.96+-18.30
+  pT 30-40 |eta| 1.60-2.00               0.02079        +21.70+-18.30
+  pT 50-60 |eta| 1.20-1.60               0.02115        -26.96+-18.76
+  pT 40-50 |eta| 1.60-2.00               0.02211        +13.31+-15.87
+  pT 50-60 |eta| 1.60-2.00               0.02352        +29.40+-18.59
+  pT 20-30 |eta| 2.00-2.40               0.03439         -3.23+-17.58
+  pT 30-40 |eta| 2.00-2.40               0.03799         +2.53+-16.36
+  pT 40-50 |eta| 2.00-2.40               0.04314        -14.13+-18.88
+  pT 50-60 |eta| 2.00-2.40               0.04728         -8.35+-17.34
+
+  chi2(no effect) = 26.04 / 24
+    M1  c sigma_rel          k = -0.096946 +- 0.15971 ( 0.6 sigma)  chi2   25.67/23  dchi2   -0.37
+    M2  D/sigma              k = -0.0029004 +- 0.0081292 ( 0.4 sigma)  chi2   25.91/23  dchi2   -0.13
+    M2T D_T/(s cosh eta)     k = -0.011235 +- 0.013726 ( 0.8 sigma)  chi2   25.37/23  dchi2   -0.67
+    M3  constant             k = -0.0027674 +- 0.0036604 ( 0.8 sigma)  chi2   25.47/23  dchi2   -0.57
+
+==============================================================================
+=== SHAPE OF THE CHARGE-EVEN SHIFT -- conv_damp
+    79562 tracks of 79961 (|x| < 10.0)
+==============================================================================
+
+  regressor ranges: sigma_rel 0.00624-0.09948, sigma 1.068e-04-1.667e-03 GeV^-1
+
+  --- ONE SHAPE AT A TIME (with its charge-odd twin as the control) ---
+  model                                         even coeff             odd coeff dchi2 even|odd
+  M1  c sigma_rel  (2nd order)           -0.08117+-    0.17     -0.38354+-    0.17           0.25
+  M2  D/sigma      (fixed dq/p)        -0.0021551+-  0.0077    -0.033836+-  0.0077           0.08
+  M2T D_T/(s cosh eta) (sagitta)         -0.01303+-   0.014    -0.052337+-   0.014           0.96
+  M3  constant pull                    -0.0017197+-  0.0036   -0.0032304+-  0.0036           0.24
+
+  --- ALL FOUR TOGETHER (even + odd columns) ---
+  M1  c sigma_rel  (2nd order)           -0.98442+-    0.55      -3.3772+-    0.55
+  M2  D/sigma      (fixed dq/p)         +0.049006+-    0.03     -0.19625+-    0.03
+  M2T D_T/(s cosh eta) (sagitta)         -0.10987+-   0.047     -0.39376+-   0.047
+  M3  constant pull                     +0.021702+-   0.019     +0.24526+-   0.019
+  joint dchi2 vs no effect = 223.59 for 8 parameters
+
+  --- what each single fit MEANS physically ---
+    M1  relative curvature bias = -0.0812 sigma_rel^2 (0.5 sigma); at sigma_rel = 0.018 that is -26.299e-6 relative
+    M2  Delta(q/p)  = -0.2155e-6 GeV^-1  (0.3 sigma)
+    M2T Delta(q/pT) = -1.3030e-6 GeV^-1 (1.0 sigma)  [the AN's |M| bound is 1e-4 GeV^-1]
+    M3  <x> = -1.720e-3 (0.5 sigma)
+
+  --- exogenous GEN pT x GEN |eta| grid, 24 cells, sigma_rel lever arm 4.92 ---
+  cell                               <sigma_rel>     <x>_even (1e-3)
+  pT 20-30 |eta| 0.00-0.40               0.00956         -4.00+-17.77
+  pT 30-40 |eta| 0.00-0.40               0.01022        -27.32+-16.80
+  pT 40-50 |eta| 0.00-0.40               0.01100         +4.51+-17.59
+  pT 20-30 |eta| 0.40-0.80               0.01143         +3.35+-21.36
+  pT 50-60 |eta| 0.00-0.40               0.01172        +22.37+-17.40
+  pT 30-40 |eta| 0.40-0.80               0.01202         -7.57+-18.37
+  pT 40-50 |eta| 0.40-0.80               0.01260        -47.19+-18.24
+  pT 50-60 |eta| 0.40-0.80               0.01323         -4.68+-19.20
+  pT 20-30 |eta| 0.80-1.20               0.01563         +1.91+-16.77
+  pT 30-40 |eta| 0.80-1.20               0.01632        +31.10+-20.08
+  pT 40-50 |eta| 0.80-1.20               0.01709        -35.38+-16.90
+  pT 50-60 |eta| 0.80-1.20               0.01792         -6.84+-17.74
+  pT 20-30 |eta| 1.20-1.60               0.01849        -17.81+-18.34
+  pT 30-40 |eta| 1.20-1.60               0.01946         -3.32+-17.67
+  pT 20-30 |eta| 1.60-2.00               0.01960         -2.65+-17.92
+  pT 40-50 |eta| 1.20-1.60               0.02030        +12.97+-16.79
+  pT 30-40 |eta| 1.60-2.00               0.02079        +21.33+-18.20
+  pT 50-60 |eta| 1.20-1.60               0.02115        -27.23+-17.68
+  pT 40-50 |eta| 1.60-2.00               0.02211        +13.20+-18.03
+  pT 50-60 |eta| 1.60-2.00               0.02351        +29.93+-18.73
+  pT 20-30 |eta| 2.00-2.40               0.03439         -3.38+-17.30
+  pT 30-40 |eta| 2.00-2.40               0.03797         +2.83+-18.53
+  pT 40-50 |eta| 2.00-2.40               0.04300        -14.71+-16.80
+  pT 50-60 |eta| 2.00-2.40               0.04704         -9.42+-16.13
+
+  chi2(no effect) = 27.91 / 24
+    M1  c sigma_rel          k = -0.1328 +- 0.15683 ( 0.8 sigma)  chi2   27.19/23  dchi2   -0.72
+    M2  D/sigma              k = -0.0049346 +- 0.0081556 ( 0.6 sigma)  chi2   27.54/23  dchi2   -0.37
+    M2T D_T/(s cosh eta)     k = -0.014253 +- 0.0139 ( 1.0 sigma)  chi2   26.85/23  dchi2   -1.05
+    M3  constant             k = -0.0035293 +- 0.0036405 ( 1.0 sigma)  chi2   26.97/23  dchi2   -0.94
+
+
+############ python3 c6_phi.py data/conv_base.npz data/conv_damp.npz ############
+
+==============================================================================
+=== PHI STRUCTURE -- conv_base
+==============================================================================
+  all eta    mean   -2.64+-3.64  chi2(flat)   7.25/11  cos1  +2.48+-5.05  sin1  +0.15+-5.25  cos2  +1.65+-5.23  sin2  +4.57+-5.07  cos3  -4.30+-5.14  sin3  -2.70+-5.14
+  barrel     mean   -4.35+-6.05  chi2(flat)   2.79/11  cos1  -4.27+-8.36  sin1  -0.52+-8.75  cos2  +0.46+-8.31  sin2  -3.18+-8.81  cos3  -5.41+-8.55  sin3  -0.80+-8.55
+  middle     mean   -9.00+-6.59  chi2(flat)  15.56/11  cos1  -7.93+-9.13  sin1  +9.19+-9.53  cos2  +6.34+-9.43  sin2  +2.92+-9.22  cos3 -10.54+-9.32  sin3 -11.74+-9.32
+  endcap     mean   +5.43+-6.29  chi2(flat)  11.31/11  cos1 +17.93+-8.87  sin1  -6.91+-8.93  cos2  -2.90+-9.01  sin2 +13.15+-8.78  cos3  -1.23+-8.90  sin3  +7.06+-8.90
+  per-bin all        chi2(no effect)   7.73/12  chi2(flat)   7.32/11  mean  -2.34e-3
+      +4.8+-11.9    +5.6+-15.4   -13.2+-13.2   -11.6+-12.6   +12.6+-12.3   -14.6+-12.0    +0.1+-11.7   +14.5+-11.5    -7.6+-13.5    -5.2+-12.6    -6.9+-13.0   -11.8+-14.0
+  per-bin even lumi  chi2(no effect)   7.74/12  chi2(flat)   6.91/11  mean  -4.61e-3
+      +2.5+-18.5   -10.7+-19.9   -22.5+-18.5    -9.9+-19.0    +0.8+-17.1   -16.5+-16.0    -0.4+-15.0   +19.3+-17.1   -23.5+-17.5   +20.3+-19.0    -5.9+-16.8    -9.5+-18.6
+  per-bin odd lumi   chi2(no effect)   9.72/12  chi2(flat)   9.53/11  mean  -2.21e-3
+      +6.9+-19.5   +22.3+-20.4    -3.5+-17.0   -13.1+-20.6   +24.7+-18.1   -12.7+-16.7    +0.9+-17.8    +9.5+-17.0    +8.3+-16.7   -30.6+-15.4    -8.2+-16.3   -14.0+-16.7
+  SPLIT-HALF: weighted corr(even, odd) = -0.107, chi2(even == odd) = 9.19/12
+    a REAL phi pattern gives a positive correlation and a small chi2; a fluctuation gives neither.
+  permutation null 0: chi2(no effect) =  11.36/12
+  permutation null 1: chi2(no effect) =  13.12/12
+  permutation null 2: chi2(no effect) =  11.69/12
+
+  --- UNBINNED harmonic scan, n = 1..40 (no aliasing, no binning) ---
+     n        cos [1e-3]        sin [1e-3]     power
+     8        +3.89+-5.08       +18.49+-5.11      13.7
+    10        -5.29+-5.11       +19.94+-5.09      16.4
+    17       -18.72+-5.10        +8.25+-5.10      16.1
+  total power n=1..40: 124.9 for 80 dof (expectation 80)
+  strongest: n=10 (16), n=17 (16), n=8 (14), n=18 (7), n=9 (7), n=27 (6)
+
+  --- where the strongest harmonics live ---
+  selection                        n=8 sin          n=10 sin
+  barrel                        +16.3+- 8.4        +18.1+- 8.3
+  middle                         +5.5+- 9.4        +20.1+- 9.3
+  endcap                        +32.3+- 8.9        +21.8+- 8.8
+  nValidPixelHits==0            -19.9+-28.7        +16.1+-27.9
+  nValidPixelHits==1            +54.6+-12.5         +7.4+-12.2
+  nValidPixelHits==2             +9.2+- 8.3        +16.2+- 8.1
+  nValidPixelHits==3            +16.8+- 8.6        +33.9+- 8.7
+  nValidPixelHits==4             -0.5+-20.8        +11.2+-21.0
+  mixture OUT (bulk)            +17.3+- 5.3        +20.3+- 5.3
+  mixture IN (top 10%)          +29.3+-18.5        +16.2+-17.9
+
+==============================================================================
+=== PHI STRUCTURE -- conv_damp
+==============================================================================
+  all eta    mean   -3.11+-3.62  chi2(flat)   7.26/11  cos1  +2.22+-5.09  sin1  +0.96+-5.16  cos2  +2.08+-5.04  sin2  +4.64+-5.21  cos3  -4.72+-5.12  sin3  -2.24+-5.12
+  barrel     mean   -4.59+-6.28  chi2(flat)   2.54/11  cos1  -4.31+-8.73  sin1  -0.50+-9.05  cos2  -0.07+-8.79  sin2  -2.52+-8.98  cos3  -4.98+-8.88  sin3  -1.14+-8.88
+  middle     mean  -10.17+-6.86  chi2(flat)  14.37/11  cos1  -8.84+-9.61  sin1 +10.01+-9.80  cos2  +8.24+-9.79  sin2  +4.70+-9.62  cos3 -10.04+-9.70  sin3 -11.55+-9.70
+  endcap     mean   +6.34+-6.12  chi2(flat)  12.32/11  cos1 +19.08+-8.64  sin1  -3.91+-8.67  cos2  -1.22+-8.65  sin2 +14.73+-8.66  cos3  +0.11+-8.65  sin3  +7.86+-8.65
+  per-bin all        chi2(no effect)   7.29/12  chi2(flat)   6.53/11  mean  -3.21e-3
+      +4.7+-12.0    +5.7+-13.1   -13.4+-11.3   -11.7+-13.4   +12.5+-14.5   -14.6+-13.7    +0.1+-11.6   +14.5+-13.4    -7.6+-12.4    -5.2+-13.4    -6.9+-13.6   -12.0+-12.3
+  per-bin even lumi  chi2(no effect)   7.32/12  chi2(flat)   6.66/11  mean  -4.35e-3
+      +2.4+-17.6   -10.7+-21.0   -22.9+-18.6   -10.3+-19.2    +0.8+-17.4   -16.5+-17.6    -0.4+-18.7   +19.3+-17.1   -23.5+-18.3   +20.3+-19.3    -5.9+-18.7    -9.4+-20.2
+  per-bin odd lumi   chi2(no effect)   9.83/12  chi2(flat)   9.82/11  mean  -0.47e-3
+      +6.7+-18.4   +22.4+-17.2    -3.5+-19.8   -13.0+-21.7   +24.6+-16.1   -12.7+-15.8    +0.9+-16.8    +9.5+-19.0    +8.3+-17.6   -30.6+-16.9    -8.2+-17.0   -14.6+-18.7
+  SPLIT-HALF: weighted corr(even, odd) = -0.099, chi2(even == odd) = 8.81/12
+    a REAL phi pattern gives a positive correlation and a small chi2; a fluctuation gives neither.
+  permutation null 0: chi2(no effect) =   9.83/12
+  permutation null 1: chi2(no effect) =  23.48/12
+  permutation null 2: chi2(no effect) =   6.66/12
+
+  --- UNBINNED harmonic scan, n = 1..40 (no aliasing, no binning) ---
+     n        cos [1e-3]        sin [1e-3]     power
+     8        +3.94+-5.08       +18.48+-5.11      13.7
+    10        -5.27+-5.11       +19.99+-5.09      16.5
+    17       -18.65+-5.10        +8.26+-5.10      16.0
+  total power n=1..40: 124.9 for 80 dof (expectation 80)
+  strongest: n=10 (17), n=17 (16), n=8 (14), n=18 (7), n=9 (7), n=27 (6)
+
+  --- where the strongest harmonics live ---
+  selection                        n=8 sin          n=10 sin
+  barrel                        +16.3+- 8.4        +18.1+- 8.3
+  middle                         +5.5+- 9.4        +20.1+- 9.3
+  endcap                        +32.3+- 8.9        +21.9+- 8.8
+  nValidPixelHits==0            -20.1+-28.7        +17.8+-27.9
+  nValidPixelHits==1            +54.6+-12.5         +7.4+-12.2
+  nValidPixelHits==2             +9.2+- 8.3        +16.2+- 8.1
+  nValidPixelHits==3            +16.8+- 8.6        +33.9+- 8.7
+  nValidPixelHits==4             -0.5+-20.8        +11.2+-21.0
+  mixture OUT (bulk)            +17.3+- 5.3        +20.3+- 5.3
+  mixture IN (top 10%)          +29.5+-18.5        +16.7+-17.9
+
+
+############ python3 c7_eta.py data/conv_base.npz data/conv_damp.npz ############
+
+==============================================================================
+=== ETA STRUCTURE -- conv_base
+==============================================================================
+  charge-even <x> in 24 bins of SIGNED gen eta [1e-3]
+  eta -2.4..-1.2    +7.6+-17.4   +6.0+-17.6  +14.3+-17.6  +30.4+-18.2  -45.6+-17.9   +7.8+-17.5
+  eta -1.2..+0.0   -13.3+-17.8  -16.9+-17.6  -22.1+-18.0  +18.8+-17.5  +13.3+-17.6   -7.1+-18.4
+  eta +0.0..+1.2   -23.4+-18.0  +11.5+-17.3  -31.6+-17.5   -7.6+-18.1  -10.9+-17.5  +22.2+-17.8
+  eta +1.2..+2.4    -0.3+-17.6  +20.6+-17.0  +10.0+-17.9   +9.4+-17.2   +7.9+-17.6  -41.8+-17.4
+  mean -1.57+-3.60 e-3   chi2(no effect) 30.9/24   chi2(FLAT) 30.7/23
+  eta-EVEN 0.5(N+S):  -15.2  +12.4   -6.4  -14.8  -13.9   +4.5   +3.7  -12.5  +20.2  +11.8   +7.0  -17.1
+  eta-ODD  0.5(N-S):   -8.2   -0.9  -25.2   +7.3   +3.0  +17.7   -4.1  +33.1  -10.2   -2.5   +1.0  -24.7
+  chi2(eta-ODD == 0) = 18.9/12  -- a z-antisymmetric sagitta twist would live here
+
+==============================================================================
+=== ETA STRUCTURE -- conv_damp
+==============================================================================
+  charge-even <x> in 24 bins of SIGNED gen eta [1e-3]
+  eta -2.4..-1.2    +7.0+-17.4   +6.0+-17.6  +14.3+-17.6  +30.4+-18.2  -45.6+-17.9   +7.8+-17.5
+  eta -1.2..+0.0   -13.3+-17.8  -16.9+-17.6  -22.1+-18.0  +18.8+-17.5  +13.3+-17.6   -7.1+-18.4
+  eta +0.0..+1.2   -23.4+-18.0  +11.5+-17.3  -31.6+-17.5   -7.6+-18.1  -10.9+-17.5  +22.2+-17.8
+  eta +1.2..+2.4    -0.3+-17.6  +20.6+-17.0  +10.0+-17.9   +9.4+-17.2   +7.9+-17.6  -42.6+-17.4
+  mean -1.62+-3.60 e-3   chi2(no effect) 31.1/24   chi2(FLAT) 30.9/23
+  eta-EVEN 0.5(N+S):  -15.2  +12.4   -6.4  -14.8  -13.9   +4.5   +3.8  -12.5  +20.2  +11.8   +7.0  -17.8
+  eta-ODD  0.5(N-S):   -8.2   -0.9  -25.2   +7.3   +3.0  +17.7   -4.1  +33.1  -10.2   -2.5   +1.0  -24.8
+  chi2(eta-ODD == 0) = 18.9/12  -- a z-antisymmetric sagitta twist would live here
+
+
+############ python3 c8_phiquad.py data/conv_base.npz ############
+
+==============================================================================
+=== PHI QUADRATURES -- conv_base
+==============================================================================
+     n   EVEN cos   EVEN sin    ODD cos    ODD sin     err
+     8       +3.9      +18.5       +5.5       +2.9     5.1
+    10       -5.3      +19.9       -1.8       -7.0     5.1
+    17      -18.7       +8.3       +2.3       +2.7     5.1
+
+  (1) if the ODD amplitudes are null there is no charge-odd source to rotate.
+  (2) pT dependence of the EVEN amplitude. Rotated-odd ~ 1/pT (falls x3 over the range);
+      genuine-even ~ cos(n delta) (flat, or rising slightly).
+    n = 8:
+      pT  20.0- 29.9  even cos   -1.2  even sin  +14.9  odd cos  +23.4  odd sin  -11.2   +-10.1
+      pT  29.9- 40.0  even cos   -5.8  even sin  +17.0  odd cos   -7.4  odd sin  +13.7   +-10.1
+      pT  40.0- 50.0  even cos  +15.2  even sin  +45.6  odd cos   +4.5  odd sin  +17.5   +-10.2
+      pT  50.0- 60.0  even cos   +7.1  even sin   -3.4  odd cos   +1.4  odd sin   -8.0   +-10.3
+    n = 10:
+      pT  20.0- 29.9  even cos   +0.2  even sin   +6.1  odd cos   -5.9  odd sin   -8.4   +-10.3
+      pT  29.9- 40.0  even cos  -15.6  even sin  +15.1  odd cos   +8.1  odd sin  -13.3   +-10.1
+      pT  40.0- 50.0  even cos   -6.2  even sin  +28.8  odd cos   +9.1  odd sin   -1.4   +-10.3
+      pT  50.0- 60.0  even cos   +0.6  even sin  +29.6  odd cos  -18.6  odd sin   -5.1   +-10.3
+    n = 17:
+      pT  20.0- 29.9  even cos  -30.2  even sin  +17.8  odd cos   +4.4  odd sin  -13.1   +-10.2
+      pT  29.9- 40.0  even cos  -18.8  even sin   -8.5  odd cos   +3.7  odd sin   +7.2   +-10.2
+      pT  40.0- 50.0  even cos   -5.4  even sin  +18.3  odd cos   +3.5  odd sin   -1.2   +-10.2
+      pT  50.0- 60.0  even cos  -20.4  even sin   +5.5  odd cos   -2.5  odd sin  +17.7   +-10.2
+
+
+############ python3 c3_figs.py ############

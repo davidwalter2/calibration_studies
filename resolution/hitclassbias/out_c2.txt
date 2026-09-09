@@ -1,0 +1,99 @@
+
+==============================================================================
+=== PAIRED base -> tight
+==============================================================================
+base: 79965   tight: 79966   paired 79964
+
+tracks whose q/p MOVED at all: 37984 / 79964 (47.501 %)
+   among those: median |dq/p| = 2.555e-07   p90 1.458e-06   max 2.148e-04
+niter: <A> 2.1897 -> <B> 2.8702   <dniter> +0.6804
+chi2/ndof: <A> 0.998874 -> <B> 0.998874   <dchi2n> +0.000e+00   (improved for 0.00 % of tracks)
+sigma: <d sigma/sigma> +1.716e-06
+
+=== per-track CHANGE, charge-even and charge-odd, per eta band ===
+band                   <d(q/p)/(q/p)>_even                  _odd      <dx>_even (1e-3)
+barrel                 +2.616e-09+- 1.9e-09     +1.677e-11         +0.000+-0.000
+middle                 -9.400e-09+- 4.9e-09     +1.425e-09         -0.000+-0.000
+endcap                 +7.463e-10+- 1.7e-08     -2.577e-08         -0.000+-0.000
+ALL                    -1.454e-09+- 5.5e-09                        -0.000+-0.000   (<dz>_even -0.000+-0.000 e-3)
+
+=== the STATISTIC in each variant on the SAME paired tracks ===
+band                                base                 tight        B - A (paired)
+barrel                      -4.29+-6.27          -4.29+-6.39         +0.000+-0.000
+middle                     -10.04+-6.93         -10.04+-6.94         -0.000+-0.000
+endcap                      +5.19+-6.21          +5.19+-6.05         -0.000+-0.000
+
+=== the MIXTURE, recomputed in each variant on the paired set ===
+  base         IN   +41.87+-61.02  +30.07+-32.86  +16.74+-14.68   comb  +20.02+-13.09
+  base         OUT   -5.44+- 6.26  -13.06+- 6.99   +1.97+- 6.80   comb   -5.38+-3.85
+  tight        IN   +41.87+-62.76  +29.49+-36.13  +16.98+-14.49   comb  +19.73+-13.15
+  tight        OUT   -5.44+- 6.34  -13.02+- 7.49   +1.90+- 7.26   comb   -5.37+-4.03
+  paired B-A inside A's populations:
+    IN  <dx>_even =   -0.000+-0.001 e-3  (n=7997)
+    OUT <dx>_even =   +0.000+-0.000 e-3  (n=71967)
+
+==============================================================================
+=== PAIRED base -> damp
+==============================================================================
+base: 79965   damp: 79961   paired 79958
+
+tracks whose q/p MOVED at all: 78974 / 79958 (98.769 %)
+   among those: median |dq/p| = 2.467e-06   p90 6.083e-06   max 1.501e-03
+niter: <A> 2.1897 -> <B> 3.4998   <dniter> +1.3101
+chi2/ndof: <A> 0.998894 -> <B> 0.998894   <dchi2n> +0.000e+00   (improved for 0.00 % of tracks)
+sigma: <d sigma/sigma> +9.806e-07
+
+=== per-track CHANGE, charge-even and charge-odd, per eta band ===
+band                   <d(q/p)/(q/p)>_even                  _odd      <dx>_even (1e-3)
+barrel                 +8.675e-09+- 1.4e-08     -3.789e-07         +0.001+-0.001
+middle                 +6.037e-08+- 5.9e-08     -1.034e-06         +0.003+-0.003
+endcap                 -6.498e-08+- 8.6e-08     -5.971e-07         -0.003+-0.004
+ALL                    -8.330e-10+- 3.4e-08                        +0.000+-0.002   (<dz>_even +0.000+-0.002 e-3)
+
+=== the STATISTIC in each variant on the SAME paired tracks ===
+band                                base                  damp        B - A (paired)
+barrel                      -4.29+-6.22          -4.29+-6.30         +0.001+-0.001
+middle                     -10.04+-6.96         -10.04+-6.82         +0.003+-0.003
+endcap                      +5.04+-6.17          +5.04+-6.17         -0.003+-0.004
+
+=== the MIXTURE, recomputed in each variant on the paired set ===
+  base         IN   +42.49+-57.56  +29.57+-32.46  +15.85+-14.64   comb  +19.41+-13.00
+  base         OUT   -5.46+- 6.04  -13.02+- 7.16   +2.03+- 7.10   comb   -5.44+-3.87
+  damp         IN   +43.47+-58.45  +29.56+-35.18  +16.06+-14.31   comb  +19.23+-12.93
+  damp         OUT   -5.48+- 6.08  -13.02+- 6.69   +1.97+- 7.37   comb   -5.94+-3.84
+  paired B-A inside A's populations:
+    IN  <dx>_even =   -0.002+-0.003 e-3  (n=7996)
+    OUT <dx>_even =   +0.001+-0.002 e-3  (n=71962)
+
+==============================================================================
+=== PAIRED tight -> damp
+==============================================================================
+tight: 79966   damp: 79961   paired 79959
+
+tracks whose q/p MOVED at all: 78962 / 79959 (98.753 %)
+   among those: median |dq/p| = 2.473e-06   p90 6.094e-06   max 1.501e-03
+niter: <A> 2.8702 -> <B> 3.4998   <dniter> +0.6297
+chi2/ndof: <A> 0.998889 -> <B> 0.998889   <dchi2n> +0.000e+00   (improved for 0.00 % of tracks)
+sigma: <d sigma/sigma> -7.195e-07
+
+=== per-track CHANGE, charge-even and charge-odd, per eta band ===
+band                   <d(q/p)/(q/p)>_even                  _odd      <dx>_even (1e-3)
+barrel                 +6.059e-09+- 1.4e-08     -3.789e-07         +0.001+-0.001
+middle                 +6.977e-08+- 5.8e-08     -1.036e-06         +0.004+-0.003
+endcap                 -6.690e-08+- 8.1e-08     -5.725e-07         -0.003+-0.004
+ALL                    +2.335e-10+- 3.3e-08                        +0.000+-0.002   (<dz>_even +0.000+-0.002 e-3)
+
+=== the STATISTIC in each variant on the SAME paired tracks ===
+band                               tight                  damp        B - A (paired)
+barrel                      -4.29+-6.11          -4.29+-6.42         +0.001+-0.001
+middle                     -10.04+-7.03         -10.04+-6.76         +0.004+-0.003
+endcap                      +5.01+-6.43          +5.01+-6.02         -0.003+-0.004
+
+=== the MIXTURE, recomputed in each variant on the paired set ===
+  tight        IN   +42.49+-59.20  +29.57+-32.85  +16.08+-14.97   comb  +19.61+-13.27
+  tight        OUT   -5.46+- 6.11  -13.02+- 7.18   +1.93+- 6.53   comb   -5.08+-3.79
+  damp         IN   +43.47+-58.31  +29.56+-34.23  +16.01+-13.34   comb  +18.92+-12.16
+  damp         OUT   -5.48+- 6.46  -13.02+- 6.48   +1.95+- 7.18   comb   -6.01+-3.86
+  paired B-A inside A's populations:
+    IN  <dx>_even =   -0.002+-0.003 e-3  (n=7996)
+    OUT <dx>_even =   +0.001+-0.002 e-3  (n=71963)

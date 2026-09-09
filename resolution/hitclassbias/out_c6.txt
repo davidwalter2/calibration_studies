@@ -1,0 +1,80 @@
+
+==============================================================================
+=== PHI STRUCTURE -- conv_base_t40
+==============================================================================
+  all eta    mean   -2.64+-3.64  chi2(flat)   7.25/11  cos1  +2.48+-5.05  sin1  +0.15+-5.25  cos2  +1.65+-5.23  sin2  +4.57+-5.07  cos3  -4.30+-5.14  sin3  -2.70+-5.14
+  barrel     mean   -4.35+-6.05  chi2(flat)   2.79/11  cos1  -4.27+-8.36  sin1  -0.52+-8.75  cos2  +0.46+-8.31  sin2  -3.18+-8.81  cos3  -5.41+-8.55  sin3  -0.80+-8.55
+  middle     mean   -9.00+-6.59  chi2(flat)  15.56/11  cos1  -7.93+-9.13  sin1  +9.19+-9.53  cos2  +6.34+-9.43  sin2  +2.92+-9.22  cos3 -10.54+-9.32  sin3 -11.74+-9.32
+  endcap     mean   +5.43+-6.29  chi2(flat)  11.31/11  cos1 +17.93+-8.87  sin1  -6.91+-8.93  cos2  -2.90+-9.01  sin2 +13.15+-8.78  cos3  -1.23+-8.90  sin3  +7.06+-8.90
+  per-bin all        chi2(no effect)   7.73/12  chi2(flat)   7.32/11  mean  -2.34e-3
+      +4.8+-11.9    +5.6+-15.4   -13.2+-13.2   -11.6+-12.6   +12.6+-12.3   -14.6+-12.0    +0.1+-11.7   +14.5+-11.5    -7.6+-13.5    -5.2+-12.6    -6.9+-13.0   -11.8+-14.0
+  per-bin even lumi  chi2(no effect)   7.74/12  chi2(flat)   6.91/11  mean  -4.61e-3
+      +2.5+-18.5   -10.7+-19.9   -22.5+-18.5    -9.9+-19.0    +0.8+-17.1   -16.5+-16.0    -0.4+-15.0   +19.3+-17.1   -23.5+-17.5   +20.3+-19.0    -5.9+-16.8    -9.5+-18.6
+  per-bin odd lumi   chi2(no effect)   9.72/12  chi2(flat)   9.53/11  mean  -2.21e-3
+      +6.9+-19.5   +22.3+-20.4    -3.5+-17.0   -13.1+-20.6   +24.7+-18.1   -12.7+-16.7    +0.9+-17.8    +9.5+-17.0    +8.3+-16.7   -30.6+-15.4    -8.2+-16.3   -14.0+-16.7
+  SPLIT-HALF: weighted corr(even, odd) = -0.107, chi2(even == odd) = 9.19/12
+    a REAL phi pattern gives a positive correlation and a small chi2; a fluctuation gives neither.
+  permutation null 0: chi2(no effect) =  11.36/12
+  permutation null 1: chi2(no effect) =  13.12/12
+  permutation null 2: chi2(no effect) =  11.69/12
+
+  --- UNBINNED harmonic scan, n = 1..40 (no aliasing, no binning) ---
+     n        cos [1e-3]        sin [1e-3]     power
+     8        +3.89+-5.08       +18.49+-5.11      13.7
+    10        -5.29+-5.11       +19.94+-5.09      16.4
+    17       -18.72+-5.10        +8.25+-5.10      16.1
+  total power n=1..40: 124.9 for 80 dof (expectation 80)
+  strongest: n=10 (16), n=17 (16), n=8 (14), n=18 (7), n=9 (7), n=27 (6)
+
+  --- where the strongest harmonics live ---
+  selection                        n=8 sin          n=10 sin
+  barrel                        +16.3+- 8.4        +18.1+- 8.3
+  middle                         +5.5+- 9.4        +20.1+- 9.3
+  endcap                        +32.3+- 8.9        +21.8+- 8.8
+  nValidPixelHits==0            -19.9+-28.7        +16.1+-27.9
+  nValidPixelHits==1            +54.6+-12.5         +7.4+-12.2
+  nValidPixelHits==2             +9.2+- 8.3        +16.2+- 8.1
+  nValidPixelHits==3            +16.8+- 8.6        +33.9+- 8.7
+  nValidPixelHits==4             -0.5+-20.8        +11.2+-21.0
+  mixture OUT (bulk)            +17.3+- 5.3        +20.3+- 5.3
+  mixture IN (top 10%)          +29.3+-18.5        +16.2+-17.9
+
+==============================================================================
+=== PHI STRUCTURE -- conv_damp_t40
+==============================================================================
+  all eta    mean   -3.11+-3.62  chi2(flat)   7.26/11  cos1  +2.22+-5.09  sin1  +0.96+-5.16  cos2  +2.08+-5.04  sin2  +4.64+-5.21  cos3  -4.72+-5.12  sin3  -2.24+-5.12
+  barrel     mean   -4.59+-6.28  chi2(flat)   2.54/11  cos1  -4.31+-8.73  sin1  -0.50+-9.05  cos2  -0.07+-8.79  sin2  -2.52+-8.98  cos3  -4.98+-8.88  sin3  -1.14+-8.88
+  middle     mean  -10.17+-6.86  chi2(flat)  14.37/11  cos1  -8.84+-9.61  sin1 +10.01+-9.80  cos2  +8.24+-9.79  sin2  +4.70+-9.62  cos3 -10.04+-9.70  sin3 -11.55+-9.70
+  endcap     mean   +6.34+-6.12  chi2(flat)  12.32/11  cos1 +19.08+-8.64  sin1  -3.91+-8.67  cos2  -1.22+-8.65  sin2 +14.73+-8.66  cos3  +0.11+-8.65  sin3  +7.86+-8.65
+  per-bin all        chi2(no effect)   7.29/12  chi2(flat)   6.53/11  mean  -3.21e-3
+      +4.7+-12.0    +5.7+-13.1   -13.4+-11.3   -11.7+-13.4   +12.5+-14.5   -14.6+-13.7    +0.1+-11.6   +14.5+-13.4    -7.6+-12.4    -5.2+-13.4    -6.9+-13.6   -12.0+-12.3
+  per-bin even lumi  chi2(no effect)   7.32/12  chi2(flat)   6.66/11  mean  -4.35e-3
+      +2.4+-17.6   -10.7+-21.0   -22.9+-18.6   -10.3+-19.2    +0.8+-17.4   -16.5+-17.6    -0.4+-18.7   +19.3+-17.1   -23.5+-18.3   +20.3+-19.3    -5.9+-18.7    -9.4+-20.2
+  per-bin odd lumi   chi2(no effect)   9.83/12  chi2(flat)   9.82/11  mean  -0.47e-3
+      +6.7+-18.4   +22.4+-17.2    -3.5+-19.8   -13.0+-21.7   +24.6+-16.1   -12.7+-15.8    +0.9+-16.8    +9.5+-19.0    +8.3+-17.6   -30.6+-16.9    -8.2+-17.0   -14.6+-18.7
+  SPLIT-HALF: weighted corr(even, odd) = -0.099, chi2(even == odd) = 8.81/12
+    a REAL phi pattern gives a positive correlation and a small chi2; a fluctuation gives neither.
+  permutation null 0: chi2(no effect) =   9.83/12
+  permutation null 1: chi2(no effect) =  23.48/12
+  permutation null 2: chi2(no effect) =   6.66/12
+
+  --- UNBINNED harmonic scan, n = 1..40 (no aliasing, no binning) ---
+     n        cos [1e-3]        sin [1e-3]     power
+     8        +3.94+-5.08       +18.48+-5.11      13.7
+    10        -5.27+-5.11       +19.99+-5.09      16.5
+    17       -18.65+-5.10        +8.26+-5.10      16.0
+  total power n=1..40: 124.9 for 80 dof (expectation 80)
+  strongest: n=10 (17), n=17 (16), n=8 (14), n=18 (7), n=9 (7), n=27 (6)
+
+  --- where the strongest harmonics live ---
+  selection                        n=8 sin          n=10 sin
+  barrel                        +16.3+- 8.4        +18.1+- 8.3
+  middle                         +5.5+- 9.4        +20.1+- 9.3
+  endcap                        +32.3+- 8.9        +21.9+- 8.8
+  nValidPixelHits==0            -20.1+-28.7        +17.8+-27.9
+  nValidPixelHits==1            +54.6+-12.5         +7.4+-12.2
+  nValidPixelHits==2             +9.2+- 8.3        +16.2+- 8.1
+  nValidPixelHits==3            +16.8+- 8.6        +33.9+- 8.7
+  nValidPixelHits==4             -0.5+-20.8        +11.2+-21.0
+  mixture OUT (bulk)            +17.3+- 5.3        +20.3+- 5.3
+  mixture IN (top 10%)          +29.5+-18.5        +16.7+-17.9

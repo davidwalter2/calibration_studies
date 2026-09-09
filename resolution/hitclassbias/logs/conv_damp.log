@@ -1,10 +1,50 @@
-[run ] mugun_ul16_260909_conv_damp 0
-[run ] mugun_ul16_260909_conv_damp 1
-[run ] mugun_ul16_260909_conv_damp 2
-[run ] mugun_ul16_260909_conv_damp 3
-[run ] mugun_ul16_260909_conv_damp 4
-[run ] mugun_ul16_260909_conv_damp 5
-[run ] mugun_ul16_260909_conv_damp 6
-[run ] mugun_ul16_260909_conv_damp 7
-[run ] mugun_ul16_260909_conv_damp 8
-[run ] mugun_ul16_260909_conv_damp 9
+[skip] mugun_ul16_260909_conv_damp 0
+[skip] mugun_ul16_260909_conv_damp 2
+[skip] mugun_ul16_260909_conv_damp 1
+[skip] mugun_ul16_260909_conv_damp 3
+[skip] mugun_ul16_260909_conv_damp 5
+[skip] mugun_ul16_260909_conv_damp 4
+[skip] mugun_ul16_260909_conv_damp 6
+[skip] mugun_ul16_260909_conv_damp 7
+[skip] mugun_ul16_260909_conv_damp 8
+[skip] mugun_ul16_260909_conv_damp 9
+[skip] mugun_ul16_260909_conv_damp 10
+[skip] mugun_ul16_260909_conv_damp 11
+[skip] mugun_ul16_260909_conv_damp 12
+[skip] mugun_ul16_260909_conv_damp 13
+[skip] mugun_ul16_260909_conv_damp 14
+[skip] mugun_ul16_260909_conv_damp 16
+[skip] mugun_ul16_260909_conv_damp 15
+[skip] mugun_ul16_260909_conv_damp 17
+[skip] mugun_ul16_260909_conv_damp 18
+[skip] mugun_ul16_260909_conv_damp 19
+[skip] mugun_ul16_260909_conv_damp 20
+[skip] mugun_ul16_260909_conv_damp 21
+[skip] mugun_ul16_260909_conv_damp 22
+[skip] mugun_ul16_260909_conv_damp 23
+[skip] mugun_ul16_260909_conv_damp 24
+[skip] mugun_ul16_260909_conv_damp 25
+[skip] mugun_ul16_260909_conv_damp 26
+[skip] mugun_ul16_260909_conv_damp 27
+[skip] mugun_ul16_260909_conv_damp 28
+[skip] mugun_ul16_260909_conv_damp 29
+[skip] mugun_ul16_260909_conv_damp 30
+[skip] mugun_ul16_260909_conv_damp 32
+[skip] mugun_ul16_260909_conv_damp 31
+[skip] mugun_ul16_260909_conv_damp 33
+[skip] mugun_ul16_260909_conv_damp 34
+[skip] mugun_ul16_260909_conv_damp 35
+[skip] mugun_ul16_260909_conv_damp 36
+[skip] mugun_ul16_260909_conv_damp 37
+[skip] mugun_ul16_260909_conv_damp 38
+[skip] mugun_ul16_260909_conv_damp 39
+[run ] mugun_ul16_260909_conv_damp 40
+[run ] mugun_ul16_260909_conv_damp 41
+[run ] mugun_ul16_260909_conv_damp 42
+[run ] mugun_ul16_260909_conv_damp 43
+[run ] mugun_ul16_260909_conv_damp 44
+[run ] mugun_ul16_260909_conv_damp 45
+[run ] mugun_ul16_260909_conv_damp 46
+[run ] mugun_ul16_260909_conv_damp 47
+[run ] mugun_ul16_260909_conv_damp 48
+[run ] mugun_ul16_260909_conv_damp 49

@@ -5488,3 +5488,11 @@ the density is not on the list and was not used.**
 Recorded in passing: the start-point Hessian of `joint_ok_full` occupies
 **141.4 GB of an H200's 143.8 GB** at 99 % utilisation. Phase 2 at full size is
 at 98 % of the largest card available, so it has no headroom for a third term.
+
+**Addendum to 0f.57 -- why `P2smoke` survived.** `make_card.py --maxn` is a
+RANDOM subsample, not a head slice (`rng.choice(idx, maxn, replace=False)` at
+`make_card.py:402`, seeded). So `joint_ok_n500k` and `joint_ok_full` are
+different draws, and the 500 k draw simply does not contain either bad
+candidate. There is nothing else different between the two cards: the smoke
+fit's success was luck of the draw, and every re-draw of a J/psi leg at this
+size is exposed.

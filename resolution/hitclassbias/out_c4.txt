@@ -1,0 +1,96 @@
+
+==============================================================================
+=== SECOND-ORDER GN BIAS -- conv_base_t40
+==============================================================================
+tracks used 78535 of 79965 (|d1| < 3.608e-04, |d2| < 5.088e-06 GeV^-1)
+scales:  rms(d1) 6.9276e-05   rms(d2) 7.2188e-07   <sigma> 2.4784e-04   rms(d1)/<sigma> 0.28
+
+--- d2 = b0 + a d1 + (K/2) d1^2, fitted per charge ---
+  q = +1  n=  39255   b0 +5.145e-08   a -0.00003+-0.00005   K +2.1210e+01+-6.1032e-01 GeV
+          -> predicted <z> = -(K/2) sigma =   -2.640 +- 0.076 e-3   (<sigma> 2.489e-04)
+  q = -1  n=  39280   b0 -5.758e-08   a +0.00022+-0.00005   K -2.1952e+01+-6.1226e-01 GeV
+          -> predicted <z> = -(K/2) sigma =   +2.709 +- 0.076 e-3   (<sigma> 2.468e-04)
+
+  PREDICTED charge-EVEN <z> =   +0.034 +- 0.054 e-3
+  PREDICTED charge-ODD  <z> =   -2.674 +- 0.054 e-3
+  (K_+ +2.1210e+01, K_- -2.1952e+01; the mirror argument says K_- = -K_+,
+   i.e. a PURE charge-odd prediction, and K_+ + K_- = -7.427e-01 +- 8.645e-01 measures the chiral part)
+
+--- the same prediction with K refitted in quintiles of sigma ---
+  charge  sigma bin                 <sigma>            K  -(K/2)<sigma>   weight
+        +11.082e-04-1.785e-04     1.534e-04  +3.3981e+01         -2.606     7851
+        +11.785e-04-2.128e-04     1.961e-04  +2.7521e+01         -2.699     7851
+        +12.128e-04-2.509e-04     2.308e-04  +2.9297e+01         -3.381     7851
+        +12.509e-04-3.135e-04     2.786e-04  +1.2118e+01         -1.688     7851
+        +13.135e-04-1.926e-03     3.857e-04  +2.2007e+01         -4.244     7851
+          -> combined                                            -2.924
+        -11.068e-04-1.780e-04     1.533e-04  -4.3566e+01         +3.339     7856
+        -11.780e-04-2.114e-04     1.951e-04  -2.4082e+01         +2.349     7856
+        -12.114e-04-2.496e-04     2.294e-04  -1.6054e+01         +1.842     7856
+        -12.496e-04-3.075e-04     2.758e-04  -2.1973e+01         +3.030     7856
+        -13.075e-04-2.203e-03     3.802e-04  -2.0751e+01         +3.945     7856
+          -> combined                                            +2.901
+  sigma-binned PREDICTED charge-EVEN <z> =   -0.011 e-3
+  sigma-binned PREDICTED charge-ODD  <z> =   -2.912 e-3
+
+--- the MEASURED moments on the same tracks, for comparison ---
+  MEASURED charge-EVEN  <x> =   -2.968+-3.647 e-3    (<z> =   -2.775+-3.679 e-3)
+  MEASURED charge-ODD   <x> =   -2.812+-3.333 e-3    (<z> =  -17.449+-3.712 e-3)
+
+--- per eta band: K, the prediction, and the measurement ---
+  band                K_+          K_-    pred even    pred odd       meas even        meas odd
+  barrel       +1.403e+01   -1.300e+01        -0.09       -1.86      -2.84+-6.30      -1.74+-6.23
+  middle       +4.648e+01   -4.303e+01        -0.24       -6.00     -11.07+-6.66      -6.58+-6.44
+  endcap       +9.402e+00   -1.529e+01        +0.29       -1.23      +4.03+-6.93      -0.65+-6.01
+
+--- the same, inside the OUT (bulk) and IN populations ---
+  OUT (bulk 90%)   n=  71506  pred even   +0.22  pred odd   -3.91   meas even   -5.52+-3.66   meas odd   +0.74+-3.48
+  IN  (top 10%)    n=   7029  pred even   -0.06  pred odd   -1.14   meas even  +22.30+-13.13   meas odd  -38.44+-13.87
+
+==============================================================================
+=== SECOND-ORDER GN BIAS -- conv_damp_t40
+==============================================================================
+tracks used 78532 of 79961 (|d1| < 3.601e-04, |d2| < 5.004e-06 GeV^-1)
+scales:  rms(d1) 6.9227e-05   rms(d2) 6.8846e-07   <sigma> 2.4782e-04   rms(d1)/<sigma> 0.28
+
+--- d2 = b0 + a d1 + (K/2) d1^2, fitted per charge ---
+  q = +1  n=  39257   b0 +4.445e-08   a -0.00002+-0.00005   K +2.0578e+01+-5.8410e-01 GeV
+          -> predicted <z> = -(K/2) sigma =   -2.561 +- 0.073 e-3   (<sigma> 2.489e-04)
+  q = -1  n=  39275   b0 -4.987e-08   a +0.00022+-0.00005   K -2.1277e+01+-5.8562e-01 GeV
+          -> predicted <z> = -(K/2) sigma =   +2.625 +- 0.072 e-3   (<sigma> 2.467e-04)
+
+  PREDICTED charge-EVEN <z> =   +0.032 +- 0.051 e-3
+  PREDICTED charge-ODD  <z> =   -2.593 +- 0.051 e-3
+  (K_+ +2.0578e+01, K_- -2.1277e+01; the mirror argument says K_- = -K_+,
+   i.e. a PURE charge-odd prediction, and K_+ + K_- = -6.993e-01 +- 8.271e-01 measures the chiral part)
+
+--- the same prediction with K refitted in quintiles of sigma ---
+  charge  sigma bin                 <sigma>            K  -(K/2)<sigma>   weight
+        +11.082e-04-1.785e-04     1.534e-04  +3.3998e+01         -2.607     7852
+        +11.785e-04-2.128e-04     1.961e-04  +2.6990e+01         -2.647     7851
+        +12.128e-04-2.509e-04     2.308e-04  +2.8684e+01         -3.311     7851
+        +12.509e-04-3.135e-04     2.786e-04  +1.1897e+01         -1.657     7851
+        +13.135e-04-1.926e-03     3.856e-04  +2.1443e+01         -4.134     7852
+          -> combined                                            -2.871
+        -11.068e-04-1.780e-04     1.533e-04  -4.2844e+01         +3.283     7855
+        -11.780e-04-2.114e-04     1.951e-04  -2.3830e+01         +2.325     7855
+        -12.114e-04-2.496e-04     2.294e-04  -1.5157e+01         +1.739     7855
+        -12.496e-04-3.075e-04     2.758e-04  -2.1497e+01         +2.964     7855
+        -13.075e-04-2.202e-03     3.802e-04  -2.0314e+01         +3.861     7855
+          -> combined                                            +2.834
+  sigma-binned PREDICTED charge-EVEN <z> =   -0.018 e-3
+  sigma-binned PREDICTED charge-ODD  <z> =   -2.853 e-3
+
+--- the MEASURED moments on the same tracks, for comparison ---
+  MEASURED charge-EVEN  <x> =   -2.900+-3.426 e-3    (<z> =   -2.709+-3.618 e-3)
+  MEASURED charge-ODD   <x> =   -2.936+-3.727 e-3    (<z> =  -17.571+-3.526 e-3)
+
+--- per eta band: K, the prediction, and the measurement ---
+  band                K_+          K_-    pred even    pred odd       meas even        meas odd
+  barrel       +1.345e+01   -1.271e+01        -0.07       -1.80      -2.75+-5.81      -1.87+-6.08
+  middle       +4.544e+01   -4.157e+01        -0.26       -5.83     -11.06+-7.08      -6.65+-6.62
+  endcap       +9.250e+00   -1.487e+01        +0.28       -1.20      +4.11+-6.22      -0.81+-5.99
+
+--- the same, inside the OUT (bulk) and IN populations ---
+  OUT (bulk 90%)   n=  71508  pred even   +0.23  pred odd   -3.74   meas even   -5.48+-3.92   meas odd   +0.65+-3.93
+  IN  (top 10%)    n=   7024  pred even   -0.06  pred odd   -1.10   meas even  +22.73+-14.06   meas odd  -38.95+-13.54
