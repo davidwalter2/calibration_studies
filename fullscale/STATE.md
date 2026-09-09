@@ -9,7 +9,7 @@ certified state), 0f.72 (why the confirming test had to be re-run) and 0f.72.2
 | what | where | result lands | done when |
 |---|---|---|---|
 | ~~**`22354351`** the equivalence triple + the five SAFE-BAND rows~~ | — | — | **ALL EIGHT ROWS DONE.** The triple is sec. 0f.72.1 (bit-identical); the five band rows are sec. 0f.72.2/0f.72.3 and all five certify QUOTE. **0f.63 is established** |
-| **`22354353`** the K(m) ladder at 9 and 12 on the FLOORED cards | Engaging, `engaging/zrabbitvb_22354353.out` | `rabbit_{SVs9,SVs12,Ss12}.hdf5` | **`SVs9` FAILED, rc=1, after 96 Hessians — no density NaN (the floor works), an INDEFINITE HESSIAN (sec. 0f.72.5). The v-form ladder ends at 7.** `SVs12` then `Ss12` follow and are expected to fail alike |
+| **`22354353`** the K(m) ladder at 9 and 12 on the FLOORED cards | Engaging, `engaging/zrabbitvb_22354353.out` | `rabbit_{SVs9,SVs12,Ss12}.hdf5` | **`SVs9` FAILED, rc=1, after 65 Hessians — no density NaN (the floor works), an INDEFINITE HESSIAN (sec. 0f.72.5). The v-form ladder ends at 7.** `SVs12` then `Ss12` follow and are expected to fail alike |
 | **`22336261` P2X** | Engaging | `fitresults/native/rabbit_P2X.hdf5` | descending: EDM 1.4e5 -> **150** over 19 Hessians in 6 h 15, condition number 3.1e19 -> 1.0e15. Read the plateau per sec. 0f.72.5: a flat EDM here is a shelf, not a stall, but `SVs9` shows that passing the shelf does not imply certifying. 36 h of walltime (`TimeLimit=1-12:00:00`, NOT the script's 5:45). **Submitted with `FRESH=1`, so a preemption requeue would restart it from the prefit point rather than its snapshot** — if it is requeued, resubmit with `FRESH=0` |
 | ~~`22332184` `zcard3` phase-3 card build~~ | — | — | **DONE 03:53:24, rc=0, in 10 min 12 s**: `cards/joint_mat_v3.hdf5`, 28.369 GB, verified by re-reading both terms (sec. 0f.72.6). The FIT is not attempted |
 | `22315802 insitu-tnp` | Engaging | NOT MINE — another workstream, leave it | |
@@ -6470,7 +6470,7 @@ is margin, not the difference between converging and not.
 ### 0f.72.5 THE v-FORM `K(m)` LADDER **ENDS AT 7** — the floor fixed the NaN,
 ### and what is left is the HESSIAN, not the density (2026-09-09, `SVs9`)
 
-`SVs9` ran **96 Hessian evaluations in 2 h 26** on the floored card and then
+`SVs9` ran **65 Hessian evaluations in 2 h 26** on the floored card and then
 died, `rc=1` — the first time in this campaign that the batch driver has
 reported a non-zero exit code, because of 0f.72's `rc=$?` fix. It is a
 **different** failure from the one the floor was built for, and the two must not
@@ -6478,7 +6478,7 @@ be conflated:
 
 | | un-floored card (`22315719`) | floored card (`22354353`) |
 |---|---|---|
-| how it ended | NaN in the DENSITY: a trust step drove a shape term to ~-1 and `log` of a non-positive `L_i` is `inf` | **no density NaN in 96 Hessians.** `scipy` raised `array must not contain infs or NaNs` inside the subproblem, and the POSTFIT then died on `Cholesky decomposition failed, Hessian is not positive-definite` (`tfhelpers.tf_edmval_cov`) |
+| how it ended | NaN in the DENSITY: a trust step drove a shape term to ~-1 and `log` of a non-positive `L_i` is `inf` | **no density NaN in 65 Hessians.** `scipy` raised `array must not contain infs or NaNs` inside the subproblem, and the POSTFIT then died on `Cholesky decomposition failed, Hessian is not positive-definite` (`tfhelpers.tf_edmval_cov`) |
 | result written | `meta` only | **`meta` only** — the "Results written" line prints before the postfit that fills `results`, so the file is again 11 920 bytes with no `results` group |
 
 **THE MEASURED CAUSE IS THE HESSIAN SCALE.** The run's own opening warning:
