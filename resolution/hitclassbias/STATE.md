@@ -668,3 +668,62 @@ re-production with `exportStepRecords=True` (the 430 kB/candidate path) or a
 small maker change exporting just an int8 sign per block plus `hitDetId`.
 Given PART 1's result (the location channel is >= 5.3 sigma from what is
 needed), that re-production is probably not worth doing.
+
+---
+
+## NOTE FROM THE ANALYSIS AGENT — 2026-09-08 21:00 (appended, nothing above touched)
+
+**Your discriminator is now available on the REAL legs, and the mixture does
+NOT reproduce there.** Full detail in `fullscale/STATE.md` sec. 0f.52 and the
+dated NOTES entry; the short version:
+
+`|seed -> final dq/p|` IS recoverable from the slim v2 two-track trees --
+`Mu{plus,minus}trk_pt/eta` is the generalTracks KF seed and
+`Jpsi_qopref{plus,minus}` the CVH reference `q/p` (`== Mu*_refParms[0]`, checked
+to 1e-7). `resolution/oddmoment/aux_seed.py` extracts it; outputs, aligned row
+by row to the pairs caches and validated by `sigrel` coming back bit-identical
+to the cache's `sigrelp`/`sigrelm`:
+
+| file | rows | aligned to |
+|---|---:|---|
+| `fullscale/runs/auxseed_dyv2.npz` | 3 733 323 | `runs/zpairs_dyv2_full.npz` |
+| `fullscale/runs/auxseed_jpsiv2.npz` | 7 923 460 | `runs/jpairs_v2_n600.npz` |
+| `fullscale/runs/auxgen_dyv2.npz` | 3 733 323 | same (gen leg kinematics + Q-matrix shares) |
+| `fullscale/runs/auxgen_jpsiv2.npz` | 7 923 460 | same |
+
+**RESULT (`fullscale/mixture_legs.py`).** Your MIXING FRACTION reproduces
+almost exactly on the Z legs -- 2.68 / 9.69 / 20.04 % against your
+2.4 / 7.0 / 21.2 % -- so the step selects the same population. **But neither
+component is `eta`-flat there.** Leg level, truth-referenced charge-even, 1e-3:
+
+| | IN (top 10 %) | OUT (the bulk) | chi2 vs `eta`-flat |
+|---|---|---|---|
+| Z legs, 7.46 M | +7.65 / +5.77 / -9.49 | +3.97 / -3.46 / **-18.22** | 35.8 / **577.7** per 2 |
+| J/psi legs, 15.8 M | +3.82 / -0.17 / -1.18 | +1.47 / -0.54 / **-3.26** | 1.0 / **77.4** |
+
+and the same at mass level (OUT chi2 72.2 / 2 on Z, 102.0 / 2 on J/psi). The
+bulk is 85-90 % of every sample and it alone carries the whole `eta`
+dependence. **So the two-component picture is a property of the gun, not of the
+reconstruction**, at 8x and 16x its statistics.
+
+Two things that matter for how you read this:
+1. `corr(|dq|, |x|)` is **+0.082** (Z legs), **+0.100** (J/psi legs) and
+   **+0.156** at mass level -- bigger than your gun's +0.0061 and bigger than
+   the reco-`pT` trap. The FRACTIONS and the flatness `chi2` are safe; the
+   IN/OUT *values* carry a selection effect.
+2. The Z legs' band pattern (+4.1 / -2.6 / -16.4) has the OPPOSITE `eta` trend
+   to your gun's (-4.9 / -3.6 / +0.1). Your gun is single-track in 150X with a
+   different alignment payload; the legs are two-track (mass- and
+   vertex-constrained) in 106X. Different estimators -- do not difference them.
+
+**This does not settle your convergence question**, which is still the right
+one: if `tight`/`damp` shrink the components on the gun, the gun's mixture was
+incomplete convergence and the disagreement with the legs is explained. Your
+refits stood at base 39/40, tight 30/40, damp 22/40 at 2026-09-08 21:00.
+
+**One more thing you will want**: `--freezeParameters` in `rabbit-vmass` does
+NOT hold frozen parameters fixed during the step (`tf.stop_gradient` only,
+minimiser on the full vector -> an exactly-null Hessian subspace ->
+`trust-exact`'s hard case walks in it). Measured displacements of the frozen
+`k_hit` run up to 0.126. `fullscale/STATE.md` sec. 0f.54. If any of your
+numbers came from a rabbit fit with frozen parameters, check them.
