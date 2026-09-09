@@ -677,6 +677,34 @@ mixture, not by explaining the bulk. The bulk -6.3e-3 remains.
 * Everything here is 2-3 sigma. The gun is 320 k tracks; the same
   decomposition on the Z and J/psi legs is what would settle it.
 
+## >>> SETTLED, AND THE HYPOTHESIS IS REFUTED (see `fullscale/STATE.md` 0f.52)
+The Z- and J/psi-leg test was done at 8-16x the gun's statistics, using the
+`|seed -> final dq/p|` that the two-track trees DO carry
+(`Mu{plus,minus}trk_pt/eta` = the KF seed, `Jpsi_qopref{plus,minus}` = the CVH
+reference q/p; `oddmoment/aux_seed.py`). The result:
+
+* **the mixing FRACTION reproduces the gun strikingly** -- 2.68 / 9.69 /
+  20.04 % on the Z legs against the gun's 2.4 / 7.0 / 21.2 % -- so the
+  population the step selects IS the same one;
+* **but NEITHER component is `eta`-flat**, which is what the hypothesis
+  required. The OUT component alone (85-90 % of the sample) runs
+  +3.97 -> -3.46 -> -18.22 e-3 on the Z legs (`chi2` vs flat **577.7 / 2**)
+  and +2.08 -> +1.09 -> -4.73 at mass level (**102.0 / 2**). Removing the top
+  10 % in `|dq/p|` removes essentially none of the `eta` dependence.
+
+**So the `eta` dependence lives in the BULK, not in the mixing fraction, and
+the two-component mixture is NOT the explanation.** On the gun both components
+looked flat only because the per-band errors were +-3e-3 against the legs'
++-0.5-0.8e-3; and the Z legs' band pattern has the OPPOSITE `eta` trend to the
+gun's, which is a caveat on comparing the two channels at all. Note also
+`corr(|dq|, |x|)` = +0.082 / +0.100 / +0.156 on Z legs / J/psi legs / mass
+level -- larger than the reco-pT trap's +0.042 -- so the IN/OUT *values* carry
+a selection effect (the fractions and the flatness `chi2` do not).
+
+What survives from this section: the trim scan (core shift, not a tail), the
+step-control census (it never fires), and the conditioning trap
+`corr(signed seed->final, x) = +0.1132`. The MIXTURE reading does not.
+
 ## FOR THE OTHER AGENT'S `hit_s` / `hit_detid` WORK — the branch names
 Checked directly on `dymc_8p5M_260906_v2` and `jpsimc_20M_260906_v2`:
 **`resinfv`, `resinfbv` and `hitDetId` are NOT in those trees at all** (213 and
