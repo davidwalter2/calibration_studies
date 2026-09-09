@@ -5288,3 +5288,142 @@ number it is meant to check. Same for any other warm-started re-run.
 Fix committed in `rabbit-vmass` as `c08d93a`, **not staged to Engaging**: the
 staging is held until `22315719` (`SVs9`) and `22333692` (`Ss12`/`SVs12`)
 finish, so that every rung of the `K(m)` ladder is the same code.
+
+### 0f.56 THE `trust-exact` NaN IS A TRUST-RADIUS SCALE DEFECT ON THE `K(m)`
+### BLOCK — measured, not inferred (2026-09-08, fit-infrastructure)
+
+Two fits died with `WARNING:fitter.py: Minimizer raised: array must not contain
+infs or NaNs`, `22328533 SVetaEslo` and `22328595 P2X`. The `ValueError:
+Cholesky decomposition failed, Hessian is not positive-definite` that follows in
+`tf_edmval_cov` is a CONSEQUENCE -- the postfit is attempted at the unmoved
+start point -- not the cause, and neither card is singular.
+
+**Where the string comes from.** `scipy.linalg.norm(self.hess, np.inf)` in
+`scipy.optimize._trustregion_exact.IterativeSubproblem.__init__` (scipy 1.18,
+`check_finite=True`). Two consequences that explain everything else in the two
+logs:
+
+* the subproblem is CONSTRUCTED at every trial point --
+  `m_proposed = subproblem(x + p, fun, jac, hess, hessp)` -- and its `__init__`
+  evaluates the Hessian and checks it finite BEFORE the reduction-ratio test
+  that would have rejected the point. So a single bad trial point is a hard
+  abort, not a shrunken trust radius.
+* rabbit's `except` restores `cb.xval`, the last ACCEPTED iterate. On a first-
+  step failure that is the start point, which is why
+  `rabbit_SVetaEslo.snapshot.hdf5` reads `x = [0,0,1,1,1,1,0,0,0,0,0]` and
+  looks like a minimiser that never ran. It ran; it aborted inside the first
+  subproblem.
+* the number of `--diagnostics` pairs printed therefore LOCATES the failure:
+  two pairs (`SVetaEslo`) means the start point was fine and the first trial
+  point was not; one pair (`P2X`) means the START point itself is not finite.
+  They are two different failures.
+
+**The tool.** `fullscale/gate_nanstep.py` -- start-point value / gradient /
+Hessian with a per-term, per-class (`Z_c`) and per-candidate (`L_i`) breakdown;
+then scipy `trust-exact` driven with the Fitter's own callbacks, the abort
+caught, `x0 -> x_bad` bisected for the first non-positive density, and the step
+printed in the parameter basis. `--scan` walks one coordinate (or a named
+signed combination) at a time instead, which needs no Hessian: scipy's initial
+trust radius is 1.0, so every component of the first step is bounded by 1.
+`engaging/nanstep.sbatch` runs it on a GPU.
+
+**`SVetaEslo`: the K(m) block, and specifically `shape5`.** The harness
+reproduces the failed job exactly at the start point -- `cond 2.06683e+08`,
+`edm 3353.85`, against the job's own `206682927.16` / `3353.8493888763883` --
+and then:
+
+| | |
+|---|---|
+| first trial point | `\|dx\| = 1`, the initial trust radius |
+| its composition | `shape5` **-0.9835**, `shape4` -0.1778, `shape3` -0.0331, `shape2` +0.0043, `shape1` +0.0035, `m_Z` +0.0012, `Gamma_Z` +0.0012, the four frozen `k` +0.0012 |
+| there | loss `inf`, **105** non-finite Hessian entries |
+| first non-positive density | at `t = 0.98145` (`shape5 = -0.965`): ONE candidate of 512 595 at `L_i = -2.5e-7`, with `min Z_c` collapsed from **0.9775 to 0.0029** |
+| at the full step, one coordinate at a time | `shape5` ALONE: **323** non-positive densities, `min L_i -1.199`, `min Z_c 7.8e-4`. `shape4`, `shape3`, `shape2`, `shape1`, `m_Z`, `Gamma_Z` and every `k`: **zero** |
+
+So `log` is handed a negative number and the NLL, the gradient and the Hessian
+all go NaN together.
+
+**Why the step goes there, and why it is not a property of this cell.** The
+trust radius is in RAW parameter units, and this card's natural scales span
+three orders of magnitude: on the inclusive `SVfullW` fit
+`sigma(m_Z) = 2.08` and `sigma(Gamma_Z) = 3.80` (MeV) against
+`sigma(shape1..5) = 0.0255, 0.0311, 0.0212, 0.0093, 0.0020`; on the four
+`sigma/m` cells the shape errors are 2-3x larger (`SVetaBslo` 0.0651, 0.0760,
+0.0505, 0.0187, **0.0045**), so on the card that failed a radius of 1.0 is
+about 0.3 sigma for `m_Z` and about **200 sigma for `shape5`**.
+
+At `edm 3353.85` the trust region is ACTIVE, so the step is the boundary
+solution of `(H + lambda I) p = -g` with `lambda` large, i.e. `p ~ -g/lambda`:
+it points down the GRADIENT, not along an eigenvector. The gradient is largest
+along the STIFFEST coordinate, because that is where a given raw-unit
+displacement buys the most NLL -- and `shape5` is the stiffest parameter on the
+card (smallest sigma, largest curvature), starting order ten of its own sigmas
+from its optimum. A radius of 1.0 then overshoots it by two orders of
+magnitude. Nothing here is a statement that `shape5` is poorly determined: it
+is the best-determined parameter on the card, and in the 9-term ladder
+`shape9 = +0.003683 +- 0.000154` is a 24-sigma measurement. It is small in
+ABSOLUTE units, and the trust radius is in absolute units.
+
+**That makes it a scale defect of the trust region, not a property of the
+endcap low-`sigma/m` sample**, and it predicts that every card in this family
+is one unlucky draw from the same failure. `z_V_etaB_slo` survived a LARGER
+first step (`edm 5816`) only because its own step was differently composed.
+
+**The remedies, in order of how little they change.**
+
+1. **A warm start.** Seed the fit at the inclusive fit's point
+   (`json_to_snapshot.py --from results/nativejson/rabbit_SVfullW.json`): the
+   shape block is then already near its optimum, the gradient is small, the
+   trust region is inactive and the step is a Newton step. Changes nothing
+   about the model, so the cell stays comparable with the three certified ones,
+   and sec. 0f.16 covers it (acceptance is on where a fit ARRIVES).
+2. **Preconditioning** (`--precondition`): rescale by the curvature so the
+   trust region is spherical in sigma units rather than in raw units. A change
+   of variables, so the minimum is invariant -- and it cures the defect for the
+   whole ladder rather than one row. Sec. 0f.14 dropped it against the
+   SINGULAR-subproblem cause, which scipy's subproblem has since removed.
+3. Only if neither works, David's two physics options -- fewer `K(m)` terms for
+   the sub-cells, or the common `K(m)` from the inclusive fit held fixed there.
+   Both change what a sub-cell MEASURES, so both would require re-running all
+   four cells of the `sigma/m` split for the comparison to remain a comparison.
+
+**A regulariser or a clip is not on the list and was not used.**
+
+**Two things found on the way, both real and both separate from the NaN.**
+
+* **`--freezeParameters` did not freeze the STEP.** Freezing is
+  `tf.stop_gradient`, so the likelihood is still EVALUATED at whatever the
+  vector holds while the gradient and the Hessian row are zero -- a subspace the
+  model is flat along, which a trust-region method walks into. Audited over the
+  36 stored `results/native/rabbit_*.hdf5`: **7 rows** have the four frozen
+  `k_*` displaced from 1 by more than 1e-3 -- `n300kfix` 1.26e-1, `RvfullX`
+  1.92e-2, `Sdc8W` and `Rdc8X` 1.46e-2, `P2smoke` 8.8e-3, `f380refX` 8.1e-3 and
+  **`SVetaBslo` 1.6e-3** (the only certified row; `Ss9` is 1.8e-4 and the other
+  28 are exactly 0). Fixed in `rabbit-vmass` `c08d93a`: the minimiser is given
+  the floating coordinates only, which is exact (the frozen gradient components
+  are identically zero). It is NOT the cause of either NaN -- on the step above
+  the frozen `k` moved by 0.0012, and a direct scan puts the first non-positive
+  density at `k_hit = -1.0` and `k_ms = -0.5`, i.e. outside what a radius of 1
+  can reach. `--freezeParameters` holds a parameter where `self.x` IS, so under
+  `--externalPostfit` it freezes at the SNAPSHOT value; the values are now
+  logged, and a row re-run warm from a pre-fix snapshot would freeze `k` at
+  `1 + delta` unless it is reset.
+* **The phase-3 card build failed for a staging reason, now fixed.**
+  `22328636`'s `ModuleNotFoundError: No module named 'make_global_term'`:
+  `stage_engaging.sh`'s resolution filter takes top-level `.py` only, so
+  `resolution/globalfit/` was never on Engaging. Staging it is not sufficient --
+  `--whiten` calls `param_scales`, which reads the harmonic basis and the
+  50-mode coefficient table out of the `mfs` checkout at a hard-coded `/work`
+  path. `MFS` is now an `MFS_DIR` override, both files are staged, and
+  `build_phase3.sbatch` sets `PYTHONPATH` and `MFS_DIR`. Verified on an Engaging
+  login node: `field_scales` returns the 50 mode scales. Resubmitted as
+  **`22332184`** (`mit_normal`, 16 cpu, 250 GB).
+
+**In flight.** `22333453` re-runs `SVetaEslo` warm from `SVfullW` (remedy 1);
+`22332382` is the same start-point diagnostic on `joint_ok_full` for `P2X`,
+whose failure is at the START point and so is a THIRD thing that neither the
+shape block nor the frozen subspace explains. Worth recording from it already:
+the start-point Hessian of the phase-2 full card sits at **141.4 GB of an
+H200's 143.8 GB** at 99 % utilisation, i.e. that fit is at 98 % of the largest
+card available.
+
