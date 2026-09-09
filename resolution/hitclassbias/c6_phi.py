@@ -163,10 +163,13 @@ def main():
         print("\n  --- where the strongest harmonics live ---")
         print(f"  {'selection':22s}" + "".join(f"{f'n={n} sin':>18s}"
                                                for n in (8, 10)))
+        t90 = np.percentile(V.dq_seed[V.good], 90.)
         for lab, sel in ([(nm, V.band == i)
                           for i, nm in enumerate(cc.BANDS_SHORT)]
-                         + [("nValidPixelHits>=3", V.d["npixhit"] >= 3),
-                            ("nValidPixelHits<=1", V.d["npixhit"] <= 1)]):
+                         + [(f"nValidPixelHits=={k}", V.d["npixhit"] == k)
+                            for k in range(5)]
+                         + [("mixture OUT (bulk)", V.dq_seed <= t90),
+                            ("mixture IN (top 10%)", V.dq_seed > t90)]):
             row = ""
             for n in (8, 10):
                 s_, es_ = harm(V, gg & sel, ph, n, np.sin)
