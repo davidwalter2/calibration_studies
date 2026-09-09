@@ -130,23 +130,14 @@ def one(fn):
     )
 
 
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--files", required=True)
-    p.add_argument("--cache", required=True)
-    p.add_argument("--out", required=True)
-    p.add_argument("--nproc", type=int, default=32)
-    p.add_argument("--ntasks", type=int, default=100000)
-    a = p.parse_args()
-    files = prodfiles.resolve(a.files, a.ntasks, logger=lambda m: print(m, flush=True))
-    print(f"{len(files)} files", flush=True)
-    from multiprocessing import Pool
-    with Pool(a.nproc) as pool:
-        parts = pool.map(one, files)
-    A = {k: np.concatenate([q[k] for q in parts]) for k in parts[0]}
-    print(f"{len(A['z'])} tree entries", flush=True)
+def join_to_cache(A, cache_path):
+    """Return the index of each cache row in the concatenated tree arrays `A`.
 
-    d = np.load(a.cache)
+    ORDER-INDEPENDENT JOIN on (run, lumi, event, z). Factored out of `main` so
+    every aux extractor aligned to the same caches uses ONE implementation --
+    `aux_seed.py` is the second.
+    """
+    d = np.load(cache_path)
     zc = d["z"].astype(np.float64)
     n = len(zc)
     zt = A["z"]
@@ -200,6 +191,26 @@ def main():
                 sys.exit(f"alignment failed at cache row {i} (z={zc[i]!r})")
             idx[i] = j
             j += 1
+    return idx, d
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--files", required=True)
+    p.add_argument("--cache", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--nproc", type=int, default=32)
+    p.add_argument("--ntasks", type=int, default=100000)
+    a = p.parse_args()
+    files = prodfiles.resolve(a.files, a.ntasks, logger=lambda m: print(m, flush=True))
+    print(f"{len(files)} files", flush=True)
+    from multiprocessing import Pool
+    with Pool(a.nproc) as pool:
+        parts = pool.map(one, files)
+    A = {k: np.concatenate([q[k] for q in parts]) for k in parts[0]}
+    print(f"{len(A['z'])} tree entries", flush=True)
+
+    idx, d = join_to_cache(A, a.cache)
     out = {k: v[idx] for k, v in A.items()}
     assert np.array_equal(out["z"], zc), "post-check failed"
     assert np.array_equal(out["sigma"], d["sigma"]), "sigma mismatch"
