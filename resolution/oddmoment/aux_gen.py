@@ -7,11 +7,31 @@ kinematics -- and truth kinematics are exactly what is needed to define a
 sigma_bar that CANNOT see the mass fluctuation (the candidate analogue of
 `oddmoment/sigma_pull.py` T2).
 
-It also rebuilds the per-family split of the mass variance,
+It also rebuilds the per-family split of the mass variance from the fit's own
+**Q matrix**, `resinfvarv` grouped by the runtree `parmtype` of `reseigidx`:
 
     f_hit  = (sigma_m^2 - resinfcov)/sigma_m^2      (= the cached `vgf`)
+    f_hitx = sum_{parmtype==8}  resinfvarv / sigma_m^2   (local-x hit resolution)
+    f_hity = sum_{parmtype==9}  resinfvarv / sigma_m^2   (local-y, pixel only)
     f_ms   = sum_{parmtype==10} resinfvarv / sigma_m^2
     f_ioni = sum_{parmtype==11} resinfvarv / sigma_m^2
+    f_mat  = sum_{parmtype==15} resinfvarv / sigma_m^2
+
+**parmtype 15 is a RE-PARTITION of the parmtype-10/11 noise into material
+groups, not an addition** (`sum_g dQ_g == dQMS + dQI`;
+`ResidualGlobalCorrectionMakerTwoTrackG4e.cc:4758`), so it must NOT enter the
+closure sum -- it is carried as an independent CHECK, `f_mat ~ f_ms + f_ioni`.
+Likewise `f_hitx + f_hity ~ f_hit`. The closure that must hold is
+
+    f_hit + f_ms + f_ioni = 1
+
+and on both v2 productions it holds to a mean 7e-8 / max 8e-7 -- unlike the
+CF-exponent "shares", which sum to 1.074 at one finite-difference step and to
+0.980 at another (STATE sec. 0f.47b: Moliere and Landau have no finite second
+moment). An earlier version of this file summed everything that was neither 10
+nor 11 into a single `f_other`, which therefore silently added parmtypes 8, 9
+and 15 together and printed a closure of 2.0; `f_ms` and `f_ioni` themselves
+were never affected.
 
 which give the CLOSED-FORM self-consistency coefficient of the mass pull.
 sigma_m^2 = A m^4 + B m^2 + C, because the hit contribution to sigma_rel grows
@@ -66,7 +86,9 @@ def one(fn):
     s = a["Jpsi_sigmamass"].astype(np.float64)
     with np.errstate(divide="ignore", invalid="ignore"):
         z = (m - mg) / s
-    fms = np.zeros(n); fio = np.zeros(n); fother = np.zeros(n)
+    fms = np.zeros(n); fio = np.zeros(n); fmat = np.zeros(n)
+    fhx = np.zeros(n); fhy = np.zeros(n); fother = np.zeros(n)
+    KNOWN = (8, 9, 10, 11, 15)
     for ic in range(n):
         gi = np.asarray(a["reseigidx"][ic])
         if not len(gi):
@@ -76,9 +98,12 @@ def one(fn):
         s2 = s[ic] * s[ic]
         if not (s2 > 0.):
             continue
+        fhx[ic] = vb[fam == 8].sum() / s2
+        fhy[ic] = vb[fam == 9].sum() / s2
         fms[ic] = vb[fam == 10].sum() / s2
         fio[ic] = vb[fam == 11].sum() / s2
-        fother[ic] = vb[(fam != 10) & (fam != 11)].sum() / s2
+        fmat[ic] = vb[fam == 15].sum() / s2
+        fother[ic] = vb[~np.isin(fam, KNOWN)].sum() / s2
     with np.errstate(divide="ignore", invalid="ignore"):
         fhit = (s * s - a["resinfcov"].astype(np.float64)) / (s * s)
     return dict(
@@ -87,6 +112,7 @@ def one(fn):
         run=a["run"].astype(np.int64), lumi=a["lumi"].astype(np.int64),
         event=a["event"].astype(np.int64),
         z=z, sigma=s, mgen=mg, fhit=fhit, fms=fms, fioni=fio, fother=fother,
+        fhitx=fhx, fhity=fhy, fmat=fmat,
         gpt_p=a["Muplusgen_pt"].astype(np.float64),
         gpt_m=a["Muminusgen_pt"].astype(np.float64),
         geta_p=a["Muplusgen_eta"].astype(np.float64),
@@ -181,11 +207,19 @@ def main():
     print(f"ALIGNED: {n} rows, z and sigma bit-identical; "
           f"{len(zt)-n} tree rows dropped by the cache; "
           f"max|fhit - cache vgf| = {dv.max():.3e}", flush=True)
-    tot = out["fhit"] + out["fms"] + out["fioni"] + out["fother"]
-    print(f"variance closure  <f_hit+f_ms+f_ioni+f_other> = {tot.mean():.6f} "
-          f"(rms {tot.std():.2e}); <f_hit> = {out['fhit'].mean():.4f} "
-          f"<f_ms> = {out['fms'].mean():.4f} <f_ioni> = {out['fioni'].mean():.4f} "
-          f"<f_other> = {out['fother'].mean():.2e}", flush=True)
+    tot = out["fhit"] + out["fms"] + out["fioni"]
+    print(f"Q-matrix variance closure  <f_hit+f_ms+f_ioni> = {tot.mean():.9f} "
+          f"(rms {tot.std():.2e}, max|.-1| {np.abs(tot-1).max():.2e})",
+          flush=True)
+    print(f"  <f_hit> = {out['fhit'].mean():.5f}  <f_ms> = {out['fms'].mean():.5f}"
+          f"  <f_ioni> = {out['fioni'].mean():.4e}", flush=True)
+    print(f"  CHECKS (not part of the sum): "
+          f"<f_hitx+f_hity - f_hit> = "
+          f"{(out['fhitx']+out['fhity']-out['fhit']).mean():.2e}; "
+          f"<f_mat - (f_ms+f_ioni)> = "
+          f"{(out['fmat']-out['fms']-out['fioni']).mean():.2e}; "
+          f"<f_other> (unrecognised parmtypes, must be 0) = "
+          f"{out['fother'].mean():.2e}", flush=True)
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
     np.savez_compressed(a.out, **out)
     print(f"-> {a.out}", flush=True)

@@ -24,7 +24,21 @@ until the per-leg exponents are tabulated,
 
 so the two differ by `vgf * asym * (sigma/m)`, which is the column to watch.
 
-    python3 measure_a.py [--pairs runs/zpairs_dyv2_full.npz]
+A THIRD form, `--aux`: the closed form of `oddmoment/aux_gen.py`,
+
+  closed     a/(sigma/m) = 1 + f_hit - f_ioni
+
+with `f_hit` and `f_ioni` the per-family shares of the mass variance taken from
+the fit's own **Q matrix** (`resinfvarv` grouped by the runtree `parmtype`:
+8/9 hit, 10 multiple scattering, 11 ionisation; parmtype 15 is a RE-PARTITION
+of 10+11 into material groups and must NOT be added -- see
+`ResidualGlobalCorrectionMakerTwoTrackG4e.cc:4758`). These are the well-defined
+quantities that the CF exponent's `-S''(0)` is NOT (STATE sec. 0f.47b: the
+Moliere and Landau exponents have no finite second moment, so a
+finite-difference second derivative is cut-dependent).
+
+    python3 measure_a.py [--pairs runs/zpairs_dyv2_full.npz] \
+        [--aux runs/auxgen_dyv2.npz]
 """
 import argparse
 
@@ -55,6 +69,9 @@ def main():
                          "linearisation holds")
     ap.add_argument("--nsig", type=int, default=3)
     ap.add_argument("--nasym", type=int, default=3)
+    ap.add_argument("--aux", default=None,
+                    help="auxgen npz aligned ROW BY ROW to --pairs; adds the "
+                         "closed form 1 + f_hit - f_ioni from the Q matrix")
     a = ap.parse_args()
 
     d = np.load(a.pairs)
@@ -67,6 +84,22 @@ def main():
     sp, sm = d["sigrelp"].astype(np.float64), d["sigrelm"].astype(np.float64)
     etal = np.maximum(np.abs(d["etap"]), np.abs(d["etam"]))
     w = d["w"].astype(np.float64) if "w" in d.files else np.ones(len(z))
+    if a.aux:
+        g = np.load(a.aux)
+        if len(g["z"]) != len(z):
+            raise SystemExit("aux has %d rows, pairs %d -- not the aligned file"
+                             % (len(g["z"]), len(z)))
+        if not np.array_equal(g["z"].astype(np.float64), z):
+            raise SystemExit("aux `z` is not bit-identical to the pairs `z`")
+        fhit = g["fhit"].astype(np.float64)
+        fioni = g["fioni"].astype(np.float64)
+        fms = g["fms"].astype(np.float64)
+        clo = np.abs(fhit + fms + fioni - 1.0)
+        print("aux aligned: <f_hit> = %.5f  <f_ms> = %.5f  <f_ioni> = %.3e ; "
+              "Q-matrix closure |f_hit+f_ms+f_ioni-1| mean %.2e max %.2e"
+              % (fhit.mean(), fms.mean(), fioni.mean(), clo.mean(), clo.max()))
+    else:
+        fhit = fioni = None
 
     ok = (np.isfinite(z) & np.isfinite(sig) & (sig > 0) & np.isfinite(m) & (m > 0)
           & np.isfinite(sp) & np.isfinite(sm) & (sp > 0) & (sm > 0)
@@ -74,6 +107,8 @@ def main():
           & (sig / m < 0.10))
     z, sig, m, vgf, fang, sp, sm, etal, w = (v[ok] for v in
                                              (z, sig, m, vgf, fang, sp, sm, etal, w))
+    if fhit is not None:
+        fhit, fioni = fhit[ok], fioni[ok]
     srel = sig / m
     s1 = sp ** 2 / (sp ** 2 + sm ** 2)
     asym = 2.0 * (s1 ** 2 + (1 - s1) ** 2) - 1.0
@@ -84,6 +119,8 @@ def main():
     print("All three columns are a/(sigma/m), so 1 + vgf is the spec.\n")
     hdr = (f"{'cell':26s} {'n':>9s} {'sigma/m':>8s} {'vgf':>6s} {'asym':>6s} "
            f"{'MEASURED':>16s} {'spec':>7s} {'per-leg':>8s} {'meas-spec':>10s}")
+    if fhit is not None:
+        hdr += f" {'f_ioni':>9s} {'closed':>7s} {'meas-clo':>9s}"
     print(hdr)
     print("-" * len(hdr))
 
@@ -99,9 +136,15 @@ def main():
         meas = b / sr
         spec = 1.0 + v
         perleg = 1.0 + v * (1.0 + A) * (1.0 - fa) ** 2
+        extra = ""
+        if fhit is not None:
+            fi = np.average(fioni[m_], weights=w[m_])
+            fh = np.average(fhit[m_], weights=w[m_])
+            closed = 1.0 + fh - fi
+            extra = f" {fi:9.2e} {closed:7.4f} {meas - closed:+9.4f}"
         print(f"{lab:26s} {int(m_.sum()):9d} {sr:8.5f} {v:6.3f} {A:6.3f} "
               f"{meas:9.4f} +-{be/sr:5.4f} {spec:7.4f} {perleg:8.4f} "
-              f"{meas - spec:+10.4f}")
+              f"{meas - spec:+10.4f}" + extra)
 
     row("inclusive", np.ones(len(z), bool))
     print()
