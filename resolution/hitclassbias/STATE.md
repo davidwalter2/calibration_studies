@@ -186,6 +186,37 @@ identifications in the Phase-0 2016 geometry are
 * **n = 8 <- TEC petals** (8 per disk face), which is also why it is
   independent of the pixel content and grows into the endcap.
 
+**The obvious loophole is CLOSED** (`c8_phiquad.py`). `genphi` is the azimuth
+at the PCA, but the modules are crossed at `phi_PCA + q delta` with
+`delta ~ 0.3 B r / pT` = 0.057 rad at pT 20 GeV, so a modulation that is
+charge-ODD at the MODULE leaks into the charge-EVEN channel at the PCA, in the
+other quadrature, with weight `sin(n delta)` = 54 % at n = 10. Two tests kill
+that explanation:
+
+| n | EVEN cos | EVEN sin | ODD cos | ODD sin | err |
+|---|---:|---:|---:|---:|---:|
+| 8 | +4.1 | **+19.0** | +1.1 | +0.3 | 2.6 |
+| 10 | +0.5 | **+21.6** | -2.7 | +0.4 | 2.6 |
+| 17 | **-10.4** | +3.6 | +0.6 | -0.6 | 2.6 |
+
+* the **charge-ODD amplitudes are null at every harmonic** -- there is no
+  charge-odd modulation to rotate;
+* the charge-EVEN amplitude does **not fall as 1/pT** (n = 10: +18.1 / +16.1 /
+  +18.8 / +33.5 across pT 20-30/30-40/40-50/50-60; n = 8: +16.4 / +19.6 /
+  +28.8 / +11.0), whereas a rotated charge-odd source has to fall by a factor
+  3 over that range.
+
+So the modulation is genuinely charge-even AT THE MODULE -- a sagitta effect,
+not a field effect.
+
+### The ETA structure, for contrast: there is none (`c7_eta.py`)
+24 bins in SIGNED gen eta, analytic errors: **mean -3.64 +- 1.81 e-3,
+chi2(no effect) 19.9/24, chi2(FLAT) 15.8/23**, and the eta-ODD part
+(a z-antisymmetric sagitta twist) is **7.9/12**. The charge-even bias is a
+FLAT offset in eta with a large modulation in PHI -- which retires the phrase
+"eta-dependent charge-even skew" for good and confirms PART 2's mixture
+reading from a completely different direction.
+
 **This does not explain the phi-averaged -6.3e-3** -- these harmonics
 integrate to zero over phi by construction -- but it is the missing piece of
 PART 1: the CPE location bias IS producing a large sagitta bias, just not a
