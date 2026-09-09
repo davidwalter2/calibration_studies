@@ -1,4 +1,21 @@
 #!/usr/bin/env python3
+# ############################ RETRACTED ############################
+# THIS SCRIPT'S RESULTS ARE WRONG. DO NOT USE IT.
+#
+# It pairs the convergence variants on (run, lumi, event) alone. The muon
+# gun puts TWO muons in every event -- 79 965 tracks in 40 000 unique keys,
+# measured 2026-09-08 -- so the searchsorted pairing below matches muon A of
+# one variant to muon B of the other as soon as a track is added or dropped
+# upstream. That manufactures an O(1 sigma) per-track spread and a fat tail,
+# and it is what produced the retracted claims of a +3.4e-3 paired shift,
+# "15 % of fits unconverged" and "the shift lives in the unconverged 15 %".
+#
+# The correct tooling is `extract_conv.py`'s `slot` (index within the event)
+# plus `conv_common.py` / `c1_conv.py` / `c2_pair.py`, which pair on
+# (run, lumi, event, slot). Their answer is that the three variants land on
+# the SAME minimum: paired charge-even shift < 0.004e-3, chi2/ndof equal to
+# six digits. See STATE.md, PART 3.
+# ###################################################################
 """How big are the per-track changes, and does the mean shift come from a
 tail of badly-converged tracks or from the bulk?"""
 import numpy as np
