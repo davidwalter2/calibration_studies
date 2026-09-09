@@ -5573,3 +5573,107 @@ two candidates' `1/sigma^2` weight relative to the median J/psi candidate.
 **UNTIL DAVID RULES, `P2X` STAYS UNSUBMITTED.** Its
 `fitresults/native/rabbit_P2X.hdf5` and `.snapshot.hdf5` hold the UNMOVED start
 point and are not certifiable; `certtable.py` rejects them on EDM.
+
+### 0f.58 THE 4th CELL LANDS, AND THE ENDCAP SLOPE IS POSITIVE — `sigma/m` AT
+### FIXED `eta` IS NOW CLOSED (2026-09-08, fit-infrastructure)
+
+`22333453`: `z_V_etaE_slo` re-run with the remedy of 0f.56 (1) -- warm-started
+from `SVfullW`'s point, SAME model, all five `K(m)` shapes still floating, so
+it is directly comparable with the three cells already certified. It took its
+first step without a NaN (`edm` 349.97 at the start against 3353.85 cold) and
+descended monotonically to convergence in 35 minutes on an L40S.
+
+**CERTIFIED** (value AND NLL AND EDM, sec. 0f.16):
+
+| | |
+|---|---:|
+| `m_Z` | **+28.38 +- 5.19 MeV** |
+| `Gamma_Z` | +7.74 +- 10.13 |
+| NLL | **-1366931.128841** |
+| EDM | **2.25e-13** |
+
+**The `sigma/m` split at fixed `eta`, complete** (v form, MeV from the
+generator):
+
+| cell | n | `m_Z` | EDM |
+|---|---:|---:|---:|
+| barrel, `sigma/m` LOW | 785 836 | -4.56 +- 3.69 | 8.3e-13 |
+| barrel, `sigma/m` HIGH | 786 698 | -40.90 +- 4.63 | 2.4e-15 |
+| endcap, `sigma/m` LOW | 512 595 | **+28.38 +- 5.19** | 2.3e-13 |
+| endcap, `sigma/m` HIGH | 512 829 | +65.87 +- 8.69 | 5.1e-16 |
+
+**The two internal slopes have OPPOSITE SIGNS, and that is now measured on both
+sides rather than inferred from a half sample:**
+
+| | LOW -> HIGH | difference | significance |
+|---|---|---:|---:|
+| within the barrel | -4.56 -> -40.90 | **-36.34 +- 5.92** | 6.1 sigma |
+| within the endcap | +28.38 -> +65.87 | **+37.49 +- 10.10** | 3.7 sigma |
+
+Equal in magnitude to 3 %, opposite in sign. Sec. 0f.44 predicted this from
+`SVetaEshi` alone (+65.9 against the endcap's inclusive +34.2); the missing
+cell confirms it. So the residual is a function of neither `sigma/m` alone --
+the slope would be the same in both bands -- nor `eta` alone -- there would be
+no slope within a band. Both inclusive `eta` bands sit where the two
+dependences partly cancel.
+
+**Caveat, and it is the frozen-parameter defect of 0f.56.** This row ran on
+Engaging's copy of rabbit, which does not yet carry `b8e12ce`, and its four
+frozen `k` came back at **1.00119236** rather than 1 (`delta = 1.19e-3`). So it
+joins `SVetaBslo` (1.62e-3) as a row whose resolution was not held exactly at
+the MC truth, and both should be re-run once the fix is staged. The
+displacement is 1.2e-3 on a quantity the fit is not sensitive to at that level,
+so the number is not expected to move; that has to be shown, not assumed.
+
+`sigma(shape5)` on this card's own postfit is **0.004408**, so the initial
+trust radius of 1.0 is **227 sigma** in that direction, which is the number
+0f.56 should be read with.
+
+**A correction to 0f.57.** The J/psi term of `joint_ok_full` is in the **m
+form** (`vpow` unset), not the v form; the widths quoted there are therefore
+already `sigma_phys`, and the two candidates' `sigma/m` is **2.32 % and 2.48 %**
+-- about 3x a typical J/psi rather than 11 %. Verified from the coefficients
+themselves: with `vpow` unset the fluctuation form gives `g = -a + sigma/m`,
+and `-0.04538 + 0.02323 = -0.02215` and `-0.04719 + 0.02484 = -0.02235`
+reproduce the printed `g_i` to five digits. What is anomalous about them is
+that `a_res/(sigma/m)` is **1.95 and 1.90**, against the `1 + f_hit ~ 1.1-1.3`
+the spec expects: it is the FIRST-order coefficient that is out of range, which
+is the same conclusion by a cleaner route.
+
+**THE RULING ON `P2X`** (campaign agent, to be taken to David): the
+non-positive densities are an artefact of the first-order Fourier-space
+truncation, which is a computational device valid only where the correction is
+small, and the fix is to evaluate the map EXACTLY where it is not -- never to
+bound a coefficient or clip a density. Implemented in `rabbit-vmass`:
+
+* `d0e7f58` -- `set_corr_form` and `--unbinnedDeltaKernelForm` (default
+  `auto`). At a **delta kernel** the residual form is exact and positive by
+  construction: `delta_i(theta)` IS the fluctuation there, so
+  `sigma_bar_i = sigma_i - a_i delta_i` and the exact Jensen map
+  `u = (sqrt(1 + 4(r - s^2/2)) - 1)/2` with its `1/(1 + 2u)` Jacobian are the
+  corrections rather than an expansion of them. `auto` moves every
+  delta-kernel term (the J/psi leg) to it at LOAD time and leaves wide-kernel
+  terms (the Z) in the fluctuation form, which is the treatment there. A term
+  in the v formulation is never moved. Tested: the flipped term is identical to
+  one constructed in that form, the flip is reversible, and the configuration
+  that breaks the truncation -- wide, four sigma out, large first-order
+  coefficient -- gives a non-positive density in the fluctuation form and a
+  positive one in the residual form.
+* `6b7bbaa` -- `corr_a_max` plus `--unbinnedCorrAMax` /
+  `--unbinnedCorrCoeffMax`, **diagnostics only, default OFF**. They exist so a
+  domain can be scanned without rebuilding a tens-of-GB card, not to be used as
+  the fix. `fullscale/gate_nanstep.py --amax-scan` runs the ladder.
+
+Still to do on this ruling: (a) verify on the J/psi gun that `alpha` is
+unchanged against **+0.0512 +- 0.0167e-3**, (b) show `joint_ok_full` has ZERO
+non-positive densities at the default point and at the four displaced points
+with the delta-kernel term in the residual form, (c) the wide-kernel arm -- a
+per-candidate positivity check with an EXACT x-space fallback,
+`L_i = Int K(m_i - u_i(x)) p_x(x) |du_i/dx|^-1 dx`, and how many Z candidates
+need it -- then resubmit `P2X`.
+
+**FLAG FOR PHASE 3.** The start-point Hessian of `joint_ok_full` occupies
+**141.4 GB of an H200's 143.8 GB** at 99 % utilisation. Phase 2 at full size
+has no headroom for a third term, so the phase-3 card needs the two-GPU
+candidate sharding (`shardobj` / `candidate_slice`) rather than a single
+device.
