@@ -118,6 +118,24 @@ an inverse.  Then
 | 5 reference component 0 vs the validated `cfqop_*` | **1.2e-7** worst-track relative on ALL SIX families (`ms`, `del`, `ioni_re`, `ioni_im`, `rad_re`, `rad_im`) -- the float32 storage of the reference |
 | 5b `phcf_grp_closure` (`sum_g S_g` vs `S`) | max **2.5e-15** |
 
+### WHICH GATE ACTUALLY BINDS (read this before quoting one)
+* **Gate 1c, `sum_k z_k^2 = chi2` (2.6e-8 median)** is the binding one: the
+  chi2 side comes from `|sfull|^2 - |Q1^T sfull|^2`, which never touches the
+  whitener, so the identity tests the projector, the eigen-truncation, the
+  Gram-Schmidt and the residual together.
+* **Gate 5, reference component 0 vs `cfqop_*` (1.2e-7)** is the other binding
+  one: it tests the influence, the per-block weights, the pooling and the sign
+  against an independently validated model.
+* **Gate 2, `sum_b v^(k)_b = 1` (1.2e-9)**, is largely BY CONSTRUCTION --
+  `|Wstd_k|^2 = t_k^T Gs t_k`, which the Gram-Schmidt sets to 1 exactly.  It
+  is still worth exporting (it catches a wrong `dV_b`, a mis-indexed block, a
+  missing family) but it is not evidence about the truncation.
+* **`phres_gchk`** (median 0.02, max 1.8e4) is NOT a defect: it is
+  `|T (Gs - Gs_trunc) T^T|`, i.e. the discarded eigenvalues (~1e-16) times
+  `|T_k|^2 ~ 1/pivot_k`, so it simply re-measures `phresinflat`.  A component
+  whose conditional variance is 1e-11 of its marginal has an accurate `z`
+  (~1e-6 relative, and gate 1c holds) but its own row of the whitener is huge.
+
 ### GATE 5 IS WHAT FIXED THE SIGN CONVENTION
 Reference component 0 IS the q/p functional -- column 0 of `L^-T` is
 `e_0/sigma_qp`, so its per-block weight `sqrt(v^(0)_b/sq2)` equals the
@@ -290,6 +308,26 @@ which are MATERIAL dominated.  So the expected division of labour is:
 Both to be confirmed at production statistics.  `saturation.py` turns the
 prior-free sandwich into `N_sat = n0 (sigma_free/sigma_prior)^2`, the track
 count at which each parameter stops needing its prior.
+
+## THE EXPORT BILL, ITEMISED (measured per track, compressed, in the tree)
+| branch | kB/track | raw kB/track |
+|---|---|---|
+| `phcf_grp_{ms,del,ioni_re,ioni_im,rad_re,rad_im}` | **507** (6 x ~84) | 6 x 93.3 |
+| `phresbv` (the influence vectors) | 16.4 | 21.8 |
+| `phcf_{ms,del,ioni_re,ioni_im,rad_re,rad_im}` (flat, per component) | 28.2 | 30.0 |
+| `phresvarv` | 4.2 | 4.4 |
+| `phcf_grp_vq{ms,io}` | 2.9 | 3.0 |
+| `phcf_hit*`, `phresz/raw/row/hit/dim/cls/piv/inflat` | < 1 | |
+| **all `ph*`** | **560** | 620 |
+| (`hesspackedv`, the quadratic term, for scale) | 57.9 | 99.4 |
+whole file 662 kB/track; 160 tasks x 2000 tracks = ~212 GB.
+
+The per-group exponents are 90 % of it and compress by only 11 % -- they are
+float32 noise to zlib -- so the compression path has to be ALGORITHMIC:
+turning the per-group split off is 53 kB/track (2.2 TB at 41 M), the card's own
+`--prune-frac 0.001` already discards 83 % of the group rows, and a rank-16
+tau PCA is another factor 4.  `cost.py` prints the bill at the measured
+multiplicities.
 
 ## TWO APPROXIMATIONS TO STATE WITH EVERY NUMBER
 1. **The composite likelihood.**  The product of whitened marginals drops the

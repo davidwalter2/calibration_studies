@@ -12,7 +12,7 @@ NTRKF=${NTRKF:-10000}     # tracks for the Fisher/sandwich step
 NTRKC=${NTRKC:-8000}      # tracks for the card ladder (as hitlik's NTRK=6000)
 mkdir -p $R/cards $R/fits $HERE/logs $FIG
 cd $HERE
-stages=${*:-extract gates xcum quad cards fits fisher efficiency saturation cost plots recovery}
+stages=${*:-extract gates xcum quad cards fits fisher efficiency saturation cost plots recovery finaltable}
 
 run() { echo "=== $1  $(date +%H:%M:%S)"; shift; "$@" ; echo "    rc=$?  $(date +%H:%M:%S)"; }
 
@@ -110,6 +110,23 @@ case $st in
       --param hitres_str_N3_lo --prior-sigma 1.0 \
       > $HERE/logs/recovery_hit.log 2>&1
     cat $HERE/logs/recovery_hit.log
+    cd $HERE ;;
+  finaltable)
+    cd $HL
+    ./run_tf.sh python3 -u final_table.py --efficiency $R/eff_hit.npz \
+      --fits $R/fits --cf ph_cf --gauss ph_gaussq \
+      --inj-cf ph_inj_cf --inj-gauss ph_inj_gaussq \
+      --hit-inj-cf ph_inj_hit --hit-inj-gauss ph_inj_hit_gaussq \
+      --ntrk-fisher $NTRKF --ntrk-fit $NTRKC \
+      > $HERE/logs/final_hit.log 2>&1
+    cat $HERE/logs/final_hit.log
+    ./run_tf.sh python3 -u final_table.py --efficiency $R/eff_ref.npz \
+      --fits $R/fits --cf ph_cf_ref --gauss ph_cf_ref \
+      --inj-cf ph_inj_cf_ref --inj-gauss ph_inj_cf_ref \
+      --hit-inj-cf ph_inj_hit --hit-inj-gauss ph_inj_hit_gaussq \
+      --ntrk-fisher $NTRKF --ntrk-fit $NTRKC \
+      > $HERE/logs/final_ref.log 2>&1
+    cat $HERE/logs/final_ref.log
     cd $HERE ;;
   *) echo "unknown stage $st" ;;
 esac
