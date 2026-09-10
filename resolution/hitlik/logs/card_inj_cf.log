@@ -1,10 +1,10 @@
 6000 tracks x 4 components = 24000 rows; arm 'cf'
-injecting material_tib_support=+0.00243951  -> physical k: material_tib_support=+0.00243951 (+0.244 % material)
+injecting material_tib_support=+0.00243951  -> physical k: material_tib_support=+0.0487902 (+5.000 % material)
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789005800.146211 4121607 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789007003.303078 4142890 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789005805.845121 4121607 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789005814.558933 4121607 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+I0000 00:00:1789007008.893528 4142890 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789007016.989756 4142890 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
 residual term: 24000 rows, 329602 group rows (124022 pruned), 60 parameters
-NLL(0) = 34219.226171, max|grad| = 168.2
+NLL(0) = 34220.293085, max|grad| = 589.6
 wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/inj_cf.hdf5 (425.2 MB)

@@ -153,3 +153,57 @@ likelihood is therefore a good approximation for what `q/p` adds and a
 NOTICEABLE one for the `phi`/`d0` pair: their joint information is
 over-counted, and the honest reading is that `phi + d0` together contribute
 less than the product form says.
+
+## Step 5 (part) — THE EXPORT SPEC, and what a DATA version needs
+
+### What this prototype consumed
+Everything came from `resolution_trackres_mugun_ul16_260903x_m0`, which was
+produced with `exportStepRecords_` ON, i.e. the 430 kB/candidate raw mode:
+
+| branch | what it is | bytes/track |
+|---|---|---|
+| `resinfbv` | `B_b` = `W5^T dV_b^{1/2}`, 5x5 per block | 68 x 25 x 4 = **6.8 kB** |
+| `msmoliv` / `ioniurbanv` / `radstepv` / `radstepspecv` | the raw step records the exponents are built from | ~430 kB |
+| `refParms`, `refCov`, `genParms` | the residual and its covariance | 140 B |
+| `reshitidx` + `hitDetId`/`hitUProj`/`clusterSizeX`/`clusterChargeBin` | the hit classes | ~0.5 kB |
+
+The raw step records are what makes this offline-only.  The maker already
+solved that problem once for the q/p functional (`exportCfExponents_`,
+`cvhcf::trackExponents`, 1.4 kB/candidate); the residual-vector version is the
+SAME evaluator run at `n_res` weights instead of one.
+
+### The change in the maker
+`cvhcf::trackExponents` takes the per-block scalar weight
+`sqrt(v_b/sq2)/sigma`.  For the residual vector it must take `n_res` of them,
+
+    w^(k)_b = sqrt( v^(k)_b / sq2 ),   v^(k)_b = | (L B_b)[k, :] |^2
+
+with `L = inv(chol_lower(refCov))` -- both `B_b` and `refCov` are already in
+scope at that point in `ResidualGlobalCorrectionMakerG4e.cc` (the `W5` block
+around line 4650).  And because every exponent primitive depends on
+`(w, tau)` through the PRODUCT alone, the `n_res` weights are ONE evaluator
+pass on a concatenated `tau` grid -- measured offline at 0.63 s/track/worker
+for five components against ~0.5 s for one, i.e. **the cost of the vector is
+the cost of the scalar**, not `n_res` times it.
+
+### Two maker defects this study found
+* `genParms[4]` (`dsz`) uses `vtx.z() - bsH->position(vtx.z()).z()`, which is
+  identically 0 -- the gen `z0` is not recoverable from the tree.
+* `genParms[2] = g->phi()` is wrapped and `refParms[2]` is not, so the `phi`
+  residual needs an explicit branch-cut wrap (offline here; better in the
+  maker, where a `genParms` in the fit's own convention costs nothing).
+
+### What a DATA version needs
+This prototype is TRUTH-REFERENCED: `r = refParms - genParms`.  On data there
+is no `genParms`, and the residual has to be the hits about the FITTED track --
+whose vector lives in the `n_meas - n_free` space the fit has not already
+absorbed.  That is exactly the object the quadratic hit-chi2 term is the
+Gaussian approximation of, so **the data version of this term is the CF
+generalisation of the hit chi2**, and it needs per track:
+
+    r_h            the n_res residual components
+    B_b            n_res x 5 per resolution block  (the influence)
+    cfres_*        n_res x nfam x NTAU per-group exponents
+
+`B_b` for `n_res = 5` is already written (6.8 kB); for `n_res = n_hits ~ 18`
+it is 24.5 kB.  The exponents dominate -- see `cost.py`'s export bill.

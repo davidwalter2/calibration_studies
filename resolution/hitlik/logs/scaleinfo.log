@@ -1,0 +1,8 @@
+GATE  exact N(0,1) on this grid: I(ln s) = 2.0000 (must be 2.000)
+GATE  Student-t5 (analytic 2*5/8 = 1.250): 1.2500
+
+component         I(ln s) cf     I(ln s) gauss    I(ln s) gaussq   CF/gaussq
+q/p                   1.6445            1.9993            2.0000       0.822
+lambda                1.8658            1.9999            2.0000       0.933
+phi                   1.6012            1.9999            2.0000       0.801
+d0                    1.8764            1.9999            2.0000       0.938

@@ -1,0 +1,24 @@
+[38;21mINFO:plot_hitlik.py: component 0: N 20000, Var(z) 1.0354, mean -0.0027, norm(cf) 0.99998, norm(gauss) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.04605   cf 0.22007 (data/model 0.209)   gauss 0.27031 (data/model 0.170)   gaussq 0.24045 (data/model 0.192)
+   P(|z| > 3): data 0.00735   cf 0.03813 (data/model 0.193)   gauss 0.03396 (data/model 0.216)   gaussq 0.02553 (data/model 0.288)
+   P(|z| > 4): data 0.00235   cf 0.01045 (data/model 0.225)   gauss 0.00159 (data/model 1.480)   gaussq 0.00094 (data/model 2.506)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260909_hitlik/density_c0.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260909_hitlik/density_c0_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component 1: N 20000, Var(z) 1.0517, mean -0.0021, norm(cf) 1.00000, norm(gauss) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.04810   cf 0.23432 (data/model 0.205)   gauss 0.24646 (data/model 0.195)   gaussq 0.24045 (data/model 0.200)
+   P(|z| > 3): data 0.00615   cf 0.02906 (data/model 0.212)   gauss 0.02712 (data/model 0.227)   gaussq 0.02553 (data/model 0.241)
+   P(|z| > 4): data 0.00215   cf 0.00362 (data/model 0.594)   gauss 0.00105 (data/model 2.051)   gaussq 0.00094 (data/model 2.293)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260909_hitlik/density_c1.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260909_hitlik/density_c1_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component 2: N 20000, Var(z) 1.0675, mean +0.0033, norm(cf) 0.99999, norm(gauss) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.04440   cf 0.19838 (data/model 0.224)   gauss 0.25730 (data/model 0.173)   gaussq 0.24045 (data/model 0.185)
+   P(|z| > 3): data 0.00825   cf 0.03566 (data/model 0.231)   gauss 0.03010 (data/model 0.274)   gaussq 0.02553 (data/model 0.323)
+   P(|z| > 4): data 0.00365   cf 0.01125 (data/model 0.325)   gauss 0.00127 (data/model 2.876)   gaussq 0.00094 (data/model 3.892)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260909_hitlik/density_c2.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260909_hitlik/density_c2_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component 3: N 20000, Var(z) 1.0996, mean +0.0088, norm(cf) 1.00000, norm(gauss) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.05480   cf 0.23304 (data/model 0.235)   gauss 0.24566 (data/model 0.223)   gaussq 0.24045 (data/model 0.228)
+   P(|z| > 3): data 0.00980   cf 0.02814 (data/model 0.348)   gauss 0.02690 (data/model 0.364)   gaussq 0.02553 (data/model 0.384)
+   P(|z| > 4): data 0.00205   cf 0.00336 (data/model 0.610)   gauss 0.00103 (data/model 1.985)   gaussq 0.00094 (data/model 2.186)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260909_hitlik/density_c3.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260909_hitlik/density_c3_log.pdf[0m

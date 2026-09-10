@@ -1,10 +1,10 @@
 6000 tracks x 4 components = 24000 rows; arm 'gaussq'
-injecting material_tib_support=+0.00243951  -> physical k: material_tib_support=+0.00243951 (+0.244 % material)
+injecting material_tib_support=+0.00243951  -> physical k: material_tib_support=+0.0487902 (+5.000 % material)
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789005832.762043 4122510 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789007036.019311 4143664 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789005838.561787 4122510 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789005851.654086 4122510 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+I0000 00:00:1789007041.704947 4143664 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789007058.432659 4143664 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
 residual term: 24000 rows, 321187 group rows (132437 pruned), 60 parameters
-NLL(0) = 34590.821528, max|grad| = 198
+NLL(0) = 34591.938551, max|grad| = 962.8
 wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/inj_gaussq.hdf5 (129.5 MB)

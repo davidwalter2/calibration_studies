@@ -54,6 +54,17 @@ def main():
     p.add_argument("--ntrk-res", type=int, default=20000,
                    help="tracks in the residual term (for the quad scaling)")
     p.add_argument("--top", type=int, default=12)
+    p.add_argument("--prior", action="store_true", default=True)
+    p.add_argument("--no-prior", dest="prior", action="store_false")
+    p.add_argument("--hit-prior", type=float, default=1.0)
+    p.add_argument("--quad-marg", choices=["material", "field"],
+                   default="material",
+                   help="marginalise the quadratic term over the material "
+                        "block alone (like-for-like with the residual term, "
+                        "which floats no field modes) or over all 92")
+    p.add_argument("--groups", default="/work/submit/david_w/ZMass/"
+                   "CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/"
+                   "materialGroups50.txt")
     p.add_argument("-o", "--output", default=None)
     a = p.parse_args()
 
@@ -107,10 +118,34 @@ def main():
     print("3. sigma PER PARAMETER (physical units: k = ln material amount,")
     print("   eps = linear hit-variance scale), marginal over all 60")
     print("=" * 78)
+    # THE PRIORS.  Both terms are strongly degenerate in the 42 material
+    # amounts (the quadratic's material block has rank 39/42 on its own), so a
+    # bare pseudo-inverse gives sigma of O(100) for directions nothing
+    # measures.  Adding the SAME parmtype-15 priors both terms already carry in
+    # every fit makes the marginal error well posed and identical in meaning to
+    # the fitted errors.  Ratios between arms are unaffected in the measured
+    # directions and finite in the unmeasured ones.
+    import groups as G
+    gnames_, gpri_ = G.group_param_names(42, a.groups)
+    prior_of = dict(zip(gnames_, gpri_))
+    pv = np.array([prior_of.get(p_, a.hit_prior if p_.startswith("hitres_")
+                                else np.inf) for p_ in params])
+    P = np.diag(np.where(np.isfinite(pv), 1.0 / np.maximum(pv, 1e-300) ** 2,
+                         0.0)) if a.prior else np.zeros((len(params),) * 2)
+    if a.prior:
+        print(f"   priors added: parmtype-15 tier priors "
+              f"({np.nanmin(gpri_):.3g}-{np.nanmax(gpri_):.3g}) and "
+              f"{a.hit_prior:g} on every hit class")
+
     S = {}
+    use_j = any(k.startswith("J_") for k in d.files)
+    print(("   information matrix: the SCORE COVARIANCE (PSD by construction; "
+           "the\n   observed Hessian at theta = 0 is indefinite because the "
+           "model is not exactly\n   at the data -- see section 1)")
+          if use_j else "   information matrix: the observed Hessian")
     for cs in csets:
         for m in arms:
-            H = d[f"H_{m}_{cs}"]
+            H = (d[f"J_{m}_{cs}"] if use_j else d[f"H_{m}_{cs}"]) + P
             marg, alone, npos, w = sigmas(H)
             S[(m, cs)] = (marg, alone, npos, w)
             out[f"sigma_marg_{m}_{cs}"] = marg
@@ -120,7 +155,11 @@ def main():
 
     # order the parameters by the CF full-vector standalone information
     ref = ("cf", csets[-1])
-    order = np.argsort(S[ref][1])
+    # order by how much the term CONSTRAINS the parameter relative to its
+    # prior: sorting by sigma alone puts the parameters with the TIGHTEST
+    # PRIOR (and no information) at the top.
+    con = S[ref][0] / np.where(np.isfinite(pv), pv, 1.0)
+    order = np.argsort(con)
     mats = [i for i in order if params[i].startswith("material_")]
     hits = [i for i in order if params[i].startswith("hitres_")]
 
@@ -171,6 +210,24 @@ def main():
                 else np.nan
             row += f"{r:>22.3f}" if np.isfinite(r) else f"{'--':>22}"
         print(row)
+    print()
+    print("   the same ratios from the PRIOR-FREE standalone information "
+          "1/J_pp\n   (finite for every parameter; the marginal one above is "
+          "prior-limited\n   wherever the term measures nothing):")
+    for A, B, t in pairs:
+        sa, sb = S[A][1], S[B][1]
+        ok = np.isfinite(sa) & np.isfinite(sb) & (sa > 0)
+        okm = ok & np.array([p.startswith("material_") for p in params])
+        okh = ok & np.array([p.startswith("hitres_") for p in params])
+        r = (sb / sa) ** 2
+        print(f"   {t}: median material {np.median(r[okm]):.3f}  "
+              f"(16-84 % {np.percentile(r[okm],16):.3f}-"
+              f"{np.percentile(r[okm],84):.3f}),  "
+              f"hit classes {np.median(r[okh]):.3f}  "
+              f"({np.percentile(r[okh],16):.3f}-{np.percentile(r[okh],84):.3f})")
+        out["ratio_alone_" + t.replace(" ", "").replace("/", "_over_")] = r
+    print()
+    print("   marginal (with the priors):")
     for A, B, t in pairs:
         sa, sb = S[A][0], S[B][0]
         ok = np.isfinite(sa) & np.isfinite(sb) & (sa > 0) & (sa < 1e3) & (sb < 1e3)
@@ -188,10 +245,39 @@ def main():
         pt, si = q["parmtype"], q["subidx"]
         idx = np.where(np.isin(pt, (14, 15)))[0]
         Hq = 0.5 * q["hess"][np.ix_(idx, idx)].astype(np.float64)
+        # (kept in RAW units: for parmtype 15 the raw parameter IS k, and the
+        # prior below regularises the inverse.)
+        _unused_whiten_note = """WHITEN before inverting.  The raw parmtype-14 block is ~350x worse
+        # conditioned than the whitened one (globalfit/STATE.md: 6.6e9 vs
+        # 1.9e7), and marginalising 42 material amounts over 50 raw field
+        # modes through a pseudo-inverse gives sigma(k) of O(1-400) -- a
+        # numerical artefact, not an error.  The whitening is diagonal, so the
+        # physical marginal error is unchanged; only the inverse is stable."""
+        ps_ = np.ones(len(idx))
+        # THE LIKE-FOR-LIKE BLOCK.  The residual term floats NO field modes, so
+        # the quadratic must be marginalised over the material amounts alone --
+        # marginalising over the 50 field modes as well is a different (and,
+        # through the near-null field directions, numerically hopeless)
+        # measurement.  `--quad-marg field` restores the 92-parameter version.
+        m15_ = pt[idx] == 15
+        if a.quad_marg == "material":
+            Hq = Hq[np.ix_(m15_, m15_)]
+            ps_ = ps_[m15_]
+            idx = idx[m15_]
         ncand = int(q["ncand_quadratic"])
+        dprior = np.zeros(len(idx))
+        for j, i_ in enumerate(idx):
+            if pt[i_] == 15:
+                nm_ = gnames_[int(si[i_])]
+                dprior[j] = 1.0 / max(prior_of.get(nm_, np.inf), 1e-300) ** 2
+        alone_noprior = 1.0 / np.sqrt(np.maximum(np.diag(Hq), 1e-300))
+        if a.prior:
+            Hq = Hq + np.diag(dprior)
         margq, aloneq, nposq, wq = sigmas(Hq)
         # material column of group g -> row in Hq
         col = {int(si[i]): j for j, i in enumerate(idx) if pt[i] == 15}
+        print(f"   marginalised over: {a.quad_marg} "
+              f"({len(idx)} parameters)")
         matnames = [p for p in params if p.startswith("material_")]
         gidx = {nm: g for g, nm in enumerate(matnames)}
         sc = np.sqrt(ncand / max(a.ntrk_res, 1))
@@ -202,7 +288,8 @@ def main():
               f" rank {nposq}")
         print(f"   scaled to {a.ntrk_res} tracks: sigma x {sc:.3f}")
         print("=" * 78)
-        hdr = (f"{'parameter':<28}{'quad all':>11}{'quad@' + str(a.ntrk_res):>12}")
+        hdr = (f"{'parameter':<28}{'quad alone':>11}"
+               f"{'quad@' + str(a.ntrk_res):>12}")
         for m in arms:
             hdr += f"{'res ' + m:>12}"
         hdr += f"{'I_res/I_quad':>14}"
@@ -217,12 +304,13 @@ def main():
             if g is None or g not in col:
                 continue
             k = col[g]
-            row = f"{nm:<28}{margq[k]:>11.4f}{margq[k]*sc:>12.4f}"
+            row = f"{nm:<28}{alone_noprior[k]:>11.4f}{alone_noprior[k]*sc:>12.4f}"
             for m in arms:
-                row += f"{S[(m, csets[-1])][0][i]:>12.4f}"
+                row += f"{S[(m, csets[-1])][1][i]:>12.4f}"
             r = (margq[k] * sc / S[("cf", csets[-1])][0][i]) ** 2
-            rat[nm] = r
-            row += f"{r:>14.3f}"
+            ra = (alone_noprior[k] * sc / S[("cf", csets[-1])][1][i]) ** 2
+            row += f"{ra:>14.3f}"
+            rat[nm] = ra
             if len(rat) <= a.top:
                 print(row)
         rr = np.array([v for v in rat.values() if np.isfinite(v)])

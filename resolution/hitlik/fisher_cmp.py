@@ -66,6 +66,11 @@ def parse_args():
     p.add_argument("--no-hits", action="store_true")
     p.add_argument("--chunk", type=int, default=4096)
     p.add_argument("--upsample", type=int, default=1)
+    p.add_argument("--no-hessian", action="store_true",
+                   help="skip the observed Hessian (nparams HVPs); the score "
+                        "covariance is the estimator the comparison uses")
+    p.add_argument("--nbatch", type=int, default=400,
+                   help="batches for the score-covariance Fisher estimator")
     p.add_argument("-o", "--output", required=True)
     return p.parse_args()
 
@@ -85,6 +90,47 @@ def hessian(term, x0):
         col = t2.gradient(g, x, output_gradients=tf.constant(eye[j]))
         H[j] = np.asarray(col.numpy())
     return 0.5 * (H + H.T), float(v.numpy()), np.asarray(g.numpy())
+
+
+def score_cov(term, x0, nbatch=400):
+    """The EXPECTED Fisher information, as the score covariance.
+
+    The observed Hessian at MC truth is INDEFINITE here (theta = 0 is not the
+    minimum: the model differs from the fit's own error at the few-per-cent
+    level), so `(H^-1)_pp` is not an error and the arms cannot be compared
+    with it.  The score covariance is PSD by construction and is the Fisher
+    information at the true parameter (and the sandwich "meat" otherwise),
+    which is exactly "how much does this data constrain this parameter".
+
+    Estimated by BATCH MEANS: with `g_m` the gradient of batch `m` of `n`
+    rows, `Cov(g_m) = n Sigma_s` and the whole-sample information is
+    `I = M n Sigma_s = M x (sample covariance of the g_m)`.  One traced
+    `_chunk_contribution` graph serves every batch, so the total work is ONE
+    gradient pass over the sample.
+    """
+    import tensorflow as tf
+    npar = len(term.param_names)
+    keep = term.chunk
+    n = int(np.ceil(term.n / nbatch))
+    term.rechunk(max(1, n))
+    M = term.nchunk
+
+    @tf.function(reduce_retracing=True)
+    def gchunk(p, ci):
+        with tf.GradientTape() as t:
+            t.watch(p)
+            f = term._chunk_contribution(p, ci)
+        g = t.gradient(f, p)
+        return tf.zeros_like(p) if g is None else g
+
+    x = tf.constant(np.asarray(x0, np.float64))
+    G = np.zeros((M, npar))
+    for m in range(M):
+        G[m] = np.asarray(gchunk(x, tf.constant(m, tf.int32)).numpy())
+    term.rechunk(keep)
+    gb = G.mean(axis=0)
+    D = G - gb
+    return (M / (M - 1.0)) * (D.T @ D), G.sum(axis=0), M
 
 
 def model_variance(sel, arm):
@@ -139,10 +185,28 @@ def main():
                 pass  # upsample is a constructor arg; kept 1 for the Hessian
             npar = len(term.param_names)
             t0 = time.time()
-            H, v, g = hessian(term, np.zeros(npar))
-            log(f"  arm {arm}: NLL(0) = {v:.6f}, max|grad| = "
-                f"{np.abs(g).max():.4g}, H in {time.time()-t0:.0f} s "
-                f"({npar} params)")
+            if args.no_hessian:
+                import tensorflow as tf
+                x = tf.Variable(np.zeros(npar), dtype=tf.float64)
+                with tf.GradientTape() as tp:
+                    vv = term.nll(x)
+                g = np.asarray(tp.gradient(vv, x).numpy())
+                v = float(vv.numpy())
+                H = np.zeros((npar, npar))
+                log(f"  arm {arm}: NLL(0) = {v:.6f}, max|grad| = "
+                    f"{np.abs(g).max():.4g} (Hessian skipped)")
+            else:
+                H, v, g = hessian(term, np.zeros(npar))
+                log(f"  arm {arm}: NLL(0) = {v:.6f}, max|grad| = "
+                    f"{np.abs(g).max():.4g}, H in {time.time()-t0:.0f} s "
+                    f"({npar} params)")
+            t0 = time.time()
+            J, gtot, M = score_cov(term, np.zeros(npar), args.nbatch)
+            wj = np.linalg.eigvalsh(J)
+            log(f"     score covariance ({M} batches) in {time.time()-t0:.0f} "
+                f"s: eig min {wj.min():.3e} max {wj.max():.3e}, "
+                f"|grad check| {np.abs(gtot - g).max():.3e}")
+            res[f"J_{arm}_{cs}"] = J
             res[f"H_{arm}_{cs}"] = H
             res[f"nll0_{arm}_{cs}"] = v
             res[f"grad0_{arm}_{cs}"] = g

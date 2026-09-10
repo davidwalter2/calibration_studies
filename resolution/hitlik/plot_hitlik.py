@@ -110,6 +110,7 @@ def densities(args, sel, outdir):
         n = len(z)
         dens_data = h / (n * np.diff(edges))
         err = np.where(h > 0, dens_data / np.sqrt(np.maximum(h, 1)), np.nan)
+        zfull = sel["z"][rows]
         models = {}
         for arm in args.arms:
             f = mean_density(sel, arm, comp, fine, upsample=args.upsample)
@@ -118,6 +119,29 @@ def densities(args, sel, outdir):
             hi = np.interp(edges[1:], fine, f)
             mid = np.interp(ctr, fine, f)
             models[arm] = (ratiopanel.bin_average(lo, mid, hi), fine, f)
+        zg = np.linspace(-30, 30, 1201)
+        dens_arm = {arm: mean_density(sel, arm, comp, zg,
+                                      upsample=args.upsample)
+                    for arm in args.arms}
+        msg = [f"component {comp}: N {n}, Var(z) {np.var(zfull):.4f}, "
+               f"mean {np.mean(zfull):+.4f}, "
+               + ", ".join(f"norm({a}) {np.trapezoid(dens_arm[a], zg):.5f}"
+                           for a in args.arms)]
+        for thr in (2.0, 3.0, 4.0):
+            fd = float(np.mean(np.abs(zfull) > thr))
+            parts = []
+            for arm in args.arms:
+                # the two tails are DISJOINT: one trapezoid over the union
+                # would add a spurious slab across the core.
+                lo = zg <= -thr
+                hi = zg >= thr
+                fm = float(np.trapezoid(dens_arm[arm][lo], zg[lo])
+                           + np.trapezoid(dens_arm[arm][hi], zg[hi]))
+                parts.append(f"{arm} {fm:.5f} (data/model "
+                             f"{fd/max(fm,1e-12):.3f})")
+            msg.append(f"   P(|z| > {thr:g}): data {fd:.5f}   "
+                       + "   ".join(parts))
+        logger.info("\n".join(msg))
         for logy in (False, True):
             fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(9.0, 7.0))
             ax.errorbar(ctr, dens_data, yerr=err, fmt="ko", ms=3.2, lw=1.0,
@@ -135,15 +159,32 @@ def densities(args, sel, outdir):
             ax.set_title(f"whitened residual component {comp}  "
                          f"({CNAME[comp]}),  20-60 GeV $\\mu$ gun",
                          fontsize=15)
+            # the reference of the ratio panel is the LAST arm (the Gaussian
+            # the CF is being compared against): the data points then say which
+            # arm they prefer, and the smooth curve is the MODEL/MODEL ratio,
+            # i.e. exactly what the non-Gaussian densities change.
+            refarm = args.arms[-1]
+            mref = models[refarm][0]
             for arm in args.arms:
                 mb = models[arm][0]
-                r = np.where(mb > 0, dens_data / mb, np.nan)
-                re_ = np.where(mb > 0, err / mb, np.nan)
-                rax.errorbar(ctr, r, yerr=re_, fmt="o", ms=3.0, lw=1.0,
-                             color=ARMCOL[arm])
+                if arm == refarm:
+                    r = np.where(mref > 0, dens_data / mref, np.nan)
+                    re_ = np.where(mref > 0, err / mref, np.nan)
+                    rax.errorbar(ctr, r, yerr=re_, fmt="o", ms=3.0, lw=1.0,
+                                 color="k", label="data")
+                else:
+                    _, ff, fv = models[arm]
+                    fr = np.interp(ff, ff, fv) / np.maximum(
+                        np.interp(ff, models[refarm][1], models[refarm][2]),
+                        1e-300)
+                    rax.plot(ff, fr, "-", color=ARMCOL[arm], lw=1.8)
             rax.axhline(1.0, color="k", lw=0.8)
-            rax.set_ylim(0.55, 1.45)
-            rax.set_ylabel("data / model", fontsize=13)
+            if logy:
+                rax.set_yscale("log")
+                rax.set_ylim(0.4, 40.0)
+            else:
+                rax.set_ylim(0.55, 1.45)
+            rax.set_ylabel(f"/ {ARMLAB[refarm].split(',')[0]}", fontsize=11)
             rax.set_xlabel(r"whitened residual $z$")
             fn = os.path.join(
                 outdir, f"density_c{comp}{'_log' if logy else ''}.pdf")
@@ -198,8 +239,8 @@ def main():
     p.add_argument("--arms", nargs="+", default=["cf", "gaussq"])
     p.add_argument("--densities", action="store_true")
     p.add_argument("--ratios", default=None)
-    p.add_argument("--zrange", type=float, nargs=2, default=[-6.0, 6.0])
-    p.add_argument("--nbins", type=int, default=80)
+    p.add_argument("--zrange", type=float, nargs=2, default=[-7.0, 7.0])
+    p.add_argument("--nbins", type=int, default=112)
     p.add_argument("--upsample", type=int, default=8)
     p.add_argument("--outpath", default=None)
     args = p.parse_args()

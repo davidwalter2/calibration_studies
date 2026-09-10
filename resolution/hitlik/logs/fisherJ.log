@@ -1,0 +1,20 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789009169.947892 1101084 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789009176.071853 1101084 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[22:59:55] comps 0: 20000 tracks x 1 components = 20000 rows, 377703 group rows
+E0000 00:00:1789009197.162947 1101084 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+[22:59:58]   arm cf: NLL(0) = 28376.248910, max|grad| = 16.11 (Hessian skipped)
+[23:00:00]      score covariance (500 batches) in 3 s: eig min -1.202e-17 max 9.564e+02, |grad check| 2.158e-13
+[23:00:03]   arm gauss: NLL(0) = 28660.347987, max|grad| = 132.6 (Hessian skipped)
+[23:00:04]      score covariance (500 batches) in 1 s: eig min -5.435e-17 max 1.661e+03, |grad check| 2.722e-09
+[23:00:06]   arm gaussq: NLL(0) = 28643.171612, max|grad| = 28.39 (Hessian skipped)
+[23:00:07]      score covariance (500 batches) in 1 s: eig min -3.893e-13 max 1.801e+03, |grad check| 1.994e-09
+[23:00:22] comps 0123: 20000 tracks x 4 components = 80000 rows, 1510812 group rows
+[23:00:32]   arm cf: NLL(0) = 114064.758037, max|grad| = 477 (Hessian skipped)
+[23:00:34]      score covariance (500 batches) in 2 s: eig min -3.257e-16 max 3.078e+03, |grad check| 4.206e-12
+[23:00:44]   arm gauss: NLL(0) = 115332.096765, max|grad| = 510.6 (Hessian skipped)
+[23:00:46]      score covariance (500 batches) in 2 s: eig min -7.072e-16 max 5.221e+03, |grad check| 1.117e-08
+[23:00:55]   arm gaussq: NLL(0) = 115308.248387, max|grad| = 556 (Hessian skipped)
+[23:00:56]      score covariance (500 batches) in 2 s: eig min -7.502e-16 max 5.326e+03, |grad check| 2.088e-08
+[23:00:56] wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/fisherJ20k.npz

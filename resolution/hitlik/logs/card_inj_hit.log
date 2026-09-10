@@ -1,0 +1,10 @@
+6000 tracks x 4 components = 24000 rows; arm 'cf'
+injecting hitres_str_N3_lo=+0.1  -> physical k: 
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789007272.594812 4149410 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789007278.235839 4149410 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789007286.456473 4149410 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+residual term: 24000 rows, 329602 group rows (124022 pruned), 60 parameters
+NLL(0) = 34220.872921, max|grad| = 391.2
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/inj_hit.hdf5 (425.4 MB)

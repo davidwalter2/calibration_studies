@@ -1,10 +1,14 @@
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789005131.409905 1063347 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789006900.250682 1085393 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789005139.655550 1063347 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-[21:52:40] comps 0: 20000 tracks x 1 components = 20000 rows, 377703 group rows
-E0000 00:00:1789005162.671567 1063347 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-[21:54:59]   arm cf: NLL(0) = 28376.248910, max|grad| = 16.11, H in 137 s (60 params)
-[21:57:28]   arm gauss: NLL(0) = 28660.347987, max|grad| = 132.6, H in 147 s (60 params)
-[21:59:58]   arm gaussq: NLL(0) = 28643.171612, max|grad| = 28.39, H in 148 s (60 params)
-[22:00:13] comps 0123: 20000 tracks x 4 components = 80000 rows, 1510812 group rows
+I0000 00:00:1789006908.412781 1085393 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[22:22:09] comps 0: 20000 tracks x 1 components = 20000 rows, 377703 group rows
+E0000 00:00:1789006931.584705 1085393 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+[22:24:30]   arm cf: NLL(0) = 28376.248910, max|grad| = 16.11, H in 139 s (60 params)
+[22:26:51]   arm gauss: NLL(0) = 28660.347987, max|grad| = 132.6, H in 139 s (60 params)
+[22:29:13]   arm gaussq: NLL(0) = 28643.171612, max|grad| = 28.39, H in 140 s (60 params)
+[22:29:28] comps 0123: 20000 tracks x 4 components = 80000 rows, 1510812 group rows
+[22:38:16]   arm cf: NLL(0) = 114064.758037, max|grad| = 477, H in 520 s (60 params)
+[22:47:14]   arm gauss: NLL(0) = 115332.096765, max|grad| = 510.6, H in 526 s (60 params)
+[22:56:06]   arm gaussq: NLL(0) = 115308.248387, max|grad| = 556, H in 523 s (60 params)
+[22:56:06] wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/fisher20k.npz
