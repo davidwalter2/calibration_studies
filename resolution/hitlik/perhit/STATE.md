@@ -349,6 +349,266 @@ concatenated-tau trick (`extract_res5.py`'s, every exponent primitive depends
 on `(w, tau)` through the product alone) is therefore worth porting for a
 40M-track production but was not needed here.
 
+## NLL AT MC TRUTH (the card build, 8000 tracks, `logs/cards.log`)
+
+| card | rows | NLL(0) | vs CF |
+|---|---|---|---|
+| `ph_cf` (per-hit, full CF densities) | 106 664 | **149 289.577** | -- |
+| `ph_gaussq` (per-hit, the fit's own Q = the chi2) | 106 664 | 149 316.290 | **+26.71** |
+| `ph_gauss` (per-hit, variance-matched Gaussian) | 106 664 | 149 321.023 | +31.45 |
+| `ph_cf_ref` (the 5 truth-referenced components) | 40 000 | 59 785.719 | -- |
+| `ph_cf_all` (both sets, same tracks) | 146 664 | 209 075.296 | -- |
+| the J/psi-gun mass term (24 000 candidates) | | -47 431.190 | |
+
+Two things: the CF is the best description on the per-hit rows too, but only by
+**2.50e-4 per row** against the prototype's 0.0155 per row on the
+truth-referenced ones -- a factor 62, and the same factor the hit share
+predicts (a per-hit innovation is 97 % Gaussian hit noise).  And
+`ph_cf_all` = `ph_cf` + `ph_cf_ref` to **6 decimal places** (209 075.296 =
+149 289.577 + 59 785.719), i.e. the joint card really is the product of the two
+composite likelihoods on the same tracks -- which is exactly the object whose
+error has to be checked with a sandwich.
+
+## THE HEADLINE: THE SANDWICH (8000 tracks, `logs/eff_{hit,ref,all}.log`, 18:10)
+
+`fisher_cmp.py` (H by 60 HVPs, J by 200 batch means over whole tracks) +
+`efficiency.py`.  Every number is the ACTUAL (sandwich) variance, never the
+nominal Fisher one.  `fisherHJ.npz` = `hit` + `ref`, 3 arms, H in 880-957 s
+(`hit`) / 334-352 s (`ref`) per arm; `fisherHJ_all.npz` = `all`, 2 arms,
+1057-1085 s.  `|sum_m g_m - g|` 5.6e-11 in every arm; bootstrap/sandwich
+0.997-0.999 (as it must be algebraically -- it validates the batching, not the
+sandwich).
+
+### EFFICIENCY  sigma^2(chi2, ACTUAL) / sigma^2(CF, ACTUAL)
+
+| component set | rows | MATERIAL, marginal | MATERIAL, prior-free | HIT CLASSES, marginal | HIT CLASSES, prior-free |
+|---|---|---|---|---|---|
+| **`hit`** (the per-hit complement, 13.33 comps/track) | 106 664 | **1.097** (1.043-1.174) | **1.171** (1.083-1.240) | **0.999** (0.969-1.010) | **1.001** (0.969-1.018) |
+| **`ref`** (the 5 truth-referenced components) | 40 000 | **1.486** (1.405-1.863) | **1.393** (1.129-1.976) | **1.108** (0.975-1.338) | **1.117** (0.991-1.313) |
+| **`all`** (BOTH, same tracks) | 146 664 | **1.510** (1.400-1.860) | **1.657** (1.267-2.166) | (per class 0.98-1.33) | |
+| what the chi2 CLAIMS (quoted/quoted) | | 1.003 / 0.998 / 1.003 | | 0.981 / 0.943 | |
+
+**This is the central result and it is exactly what `phcf_vgf` predicted.**  A
+per-hit innovation is ~97 % Gaussian hit noise, so replacing the chi2 by the
+full non-Gaussian PDF buys **nothing** on the hit classes (0.999) and only
+~10 % in variance on the material.  On the truth-referenced components, which
+are material dominated, it buys **1.49x** in variance on the material and
+1.11x on the hit classes.  The division of labour predicted from the 120-track
+smoke is confirmed at production statistics.
+
+### SANDWICH / QUOTED -- and the composite likelihood, MEASURED
+
+| component set | CF marginal | chi2 marginal | **CF prior-free, material** | **chi2 prior-free, material** | CF prior-free, hit classes | chi2 prior-free, hit classes |
+|---|---|---|---|---|---|---|
+| `hit` | 0.964 | 0.982 | **0.529** | 0.563 | **1.067** | 1.090 |
+| `ref` | 0.934 | 1.028 | **0.999** | **1.237** | 1.082 | 1.191 |
+| `all` | 0.905 | 0.957 | **0.939** | 1.204 | | |
+
+Read the PRIOR-FREE column: `S/Q = sqrt(J_pp/H_pp)`, and `H` is a sum over
+ROWS while `J` is estimated by batch means over WHOLE TRACKS, so the ratio
+measures exactly the within-track correlation the product-of-marginals
+likelihood drops.
+
+* **`ref`, CF: 0.999.**  The five truth-referenced components are effectively
+  independent for the material amounts -- the composite form is right, and the
+  CF model describes the data (this is the same statement the prototype made).
+* **`ref`, chi2: 1.237.**  The Gaussian's own error is optimistic by 24 % in
+  sigma, 1.53x in variance -- the Moliere tail it does not model.
+* **`hit`: 0.529 for BOTH arms.**  `J_pp/H_pp = 0.28`: the per-hit
+  innovations' material scores are strongly ANTI-correlated within a track,
+  because `sum_k z_k^2 = chi2` with only `d = n_meas - 5` degrees of freedom.
+  **So the per-hit composite likelihood over-counts the MATERIAL information
+  by 1/0.28 = 3.6x in variance, and the sandwich is what corrects it.**  It is
+  the same factor in both arms, so the EFFICIENCY ratio above is unaffected.
+* **`hit`, hit classes: 1.067.**  No over-counting there -- the hit-class
+  information is a per-row VARIANCE quantity and the rows really are nearly
+  independent for it.  This is the quantitative version of the note in
+  "TWO APPROXIMATIONS": the composite form mis-counts the shape information
+  and not the second-order information, and now it is measured.
+
+### THE JOINT ON THE SAME TRACKS (`all`) -- extra deliverable 2, part 1
+`sandwich/quoted` on the joint is **0.905 (CF) / 0.957 (chi2)** marginal and
+**0.939 / 1.204** prior-free -- i.e. **NOT above 1 for the CF**, so the joint
+does not over-count relative to what its own arms already do.  What it DOES
+show is the absolute errors: for `material_tib_support` the CF ACTUAL sigma is
+0.0028 (`hit`), 0.0037 (`ref`) and 0.0038 (`all`), while the QUOTED sigma
+falls monotonically 0.0072 -> 0.0062 -> 0.0058.  **The joint's quoted error
+improves and its actual error does not** -- that IS the over-counting, seen in
+the only place it can be seen, and the sandwich prices it correctly.
+
+## THE TAILS (20 000 tracks, 288 641 per-hit rows, `logs/tails_hit_pooled.log`)
+
+Row-averaged predicted density by the same inverse Fourier transform the term
+uses; all three arms normalise to **1.000000**, DATA `Var(z) = 0.9527`,
+mean +0.0058.
+
+| P(\|z\| > t) | data | CF | data/CF | chi2 (fit's Q) | data/chi2 |
+|---|---|---|---|---|---|
+| 1 | 0.30621 | 0.31709 | 0.97 | 0.31734 | 0.96 |
+| 2 | 0.03866 | 0.04578 | 0.84 | 0.04551 | 0.85 |
+| 3 | 0.00280 | 0.00293 | **0.96** | 0.00270 | 1.04 |
+| 4 | 0.00051 | 0.00015 | **3.43** | 0.00006 | **7.98** |
+| 5 | 0.00010 | 0.00003 | **2.90** | 6e-7 | **169** |
+
+Compare the prototype's truth-referenced components: there the chi2 was wrong
+by 32-58x at 4 sigma and 1650-3400x at 5.5, and the CF was flat at 0.95-3.1.
+Here the chi2 is wrong by 8x at 4 sigma and **169x at 5 sigma**, and the CF by
+2.9-3.4 -- so the CF is still **2.3x (4 sigma) to 58x (5 sigma)** closer to the
+data, but both arms now MISS a real tail that neither models.
+
+**That tail is the hit noise, not the material.**  Both arms treat the hit
+(Gaussian) share -- 97 % of a per-hit innovation -- as exactly Gaussian; only
+the material share carries the CF's non-Gaussianity.  So a 5e-4 data
+probability beyond 4 sigma against a CF 1.5e-4 is a statement about hit
+resolution tails (bad clusters, unmodelled pixel/strip response), which is
+precisely what the 18 hit-class parameters are there to absorb in WIDTH and
+cannot absorb in SHAPE.  It is the natural next item: a non-Gaussian hit
+model would enter the same CF machinery as one more family.
+
+### THE TAILS ON THE TRUTH-REFERENCED COMPONENTS (same 20 000 tracks)
+`--comps ref --group-by refparm` (a new grouping added this session: on the
+per-hit file a truth-referenced component sits at slot `d + j`, so grouping by
+the raw `comp` value mixes q/p with z0 -- it must be ranked within the track).
+
+| P(\|z\|>4) | data | CF | data/CF | chi2 | data/chi2 |
+|---|---|---|---|---|---|
+| q/p | 0.00235 | 0.00248 | **0.95** | 0.00006 | **37** |
+| lambda | 0.00215 | 0.00069 | 3.10 | 0.00006 | 34 |
+| phi | 0.00365 | 0.00287 | **1.27** | 0.00006 | **58** |
+| d0 | 0.00205 | 0.00068 | 3.03 | 0.00006 | 32 |
+| **z0** | 0.00955 | 0.00037 | **25.7** | 0.00006 | **151** |
+
+The first four rows reproduce the prototype's table **digit for digit** from a
+completely different production and export path.  At 5 sigma the chi2 is wrong
+by 680-3400x and the CF by 0.8-4.0.
+
+**z0 is the exception and it is new.**  `Var(z_4) = 1.928` (1.39x in sigma
+against 1.04-1.10 for the other four) and its 4-sigma tail is 26x what the CF
+predicts.  This observable did not EXIST before the `genParms[4]` fix, so
+nothing was known about it; it says the fit's z0 error is underestimated and
+that whatever does it is NOT in the resolution model.  It is the most weakly
+conditioned Cholesky component, so part of it is amplification -- but a factor
+1.9 in variance is too large for that alone.  **Open item.**
+
+## COST, MEASURED ON ONE PINNED CPU (`taskset -c 40`, `OMP_NUM_THREADS=1`,
+## 2000 tracks, arm `cf`, `logs/cost_*.log`, 18:12)
+
+| | `hit` (13.40 comps/track) | `ref` (5) | `all` (18.40) |
+|---|---|---|---|
+| rows | 26 801 | 10 000 | 36 801 |
+| group rows | 282 977 | 129 939 | 412 916 |
+| NLL | 29.1 us/row, **389 us/track** | 34.7 / 174 | 30.4 / 559 |
+| NLL + gradient | 106.4 us/row, **1426 us/track** | 129.8 / 649 | 110.4 / 2031 |
+| one HVP | 398.5 us/row | 490.8 | 414.3 |
+| full Hessian (60 HVPs) | 641 s | 295 s | 915 s |
+| card in memory | 0.483 GB (**241.6 kB/track**) | 0.218 GB (109.0) | 0.701 GB (350.5) |
+| **one NLL+grad over 320 k tracks (this production)** | **456 s** | 208 s | 650 s |
+| **one NLL+grad at 41 M tracks** | **16.24 h CPU** | 7.39 h | 23.13 h |
+| one HVP at 41 M tracks | 60.8 h CPU | 27.9 h | 86.8 h |
+
+For scale, the prototype's 4-component truth-referenced term was 1.3 h CPU for
+one NLL+grad at 41 M.  The per-hit version is **12x** that, because there are
+3.4x the rows and 10.6 material groups on each.  It is a dense `(chunk, nt)`
+matmul per family, so a GPU is 20-60x this hardware: **~20-50 min of GPU** for
+one NLL+grad over 41 M tracks, i.e. still the same order as the mass term.
+
+**EXPORT: what was actually written vs what a compressed export would be.**
+
+| | kB/track | TB at 41 M |
+|---|---|---|
+| **MEASURED in the tree** (all `ph*`, no compression work) | **567** | **23.2** |
+| `cost.py` at the measured multiplicities, rank-16 tau PCA, `hit` | **73.3** | **3.00** |
+| ... `ref` | 32.0 | 1.31 |
+| ... `all` | 106 | 4.32 |
+| ... `q/p` only (the status quo) | 5.5 | 0.22 |
+
+So the algorithmic compression (per-group split off / prune / rank-16 tau PCA)
+is worth a factor **7.7** on what this production actually wrote, and the
+per-hit term then costs **3.0 TB** against the truth-referenced version's
+1.3 TB and the status quo's 0.22 TB.
+
+## INJECTION RECOVERY (8000 tracks; `logs/recovery_*.log`)
+
+`material_tib_support` x1.05 material (card value +0.00243951 = k +0.0487902).
+
+**A UNITS BUG WAS FIXED FIRST.**  `run_stage2.sh` passed `--prior-sigma 1.0`,
+which is right for a HIT CLASS (its card prior IS `--hit-prior = 1`) and wrong
+for a material group: the card is whitened so that the injection 0.00243951
+equals k = 0.0487902, i.e. the tier prior 0.05 in k is **0.0025** in card
+units.  With 1.0 the prior-shrinkage factor came out `f = 1.000` and the RAW,
+prior-shrunk shift (-0.17) was quoted as if it were the recovery.
+
+| channel | baseline | injected | shift | /truth | f_prior | **corrected/truth** | pull | leak rms |
+|---|---|---|---|---|---|---|---|---|
+| per-hit, CF | -0.00061 +- 0.00229 | -0.00102 +- 0.00227 | -0.00041 | -0.170 | 0.176 | **-0.964** | **-0.02** | 0.016 |
+| per-hit, fit's Q | -0.00098 +- 0.00227 | -0.00142 +- 0.00225 | -0.00044 | -0.181 | 0.187 | **-0.965** | **-0.02** | 0.015 |
+
+Both recover the 5 % injection to **96.4-96.5 %** with a 0.02-sigma pull;
+largest leakage `hitres_str_N3_hi` -0.06 sigma.  (The prototype's
+truth-referenced term gave 0.979 / 0.943 on the same injection.)  The remaining
+channels (`cf_ref`, `cf_all`, `mass`, `resmass`, and the hit-class injection)
+are in the fit queue.
+
+## SATURATION -- how many tracks before the term stops needing its prior
+`saturation.py` (**fixed this session**: it used the MARGINAL prior-free
+sandwich `psd_inv(H) J psd_inv(H)`, and with 15-16 of the 42 groups carrying no
+information of their own the pseudo-inverse dropped their directions and
+returned `sigma = 0`, i.e. `N_sat = 1e-27 tracks`.  It now uses the STANDALONE
+form `sqrt(J_pp)/H_pp` -- the same quantity `efficiency.py` calls `aa`, well
+defined for every parameter and exactly `1/sqrt(N)`-scaling -- and reports only
+the parameters with `H_pp > 1e-8 max(H_pp)`.)
+
+`N_sat = n0 (sigma_free(n0)/sigma_prior)^2`, at n0 = 8000 tracks:
+
+| component set / arm | groups with information | median N_sat, MATERIAL | 16-84 % | max | median N_sat, HIT CLASSES |
+|---|---|---|---|---|---|
+| `hit`, CF | 26/42 | **679** | 247 - 4.5e3 | **4.1e4** | **14.5** (max 307) |
+| `hit`, chi2 | 27/42 | 1.05e3 | 300 - 8.9e3 | 2.2e6 | 14.2 (max 302) |
+| `ref`, CF | 27/42 | 1.65e3 | 181 - 2.2e4 | **1.6e6** | 7.3 - 39 (the 7 printed) |
+
+**Everything this term constrains saturates at O(10^2 - 10^4) tracks**, the
+worst material group at 4.1e4 (`hit`) / 1.6e6 (`ref`).  Against 41 M tracks
+that is 0.1-4 % of the sample.  The best `hit`-arm material sigmas at
+41 M tracks would be 0.0018-0.0026 of a tier prior, and the hit classes
+0.0002-0.0006 -- far below any prior, and far below the systematic floor.
+
+**THE RECOMMENDATION THIS DECIDES.**  Run the CF residual term on a SUBSAMPLE
+of a few million tracks and the ordinary quadratic term (which handles the
+alignment/field MEANS exactly, through `gradv`/`hesspackedv`) on the DISJOINT
+remainder.  At 2 M tracks every material group is past saturation even in the
+worst case (1.6e6), the two samples are disjoint so `H` and `J` add exactly and
+nothing is double counted, and the export bill falls from **23.2 TB to
+~1.1 TB** with no new maker work.  The alternative -- exporting the per-track
+mean Jacobian `D = W^T J` (13 kB/track, 0.6 TB at 41 M) so the CF term can
+carry the means itself -- buys resolution parameters that are already
+saturated, so it is NOT justified by these numbers; it becomes interesting only
+if the CF term is wanted for the alignment/field means themselves.
+
+## EXTRA DELIVERABLE 2 -- the two joints, and how they are built
+
+The WG question ("are the mass term and the hit residuals correlated, and how
+is that accounted for") splits into two objects with different answers:
+
+* **SAME tracks** -- the truth-referenced q/p pull (the mass functional's
+  variable, available on this MC) and the per-hit innovations.  Uncorrelated
+  exactly (`F^T R = 0`), NOT independent (fourth cumulant 0.46 median).  The
+  card `ph_cf_all` multiplies the two composite likelihoods on the same
+  tracks, and `fisher_cmp.py --comps all` + `efficiency.py --cset all` measure
+  what that costs.  **The over-counting signature is a `sandwich/quoted` above
+  1 on the joint that neither arm shows alone.**
+* **DISJOINT samples** -- the per-hit residual term (mu gun) plus the J/psi-gun
+  MASS term (different events).  Then `H` and `J` are additive exactly and
+  there is nothing to over-count; `perhit/fisher_joint.py` forms the sum by
+  parameter NAME and `efficiency.py --cset hitmass` reads it.
+
+**The mass term's own H and J are MEASURED and cached** (`runs/perhit/mass_HJ.npz`,
+2026-09-10 17:21): 24 000 J/psi-gun candidates, 498 559 group rows (27 045
+pruned at `--prune-frac 0.001`), 42 material parameters, **NLL(0) =
+-47431.190018** -- identical to the `ph_mass` card's, so it is the same object
+the fits use.  `H` = 42 HVPs in **304 s**; `J` = 200 batch means in 6 s with
+`|sum_m g_m - g|` = **6.9e-9**.  `--mass-cache` reuses it, so the joint costs
+nothing after the first build.
+
 ## EXTRA DELIVERABLE 1 -- DONE (20 000 tracks, `logs/xcum20k.log`, 17:00)
 
 `xcum_perhit.py` on `perhit20k.npz`.  Table (3) reproduces the PROTOTYPE's

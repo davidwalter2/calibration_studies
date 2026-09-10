@@ -1,0 +1,41 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789078544.412168 2185919 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789078552.960976 2185919 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789078570.938652 2185919 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+==========================================================================
+COST  (2000 tracks x 18.4005 components = 36801 rows, 412916 group rows, 60 parameters, arm 'cf')
+==========================================================================
+  npz load                     5.56 s
+  term build (numpy + tf)      5.39 s
+  NLL                        1118.8 ms     30.40 us/row    559.40 us/track
+  NLL + gradient             4061.7 ms    110.37 us/row   2030.87 us/track
+  one Hessian-vector prod   15245.3 ms    414.26 us/row
+  full Hessian (60 HVPs)     914.7 s
+  CF evaluations per row: nt 64 x upsample 1 = 64 quadrature points, 11.2 group rows/row
+
+  extrapolated to 320 000 tracks (this production):
+     one NLL+grad     649.9 s      one HVP   2439.2 s
+  extrapolated to 7 M Z legs + 34 M J/psi legs = 41 M tracks:
+     one NLL+grad     23.13 h CPU   one HVP    86.81 h CPU
+     (a GPU is 20-60x this hardware on the same graph; the term is a dense (chunk, nt) matmul per family)
+
+  card datasets in memory     0.701 GB  (350.5 kB/track)
+
+==========================================================================
+EXPORT BILL per track (float32), at the measured multiplicities
+  11.2 material groups and 8.8 hit classes per (track, component)
+==========================================================================
+variant                                    flat   per-grp   rank16  hitcls      B_b  total(r16)
+q/p only (the status quo)                  1.5k     17.2k     4.3k   0.05k     1.4k        5.7k
+18.4005 components (THIS card: all)       28.3k    317.1k    79.3k   0.97k    25.0k      105.3k
+5 reference-state components               7.7k     86.2k    21.5k   0.26k     6.8k       28.6k
+14 per-HIT complement components          21.5k    241.3k    60.3k   0.74k    19.0k       80.1k
+
+  q/p only (the status quo)                0.23 TB at 41 M tracks
+  18.4005 components (THIS card: all)      4.32 TB at 41 M tracks
+  5 reference-state components             1.17 TB at 41 M tracks
+  14 per-HIT complement components         3.28 TB at 41 M tracks
+
+  (`B_b` assumes the 68 resolution blocks/track measured on this production;
+   `rank16` is the tau-axis PCA of NOTES 2026-09-05 (II) s8, exact to 1e-5)

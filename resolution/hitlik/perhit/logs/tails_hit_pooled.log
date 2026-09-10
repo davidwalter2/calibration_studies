@@ -1,0 +1,21 @@
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py:344: SyntaxWarning: invalid escape sequence '\c'
+  ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",
+group                N   Var(z)     mean         norm cf   norm gauss  norm gaussq
+all             288641   0.9527   0.0058        1.000000     1.000000     1.000000
+
+P(|z| > 1)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.30621    0.31709    0.97    0.31816    0.96    0.31734    0.96
+P(|z| > 2)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.03866    0.04578    0.84    0.04588    0.84    0.04551    0.85
+P(|z| > 3)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.00280    0.00293    0.96    0.00275    1.02    0.00270    1.04
+P(|z| > 4)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.00051    0.00015    3.43    0.00007    7.74    0.00006    7.98
+P(|z| > 5)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.00010    0.00003    2.90    0.00000  161.15    0.00000  168.98
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_all.pdf

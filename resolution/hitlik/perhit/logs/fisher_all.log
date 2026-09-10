@@ -4,3 +4,8 @@ WARNING: All log messages before absl::InitializeLog() is called are written to 
 I0000 00:00:1789073884.493288  658390 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 [16:58:22] comps all: 8000 tracks x 18.333 components = 146664 rows, 2780947 group rows
 E0000 00:00:1789073993.259927  658390 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+[17:17:32]   arm cf: NLL(0) = 209075.296063, max|grad| = 641.4, H in 1057 s (60 params)
+[17:17:36]      score covariance (200 batches) in 4 s: eig min -2.607e-16 max 6.269e+03, |grad check| 5.605e-11
+[17:37:04]   arm gaussq: NLL(0) = 209849.836588, max|grad| = 709.2, H in 1085 s (60 params)
+[17:37:06]      score covariance (200 batches) in 2 s: eig min -3.061e-16 max 6.920e+03, |grad check| 4.410e-09
+[17:37:06] wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/fisherHJ_all.npz

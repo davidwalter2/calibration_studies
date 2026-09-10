@@ -1,0 +1,50 @@
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py:344: SyntaxWarning: invalid escape sequence '\c'
+  ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",
+[38;21mINFO:plot_hitlik.py: component pix_x_q0: N 2446, Var(z) 0.8489, mean +0.0294, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03925   cf 0.04601 (data/model 0.853)   gaussq 0.04555 (data/model 0.862)
+   P(|z| > 3): data 0.01267   cf 0.00311 (data/model 4.075)   gaussq 0.00271 (data/model 4.685)
+   P(|z| > 4): data 0.00491   cf 0.00022 (data/model 22.620)   gaussq 0.00006 (data/model 77.180)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_x_q0.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_x_q0_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pix_x_q1: N 6962, Var(z) 0.9572, mean +0.0423, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03964   cf 0.04626 (data/model 0.857)   gaussq 0.04555 (data/model 0.870)
+   P(|z| > 3): data 0.00460   cf 0.00354 (data/model 1.300)   gaussq 0.00271 (data/model 1.699)
+   P(|z| > 4): data 0.00043   cf 0.00041 (data/model 1.063)   gaussq 0.00006 (data/model 6.779)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_x_q1.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_x_q1_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pix_x_q2: N 4392, Var(z) 1.0757, mean +0.0602, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.05510   cf 0.04631 (data/model 1.190)   gaussq 0.04555 (data/model 1.210)
+   P(|z| > 3): data 0.00797   cf 0.00367 (data/model 2.171)   gaussq 0.00271 (data/model 2.946)
+   P(|z| > 4): data 0.00114   cf 0.00047 (data/model 2.433)   gaussq 0.00006 (data/model 17.910)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_x_q2.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_x_q2_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pix_x_q3: N 4146, Var(z) 1.1190, mean +0.0541, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.06102   cf 0.04628 (data/model 1.319)   gaussq 0.04555 (data/model 1.340)
+   P(|z| > 3): data 0.00724   cf 0.00371 (data/model 1.951)   gaussq 0.00271 (data/model 2.675)
+   P(|z| > 4): data 0.00048   cf 0.00049 (data/model 0.982)   gaussq 0.00006 (data/model 7.589)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_x_q3.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_x_q3_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pix_y_q0: N 2443, Var(z) 0.9890, mean +0.0200, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.04953   cf 0.04588 (data/model 1.080)   gaussq 0.04555 (data/model 1.087)
+   P(|z| > 3): data 0.01023   cf 0.00290 (data/model 3.534)   gaussq 0.00271 (data/model 3.783)
+   P(|z| > 4): data 0.00205   cf 0.00012 (data/model 16.953)   gaussq 0.00006 (data/model 32.198)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q0.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q0_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pix_y_q1: N 6951, Var(z) 0.9526, mean +0.0238, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.04143   cf 0.04596 (data/model 0.902)   gaussq 0.04555 (data/model 0.910)
+   P(|z| > 3): data 0.00460   cf 0.00296 (data/model 1.556)   gaussq 0.00271 (data/model 1.702)
+   P(|z| > 4): data 0.00058   cf 0.00014 (data/model 4.039)   gaussq 0.00006 (data/model 9.053)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q1.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q1_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pix_y_q2: N 4380, Var(z) 1.0314, mean -0.0065, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.04909   cf 0.04596 (data/model 1.068)   gaussq 0.04555 (data/model 1.078)
+   P(|z| > 3): data 0.00571   cf 0.00296 (data/model 1.927)   gaussq 0.00271 (data/model 2.110)
+   P(|z| > 4): data 0.00114   cf 0.00014 (data/model 7.971)   gaussq 0.00006 (data/model 17.959)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q2.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q2_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pix_y_q3: N 4141, Var(z) 1.0645, mean +0.0212, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.05144   cf 0.04592 (data/model 1.120)   gaussq 0.04555 (data/model 1.129)
+   P(|z| > 3): data 0.00749   cf 0.00293 (data/model 2.556)   gaussq 0.00271 (data/model 2.767)
+   P(|z| > 4): data 0.00169   cf 0.00013 (data/model 12.793)   gaussq 0.00006 (data/model 26.593)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q3.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q3_log.pdf[0m

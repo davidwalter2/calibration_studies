@@ -5,3 +5,11 @@
 === fit ph_gauss 16:36:51
 [38;21mINFO:rabbit_fit.py: edmval: 7.645347830269126e-10[0m
 === fit ph_cf_ref 16:56:38
+[38;21mINFO:rabbit_fit.py: edmval: 4.5939126125279066e-10[0m
+=== fit ph_cf_all 17:10:53
+[38;21mINFO:rabbit_fit.py: edmval: 5.383956476104561e-11[0m
+=== fit ph_inj_cf 17:38:05
+[38;21mINFO:rabbit_fit.py: edmval: 1.480614327726368e-11[0m
+=== fit ph_inj_gaussq 18:05:02
+[38;21mINFO:rabbit_fit.py: edmval: 1.6563913714194178e-12[0m
+=== fit ph_inj_hit 18:27:21

@@ -4,3 +4,17 @@ WARNING: All log messages before absl::InitializeLog() is called are written to 
 I0000 00:00:1789073826.659343 2152117 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 [16:57:35] comps hit: 8000 tracks x 13.333 components = 106664 rows, 2025782 group rows
 E0000 00:00:1789073928.486169 2152117 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+[17:13:34]   arm cf: NLL(0) = 149289.576573, max|grad| = 634.4, H in 880 s (60 params)
+[17:13:38]      score covariance (200 batches) in 5 s: eig min -5.906e-18 max 5.841e+03, |grad check| 5.593e-11
+[17:31:00]   arm gauss: NLL(0) = 149321.023473, max|grad| = 636.8, H in 949 s (60 params)
+[17:31:02]      score covariance (200 batches) in 3 s: eig min -1.665e-19 max 5.935e+03, |grad check| 2.667e-11
+[17:47:57]   arm gaussq: NLL(0) = 149316.289672, max|grad| = 623.5, H in 957 s (60 params)
+[17:47:59]      score covariance (200 batches) in 3 s: eig min -8.006e-19 max 5.984e+03, |grad check| 6.560e-11
+[17:48:25] comps ref: 8000 tracks x 5 components = 40000 rows, 755165 group rows
+[17:54:43]   arm cf: NLL(0) = 59785.719490, max|grad| = 610.3, H in 352 s (60 params)
+[17:54:44]      score covariance (200 batches) in 1 s: eig min -1.859e-16 max 2.456e+03, |grad check| 4.221e-12
+[18:00:31]   arm gauss: NLL(0) = 60522.957416, max|grad| = 715, H in 334 s (60 params)
+[18:00:33]      score covariance (200 batches) in 2 s: eig min 9.268e-17 max 4.003e+03, |grad check| 1.567e-09
+[18:06:20]   arm gaussq: NLL(0) = 60533.546915, max|grad| = 740.3, H in 338 s (60 params)
+[18:06:21]      score covariance (200 batches) in 1 s: eig min -5.159e-18 max 4.112e+03, |grad check| 4.410e-09
+[18:06:21] wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/fisherHJ.npz

@@ -1,0 +1,49 @@
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py:344: SyntaxWarning: invalid escape sequence '\c'
+  ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",
+group                N   Var(z)     mean         norm cf   norm gauss  norm gaussq
+q/p              20000   1.0357  -0.0026        0.999983     1.000000     1.000000
+lambda           20000   1.0515  -0.0022        1.000001     1.000000     1.000000
+phi              20000   1.0674   0.0030        0.999986     1.000000     1.000000
+d0               20000   1.0997   0.0088        0.999999     1.000000     1.000000
+z0               20000   1.9276  -0.0062        1.000000     1.000000     1.000000
+
+P(|z| > 1)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  q/p             0.30120    0.30119    1.00    0.33416    0.90    0.31733    0.95
+  lambda          0.30610    0.31283    0.98    0.32077    0.95    0.31734    0.96
+  phi             0.28430    0.28603    0.99    0.32691    0.87    0.31734    0.90
+  d0              0.31095    0.31225    1.00    0.32032    0.97    0.31734    0.98
+  z0              0.41610    0.31497    1.32    0.31887    1.30    0.31734    1.31
+P(|z| > 2)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  q/p             0.04605    0.04742    0.97    0.05344    0.86    0.04551    1.01
+  lambda          0.04810    0.04592    1.05    0.04707    1.02    0.04551    1.06
+  phi             0.04440    0.04323    1.03    0.04992    0.89    0.04551    0.98
+  d0              0.05480    0.04539    1.21    0.04686    1.17    0.04551    1.20
+  z0              0.12645    0.04553    2.78    0.04620    2.74    0.04551    2.78
+P(|z| > 3)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  q/p             0.00735    0.00762    0.97    0.00377    1.95    0.00270    2.72
+  lambda          0.00615    0.00406    1.52    0.00290    2.12    0.00270    2.28
+  phi             0.00825    0.00778    1.06    0.00327    2.52    0.00270    3.05
+  d0              0.00980    0.00389    2.52    0.00287    3.41    0.00270    3.63
+  z0              0.03240    0.00332    9.76    0.00279   11.62    0.00270   11.99
+P(|z| > 4)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  q/p             0.00235    0.00248    0.95    0.00011   20.83    0.00006   37.07
+  lambda          0.00215    0.00069    3.10    0.00007   30.03    0.00006   33.91
+  phi             0.00365    0.00287    1.27    0.00009   41.37    0.00006   57.57
+  d0              0.00205    0.00068    3.03    0.00007   29.10    0.00006   32.34
+  z0              0.00955    0.00037   25.65    0.00007  142.67    0.00006  150.64
+P(|z| > 5)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  q/p             0.00095    0.00120    0.79    0.00000  678.98    0.00000 1654.87
+  lambda          0.00115    0.00029    4.01    0.00000 1659.32    0.00000 2003.22
+  phi             0.00195    0.00148    1.32    0.00000 2042.31    0.00000 3396.74
+  d0              0.00070    0.00030    2.31    0.00000 1035.79    0.00000 1219.35
+  z0              0.00365    0.00015   24.68    0.00000 5843.78    0.00000 6358.05
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_qp.pdf
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_lambda.pdf
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_phi.pdf
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_d0.pdf
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_z0.pdf

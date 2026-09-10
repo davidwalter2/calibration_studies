@@ -7,6 +7,7 @@ HERE=/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/perhit
 HL=/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik
 R=/work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit
 NPZ=$R/perhit.npz
+QNPZ=${QNPZ:-$R/perhit_quad.npz}   # not built: every card here is --no-quadratic
 FIG=$HOME/public_html/cvh/260910_perhit
 NTRKF=${NTRKF:-10000}     # tracks for the Fisher/sandwich step
 NTRKC=${NTRKC:-8000}      # tracks for the card ladder (as hitlik's NTRK=6000)
@@ -100,8 +101,14 @@ case $st in
     for n in cf gaussq cf_ref cf_all mass resmass; do
       P="$P $n=$R/fits/ph_$n:$R/fits/ph_inj_$n"
     done
+    # PRIOR SIGMA IN CARD UNITS.  The card is whitened, and for
+    # material_tib_support the tier prior 0.05 in k maps to 0.0025 of the card
+    # value (the injection 0.00243951 IS k = 0.0487902).  Passing 1.0 here --
+    # which is right for a HIT CLASS, whose card prior is --hit-prior = 1 --
+    # makes f_prior come out 1.000 and quotes the RAW, prior-shrunk shift
+    # (-0.17 instead of -1.06).  Measured 2026-09-10.
     ./run_tf.sh python3 -u recovery.py --pairs $P \
-      --param material_tib_support --prior-sigma 1.0 --truth 0.00243951 \
+      --param material_tib_support --prior-sigma 0.0025 --truth 0.00243951 \
       > $HERE/logs/recovery_mat.log 2>&1
     cat $HERE/logs/recovery_mat.log
     ./run_tf.sh python3 -u recovery.py --pairs \
@@ -164,12 +171,14 @@ case $st in
     cd $HERE ;;
   tails)
     cd $HL
-    for cs in hit ref; do
+    for spec in "hit pooled" "hit relpos" "ref comp"; do
+      set -- $spec; cs=$1; gb=$2
       ./run_tf.sh python3 -u tails.py --npz ${NPZ20:-$NPZ} \
-        --max-tracks 20000 --comps $cs --arms cf gauss gaussq --upsample 8 \
-        > $HERE/logs/tails_$cs.log 2>&1
-      echo "--- tails, comps $cs"
-      grep -av "cuInit\|oneDNN\|absl\|WARNING" $HERE/logs/tails_$cs.log
+        --max-tracks 20000 --comps $cs --group-by $gb \
+        --arms cf gauss gaussq --upsample 8 --plot --outpath $FIG \
+        > $HERE/logs/tails_${cs}_${gb}.log 2>&1
+      echo "--- tails, comps $cs grouped by $gb"
+      grep -av "cuInit\|oneDNN\|absl\|WARNING" $HERE/logs/tails_${cs}_${gb}.log
     done
     cd $HERE ;;
   subfits)

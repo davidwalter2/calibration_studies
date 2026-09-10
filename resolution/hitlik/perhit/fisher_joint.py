@@ -84,6 +84,14 @@ def main():
     p.add_argument("--with-alpha", action="store_true")
     p.add_argument("--nbatch", type=int, default=200)
     p.add_argument("--out-cset", default="hitmass")
+    p.add_argument("--mass-cache", default=None,
+                   help="npz holding the mass term's own H, J and parameter "
+                        "names.  Written if absent, read if present -- the "
+                        "mass Hessian is 42 HVPs over 24 k candidates and is "
+                        "independent of the residual arms, so it is computed "
+                        "once and reused.")
+    p.add_argument("--mass-only", action="store_true",
+                   help="build the mass cache and stop")
     p.add_argument("-o", "--output", required=True)
     a = p.parse_args()
 
@@ -99,6 +107,15 @@ def main():
     ngroups = sum(1 for q in params if q.startswith("material_"))
     gparams_grp, gpriors_grp = G.group_param_names(ngroups, a.groups)
     group_units = 1.0 / np.maximum(gpriors_grp, 1e-300)
+
+    if a.mass_cache and os.path.exists(a.mass_cache) and not a.mass_only:
+        mc = np.load(a.mass_cache, allow_pickle=True)
+        Hm, Jm = np.asarray(mc["H"], float), np.asarray(mc["J"], float)
+        mnames = [str(x) for x in mc["names"]]
+        ncand = int(mc["ncand"])
+        log(f"mass H/J from cache {a.mass_cache}: {len(mnames)} params, "
+            f"{ncand} candidates")
+        return _finish(a, d, params, npar, idx_of, Hm, Jm, mnames, ncand)
 
     margs = types.SimpleNamespace(
         mass_npz=a.mass_npz, mass_max_chi2_ndof=a.mass_max_chi2_ndof,
@@ -119,6 +136,17 @@ def main():
     log(f"mass J ({M} batches) in {time.time()-t0:.0f} s: "
         f"|grad check| {np.abs(gtot - g0).max():.3e}")
 
+    if a.mass_cache:
+        np.savez_compressed(a.mass_cache, H=Hm, J=Jm,
+                            names=np.array(mnames, dtype=object),
+                            ncand=int(mterm.n))
+        log(f"wrote mass cache {a.mass_cache}")
+    if a.mass_only:
+        return
+    return _finish(a, d, params, npar, idx_of, Hm, Jm, mnames, int(mterm.n))
+
+
+def _finish(a, d, params, npar, idx_of, Hm, Jm, mnames, ncand):
     # embed by NAME
     col = np.array([idx_of.get(q, -1) for q in mnames])
     miss = [q for q, c in zip(mnames, col) if c < 0]
@@ -142,7 +170,7 @@ def main():
         res[f"J_{arm}_mass"] = JM
         res[f"H_{arm}_res"] = H
         res[f"J_{arm}_res"] = J
-        meta[f"{arm}_{a.out_cset}"] = dict(params=params, ncand=int(mterm.n))
+        meta[f"{arm}_{a.out_cset}"] = dict(params=params, ncand=ncand)
     res["meta"] = json.dumps(meta)
     res["argv"] = json.dumps(vars(a))
     np.savez_compressed(a.output, **res)

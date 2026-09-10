@@ -1,0 +1,11 @@
+[17:14:25] residual fisher: 60 parameters, cset '0123'
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789074865.799667 1802055 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789074878.212039 1802055 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[17:16:13] kernel CF tabulation (24000 samples) built in 64.9 s
+E0000 00:00:1789074973.681905 1802055 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+[17:16:18] mass term: 24000 J/psi-gun candidates, 498559 group rows (27045 pruned), 42 parameters
+[17:21:23] mass H in 304 s: NLL(0) = -47431.190018, max|grad| = 539.1
+[17:21:29] mass J (200 batches) in 6 s: |grad check| 6.858e-09
+[17:21:29] wrote mass cache /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/mass_HJ.npz

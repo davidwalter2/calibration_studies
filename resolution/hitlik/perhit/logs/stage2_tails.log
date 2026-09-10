@@ -1,0 +1,72 @@
+--- tails, comps hit grouped by pooled
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py:344: SyntaxWarning: invalid escape sequence '\c'
+  ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",
+group                N   Var(z)     mean         norm cf   norm gauss  norm gaussq
+all             288641   0.9527   0.0058        1.000000     1.000000     1.000000
+
+P(|z| > 1)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.30621    0.31709    0.97    0.31816    0.96    0.31734    0.96
+P(|z| > 2)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.03866    0.04578    0.84    0.04588    0.84    0.04551    0.85
+P(|z| > 3)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.00280    0.00293    0.96    0.00275    1.02    0.00270    1.04
+P(|z| > 4)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.00051    0.00015    3.43    0.00007    7.74    0.00006    7.98
+P(|z| > 5)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  all             0.00010    0.00003    2.90    0.00000  161.15    0.00000  168.98
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_all.pdf
+--- tails, comps hit grouped by relpos
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py:344: SyntaxWarning: invalid escape sequence '\c'
+  ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",
+group                N   Var(z)     mean         norm cf   norm gauss  norm gaussq
+rel 0.0-0.2      81697   0.9922   0.0316        1.000001     1.000000     1.000000
+rel 0.2-0.4      73673   0.9489  -0.0074        1.000000     1.000000     1.000000
+rel 0.4-0.6      73462   0.9593  -0.0040        1.000000     1.000000     1.000000
+rel 0.6-0.8      56606   0.8945  -0.0025        1.000000     1.000000     1.000000
+rel 0.8-1.0       3203   0.8889   0.0212        1.000000     1.000000     1.000000
+
+P(|z| > 1)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  rel 0.0-0.2     0.30076    0.31666    0.95    0.31900    0.94    0.31734    0.95
+  rel 0.2-0.4     0.30782    0.31705    0.97    0.31834    0.97    0.31734    0.97
+  rel 0.4-0.6     0.31731    0.31739    1.00    0.31768    1.00    0.31734    1.00
+  rel 0.6-0.8     0.29810    0.31737    0.94    0.31740    0.94    0.31734    0.94
+  rel 0.8-1.0     0.29691    0.31734    0.94    0.31735    0.94    0.31734    0.94
+P(|z| > 2)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  rel 0.0-0.2     0.04573    0.04601    0.99    0.04626    0.99    0.04551    1.00
+  rel 0.2-0.4     0.03768    0.04584    0.82    0.04596    0.82    0.04551    0.83
+  rel 0.4-0.6     0.03799    0.04566    0.83    0.04567    0.83    0.04551    0.83
+  rel 0.6-0.8     0.03092    0.04554    0.68    0.04554    0.68    0.04551    0.68
+  rel 0.8-1.0     0.03309    0.04552    0.73    0.04552    0.73    0.04551    0.73
+P(|z| > 3)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  rel 0.0-0.2     0.00601    0.00318    1.89    0.00280    2.15    0.00270    2.22
+  rel 0.2-0.4     0.00214    0.00298    0.72    0.00276    0.78    0.00270    0.79
+  rel 0.4-0.6     0.00114    0.00278    0.41    0.00272    0.42    0.00270    0.42
+  rel 0.6-0.8     0.00124    0.00271    0.46    0.00270    0.46    0.00270    0.46
+  rel 0.8-1.0     0.00187    0.00270    0.69    0.00270    0.69    0.00270    0.69
+P(|z| > 4)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  rel 0.0-0.2     0.00126    0.00025    5.07    0.00007   18.72    0.00006   19.89
+  rel 0.2-0.4     0.00022    0.00016    1.32    0.00007    3.30    0.00006    3.43
+  rel 0.4-0.6     0.00016    0.00008    1.94    0.00006    2.55    0.00006    2.58
+  rel 0.6-0.8     0.00025    0.00007    3.80    0.00006    3.89    0.00006    3.90
+  rel 0.8-1.0     0.00031    0.00006    4.92    0.00006    4.92    0.00006    4.92
+P(|z| > 5)
+  group              data         cf     d/m      gauss     d/m     gaussq     d/m
+  rel 0.0-0.2     0.00023    0.00008    3.08    0.00000  368.49    0.00000  405.11
+  rel 0.2-0.4     0.00004    0.00004    1.02    0.00000   67.00    0.00000   70.93
+  rel 0.4-0.6     0.00003    0.00001    4.02    0.00000   46.54    0.00000   47.42
+  rel 0.6-0.8     0.00007    0.00000   76.26    0.00000  122.68    0.00000  123.09
+  rel 0.8-1.0     0.00000    0.00000    0.00    0.00000    0.00    0.00000    0.00
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_rel0.0_0.2.pdf
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_rel0.2_0.4.pdf
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_rel0.4_0.6.pdf
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_rel0.6_0.8.pdf
+wrote /home/submit/david_w/public_html/cvh/260910_perhit/tailclosure_rel0.8_1.0.pdf

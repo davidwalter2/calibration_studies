@@ -79,11 +79,20 @@ def main():
     print(f"# {a.ntrk} tracks, cset '{a.cset}', priors: material 1.0 "
           f"(whitened tier), hit {a.hit_prior}")
     for arm in a.arms:
-        H = d[f"H_{arm}_{a.cset}"]
-        J = d[f"J_{arm}_{a.cset}"]
-        Hi = psd_inv(H)
-        S = Hi @ J @ Hi
-        free = np.sqrt(np.clip(np.diag(S), 0, None))
+        H = np.asarray(d[f"H_{arm}_{a.cset}"], float)
+        J = np.asarray(d[f"J_{arm}_{a.cset}"], float)
+        # STANDALONE prior-free sandwich sigma, `sqrt(J_pp)/H_pp` -- the same
+        # quantity `efficiency.py` calls `aa`.  The MARGINAL prior-free
+        # version (`psd_inv(H) J psd_inv(H)`) is NOT usable here: with 32 of
+        # the 42 groups carrying essentially no information of their own, the
+        # pseudo-inverse drops their directions and returns sigma = 0, which
+        # then reports `N_sat = 1e-27 tracks`.  Measured 2026-09-10; the
+        # standalone form is well defined for every parameter and is the one
+        # that scales exactly as 1/sqrt(N).
+        hd = np.diag(H)
+        live = hd > 1e-8 * np.max(hd)
+        free = np.where(live, np.sqrt(np.clip(np.diag(J), 0, None))
+                        / np.maximum(hd, 1e-300), np.inf)
         nsat = a.ntrk * (free / pri) ** 2
         print()
         print("=" * 96)
@@ -96,18 +105,25 @@ def main():
               + "".join(f"{'sig@N':>11}" for _ in a.sweep))
         for lab, idxs in (("MATERIAL", mats), ("HIT CLASSES", hits)):
             print(f"-- {lab}")
-            order = sorted(idxs, key=lambda i: free[i])[: a.top]
+            keep = [i for i in idxs if live[i]]
+            order = sorted(keep, key=lambda i: free[i])[: a.top]
+            marg = {}
+            for N in a.sweep:
+                sc = N / a.ntrk
+                C = psd_inv(H * sc + P)
+                marg[N] = np.sqrt(np.clip(np.diag(C @ (J * sc) @ C), 0, None))
             for i in order:
                 row = (f"{params[i]:<26}{free[i]:>12.4f}{free[i]/pri[i]:>9.3f}"
                        f"{nsat[i]:>13.3g}   ")
                 for N in a.sweep:
-                    s = N / a.ntrk
-                    Sn = psd_inv(H * s + P) @ (J * s) @ psd_inv(H * s + P)
-                    row += f"{np.sqrt(max(Sn[i, i], 0)):>11.4f}"
+                    row += f"{marg[N][i]:>11.4f}"
                 print(row)
-            med = np.median(nsat[idxs])
-            print(f"   median N_sat over {lab.lower()}: {med:.3g} tracks "
-                  f"(range {np.min(nsat[idxs]):.3g} - {np.max(nsat[idxs]):.3g})")
+            if keep:
+                v = nsat[keep]
+                print(f"   {len(keep)}/{len(idxs)} {lab.lower()} with "
+                      f"information; median N_sat {np.median(v):.3g} tracks, "
+                      f"16-84 % {np.percentile(v,16):.3g}-"
+                      f"{np.percentile(v,84):.3g}, max {np.max(v):.3g}")
 
 
 if __name__ == "__main__":
