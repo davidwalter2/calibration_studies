@@ -67,3 +67,5 @@ wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/card
 === fit_joint 00:32:13
 [38;21mINFO:rabbit_fit.py: edmval: 9.782923117774877e-14[0m
 === fit_inj_joint 00:52:23
+[38;21mINFO:rabbit_fit.py: edmval: 1.8147051919082273e-12[0m
+ALL DONE 01:15:34

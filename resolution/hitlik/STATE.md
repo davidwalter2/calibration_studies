@@ -404,3 +404,24 @@ step, so it validates the linearisation and the batch independence, not the
 sandwich itself.  The assumption-free version is `subfits.sh` + `subspread.py`:
 8 DISJOINT subsamples of 2500 tracks, fitted for real in both arms, the spread
 of `theta_hat` across them divided by sqrt(8).
+
+## WHY THE QUADRATIC TERM ADDS NOTHING ON THIS PRODUCTION (2026-09-10)
+
+The `joint` fit (residual vector + the quadratic hit-chi2 over all 318 390
+mu-gun tracks, 110 parameters, EDM 9.8e-14) gives material values and errors
+INDISTINGUISHABLE from the residual-only fit (`tib_support` -0.0269 +- 0.0408
+against -0.0244 +- 0.0408).  Measured directly on `mugun_quad.npz`: over
+318 390 tracks the quadratic constrains `material_tib_support` to
+sigma = **0.289 standalone** and **0.0493 marginal against its 0.050 prior** --
+i.e. ~3 % of the prior's information, nothing.
+
+The reason is structural and already named in NOTES 2026-09-06: this
+production has `gradllv` and `hesspackedv` but **no `hessvaridxv` /
+`hessvarv`**, so its quadratic term differentiates a material group's MEAN
+LOSS and never its WIDTH.  A single-track hit chi2 has almost no mean-loss
+lever on the material amount; the `matres` number (sigma 0.0154 on 299 069)
+came from a TWO-TRACK gun whose objective carries the mass constraint.  So
+the comparison "residual term vs quadratic term" on this sample is really
+"width information vs no width information", and the residual term wins by
+construction.  Re-running it on a production with `exportVarianceGrads` is
+the way to make that comparison meaningful.
