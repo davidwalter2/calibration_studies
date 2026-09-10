@@ -194,40 +194,60 @@ def densities(args, sel, outdir):
 
 
 def ratios(args, outdir):
+    """Horizontal-bar information ratios, one file per (key, family)."""
     d = np.load(args.ratios, allow_pickle=True)
     params = [str(s) for s in d["params"]]
-    keys = [k for k in d.files if k.startswith("ratio_")]
-    for kind, pref, lab in (("material", "material_", r"material $k_g$"),
-                            ("hitres", "hitres_", r"hit class $\epsilon_c$")):
-        idx = [i for i, p in enumerate(params) if p.startswith(pref)]
-        if not idx:
+    keys = args.ratio_keys or [k for k in d.files if k.startswith("ratio_")
+                               and not k.startswith("ratio_alone")]
+    LAB = {
+        "ratio_CF_over_gaussq[0123]":
+            (r"$I_{\rm CF}\,/\,I_{\chi^2}$  (4 components)",
+             "what the non-Gaussian densities cost", "#d62728", (0.0, 1.35)),
+        "ratio_CF_over_gaussq[0]":
+            (r"$I_{\rm CF}\,/\,I_{\chi^2}$  (q/p only)",
+             "what the non-Gaussian densities cost", "#d62728", (0.0, 1.35)),
+        "ratio_CF0123_over_CF0":
+            (r"$I_{\rm 4\ comp}\,/\,I_{q/p}$",
+             "what the residual VECTOR buys over the q/p scalar",
+             "#1f77b4", None),
+    }
+    for key in keys:
+        if key not in d.files:
             continue
-        base = None
-        for k in keys:
-            if "CF_over_gaussq" in k.replace("/", "_over_") or "gaussq" in k:
-                base = k
-                break
-        if base is None:
-            base = keys[0]
-        r = np.asarray(d[base], float)[idx]
-        nm = [params[i][len(pref):] for i in idx]
-        ok = np.isfinite(r)
-        o = np.argsort(-r[ok])
-        rr = r[ok][o]
-        nn = [nm[i] for i in np.where(ok)[0][o]]
-        fig, ax = plt.subplots(figsize=(9.0, max(4.0, 0.34 * len(rr))))
-        y = np.arange(len(rr))
-        ax.barh(y, rr, color="#d62728", alpha=0.85)
-        ax.axvline(1.0, color="k", lw=1.0)
-        ax.set_yticks(y)
-        ax.set_yticklabels(nn, fontsize=10)
-        ax.invert_yaxis()
-        ax.set_xlabel(r"information ratio  $I_{\rm CF}\,/\,I_{\rm Gauss}$")
-        ax.set_title(f"what the non-Gaussian densities buy: {lab}", fontsize=14)
-        fn = os.path.join(outdir, f"inforatio_{kind}.pdf")
-        fig.savefig(fn, bbox_inches="tight")
-        plt.close(fig)
-        logger.info(f"wrote {fn}")
+        lab, ttl, col, xl = LAB.get(
+            key, (key, key, "#7f7f7f", None))
+        for kind, pref, fam in (("material", "material_", "material $k_g$"),
+                                ("hitres", "hitres_",
+                                 r"hit class $\epsilon_c$")):
+            idx = [i for i, p_ in enumerate(params) if p_.startswith(pref)]
+            r = np.asarray(d[key], float)[idx]
+            nm = [params[i][len(pref):] for i in idx]
+            ok = np.isfinite(r) & (np.abs(r - 1.0) > 1e-6)
+            if ok.sum() < 2:
+                continue
+            o = np.argsort(-r[ok])
+            rr = r[ok][o]
+            nn = [nm[i] for i in np.where(ok)[0][o]]
+            fig, ax = plt.subplots(figsize=(9.0, max(3.5, 0.32 * len(rr) + 1.4)))
+            y = np.arange(len(rr))
+            ax.barh(y, rr, color=col, alpha=0.85)
+            ax.axvline(1.0, color="k", lw=1.2)
+            ax.set_yticks(y)
+            ax.set_yticklabels(nn, fontsize=10)
+            ax.invert_yaxis()
+            if xl:
+                ax.set_xlim(*xl)
+            elif rr.max() / max(rr.min(), 1e-9) > 30:
+                ax.set_xscale("log")
+            ax.set_xlabel(lab)
+            ax.set_title(f"{ttl}: {fam}", fontsize=14)
+            ax.text(0.98, 0.03, f"median {np.median(rr):.2f}",
+                    transform=ax.transAxes, ha="right", fontsize=12)
+            tag = key.replace("ratio_", "").replace("[", "_").replace("]", "")
+            fn = os.path.join(outdir, f"inforatio_{tag}_{kind}.pdf")
+            fig.savefig(fn, bbox_inches="tight")
+            plt.close(fig)
+            logger.info(f"wrote {fn}")
 
 
 def main():
@@ -239,6 +259,7 @@ def main():
     p.add_argument("--arms", nargs="+", default=["cf", "gaussq"])
     p.add_argument("--densities", action="store_true")
     p.add_argument("--ratios", default=None)
+    p.add_argument("--ratio-keys", nargs="*", default=None)
     p.add_argument("--zrange", type=float, nargs=2, default=[-7.0, 7.0])
     p.add_argument("--nbins", type=int, default=112)
     p.add_argument("--upsample", type=int, default=8)

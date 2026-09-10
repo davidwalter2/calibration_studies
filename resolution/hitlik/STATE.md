@@ -207,3 +207,116 @@ generalisation of the hit chi2**, and it needs per track:
 
 `B_b` for `n_res = 5` is already written (6.8 kB); for `n_res = n_hits ~ 18`
 it is 24.5 kB.  The exponents dominate -- see `cost.py`'s export bill.
+
+## STEP 3 RESULT — the information comparison (2026-09-09, 20 000 tracks)
+
+`fisher_cmp.py --no-hessian` (score covariance, 500 batches, PSD, rank 57/60)
++ `report.py`.  Priors: the parmtype-15 tier priors both terms carry in every
+fit; the quadratic is marginalised over its MATERIAL block alone (like-for-
+like: the residual term floats no field modes).
+
+**(i) The full CF densities carry LESS information than the Gaussian.**
+`I_CF / I_chi2`, marginal, 4 components:
+
+| parameter | ratio |  | parameter | ratio |
+|---|---|---|---|---|
+| `material_bpix_support6` | 0.647 | | `hitres_pix_x_q0` | 0.358 |
+| `material_bpix_services` | 0.724 | | `hitres_pix_x_q2` | 0.689 |
+| `material_tib_support` | 0.751 | | `hitres_pix_y_q2` | 0.697 |
+| `material_fpix_support` | 0.851 | | `hitres_str_N2_lo` | 0.732 |
+| `material_tec_structure` | 0.902 | | `hitres_str_N3_hi` | 0.742 |
+| `material_tob_support` | 0.922 | | `hitres_str_N3_lo` | 0.761 |
+| median over the 10 informative groups | **0.85** | | median over 18 classes | **0.737** |
+
+**(ii) WHY, from first principles** (`scaleinfo.py`).  The Fisher information
+about a pure width, `I(ln s) = E[(1 + z dlnp/dz)^2]`, is 2 for a Gaussian and
+`2 nu/(nu+3) < 2` for a Student-t: a heavier tail carries LESS information
+about its own scale.  GATES: exact `N(0,1)` -> **2.0000**; `t_5` -> **1.2500**
+against the analytic 1.25.  On the actual row-averaged residual densities:
+
+| component | I(ln s) CF | Gaussian | ratio |
+|---|---|---|---|
+| q/p | 1.6445 | 2.0000 | **0.822** |
+| lambda | 1.8658 | 2.0000 | 0.933 |
+| phi | 1.6012 | 2.0000 | **0.801** |
+| d0 | 1.8764 | 2.0000 | 0.938 |
+
+i.e. the whole of the measured ratio is this one effect.  **The Gaussian
+hit-chi2 is not conservative: it reports material errors that are optimistic
+by 1/sqrt(0.85) = 1.08x to 1/sqrt(0.65) = 1.24x**, because it treats the
+Moliere tail as if it were Gaussian.
+
+**(iii) What the residual VECTOR buys over the q/p scalar** (`I_4comp/I_qp`):
+
+| | material | hit classes |
+|---|---|---|
+| median | 1.00 (bpix_support6 **4.3**, bpix_services 1.7, tib_support 1.5) | **18.9** |
+| range | 1.0 - 4.3 | 3.0 - 538 |
+
+The hit-class resolutions are essentially UNMEASURABLE from `q/p` alone
+(sigma(eps) 0.17-0.95) and well measured from the four components
+(0.024-0.10).  That is the dominant gain of this whole exercise, and it comes
+from the extra COMPONENTS, not from the non-Gaussianity.
+
+**(iv) Where the CF does win: the tails.**  `tails.py`, 20 000 rows/component:
+
+| P(\|z\| > 4) | data | CF | data/CF | Gaussian chi2 | data/chi2 |
+|---|---|---|---|---|---|
+| q/p | 0.00235 | 0.00248 | **0.95** | 0.00006 | **37** |
+| lambda | 0.00215 | 0.00069 | 3.10 | 0.00006 | 34 |
+| phi | 0.00365 | 0.00287 | **1.27** | 0.00006 | **58** |
+| d0 | 0.00205 | 0.00068 | 3.03 | 0.00006 | 32 |
+
+and at 5 sigma the chi2 is wrong by **1650-3400x** while the CF is within
+0.8-4.  In the core (\|z\| > 1, > 2) all three arms agree with the data to
+3-20 %.
+
+**(v) NLL at MC truth** (lower = describes the data better):
+
+| rows | CF | Gaussian (variance-matched) | Gaussian (fit's Q = the chi2) | dNLL/row |
+|---|---|---|---|---|
+| 20 000 (q/p only) | **28 376.25** | 28 660.35 | 28 643.17 | 0.0133 |
+| 80 000 (4 components) | **114 064.76** | 115 332.10 | 115 308.25 | 0.0155 |
+
+## STEP 4 RESULT — injection (2026-09-09)
+
+`material_tib_support` scaled by `exp(ln 1.05)` = **5 % more material**,
+applied to that group's exponents on the data side of whichever term is being
+built.  SIGN: scaling the card's exponents by `exp(+k)` declares the model at
+k = 0 to already have that much material, so the MLE moves by `-k`; the test
+is `|shift|` against `|truth|`.  PRIOR SHRINKAGE: the group carries its 0.05
+tier prior and the injection is about one prior sigma, so the posterior only
+moves by `f = 1 - sigma_post^2/sigma_pri^2` of it.
+
+| channel | shift | /truth | f_prior | prior-corrected /truth | pull | leak rms |
+|---|---|---|---|---|---|---|
+| residual vector, CF | -0.00083 | -0.341 | 0.348 | **0.979** | -0.01 | 0.026 |
+| residual vector, fit's Q | -0.00083 | -0.341 | 0.362 | **0.943** | -0.04 | 0.027 |
+| J/psi-gun MASS term | -0.00106 | -0.436 | 0.446 | **0.978** | -0.02 | 0.052 |
+
+All three recover the 5 % injection to 2-6 % with a sub-0.05-sigma pull.
+
+## STEP 5 RESULT — cost (4 000 tracks x 4 components, 1 CPU, nt = 64)
+
+| | | per row | per track |
+|---|---|---|---|
+| NLL | 120 ms | 7.5 us | 29.9 us |
+| NLL + gradient | 458 ms | 28.6 us | 114 us |
+| one HVP | 2.27 s | 142 us | -- |
+| full Hessian (60 HVPs) | 136 s | | |
+| card in memory | 0.367 GB | | 91.6 kB |
+
+One NLL+gradient over this production (320 k tracks) is **37 s**; over
+7 M Z legs + 34 M J/psi legs = 41 M tracks, **1.3 h CPU** (one HVP 6.5 h CPU),
+and the term is a dense `(chunk, nt)` matmul per family, so a GPU is 20-60x
+that.  Same order as the mass term.
+
+Export bill per track (float32, 13.7 groups and 9.0 hit classes per (track,
+component) after pruning at 1e-3), rank-16 tau PCA:
+
+| variant | total | at 41 M tracks |
+|---|---|---|
+| `q/p` only (status quo) | 6.7 kB | 0.27 TB |
+| 4 reference-state components | **26.7 kB** | **1.10 TB** |
+| 5 components | 33.4 kB | 1.37 TB |
+| 18 per-HIT residuals | 120.3 kB | 4.93 TB |

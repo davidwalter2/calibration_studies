@@ -53,3 +53,7 @@ wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/card
 === fit_mass 23:07:19
 [38;21mINFO:rabbit_fit.py: edmval: 2.0358690420926934e-14[0m
 === fit_resmass 23:10:34
+[38;21mINFO:rabbit_fit.py: edmval: 7.043410864619198e-18[0m
+=== fit_inj_mass 23:37:36
+[38;21mINFO:rabbit_fit.py: edmval: 9.33458504497276e-11[0m
+=== fit_inj_resmass 23:41:35

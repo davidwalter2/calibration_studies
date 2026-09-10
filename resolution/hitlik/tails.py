@@ -22,6 +22,8 @@ p.add_argument("--max-tracks", type=int, default=20000)
 p.add_argument("--comps", default="0123")
 p.add_argument("--arms", nargs="+", default=["cf", "gauss", "gaussq"])
 p.add_argument("--upsample", type=int, default=8)
+p.add_argument("--plot", action="store_true")
+p.add_argument("--outpath", default=None)
 a = p.parse_args()
 
 sel = HT.load(a.npz, max_tracks=a.max_tracks, comps=[int(c) for c in a.comps])
@@ -52,3 +54,44 @@ for thr in (1.0, 2.0, 3.0, 4.0, 5.0):
                        + np.trapezoid(dens[c][m][hi], zg[hi]))
             row += f"{fm:>11.5f}{fd/max(fm,1e-12):>8.2f}"
         print(row)
+
+
+if a.plot:
+    import datetime
+    import matplotlib.pyplot as plt
+    import mplhep as hep
+    hep.style.use(hep.style.ROOT)
+    import pubhtml
+    from plot_hitlik import ARMCOL, ARMLAB
+    out = a.outpath or os.path.expanduser(
+        f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_hitlik/")
+    os.makedirs(out, exist_ok=True)
+    pubhtml.ensure_index(out)
+    ths = np.linspace(0.5, 5.5, 26)
+    for c in sorted(dens):
+        rows = sel["comp"] == c
+        zz = sel["z"][rows]
+        fig, ax = plt.subplots(figsize=(8.0, 6.0))
+        for m in a.arms:
+            rat, err = [], []
+            for t in ths:
+                fd = float(np.mean(np.abs(zz) > t))
+                nd = int(np.sum(np.abs(zz) > t))
+                lo, hi = zg <= -t, zg >= t
+                fm = float(np.trapezoid(dens[c][m][lo], zg[lo])
+                           + np.trapezoid(dens[c][m][hi], zg[hi]))
+                rat.append(fd / max(fm, 1e-300))
+                err.append(rat[-1] / max(np.sqrt(max(nd, 1)), 1.0))
+            ax.errorbar(ths, rat, yerr=err, fmt="o-", ms=3.5, lw=1.4,
+                        color=ARMCOL[m], label=ARMLAB[m])
+        ax.axhline(1.0, color="k", lw=1.0)
+        ax.set_yscale("log")
+        ax.set_xlabel(r"threshold $t$")
+        ax.set_ylabel(r"data / model  of  $P(|z| > t)$")
+        ax.set_title(f"tail closure, component {c} ({CN[c]}), "
+                     f"{int(rows.sum())} rows", fontsize=14)
+        ax.legend(loc="upper left", fontsize=12, frameon=False)
+        fn = os.path.join(out, f"tailclosure_c{c}.pdf")
+        fig.savefig(fn, bbox_inches="tight")
+        plt.close(fig)
+        print("wrote", fn)
