@@ -1,0 +1,37 @@
+[21:46:19] prodfiles: 160 tasks / 160 files (1 streams per task)
+[21:46:19] 160 tasks / 160 files, 12 workers, parmtypes [14, 15]
+[21:46:19] catalog: 126452 global params, floating 92 {14: 50, 15: 42}
+[21:46:23]   5/160 files, 0 candidates selected (0 dropped), 9947 in the quadratic term, 4 s
+[21:46:23]   10/160 files, 0 candidates selected (0 dropped), 19901 in the quadratic term, 4 s
+[21:46:26]   15/160 files, 0 candidates selected (0 dropped), 29848 in the quadratic term, 7 s
+[21:46:26]   20/160 files, 0 candidates selected (0 dropped), 39798 in the quadratic term, 7 s
+[21:46:29]   25/160 files, 0 candidates selected (0 dropped), 49751 in the quadratic term, 10 s
+[21:46:31]   30/160 files, 0 candidates selected (0 dropped), 59706 in the quadratic term, 12 s
+[21:46:31]   35/160 files, 0 candidates selected (0 dropped), 69655 in the quadratic term, 12 s
+[21:46:33]   40/160 files, 0 candidates selected (0 dropped), 79592 in the quadratic term, 14 s
+[21:46:34]   45/160 files, 0 candidates selected (0 dropped), 89542 in the quadratic term, 15 s
+[21:46:35]   50/160 files, 0 candidates selected (0 dropped), 99498 in the quadratic term, 16 s
+[21:46:37]   55/160 files, 0 candidates selected (0 dropped), 109453 in the quadratic term, 18 s
+[21:46:37]   60/160 files, 0 candidates selected (0 dropped), 119406 in the quadratic term, 18 s
+[21:46:39]   65/160 files, 0 candidates selected (0 dropped), 129348 in the quadratic term, 20 s
+[21:46:41]   70/160 files, 0 candidates selected (0 dropped), 139303 in the quadratic term, 22 s
+[21:46:41]   75/160 files, 0 candidates selected (0 dropped), 149255 in the quadratic term, 22 s
+[21:46:44]   80/160 files, 0 candidates selected (0 dropped), 159204 in the quadratic term, 25 s
+[21:46:45]   85/160 files, 0 candidates selected (0 dropped), 169151 in the quadratic term, 26 s
+[21:46:45]   90/160 files, 0 candidates selected (0 dropped), 179101 in the quadratic term, 26 s
+[21:46:48]   95/160 files, 0 candidates selected (0 dropped), 189059 in the quadratic term, 29 s
+[21:46:48]   100/160 files, 0 candidates selected (0 dropped), 199008 in the quadratic term, 29 s
+[21:46:50]   105/160 files, 0 candidates selected (0 dropped), 208957 in the quadratic term, 31 s
+[21:46:51]   110/160 files, 0 candidates selected (0 dropped), 218901 in the quadratic term, 32 s
+[21:46:52]   115/160 files, 0 candidates selected (0 dropped), 228847 in the quadratic term, 33 s
+[21:46:54]   120/160 files, 0 candidates selected (0 dropped), 238796 in the quadratic term, 35 s
+[21:46:55]   125/160 files, 0 candidates selected (0 dropped), 248760 in the quadratic term, 36 s
+[21:46:57]   130/160 files, 0 candidates selected (0 dropped), 258712 in the quadratic term, 38 s
+[21:46:58]   135/160 files, 0 candidates selected (0 dropped), 268664 in the quadratic term, 39 s
+[21:46:58]   140/160 files, 0 candidates selected (0 dropped), 278603 in the quadratic term, 39 s
+[21:47:01]   145/160 files, 0 candidates selected (0 dropped), 288552 in the quadratic term, 42 s
+[21:47:01]   150/160 files, 0 candidates selected (0 dropped), 298501 in the quadratic term, 42 s
+[21:47:04]   155/160 files, 0 candidates selected (0 dropped), 308447 in the quadratic term, 45 s
+[21:47:04]   160/160 files, 0 candidates selected (0 dropped), 318390 in the quadratic term, 45 s
+[21:47:04] done in 45 s: 0 candidates, 318390 in the quadratic term, 1540 removed by the outlier cuts (chi2/ndof < 3, gradmax < 1e+06, hessmax < 1e+08), Hessian format ['packed']
+[21:47:04] wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/mugun_quad.npz (0.00 GB, 0 candidates, 92 parameters)

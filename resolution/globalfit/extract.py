@@ -323,12 +323,17 @@ def process_file(fname):
                     "the MEAN Hessian only. Refusing to build an "
                     "inconsistent (G, K)."
                 )
-    if "Jpsi_jacMass" not in keys:
+    # `Jpsi_jacMass` is the MASS term's input only.  A single-track production
+    # has a perfectly good quadratic (hit-chi2) term -- gradv / hesspackedv --
+    # and `--no-mass` must be able to accumulate it, so the guard belongs
+    # inside the mass branch and not in front of it.
+    if not args.no_mass and "Jpsi_jacMass" not in keys:
         sys.exit(
             f"{fname}: no Jpsi_jacMass branch -- this is not a two-track "
             "production with the contracted mass Jacobian"
         )
-    want.append("Jpsi_jacMass")
+    if "Jpsi_jacMass" in keys:
+        want.append("Jpsi_jacMass")
     want_rad = False
     if not args.no_mass:
         want += [
