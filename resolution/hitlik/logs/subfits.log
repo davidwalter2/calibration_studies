@@ -5,3 +5,11 @@
 === sub_cf_2 (offset 5000) 01:09:30
 [38;21mINFO:rabbit_fit.py: edmval: 2.331038144264242e-17[0m
 === sub_cf_3 (offset 7500) 01:14:22
+[38;21mINFO:rabbit_fit.py: edmval: 0.500010305061344[0m
+=== sub_cf_4 (offset 10000) 01:17:48
+[38;21mINFO:rabbit_fit.py: edmval: 1.2298692811102743e-18[0m
+=== sub_cf_5 (offset 12500) 01:23:01
+[38;21mINFO:rabbit_fit.py: edmval: 5.3803682549945646e-17[0m
+=== sub_cf_6 (offset 15000) 01:27:29
+[38;21mINFO:rabbit_fit.py: edmval: 5.441757802401461e-16[0m
+=== sub_cf_7 (offset 17500) 01:32:53

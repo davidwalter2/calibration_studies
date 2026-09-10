@@ -1,0 +1,17 @@
+=== sub_gaussq_0 (offset 0) 01:25:40
+[38;21mINFO:rabbit_fit.py: edmval: 2.954828147294589e-09[0m
+=== sub_gaussq_1 (offset 2500) 01:30:24
+[38;21mINFO:rabbit_fit.py: edmval: 1.1016839854027657e-05[0m
+=== sub_gaussq_2 (offset 5000) 01:34:12
+[38;21mINFO:rabbit_fit.py: edmval: 1.820421458281069e-13[0m
+=== sub_gaussq_3 (offset 7500) 01:39:01
+[38;21mINFO:rabbit_fit.py: edmval: 0.07216341808379262[0m
+=== sub_gaussq_4 (offset 10000) 01:42:55
+[38;21mINFO:rabbit_fit.py: edmval: 1.63940837623495e-10[0m
+=== sub_gaussq_5 (offset 12500) 01:47:39
+[38;21mINFO:rabbit_fit.py: edmval: 2.762979497973754e-10[0m
+=== sub_gaussq_6 (offset 15000) 01:53:00
+[38;21mINFO:rabbit_fit.py: edmval: 0.014218072509167819[0m
+=== sub_gaussq_7 (offset 17500) 01:57:18
+[38;21mINFO:rabbit_fit.py: edmval: 5.752280475874398e-17[0m
+SUBFITS DONE 02:01:49

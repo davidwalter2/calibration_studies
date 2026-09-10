@@ -57,6 +57,10 @@ def main():
                    "CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/"
                    "materialGroups50.txt")
     p.add_argument("--top", type=int, default=14)
+    p.add_argument("--max-edm", type=float, default=1e-6,
+                   help="drop subsample fits above this EDM -- a subsample "
+                        "that did not converge inflates the spread and is a "
+                        "fit failure, not an estimator fluctuation")
     p.add_argument("-o", "--output", default=None)
     a = p.parse_args()
 
@@ -66,16 +70,22 @@ def main():
 
     V, E, names = {}, {}, None
     for arm in a.arms:
-        vals, errs, edms = [], [], []
+        vals, errs, edms, bad = [], [], [], []
         for k in range(a.k):
             f = os.path.join(a.fits, f"sub_{arm}_{k}", "fitresults.hdf5")
             if not os.path.exists(f):
                 continue
             nm, v, e, edm = read_fit(f)
             names = names or nm
+            if a.max_edm > 0 and np.isfinite(edm) and edm > a.max_edm:
+                bad.append((k, edm))
+                continue
             vals.append(v)
             errs.append(e)
             edms.append(edm)
+        if bad:
+            print(f"   {arm}: DROPPED " + ", ".join(
+                f"sub_{arm}_{k} (EDM {e:.2e})" for k, e in bad))
         if not vals:
             sys.exit(f"no subsample fits for arm '{arm}' under {a.fits}")
         V[arm] = np.stack(vals)
@@ -96,8 +106,18 @@ def main():
     cnames = [str(s) for s in cmp_["params"]] if cmp_ is not None else []
 
     ref = a.ref
-    live = quoted_sub[ref] < 0.98 * pv
-    order = np.argsort(quoted_sub[ref] / np.where(np.isfinite(pv), pv, 1.0))
+    # WHICH parameters the term constrains is a FULL-SAMPLE statement, so it
+    # is taken from the efficiency npz when there is one: a 2500-track
+    # subsample's own error is at its prior for almost every group, and
+    # ordering by that just lists the tightest priors.
+    con = quoted_sub[ref] / np.where(np.isfinite(pv), pv, 1.0)
+    if cmp_ is not None:
+        cq = np.asarray(cmp_[f"sigma_quoted_{ref}"], float)
+        cp = np.asarray(cmp_["prior"], float)
+        con = np.array([cq[cnames.index(n)] / cp[cnames.index(n)]
+                        if n in cnames else np.inf for n in names])
+    live = con < 0.98
+    order = np.argsort(con)
     for lab, pref in (("MATERIAL GROUPS", "material_"),
                       ("HIT CLASSES", "hitres_")):
         idxs = [i for i in order if names[i].startswith(pref) and live[i]]

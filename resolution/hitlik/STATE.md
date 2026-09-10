@@ -425,3 +425,46 @@ the comparison "residual term vs quadratic term" on this sample is really
 "width information vs no width information", and the residual term wins by
 construction.  Re-running it on a production with `exportVarianceGrads` is
 the way to make that comparison meaningful.
+
+### The complete injection ladder (all queued fits done, 01:15)
+
+`material_tib_support` x1.05 material, prior-corrected:
+
+| card | sigma | shift/truth | f_prior | corrected/truth | pull | leak rms |
+|---|---|---|---|---|---|---|
+| residual vector, CF | 0.00202 | -0.341 | 0.348 | **0.979** | -0.01 | 0.026 |
+| residual vector, fit's Q | 0.00200 | -0.341 | 0.362 | **0.943** | -0.04 | 0.027 |
+| J/psi-gun mass term alone | 0.00186 | -0.436 | 0.446 | **0.978** | -0.02 | 0.052 |
+| residual + quadratic (110 params) | 0.00202 | -0.332 | 0.350 | **0.949** | -0.04 | 0.024 |
+| **residual + mass** | **0.00171** | -0.524 | 0.532 | **0.985** | -0.02 | 0.044 |
+
+`hitres_str_N3_lo` x1.10 variance: **1.002** (CF) and **1.002** (fit's Q),
+pull 0.00 both, leakage < 0.0005 sigma.
+
+## THE EMPIRICAL CHECK (2026-09-10 02:02) — 8 DISJOINT subsample fits per arm
+
+`subfits.sh` + `subspread.py`: 8 disjoint subsamples of 2500 tracks x 4
+components, each FITTED for real in both arms; `sigma_full = spread/sqrt(K)`.
+Assumes nothing -- in particular not `H = J`.
+
+Convergence is itself a result: **CF 7/8 converged, the Gaussian only 5/8**
+(dropped at EDM > 1e-6: `sub_cf_3` 5.0e-1; `sub_gaussq_1` 1.1e-5,
+`sub_gaussq_3` 7.2e-2, `sub_gaussq_6` 1.4e-2).  A misspecified likelihood is
+also a worse-conditioned one.
+
+| | EMPIRICAL (spread) | SANDWICH | agree? |
+|---|---|---|---|
+| **hit classes** (prior does nothing here, S/Q ~ 1) | **1.362** (16-84 % 1.05-3.36) | **1.301** | **yes** |
+| material groups | 3.159 (2.12-4.23) | 1.811 | same direction |
+
+**Read the hit classes as the validation.**  There the subsample errors are
+far below the 1.0 prior, `S/Q` is ~1 for both arms, and the empirical 1.36
+matches the sandwich 1.30 within the 29 %/sqrt(10) precision of the median.
+For the MATERIAL the 2500-track subsamples are strongly prior-dominated
+(`S/Q` 0.09-0.77: each subsample fit sits near its prior and barely moves), so
+the empirical 3.16 is measured in the shrunk regime and exaggerates; the
+SANDWICH at full statistics, 1.81, is the number to quote.
+
+Both methods, and the analytic scale-limit prediction (1.81-4.38 per
+component), say the same thing: **the full PDF constrains better, the chi2's
+own error being optimistic.**
