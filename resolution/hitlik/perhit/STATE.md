@@ -269,6 +269,51 @@ measures.  Note that hitlik's `joint` -- residual + the J/psi-gun MASS term --
 is on DISJOINT samples, so there is nothing to over-count there; the
 same-track joint is the informative one.
 
+## THE CHAIN IS VALIDATED, AND THE SMOKE ALREADY PREDICTS THE HEADLINE
+`fisher_cmp.py` (H and J, 60 params) and `efficiency.py` (the sandwich) both
+run on the per-hit npz.  On 120 tracks -- far too few to quote, but the sign is
+structural, not statistical -- the CF-over-Gaussian EFFICIENCY on the hit
+classes is **1.003** (16-84 % 0.999-1.029), i.e. the full PDF buys nothing
+over the chi2 for the per-hit components.
+
+That is what `phcf_vgf` median **0.987** says it must be: a per-hit innovation
+is 98.7 % Gaussian hit noise and only ~1.3 % material, so `cf` and `gaussq`
+are nearly the same density and their estimators have nearly the same
+variance.  The prototype's 1.8-2.1x came from the truth-referenced components,
+which are MATERIAL dominated.  So the expected division of labour is:
+
+* the per-hit (complement) term -> the HIT CLASSES, through the extra
+  components, with the non-Gaussianity irrelevant;
+* the truth-referenced term -> the MATERIAL amounts, where the non-Gaussianity
+  is the whole point.
+
+Both to be confirmed at production statistics.  `saturation.py` turns the
+prior-free sandwich into `N_sat = n0 (sigma_free/sigma_prior)^2`, the track
+count at which each parameter stops needing its prior.
+
+## TWO APPROXIMATIONS TO STATE WITH EVERY NUMBER
+1. **The composite likelihood.**  The product of whitened marginals drops the
+   joint cumulants.  The POINT ESTIMATE stays consistent; the quoted error does
+   not, and the sandwich is the accounting -- `fisher_cmp.py` estimates `J` by
+   BATCH MEANS over batches of whole tracks, so every within-track correlation,
+   including the fourth cross-cumulants above, is inside `J`.  Two caveats:
+   the batching is by ROW COUNT and the rows per track VARY, so a fraction
+   `nbatch/ntrk` of tracks straddles a boundary and loses its cross terms
+   (2 % at `nbatch = 200`, `ntrk = 10 000`); and the efficiency loss relative
+   to the true joint density is not measured by any of this -- only the
+   disjoint-subsample spread (`subfits`) is assumption-free.
+   Note that at SECOND order the components are exactly uncorrelated, and the
+   hit-class information is a second-order (variance) quantity, so the
+   composite form mis-counts only the SHAPE information -- which is why the
+   approximation is expected to be mild for the hit classes and worse for the
+   material.
+2. **The conditioning cut.**  `max_inflat` cuts ROWS on `Gs_kk/pivot_k`, the
+   conditioning of the sequential whitening.  It is a cut on the FIT'S
+   COVARIANCE and cannot bias the residual distribution, but it does select
+   hit positions: at the default 1e4 it removes ~7 % of rows, concentrated in
+   the LAST one or two components of a track (the ones nearest the rank
+   boundary), i.e. the outermost hits.
+
 ## WHAT A DATA FIT STILL NEEDS: the residual MEAN
 On MC with ideal geometry and the simulation's own field the mean of `z` is
 zero and the term is a pure WIDTH/SHAPE term.  On data, alignment and field

@@ -315,6 +315,11 @@ def main():
     p.add_argument("--max-cands", type=int, default=0)
     p.add_argument("--max-files", type=int, default=0)
     p.add_argument("--groups", default="")
+    p.add_argument("--no-compress", action="store_true",
+                   help="np.savez instead of savez_compressed. The S arrays "
+                        "are 6 x nnz x 64 float32 and dominate; at 20 k "
+                        "tracks that is ~11 GB, where zlib costs more wall "
+                        "clock than the disk it saves.")
     args = p.parse_args()
 
     files = sorted(glob.glob(args.files))
@@ -389,7 +394,7 @@ def main():
             max_grad=args.max_grad), groups=args.groups,
         script=os.path.basename(__file__), when=time.strftime("%Y-%m-%d %H:%M")))
     nrow = len(out["z"])
-    np.savez_compressed(args.output, **out)
+    (np.savez if args.no_compress else np.savez_compressed)(args.output, **out)
     print(f"wrote {args.output}: {ntrk} tracks, {nrow} rows "
           f"({nrow/max(ntrk,1):.1f}/track), grp nnz {len(out['grp_id'])}, "
           f"hit nnz {len(out['hit_cls'])}, {time.time()-t0:.0f} s", flush=True)
