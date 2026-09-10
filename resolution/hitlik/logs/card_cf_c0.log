@@ -1,0 +1,9 @@
+6000 tracks x 1 components = 6000 rows; arm 'cf'
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789005739.874193 4120297 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789005745.592296 4120297 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789005751.283872 4120297 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+residual term: 6000 rows, 90177 group rows (23229 pruned), 60 parameters
+NLL(0) = 8477.968223, max|grad| = 16.29
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/cf_c0.hdf5 (114.8 MB)

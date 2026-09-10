@@ -1,0 +1,25 @@
+=== card_cf 22:00:20
+residual term: 24000 rows, 329602 group rows (124022 pruned), 60 parameters
+NLL(0) = 34219.186209, max|grad| = 168.2
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/cf.hdf5 (425.2 MB)
+=== card_gaussq 22:01:02
+residual term: 24000 rows, 321187 group rows (132437 pruned), 60 parameters
+NLL(0) = 34591.204724, max|grad| = 198.1
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/gaussq.hdf5 (129.5 MB)
+=== card_gauss 22:01:33
+residual term: 24000 rows, 328014 group rows (125610 pruned), 60 parameters
+NLL(0) = 34600.813470, max|grad| = 184.2
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/gauss.hdf5 (262.4 MB)
+=== card_cf_c0 22:02:05
+residual term: 6000 rows, 90177 group rows (23229 pruned), 60 parameters
+NLL(0) = 8477.968223, max|grad| = 16.29
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/cf_c0.hdf5 (114.8 MB)
+=== card_joint 22:02:33
+NLL(0) = 34219.186209, max|grad| = 393.7
+external term 'hitchi2': 92 parameters
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/joint.hdf5 (425.3 MB)
+=== card_inj_cf 22:03:05
+residual term: 24000 rows, 329602 group rows (124022 pruned), 60 parameters
+NLL(0) = 34219.226171, max|grad| = 168.2
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/inj_cf.hdf5 (425.2 MB)
+=== card_inj_gaussq 22:03:38

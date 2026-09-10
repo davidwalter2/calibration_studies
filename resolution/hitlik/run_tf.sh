@@ -10,6 +10,7 @@ export APPTAINERENV_TF_NUM_INTRAOP_THREADS=${OMP_NUM_THREADS:-24}
 export APPTAINERENV_TF_NUM_INTEROP_THREADS=2
 export APPTAINERENV_PYTHONDONTWRITEBYTECODE=1
 export APPTAINERENV_RABBIT=$RABBIT
+export APPTAINERENV_PYTHONUNBUFFERED=1
 unset APPTAINER_BIND SINGULARITY_BIND
 BINDS="-B /work/submit,/home/submit,/scratch/submit,/tmp"
 [ -n "$WANT_CEPH" ] && mountpoint -q /ceph/submit 2>/dev/null && ls /ceph/submit >/dev/null 2>&1 && BINDS="$BINDS,/ceph/submit"

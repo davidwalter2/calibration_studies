@@ -1,3 +1,36 @@
 160 files
 cap 125 tracks/file
 extraction 705 s
+{
+ "files": 160,
+ "ntracks": 20000,
+ "ncomp": 5,
+ "nrows": 100000,
+ "nsel": 20000,
+ "ndrop": 5,
+ "ncut": 105,
+ "grp_mult_mean": 18.88515,
+ "valmax": 1.3373389293747096e-06,
+ "argv": {
+  "files": "/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_mugun_ul16_260903x_m0/task_*/globalcor_resclosure_*.root",
+  "ntasks": 0,
+  "groups": "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt",
+  "ncomp": 5,
+  "hitmode": "class18",
+  "ioni_norm": "var",
+  "no_rad": false,
+  "no_delta": false,
+  "max_chi2_ndof": 3.0,
+  "max_hess": 100000000.0,
+  "max_grad": 1000000.0,
+  "max_cands": 125,
+  "decimate": 4,
+  "tmax": 8.0,
+  "validate": true,
+  "jobs": 26,
+  "output": "/work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/mugun20k.npz"
+ }
+}
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/mugun20k.npz: 20000 tracks x 5 components, nnz 1888515
+covdev max 9.73e-02  median 3.98e-07
+VALIDATE max|comp0(new) - qop(reference)| = 1.337e-06

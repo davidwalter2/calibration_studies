@@ -83,3 +83,32 @@ Cholesky variance inflation `V_kk/d_k` (median over 2000 tracks):
 SINGLE-track production even under `--no-mass`.  Moved inside the mass branch
 (one-line fix, committed): the quadratic term over the same 318 390 mu-gun
 tracks now builds in 45 s.
+
+## Step 2 — parameters (2026-09-09)
+
+Exactly the parameters `matres` uses, so a joint fit floats ONE set:
+
+* `material_<group>` (42), `k_g` = ln of the group's material amount,
+  entering the exponent as `S_f = S^fix + sum_g e^{k_g} S_{f,g}`;
+* `hitres_<class>` (18), `eps_c` the LINEAR scale of that class's Gaussian
+  variance share, `v_i = v_other + sum_c (1 + eps_c) v_{c,i}`.
+
+Field and alignment are NOT parameters of this term.  On a truth-referenced
+residual they move only the MEAN, and the mean of a whitened residual carries
+no material or hit-resolution information -- so the residual term is a pure
+width/shape term and field/alignment stay in the quadratic one.
+
+## Step 3 — the three arms (`hitlik_term.py`)
+
+| arm | what replaces the per-(row, group) exponent | model Var(z) |
+|---|---|---|
+| `cf` | nothing -- the extracted log-CF exponents | 1.013-1.077 |
+| `gauss` | `-1/2 kappa2_g tau^2`, `kappa2 = -(16 S(t1) - S(2t1))/(6 t1^2)` off the SAME arrays (tau^4 term eliminated); imaginary parts dropped | 1.013-1.068 |
+| `gaussq` | the variance the FIT used: `thp2` (Rossi) for MS, `ioni_sq2` for ionization, ZERO radiative and delta | **1.00000 exactly** |
+
+VALIDATED numerically (`/tmp/valdens.py`, 60 tracks, 4 components): all three
+densities integrate to 1.000000 and have mean 0.00000; `gaussq`'s variance is
+1.00000 to 5 decimals for every component -- i.e. the fit's own Q-matrix
+decomposition of `refCov` sums to unity, so `gaussq` IS the pull model the
+quadratic hit-chi2 term assumes.  `cf` is 1.3-7.7 % wider: the Rossi-vs-Moliere
+gap of NOTES 2026-08-16, seen here directly as a model variance.
