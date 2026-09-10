@@ -89,7 +89,122 @@ def parse_args():
     p.add_argument("--inject-quad-only", action="store_true")
     p.add_argument("--inject-res-only", action="store_true")
     p.add_argument("--dense-max", type=int, default=4000)
+    p.add_argument("--mass-npz", default=None,
+                   help="a matres/extract_groups.py --functional mass npz: "
+                        "adds the J/psi-gun MASS term on the SAME material "
+                        "parameters (step 4's joint test)")
+    p.add_argument("--mass-max-chi2-ndof", type=float, default=3.0)
+    p.add_argument("--mass-max-cands", type=int, default=0)
+    p.add_argument("--with-alpha", action="store_true")
     return p.parse_args()
+
+
+MJPSI = 3.0969
+
+
+def build_mass_term(args, groups_file, ngroups, group_units, gparams_grp,
+                    inj_groups, log):
+    """The J/psi-gun mass MaterialCFTerm of ``matres``, on the SAME parameters.
+
+    A compact rebuild of ``matres/make_material_card.py``'s mass block: no D
+    rows (``--no-jac`` there), no ``a_res`` (the extraction predates ``fioni``,
+    so the self-consistent-sigma correction takes its exact static path), and
+    no per-hit-class parameters -- the two-track maker exports no parmtype-8/9
+    resolution blocks, so ``vg_other`` is the whole Gaussian remainder and no
+    class scales it.  Everything else is identical, which is the point: the
+    material amounts are ONE set of parameters across the two channels.
+    """
+    from rabbit import unbinned
+    d = np.load(args.mass_npz, allow_pickle=False)
+    keys = set(d.files)
+    fams = [str(x) for x in d["families"]]
+    n_all = len(d["sigma"])
+    keep = np.ones(n_all, bool)
+    if args.mass_max_chi2_ndof > 0.0:
+        keep = d["chi2ndof"] < args.mass_max_chi2_ndof
+    idx = np.where(keep)[0]
+    if args.mass_max_cands and args.mass_max_cands < len(idx):
+        idx = idx[: args.mass_max_cands]
+    n = len(idx)
+    ptr = d["grp_ptr"].astype(np.int64)
+    gid = d["grp_id"].astype(np.int64)
+    cnt = np.diff(ptr)[idx]
+    rows = (np.concatenate([np.arange(ptr[i], ptr[i + 1]) for i in idx])
+            if n else np.zeros(0, np.int64))
+    ngid = gid[rows]
+    seg = np.repeat(np.arange(n), cnt)
+    nt = len(d["tgrid"])
+
+    arrs, amp = {}, np.zeros(len(rows))
+    for f in fams:
+        a_ = d["S" + f][rows]
+        arrs[f] = a_
+        amp = np.maximum(amp, np.abs(a_).max(axis=1))
+    top = np.zeros(n)
+    np.maximum.at(top, seg, amp)
+    drop = (amp < args.prune_frac * top[seg]) if args.prune_frac > 0 else \
+        np.zeros(len(rows), bool)
+    live = np.zeros(ngroups, bool)
+    live[np.unique(ngid[~drop])] = True
+    drop = drop | np.isin(ngid, np.where(~live)[0])
+
+    w = np.ones(ngroups)
+    for g, k in (inj_groups or {}).items():
+        w[g] = np.exp(k) if args.amount_mode == "exp" else 1.0 + k
+    fam_out = {}
+    for f in fams:
+        nm = f[:-3] if f.endswith(("_re", "_im")) else f
+        comp = "im" if f.endswith("_im") else "re"
+        a_ = arrs[f] * w[ngid][:, None]
+        fx = np.zeros((n, nt))
+        if drop.any():
+            np.add.at(fx, seg[drop], a_[drop].astype(np.float64))
+        e = fam_out.setdefault(nm, {"name": nm})
+        e[comp] = a_[~drop].astype(np.float32)
+        if np.any(fx):
+            e["fix_" + comp] = fx.astype(np.float32)
+    gfam = [fam_out[k] for k in sorted(fam_out)]
+    kcnt = np.zeros(n, np.int64)
+    np.add.at(kcnt, seg[~drop], 1)
+    nptr = np.concatenate([[0], np.cumsum(kcnt)]).astype(np.int64)
+    ngid = ngid[~drop]
+
+    sigma = d["sigma"][idx].astype(np.float64)
+    mobs = d["m0"][idx].astype(np.float64) - MJPSI
+    vgf = d["vgf"][idx].astype(np.float64)
+    tgrid = np.asarray(d["tgrid"], np.float64)
+    share = (np.zeros(n + 1, np.int64), np.zeros(0, np.int64),
+             np.zeros(0), vgf)
+    dm = d["mgen"][idx] - MJPSI
+    tabs, phik = MGT.build_phik_table(dm, tgrid[-1] / sigma.min(), 4096)
+    data = {"sigma": sigma, "mobs": mobs, "tgrid": tgrid, "grp_ptr": nptr,
+            "grp_id": ngid, "group_units": group_units,
+            "hit_ptr": share[0], "hit_cls": share[1], "hit_v": share[2],
+            "vg_other": vgf, "vgf": vgf, "hit_units": np.zeros(0),
+            "phik_t": tabs, "phik_re": phik.real.copy(),
+            "phik_im": phik.imag.copy()}
+    for m in gfam:
+        for c in ("re", "im"):
+            if c in m:
+                data[f"Sg_{c}_{m['name']}"] = m[c]
+            if "fix_" + c in m:
+                data[f"Sgfix_{c}_{m['name']}"] = m["fix_" + c]
+    term = unbinned.MaterialCFTerm(
+        "mass", sigma=sigma, mobs=mobs, tgrid=tgrid, families=[], vgf=vgf,
+        group_params=gparams_grp,
+        group_families=[{k: v for k, v in m.items()
+                         if k in ("name", "re", "im", "fix_re", "fix_im")}
+                        for m in gfam],
+        grp_ptr=nptr, grp_id=ngid, group_units=group_units,
+        hit_params=[], hit_share=share,
+        amount_mode=args.amount_mode, hit_mode=args.hit_mode,
+        background=unbinned.UniformBackground((MJPSI - 0.5, MJPSI + 0.5)),
+        m_ref=MJPSI, scale_param="alpha" if args.with_alpha else None,
+        bkg_frac=0.0, floor=args.floor, chunk=args.chunk, channel="jpsi",
+        phik=(tabs, phik.real.copy(), phik.imag.copy()))
+    log(f"mass term: {n} J/psi-gun candidates, {len(ngid)} group rows "
+        f"({int(drop.sum())} pruned), {len(term.param_names)} parameters")
+    return term, data
 
 
 def _poi_set(spec, names):
@@ -238,6 +353,25 @@ def main():
             param_prior_means=means, param_is_poi=ispoi)
         declared = list(term.param_names)
 
+    if args.mass_npz:
+        mterm, mdata = build_mass_term(args, groups_file, ngroups, group_units,
+                                       gparams_grp, inj_groups, log)
+        import tensorflow as tf
+        _x0 = tf.Variable(np.zeros(len(mterm.param_names)), dtype=tf.float64)
+        log(f"mass NLL(0) = {float(mterm.nll(_x0).numpy()):.6f}")
+        poi_set = _poi_set(args.poi, mterm.param_names)
+        prior_by_name = dict(zip(gparams_grp, gprior_card))
+        defaults = [0.0] * len(mterm.param_names)
+        sig = [np.nan if p == "alpha" else prior_by_name.get(p, np.nan)
+               for p in mterm.param_names]
+        writer.add_unbinned_term(
+            "mass", mterm.config(), mterm.param_names, mdata,
+            param_defaults=defaults, param_prior_sigmas=sig,
+            param_prior_means=[0.0] * len(mterm.param_names),
+            param_is_poi=[1 if p in poi_set or p == "alpha" else 0
+                          for p in mterm.param_names])
+        declared = sorted(set(declared) | set(mterm.param_names))
+
     # ---- the quadratic term -------------------------------------------------
     if qd is not None:
         grad_chi2 = qd["grad"][isel].astype(np.float64)
@@ -269,18 +403,29 @@ def main():
                 "prior_means": np.zeros(len(ki)),
                 "is_poi": np.array([1 if names[i] in poi_set else 0
                                     for i in ki], np.int64)})
-        writer.add_auxiliary("global_index_map", {
-            "params": names,
-            "parmtype": np.asarray(parmtype[isel], np.int64),
-            "subidx": np.asarray(subidx[isel], np.int64),
-            "prior_sigmas": prior_sigmas,
-            "scale": pscale,
-            "group_params": gparams_grp,
-            "group_units": group_units,
-            "hit_params": hparams,
-            "provenance": [json.dumps(dict(argv=sys.argv, arm=args.arm,
-                                           comps=args.comps,
-                                           inject=inject_card))]})
+    # `global_index_map` carries the UNITS and the injected vector, and
+    # `report_fit.py` reads it -- so it is written for a residual-only card
+    # too, not only for one that has the quadratic term.
+    allp = list(names) if nfit else (list(gparams_grp) + hparams)
+    inj_vec = np.array([inject_card.get(nm, 0.0) for nm in allp])
+    aux = {
+        "params": allp,
+        "prior_sigmas": (prior_sigmas if nfit else
+                         np.concatenate([gprior_card,
+                                         np.full(len(hparams), np.nan)])),
+        "scale": (pscale if nfit else
+                  np.concatenate([gscale, np.ones(len(hparams))])),
+        "injected": inj_vec,
+        "group_params": gparams_grp,
+        "group_units": group_units,
+        "hit_params": hparams,
+        "provenance": [json.dumps(dict(argv=sys.argv, arm=args.arm,
+                                       comps=args.comps, ntrk=int(sel["ntrk"]),
+                                       inject=inject_card))]}
+    if nfit:
+        aux["parmtype"] = np.asarray(parmtype[isel], np.int64)
+        aux["subidx"] = np.asarray(subidx[isel], np.int64)
+    writer.add_auxiliary("global_index_map", aux)
 
     out = os.path.abspath(args.output)
     os.makedirs(os.path.dirname(out), exist_ok=True)
