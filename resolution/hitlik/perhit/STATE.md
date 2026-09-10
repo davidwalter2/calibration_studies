@@ -1,16 +1,78 @@
 # perhit — the DATA version of the hit-residual CF likelihood
 
-## RESUME HERE (2026-09-10, session start)
+## RESUME HERE (2026-09-10 17:00)
 
-Generalising `../STATE.md`'s TRUTH-REFERENCED prototype (residual = refParms -
-genParms, 4 usable components) to the **complement residual** that exists on
-DATA: the part of the constraint residual the fit has NOT absorbed.
+STATUS: maker DONE and committed; production **160/160 COMPLETE**; offline
+chain running.  Everything below "THE OBJECT" is settled and needs no
+re-deriving.
 
-STATUS: design fixed, maker implementation starting.
-Branch `perhit-residual-cf-260910` off `cvh-exports-260906` (ca6058d96fc) in
-`/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2`.
-No production is running from that area (checked `squeue`, `condor_q`, `ps` on
-submit50/51/52/82 on 2026-09-10) so it is safe to `scram b` there.
+**Verified this session (17:00):**
+* production `resolution_trackres_mugun_ul16_260910_perhit`: 160 `task_NNNN`
+  dirs, **160 `.complete` sentinels, 160 root files, 190 GB** on ceph.  DONE.
+  (The task dirs are `task_0000`-style, not `task_0`; a `seq 0 159` check
+  reports everything missing.)
+* extraction `runs/perhit/perhit.npz` = **8750 tracks / 169 709 rows**, made at
+  15:25 from the **70** tasks complete at the time.  A full re-extract at 160
+  tasks x `--max-cands 125` gives ~20 k tracks.
+* cards: 14 of 15 in `runs/perhit/cards` (on ceph); `ph_gauss.hdf5` still in
+  `runs/perhit/cards_local` (open by the running fit); `ph_inj_cf_all` MISSING
+  (it died on the /work quota).
+
+**DISK (do not undo this):** `/work/submit` quota is 500 G and was full.
+`runs/perhit/cards` and `runs/perhit/perhit.npz` are now SYMLINKS into
+`/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_perhit_260910/`, so every path
+in the scripts still works and new cards land on ceph.  Anything > 0.5 G goes
+there.  **ceph is NOT visible from submit82** (permission denied — cephx
+eviction); do ceph I/O from submit50/51/52 through
+`/home/submit/david_w/.claude-work/jobs/perhit/s5{0,1,2}.sh '<cmd>'`
+(persistent ControlMaster), always with `cd /abs/path || exit 9`.
+
+**Live processes (kill only these PIDs; never `pkill -f`):**
+| host | what | state |
+|---|---|---|
+| submit50 | `run_stage2.sh fits` PID 1757773, log `logs/stage2_fits.log` | RUNNING: ph_cf edm 5.05e-12, ph_gaussq edm 1.64e-9, ph_gauss from 16:37, 12 to go |
+
+**NEXT STEPS, in order**
+1. [x] rebuild `ph_inj_cf_all` -- DONE 17:03 on submit52 (`CARDOK`), on ceph
+2. [~] let `run_stage2.sh fits` finish; certify with `run_stage2.sh certify`
+       (`perhit/certify.py`: value + NLL(reduced) + rabbit EDM, PASS at
+       EDM < 1e-3).  Done so far: ph_cf 5.05e-12, ph_gaussq 1.64e-9,
+       ph_gauss 7.65e-10; ph_cf_ref running from 16:56.
+       ALL 15 CARDS ARE BUILT AND ON CEPH (17:05), `ph_gauss.hdf5` moved out
+       of `cards_local`, which is gone.
+3. [~] fisher: A = `--comps hit ref --arms cf gauss gaussq` on submit52
+       (`logs/stage2_fisher.log` -> `runs/perhit/fisherHJ.npz`);
+       B = `--comps all --arms cf gaussq` on submit51
+       (`logs/fisher_all.log` -> `fisherHJ_all.npz`).  Both 8000 tracks of
+       `perhit.npz`, `--nbatch 200`.
+4. [~] `xcum` on the 20 k npz (submit51, `logs/xcum20k.log`)
+5. [ ] `run_stage2.sh efficiency effall joint saturation recovery cost plots
+       finaltable subfits` -- NEW stages `certify`, `effall` (the SAME-TRACK
+       joint, `--cset all`), `joint` (the DISJOINT residual+mass joint via
+       `perhit/fisher_joint.py`), `tails`, `subfits` were added to
+       `run_stage2.sh` this session.
+6. [ ] NOTES.md entry, commit
+7. [x] gates re-run on all 160 tasks after fixing two indexing traps in
+       `gates.py` -- see "THE GATES, FINAL"
+8. [x] the measured export bill at production scale -- see "THE EXPORT BILL,
+       MEASURED AT PRODUCTION SCALE"
+
+**SECOND EXTRACTION (this session):** `perhit20k.npz` on ceph,
+**20 000 tracks / 388 641 rows** (19.4 comps/track), 227 s, 11.5 GB, from all
+160 tasks.  Used for the STATISTICS-hungry steps (xcum, tails, cost, plots);
+the FITS and the Fisher/sandwich stay on `perhit.npz` (8750 tracks, 8000 used)
+because the whole card ladder was built from it -- quote the N with every
+number.
+
+**run_tf.sh CHANGED (this session):** it now binds `/ceph/submit` whenever the
+host can read it (it used to need `WANT_CEPH=1`).  Without that the cards
+symlink does not resolve inside the container and every fit after the move
+would have failed.  `.bak` of the original next to it.
+
+**Paths**: npz `runs/perhit/perhit.npz`; cards/fits `runs/perhit/{cards,fits}`;
+figures `~/public_html/cvh/260910_perhit/`; maker branch
+`perhit-residual-cf-260910` in `CMSSW_15_0_19_patch2_dev2` (4 commits on top of
+ca6058d96fc).
 
 ## THE OBJECT (derivation, so a fresh agent does not have to redo it)
 
@@ -136,6 +198,77 @@ an inverse.  Then
   whose conditional variance is 1e-11 of its marginal has an accurate `z`
   (~1e-6 relative, and gate 1c holds) but its own row of the whitener is huge.
 
+### THE GATES, FINAL (all 160 tasks, 20 000 tracks, 2026-09-10 17:05)
+`run_all.sh gates --max-tracks 20000`, log `logs/gates_final.log`.  **Two
+indexing traps in `gates.py` were fixed first** (same family as the gate-4 one
+below): gates 1c and 3 summed the WHOLE `phresz`, which carries the five
+truth-referenced components AFTER the `d` per-hit ones.  That added ~5 to a
+chi2 of ~13 and made gate 1c read a spurious **0.36** median; it also polluted
+the per-k variance table above k = d.  Both now slice `z[:d]`.
+
+| gate | number |
+|---|---|
+| 1a `d == n_meas - 5` | **20000/20000, 0 violations** |
+| 1b `n_meas == nValidHits + nValidPixelHits` | 20000/20000 |
+| **1c `\|sum_k z_k^2 - chi2\|/chi2` (THE BINDING GATE)** | median **2.43e-8**, p90 5.76e-8, max 2.08e-5 |
+| 1c' in-maker `phres_chi2` vs recomputed | max 4.66e-6 |
+| 2 `phres_vchk` | median 3.7e-7, p90 4.7e-6, p99 5.6e-5, max 4.5e-2 |
+| 2b rank gap `lambda_d/lambda_(d+1)` | median **1.14e15**, p10 5.3e14, min 7.9e13 |
+| 3 DATA Var(z), per-hit pooled (N = 288 991) | **0.9584**, mean +0.0108, skew +0.009, **kurt 3.43** |
+| 3' DATA Var(z), truth-referenced pooled (N = 100 000) | 1.2559, skew +0.43, kurt 22.2 |
+| 4 `corr(z_k, pull_j)` per component index | all `\|corr\| < 0.02` for k <= 17 (N > 4000); the k >= 20 rows have N < 1600 and scatter by their own 1/sqrt(N) |
+| 4b algebraic `\|sum_b A_b[k].A_b[qp]\|` (20 k tracks, `xcum`) | median **2.14e-9**, p99 1.5e-8, max 8.3e-6 |
+| 5 reference component 0 vs `cfqop_*` | 1.2e-7, all six families |
+| 5b `phcf_grp_closure` | max **9.24e-15** |
+| export health | `phres_ok` **100.00 %**, `phcf_nok == d + nref` **100.00 %** |
+
+Per-component DATA variance falls from 1.012 (k=0) to ~0.82-0.90 by k ~ 17:
+the OUTERMOST kept components sit nearest the rank boundary, where the
+conditional variance is a small difference and the fit's assumed hit error is
+the least well matched.  `phcf_msec` median 2092 ms/track, 163 ms/component
+under 60-way contention; hit (Gaussian) share median 0.968, p10 0.382.
+
+### THE GATES AT PRODUCTION SCALE (20 000 tracks, 2026-09-10 15:25) -- SUPERSEDED by the table above for gates 1c and 3
+`run_all.sh gates --max-tracks 20000` on the completed tasks, and the npz
+checks on 8750 extracted tracks:
+
+| gate | number |
+|---|---|
+| 1a `phres_ok` (d == n_meas - 5 == ncons - rank(Fw), and every component's cvhcf call ok) | **100.00 %** |
+| 2 `phres_vchk` | median 3.6e-7, **max 1.6e-2** on one track in 8750 |
+| 2b `|A_b[k]|^2` vs `|phresvarv|` | 6.5e-8 median, 1.3e-7 max |
+| 3 `gaussq` model variance | 1.00000 exactly (both component sets) |
+| 4 pooled `corr(z_k, pull_j)` over ALL per-hit rows | **+0.000 / -0.003 / +0.002 / -0.002 / +0.002** against a 0.003 statistical error, for (q/p, lam, phi, d0, z0); INDEPENDENT of the conditioning cut (1e2 -> 1e12) |
+| 4b per-track algebraic `|sum_b A_b[k].A_b[qp]|` | median 2.2e-9, max 3.5e-7 |
+| 5 reference component 0 vs `cfqop_*` | 1.2e-7, all six families |
+| 5b `phcf_grp_closure` | max 9.2e-15 |
+
+**A trap that cost an hour**: the first gate-4 table read up to **+0.38** at
+component 24.  It indexed `phresz[k]` without checking `k < phres_d`, so for a
+short track slot 24 is one of the TRUTH-REFERENCED components -- correlated
+with the pull it was built from by construction.  Fixed in `gates.py`; the
+algebraic per-track check is what caught it.
+
+### The physics the production-scale gates show
+| quantity | value |
+|---|---|
+| DATA Var(z), per-hit components | **0.955** (0.961 with `inflat < 1e4`) -- the fit's assumed hit variances are ~4.5 % too large |
+| DATA Var(pull_j), the 5 truth-referenced components | 1.015 / 1.033 / 1.070 / 1.115 / **1.818** |
+| `phcf_vgf` (hit share of a per-hit component) | median 0.986, p10 **0.860**, p5 **0.764** |
+| `phresinflat` | median 3.9, p90 456, p95 8.3e6 -- `max_inflat = 1e4` keeps **92.7 %** of rows |
+| `phcf_msec` per track under 60-way contention | median 2092 ms (993 ms uncontended), 163 ms/component |
+
+Two things to carry forward:
+* **`z0` is over-dispersed by 1.35x in sigma** (Var 1.818 against 1.015-1.115
+  for the other four).  This observable did not EXIST before the `genParms[4]`
+  fix -- the prototype had `Var = 4.0e6` there -- so it is new, and it says
+  the fit's `z0` error is underestimated.  Worth its own look; it is the most
+  weakly conditioned Cholesky component, so a small mis-modelling is amplified.
+* **The material-rich tail.**  `vgf` median 0.986 makes a typical per-hit
+  innovation 1.4 % material, but p5 is 0.764, i.e. one row in twenty is ~24 %
+  material.  So the per-hit term is not as material-blind as the 120-track
+  smoke suggested; the fits decide.
+
 ### GATE 3 IN FULL (`valdens.py`, 120 tracks, all three arms)
 Row-averaged predicted density by the same inverse Fourier transform the term
 uses, integrated on |z| < 40:
@@ -215,6 +348,47 @@ naive `d` separate `cvhcf` passes cost about as much as the fit.  The
 concatenated-tau trick (`extract_res5.py`'s, every exponent primitive depends
 on `(w, tau)` through the product alone) is therefore worth porting for a
 40M-track production but was not needed here.
+
+## EXTRA DELIVERABLE 1 -- DONE (20 000 tracks, `logs/xcum20k.log`, 17:00)
+
+`xcum_perhit.py` on `perhit20k.npz`.  Table (3) reproduces the PROTOTYPE's
+reference-parameter cross-cumulants to three digits from a completely
+independent route (the maker's `phresbv` instead of the offline step records):
+0.138 / 0.088 / 0.095 / 0.329 / 0.279 / 0.712 -- identical.
+
+**Gaussian level (the answer to "are they correlated"): NO, exactly.**
+per track algebraic `|sum_b A_b[k].A_b[qp]|` median **2.14e-9**, p99 1.5e-8,
+max 8.3e-6 (this IS `F^T R = 0`).  Ensemble `corr(z_k, z_qp)` by hit position:
+-0.0005 / +0.0015 / -0.0076 / -0.0086 / -0.0063 / +0.0030 / +0.0132 against a
+1/sqrt(N) of 0.0043-0.0094 -- consistent with zero in every bin.
+
+**Fourth order: they DO share non-Gaussianity, and it depends on where the hit
+is.** `kappa(z_qp,z_qp,z_k,z_k)/sqrt(kappa4 kappa4)`, per track:
+
+| relpos | 0.00-0.12 | 0.12-0.25 | 0.25-0.38 | 0.38-0.50 | 0.50-0.62 | 0.62-0.75 | 0.75-0.88 | ALL |
+|---|---|---|---|---|---|---|---|---|
+| median | 0.395 | 0.594 | **0.654** | 0.590 | 0.331 | 0.118 | **0.052** | **0.464** |
+| p90 | 0.690 | 0.802 | 0.817 | 0.790 | 0.683 | 0.337 | 0.160 | 0.765 |
+
+i.e. the INNER-to-middle hits share most of their fourth cumulant with the q/p
+pull and the outermost almost none -- which is the material distribution seen
+from the q/p functional's own influence.  By hit class it splits by
+STRIP MULTIPLICITY/charge rather than by layer: the `_hi` classes 0.56-0.61,
+the `_lo` ones 0.25-0.42, pixels 0.34 (y) to 0.56 (x).
+
+**Adjacent per-hit innovations**: median **0.505**, p90 0.902 (247 732 pairs),
+rising from 0.34 at the innermost pair to 0.63 in the middle of the track.
+That is the composite-likelihood sizing between adjacent innovations: the
+product form drops a fourth-cumulant correlation of ~0.5 between NEIGHBOURS.
+
+READ IT RIGHT: a per-hit innovation is only ~3 % material (`phcf_vgf` median
+0.968), so a 0.46 correlation of the fourth cumulants is 0.46 of a small
+number.  The consequence is measured, not assumed, by the same-track joint
+sandwich (`--comps all`).
+
+Figures: `xcum_corr_zqp_vs_relpos.pdf`, `xcum_ref0_vs_relpos.pdf`,
+`xcum_adjacent_vs_relpos.pdf`, `xcum_ref0_by_class.pdf` in
+`~/public_html/cvh/260910_perhit/` (`plot_xcum.py`).
 
 ## THE PRODUCTION
 `resolution_trackres_mugun_ul16_260910_perhit`, launched 2026-09-10 13:44 from
@@ -336,6 +510,39 @@ which are MATERIAL dominated.  So the expected division of labour is:
 Both to be confirmed at production statistics.  `saturation.py` turns the
 prior-free sandwich into `N_sat = n0 (sigma_free/sigma_prior)^2`, the track
 count at which each parameter stops needing its prior.
+
+## THE EXPORT BILL, MEASURED AT PRODUCTION SCALE (2026-09-10 17:06)
+Read straight off `task_0000` of the production, **2000 tracks**, compressed
+branch bytes / entries (the 200-track table further down agrees to 2 %):
+
+| branch | kB/track compressed | raw |
+|---|---|---|
+| `phcf_grp_rad_im` | 87.25 | 94.23 |
+| `phcf_grp_ioni_im` | 87.24 | 94.23 |
+| `phcf_grp_del` | 85.57 | 94.23 |
+| `phcf_grp_ioni_re` | 84.75 | 94.23 |
+| `phcf_grp_ms` | 84.65 | 94.23 |
+| `phcf_grp_rad_re` | 84.63 | 94.23 |
+| **the six per-group exponent tables** | **514.1** | 565.4 |
+| `phresbv` (the influence vectors) | 16.33 | 21.70 |
+| `phcf_{ms,del,ioni_re,ioni_im,rad_re,rad_im}` flat | 28.2 | 29.9 |
+| **all `ph*`** | **567.0** | |
+| (`hesspackedv`, the quadratic term, for scale) | 57.88 | 99.24 |
+| whole file | **630.2** | 736.1 |
+
+Production total: 160 tasks x 2000 tracks = **320 000 tracks, 190 GiB**,
+634 kB/track including the ROOT overhead.
+
+**At 41 M tracks (7 M Z legs + 34 M J/psi legs):**
+| variant | kB/track | TB at 41 M |
+|---|---|---|
+| everything as produced here | 567 | **23.2** |
+| per-group split OFF (one exponent set, all groups summed) | 53 | **2.2** |
+| ... + the card's own `--prune-frac 0.001` (discards 83 % of group rows) | ~140 | 5.7 |
+| ... + rank-16 tau PCA on top of the pruning | ~35 | 1.4 |
+| (the truth-referenced 5-component prototype, for scale) | 33.4 | 1.37 |
+The per-group tables are 91 % of the bill and compress by only 9-10 % (they are
+float32 noise to zlib), so the compression has to be ALGORITHMIC.
 
 ## THE EXPORT BILL, ITEMISED (measured per track, compressed, in the tree)
 | branch | kB/track | raw kB/track |

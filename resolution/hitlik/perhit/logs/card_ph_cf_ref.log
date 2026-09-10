@@ -1,9 +1,9 @@
-100 tracks x 5 components = 500 rows; arm 'cf'
+8000 tracks x 5 components = 40000 rows; arm 'cf'
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063725.687874 1698482 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789068952.128379 2075855 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063737.876570 1698482 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789063749.788574 1698482 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-residual term: 500 rows, 6556 group rows (2759 pruned), 60 parameters
-NLL(0) = 711.443733, max|grad| = 46.96
-wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/cf.hdf5 (8.7 MB)
+I0000 00:00:1789068960.989847 2075855 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789068980.098921 2075855 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+residual term: 40000 rows, 518569 group rows (236596 pruned), 60 parameters
+NLL(0) = 59785.719490, max|grad| = 4990
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/cf.hdf5 (673.4 MB)

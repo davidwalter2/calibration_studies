@@ -1,0 +1,7 @@
+=== fit ph_cf 15:50:49
+[38;21mINFO:rabbit_fit.py: edmval: 5.0505661070024855e-12[0m
+=== fit ph_gaussq 16:13:06
+[38;21mINFO:rabbit_fit.py: edmval: 1.6366578937892872e-09[0m
+=== fit ph_gauss 16:36:51
+[38;21mINFO:rabbit_fit.py: edmval: 7.645347830269126e-10[0m
+=== fit ph_cf_ref 16:56:38

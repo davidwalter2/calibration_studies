@@ -1,0 +1,12 @@
+# 160 of the globbed files have a .complete sentinel
+# 160 files, 24 workers
+  20/160  10 s
+  40/160  17 s
+  60/160  24 s
+  80/160  34 s
+  100/160  44 s
+  120/160  54 s
+  140/160  63 s
+  160/160  69 s
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_perhit_260910/perhit20k.npz: 20000 tracks, 388641 rows (19.4/track), grp nnz 7379006, hit nnz 3418563, 227 s
+covdev median 3.65e-07 max 1.07e-01

@@ -87,8 +87,13 @@ def main():
     npix = d['nValidPixelHits'].astype(int)
     print(f'  n_meas == nvalid + nvalidpixel : '
           f'{(nm[good] == (nvalid + npix)[good]).sum()}/{good.sum()}')
-    zc = np.array([float(np.sum(np.asarray(z, dtype=np.float64) ** 2)) if len(z) else np.nan
-                   for z in d['phresz']])
+    # ONLY the first `d` slots: `phresz` carries the `phres_nref`
+    # truth-referenced components AFTER the per-hit ones, and summing those in
+    # too adds ~5 to a chi2 of ~13, i.e. a spurious 0.36 relative violation
+    # (measured 2026-09-10 -- the same indexing trap gate 4 hit).
+    zc = np.array([float(np.sum(np.asarray(z[:k], dtype=np.float64) ** 2))
+                   if k > 0 and len(z) >= k else np.nan
+                   for z, k in zip(d['phresz'], dd)])
     ch = d['chisqval'].astype(np.float64)
     rel = np.abs(zc - ch) / np.maximum(np.abs(ch), 1e-30)
     r = rel[good]
@@ -114,22 +119,30 @@ def main():
     if a.maxchi2ndof is not None:
         sel = good & (ch / np.maximum(d['ndof'], 1) < a.maxchi2ndof)
         print(f'  (chi2/ndof < {a.maxchi2ndof}: {sel.sum()}/{good.sum()} rows)')
-    allz = np.concatenate([np.asarray(z, dtype=np.float64) for z in d['phresz'][sel]])
-    print(f'  pooled over {len(allz)} components: mean {allz.mean():+.5f}  '
-          f'var {allz.var():.5f}  '
-          f'skew {((allz - allz.mean())**3).mean()/allz.std()**3:+.3f}  '
-          f'kurt {((allz - allz.mean())**4).mean()/allz.std()**4:.3f}')
-    # per component index
+    def _stats(a_, lab):
+        print(f'  {lab}: N {len(a_)}  mean {a_.mean():+.5f}  var {a_.var():.5f}'
+              f'  skew {((a_ - a_.mean())**3).mean()/a_.std()**3:+.3f}'
+              f'  kurt {((a_ - a_.mean())**4).mean()/a_.std()**4:.3f}')
+    zs = [np.asarray(z, dtype=np.float64) for z in d['phresz'][sel]]
+    ds = dd[sel]
+    allz = np.concatenate([z[:k] for z, k in zip(zs, ds)])
+    _stats(allz, 'per-hit components pooled')
+    refz = np.concatenate([z[k:] for z, k in zip(zs, ds) if len(z) > k])
+    if len(refz):
+        _stats(refz, 'truth-referenced components pooled')
+    # per component index -- per-hit slots only (k < d)
     maxd = int(dd[sel].max())
-    print('  per component index k:  k  N   mean      var')
+    print('  per component index k (per-hit only):  k  N   mean      var')
     for k in range(min(maxd, 25)):
-        v = np.array([z[k] for z in d['phresz'][sel] if len(z) > k], dtype=np.float64)
+        v = np.array([z[k] for z, kk in zip(zs, ds) if kk > k and len(z) > k],
+                     dtype=np.float64)
         if len(v) < 20:
             continue
         print(f'   {k:3d} {len(v):5d}  {v.mean():+8.4f}  {v.var():8.4f}')
 
     # conditioning
-    infl = np.concatenate([np.asarray(x, dtype=np.float64) for x in d['phresinflat'][sel]])
+    infl = np.concatenate([np.asarray(x, dtype=np.float64)[:k]
+                           for x, k in zip(d['phresinflat'][sel], ds)])
     print(f'  Cholesky conditioning G_kk/piv_k: median {np.median(infl):.3f}  '
           f'p90 {np.percentile(infl,90):.3f}  p99 {np.percentile(infl,99):.3f}  '
           f'max {infl.max():.3g}')

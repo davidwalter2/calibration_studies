@@ -1,0 +1,18 @@
+=== cards  15:28:14
+=== card ph_cf 15:28:14
+=== card ph_gaussq 15:31:09
+=== card ph_gauss 15:33:28
+=== card ph_cf_ref 15:35:42
+=== card ph_cf_all 15:36:29
+=== card ph_inj_cf 15:38:59
+=== card ph_inj_gaussq 15:40:55
+=== card ph_inj_hit 15:42:32
+=== card ph_inj_hit_gaussq 15:44:03
+=== card ph_mass 15:44:41
+=== card ph_resmass 15:45:09
+=== card ph_inj_mass 15:47:08
+=== card ph_inj_resmass 15:47:51
+=== card ph_inj_cf_all 15:49:24
+FAILED
+=== card ph_inj_cf_ref 15:52:28
+STAGE2 DONE 15:53:15

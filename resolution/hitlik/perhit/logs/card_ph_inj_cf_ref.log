@@ -1,10 +1,10 @@
-100 tracks x 5 components = 500 rows; arm 'cf'
+8000 tracks x 5 components = 40000 rows; arm 'cf'
 injecting material_tib_support=+0.00243951  -> physical k: material_tib_support=+0.0487902 (+5.000 % material)
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789064219.044309 1704651 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789069958.641417 2098930 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789064228.838891 1704651 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789064237.786723 1704651 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-residual term: 500 rows, 6556 group rows (2759 pruned), 60 parameters
-NLL(0) = 711.564502, max|grad| = 52.1
-wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_cf.hdf5 (8.7 MB)
+I0000 00:00:1789069967.835150 2098930 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789069987.719875 2098930 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+residual term: 40000 rows, 518569 group rows (236596 pruned), 60 parameters
+NLL(0) = 59786.116973, max|grad| = 4949
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_cf.hdf5 (673.4 MB)

@@ -1,9 +1,9 @@
-100 tracks x 18.38 components = 1838 rows; arm 'cf'
+8000 tracks x 18.333 components = 146664 rows; arm 'cf'
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063755.485731 1698727 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789069003.308841 2076918 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063767.680432 1698727 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789063779.186924 1698727 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-residual term: 1838 rows, 20312 group rows (14171 pruned), 60 parameters
-NLL(0) = 2536.533385, max|grad| = 79.93
-wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/cf.hdf5 (26.9 MB)
+I0000 00:00:1789069012.761119 2076918 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789069117.895392 2076918 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+residual term: 146664 rows, 1645658 group rows (1135289 pruned), 60 parameters
+NLL(0) = 209075.296063, max|grad| = 4990
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/cf.hdf5 (2160.2 MB)

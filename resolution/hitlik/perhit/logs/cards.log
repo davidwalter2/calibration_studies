@@ -1,0 +1,45 @@
+=== cards  15:28:14
+=== card ph_cf 15:28:14
+NLL(0) = 149289.576573, max|grad| = 634.4
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/cf.hdf5 (1484.7 MB)
+=== card ph_gaussq 15:31:09
+NLL(0) = 149316.289672, max|grad| = 623.5
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/gaussq.hdf5 (461.7 MB)
+=== card ph_gauss 15:33:28
+NLL(0) = 149321.023473, max|grad| = 636.8
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/gauss.hdf5 (917.3 MB)
+=== card ph_cf_ref 15:35:42
+NLL(0) = 59785.719490, max|grad| = 4990
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/cf.hdf5 (673.4 MB)
+=== card ph_cf_all 15:36:29
+NLL(0) = 209075.296063, max|grad| = 4990
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/cf.hdf5 (2160.2 MB)
+=== card ph_inj_cf 15:38:59
+NLL(0) = 149290.513050, max|grad| = 636
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_cf.hdf5 (1484.7 MB)
+=== card ph_inj_gaussq 15:40:55
+NLL(0) = 149317.097619, max|grad| = 625.2
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_gaussq.hdf5 (461.7 MB)
+=== card ph_inj_hit 15:42:32
+NLL(0) = 149323.337707, max|grad| = 720.8
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_hit.hdf5 (1485.9 MB)
+=== card ph_inj_hit_gaussq 15:44:03
+NLL(0) = 149348.746534, max|grad| = 710.7
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_hit_gaussq.hdf5 (462.9 MB)
+=== card ph_mass 15:44:41
+mass NLL(0) = -47431.190018
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/mass.hdf5 (512.2 MB)
+=== card ph_resmass 15:45:09
+mass NLL(0) = -47431.190018
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/resmass.hdf5 (1996.9 MB)
+=== card ph_inj_mass 15:47:08
+mass NLL(0) = -47429.183517
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_mass.hdf5 (512.2 MB)
+=== card ph_inj_resmass 15:47:51
+mass NLL(0) = -47429.183517
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_resmass.hdf5 (1996.9 MB)
+=== card ph_inj_cf_all 15:49:24
+FAILED
+=== card ph_inj_cf_ref 15:52:28
+CARDS DONE 15:53:15
+    rc=0  15:53:15

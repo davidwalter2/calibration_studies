@@ -128,6 +128,60 @@ case $st in
       > $HERE/logs/final_ref.log 2>&1
     cat $HERE/logs/final_ref.log
     cd $HERE ;;
+  certify)
+    cd $HL
+    ./run_tf.sh python3 -u perhit/certify.py --fits $R/fits \
+      > $HERE/logs/certify.log 2>&1
+    grep -av "cuInit\|oneDNN\|absl\|WARNING" $HERE/logs/certify.log
+    cd $HERE ;;
+  effall)
+    # the SAME-TRACK joint of the two component sets: per-hit + the five
+    # truth-referenced ones.  A sandwich/quoted above 1 here that neither
+    # `hit` nor `ref` shows alone is the composite likelihood over-counting
+    # the shared non-Gaussianity (`xcum` sizes it at 0.46 median).
+    cd $HL
+    ./run_tf.sh python3 -u efficiency.py --fisher $R/fisherHJ_all.npz \
+      --cset all --arms cf gaussq --ref cf --ntrk $NTRKF \
+      --scale-to 320000 -o $R/eff_all.npz > $HERE/logs/eff_all.log 2>&1
+    cat $HERE/logs/eff_all.log
+    cd $HERE ;;
+  joint)
+    # the DISJOINT joint: per-hit residual + the J/psi-gun MASS term.  H and J
+    # are additive across disjoint samples, so the sandwich of the sum is the
+    # sum of the sandwich ingredients.
+    cd $HL
+    [ -s $R/fisherHJ_joint.npz ] || \
+      ./run_tf.sh python3 -u perhit/fisher_joint.py --fisher $R/fisherHJ.npz \
+        --cset hit --arms cf gaussq -o $R/fisherHJ_joint.npz \
+        > $HERE/logs/fisher_joint.log 2>&1
+    tail -6 $HERE/logs/fisher_joint.log
+    for cs in hitmass mass res; do
+      ./run_tf.sh python3 -u efficiency.py --fisher $R/fisherHJ_joint.npz \
+        --cset $cs --arms cf gaussq --ref cf --ntrk $NTRKF \
+        -o $R/eff_$cs.npz > $HERE/logs/eff_$cs.log 2>&1
+      echo "--- efficiency, cset $cs"; cat $HERE/logs/eff_$cs.log
+    done
+    cd $HERE ;;
+  tails)
+    cd $HL
+    for cs in hit ref; do
+      ./run_tf.sh python3 -u tails.py --npz ${NPZ20:-$NPZ} \
+        --max-tracks 20000 --comps $cs --arms cf gauss gaussq --upsample 8 \
+        > $HERE/logs/tails_$cs.log 2>&1
+      echo "--- tails, comps $cs"
+      grep -av "cuInit\|oneDNN\|absl\|WARNING" $HERE/logs/tails_$cs.log
+    done
+    cd $HERE ;;
+  subfits)
+    cd $HL
+    R=$R NPZ=$NPZ QNPZ=$QNPZ COMPS=hit K=${K:-8} NSUB=${NSUB:-1000} \
+      ./subfits.sh > $HERE/logs/subfits.log 2>&1
+    tail -20 $HERE/logs/subfits.log
+    ./run_tf.sh python3 -u subspread.py --fits $R/fits --k ${K:-8} \
+      --arms cf gaussq --ref cf --compare $R/eff_hit.npz \
+      > $HERE/logs/subspread.log 2>&1
+    cat $HERE/logs/subspread.log
+    cd $HERE ;;
   *) echo "unknown stage $st" ;;
 esac
 done

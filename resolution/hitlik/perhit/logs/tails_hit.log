@@ -1,0 +1,10 @@
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py:344: SyntaxWarning: invalid escape sequence '\c'
+  ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",
+comp          N   Var(z)     mean         norm cf   norm gauss  norm gaussq
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/tails.py", line 38, in <module>
+    dens[c] = {m: P.mean_density(sel, m, c, zg, upsample=a.upsample)
+                  ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py", line 92, in mean_density
+    Sre += -0.5 * np.outer(sel["vgf"][rows], tfine ** 2)
+ValueError: non-broadcastable output operand with shape (505,) doesn't match the broadcast shape (1,505)

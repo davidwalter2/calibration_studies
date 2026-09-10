@@ -13,5 +13,7 @@ export APPTAINERENV_RABBIT=$RABBIT
 export APPTAINERENV_PYTHONUNBUFFERED=1
 unset APPTAINER_BIND SINGULARITY_BIND
 BINDS="-B /work/submit,/home/submit,/scratch/submit,/tmp"
-[ -n "$WANT_CEPH" ] && mountpoint -q /ceph/submit 2>/dev/null && ls /ceph/submit >/dev/null 2>&1 && BINDS="$BINDS,/ceph/submit"
+# bind ceph whenever it is actually readable on this host (runs/perhit/{cards,perhit.npz}
+# are symlinks into it).  submit82 has the mount but no permission -> the ls guard.
+ls /ceph/submit >/dev/null 2>&1 && BINDS="$BINDS,/ceph/submit"
 exec singularity exec $BINDS --pwd $CS/resolution/hitlik "$IMG" "$@"

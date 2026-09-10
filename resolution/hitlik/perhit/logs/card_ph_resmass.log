@@ -1,12 +1,12 @@
-100 tracks x 13.38 components = 1338 rows; arm 'cf'
+8000 tracks x 13.333 components = 106664 rows; arm 'cf'
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063968.432776 1700600 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789069519.979555 2087886 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063981.139312 1700600 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789063992.419551 1700600 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-residual term: 1338 rows, 13756 group rows (11412 pruned), 60 parameters
-NLL(0) = 1825.089652, max|grad| = 32.96
-[14:14:00] kernel CF tabulation (24000 samples) built in 19.3 s
+I0000 00:00:1789069529.690456 2087886 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789069592.206651 2087886 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+residual term: 106664 rows, 1127089 group rows (898693 pruned), 60 parameters
+NLL(0) = 149289.576573, max|grad| = 634.4
+[15:46:55] kernel CF tabulation (24000 samples) built in 10.5 s
 mass term: 24000 J/psi-gun candidates, 498559 group rows (27045 pruned), 42 parameters
 mass NLL(0) = -47431.190018
-wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/resmass.hdf5 (530.5 MB)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/resmass.hdf5 (1996.9 MB)

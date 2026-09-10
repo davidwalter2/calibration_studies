@@ -1,10 +1,10 @@
-100 tracks x 13.38 components = 1338 rows; arm 'cf'
+8000 tracks x 13.333 components = 106664 rows; arm 'cf'
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063890.954977 1699765 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789069487.433673 2086938 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063901.555471 1699765 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-[14:12:35] kernel CF tabulation (24000 samples) built in 15.4 s
-E0000 00:00:1789063955.419521 1699765 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+I0000 00:00:1789069493.633193 2086938 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[15:45:05] kernel CF tabulation (24000 samples) built in 2.5 s
+E0000 00:00:1789069505.883112 2086938 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
 mass term: 24000 J/psi-gun candidates, 498559 group rows (27045 pruned), 42 parameters
 mass NLL(0) = -47431.190018
 wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/mass.hdf5 (512.2 MB)

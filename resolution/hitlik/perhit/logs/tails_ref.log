@@ -1,0 +1,2 @@
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py:344: SyntaxWarning: invalid escape sequence '\c'
+  ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",

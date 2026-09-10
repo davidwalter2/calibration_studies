@@ -1,10 +1,10 @@
-100 tracks x 13.38 components = 1338 rows; arm 'cf'
+8000 tracks x 13.333 components = 106664 rows; arm 'cf'
 injecting material_tib_support=+0.00243951  -> physical k: material_tib_support=+0.0487902 (+5.000 % material)
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063784.770029 1698967 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789069152.258964 2080579 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789063797.951310 1698967 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789063810.086783 1698967 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-residual term: 1338 rows, 13756 group rows (11412 pruned), 60 parameters
-NLL(0) = 1825.172480, max|grad| = 34.96
-wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_cf.hdf5 (18.3 MB)
+I0000 00:00:1789069158.359546 2080579 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789069244.039290 2080579 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+residual term: 106664 rows, 1127089 group rows (898693 pruned), 60 parameters
+NLL(0) = 149290.513050, max|grad| = 636
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_cf.hdf5 (1484.7 MB)
