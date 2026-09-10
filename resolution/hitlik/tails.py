@@ -26,7 +26,7 @@ p.add_argument("--plot", action="store_true")
 p.add_argument("--outpath", default=None)
 a = p.parse_args()
 
-sel = HT.load(a.npz, max_tracks=a.max_tracks, comps=[int(c) for c in a.comps])
+sel = HT.load(a.npz, max_tracks=a.max_tracks, comps=a.comps)
 zg = np.linspace(-30, 30, 2401)
 CN = ("q/p", "lambda", "phi", "d0", "z0")
 print(f"{'comp':<8}{'N':>7}{'Var(z)':>9}{'mean':>9}   "

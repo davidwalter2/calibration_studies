@@ -62,8 +62,149 @@ def kappa2_from_grid(S, tgrid):
     return -(16.0 * S[:, 1] - S[:, 2]) / (6.0 * t1 * t1)
 
 
+def _resolve_comps(spec, ncomp):
+    """A component selection, as either the legacy digit string or a spec.
+
+    Legacy (fixed 5 reference components): ``"0123"`` -> ``[0,1,2,3]``.
+    Per-hit npz (variable count per track): ``"hit"`` (every complement
+    component), ``"ref"`` (every truth-referenced one), ``"ref0"`` /
+    ``"ref0123"`` (those reference components), ``"all"``, or ``"hit:3"``
+    (the first 3 complement components of each track).
+    """
+    if spec is None:
+        return None
+    if not isinstance(spec, str):
+        return list(spec)
+    return spec
+
+
+def load_perhit(npz, max_tracks=0, comps="hit", max_chi2_ndof=0.0,
+                max_inflat=0.0, track_offset=0, max_relpos=0.0,
+                min_relpos=0.0):
+    """``load`` for the DATA-side per-hit npz, where ncomp VARIES per track.
+
+    Same return contract as :func:`load`, so everything downstream --
+    ``arm_families``, ``build``, ``make_hitlik_card`` -- is unchanged.  The
+    differences are that rows are addressed through ``row_ptr`` rather than a
+    fixed stride, and that ``inflat`` is a per-ROW quantity, so ``max_inflat``
+    cuts ROWS.  It is still a cut on the FIT'S COVARIANCE (the conditioning of
+    the sequential whitening, which depends on the geometry and the material
+    and not on the residual value), never on the residual being measured; it
+    does select a subpopulation of hit positions along the track, and that has
+    to be stated with any number it produces.
+    """
+    d = np.load(npz, allow_pickle=True)
+    keys = set(d.files)
+    rptr = np.asarray(d["row_ptr"], np.int64)
+    ntrk_all = len(rptr) - 1
+    trk = np.asarray(d["trk"], np.int64)
+    ckind = np.asarray(d["ckind"], np.int64)
+    comp = np.asarray(d["comp"], np.int64)
+
+    tkeep = np.ones(ntrk_all, bool)
+    if max_chi2_ndof > 0.0:
+        tkeep &= np.asarray(d["chi2ndof"]) < max_chi2_ndof
+    tidx = np.where(tkeep)[0]
+    if track_offset:
+        tidx = tidx[int(track_offset):]
+    if max_tracks and max_tracks < len(tidx):
+        tidx = tidx[:max_tracks]
+    tsel = np.zeros(ntrk_all, bool)
+    tsel[tidx] = True
+
+    spec = comps if isinstance(comps, str) else None
+    rowmask = tsel[trk]
+    if spec is None and comps is not None:
+        # a plain index list means "these reference components", the legacy
+        # meaning of the digit string
+        rowmask &= (ckind == 1) & np.isin(comp - _refbase(comp, ckind, trk, rptr),
+                                          np.asarray(list(comps)))
+    elif spec is not None:
+        head, _, tail = spec.partition(":")
+        nmax = int(tail) if tail else 0
+        if head == "all":
+            pass
+        elif head == "hit":
+            rowmask &= ckind == 0
+        elif head.startswith("ref"):
+            rowmask &= ckind == 1
+            digits = head[3:]
+            if digits:
+                base = _refbase(comp, ckind, trk, rptr)
+                rowmask &= np.isin(comp - base, [int(c) for c in digits])
+        else:
+            raise ValueError(f"unknown component spec {spec!r}")
+        if nmax:
+            rowmask &= comp < nmax
+    if max_inflat > 0.0 and "inflat" in keys:
+        rowmask &= np.asarray(d["inflat"]) < max_inflat
+    rel = np.asarray(d["relpos"]) if "relpos" in keys else None
+    if rel is not None and max_relpos > 0.0:
+        rowmask &= (ckind == 1) | (rel <= max_relpos)
+    if rel is not None and min_relpos > 0.0:
+        rowmask &= (ckind == 1) | (rel >= min_relpos)
+    rows = np.where(rowmask)[0]
+
+    out = {"ntrk": int(len(np.unique(trk[rows]))),
+           "ncomp_used": float(len(rows)) / max(len(np.unique(trk[rows])), 1),
+           "comps": spec if spec is not None else list(comps or []),
+           "ncomp_file": -1, "tidx": tidx, "rows": rows, "perhit": True}
+    for k in ("z", "sigma", "vgf", "vg_other", "comp", "trk", "ckind",
+              "hitidx", "dim", "cls", "relpos", "inflat", "xc_ref0",
+              "xc_prev", "dot_ref0"):
+        if k in keys:
+            out[k] = np.asarray(d[k])[rows]
+    tsub = np.unique(trk[rows])
+    for k in ("eta", "phi", "charge", "chi2ndof", "nvhit", "nmeas", "nhitcomp",
+              "nref", "trackPt", "genPt", "covdev", "rankgap", "sigqop",
+              "cfms", "rres", "xc_refpairs"):
+        if k in keys:
+            out[k] = np.asarray(d[k])[tsub]
+    out["tgrid"] = np.asarray(d["tgrid"], np.float64)
+    out["hit_classes"] = [str(s) for s in d["hit_classes"]]
+    out["group_names"] = ([str(s) for s in d["group_names"]]
+                          if "group_names" in keys else None)
+    out["groups_file"] = str(d["groups_file"]) if "groups_file" in keys else ""
+    out["provenance"] = str(d["provenance"]) if "provenance" in keys else ""
+
+    gp = np.asarray(d["grp_ptr"], np.int64)
+    cnt = np.diff(gp)[rows]
+    grows = (np.concatenate([np.arange(gp[i], gp[i + 1]) for i in rows])
+             if len(rows) else np.zeros(0, np.int64))
+    out["grp_ptr"] = np.concatenate([[0], np.cumsum(cnt)]).astype(np.int64)
+    out["grp_id"] = np.asarray(d["grp_id"], np.int64)[grows]
+    out["grp_seg"] = np.repeat(np.arange(len(rows)), cnt)
+    for f in FAMS:
+        out["S" + f] = np.asarray(d["S" + f])[grows]
+    out["vQms"] = np.asarray(d["vQms"])[grows]
+    out["vQio"] = np.asarray(d["vQio"])[grows]
+
+    hp = np.asarray(d["hit_ptr"], np.int64)
+    hcnt = np.diff(hp)[rows]
+    hrows = (np.concatenate([np.arange(hp[i], hp[i + 1]) for i in rows])
+             if len(rows) else np.zeros(0, np.int64))
+    out["hit_ptr"] = np.concatenate([[0], np.cumsum(hcnt)]).astype(np.int64)
+    out["hit_cls"] = np.asarray(d["hit_cls"], np.int64)[hrows]
+    out["hit_v"] = np.asarray(d["hit_v"], np.float64)[hrows]
+    return out
+
+
+def _refbase(comp, ckind, trk, rptr):
+    """Index of the FIRST truth-referenced component of each row's track."""
+    big = np.iinfo(np.int64).max
+    first = np.full(len(rptr) - 1, big, np.int64)
+    isref = ckind == 1
+    if isref.any():
+        # `comp` runs 0..ntot-1 within a track, so the first truth-referenced
+        # slot is at `d` -- the smallest `comp` among the ckind==1 rows.
+        idx = np.where(isref)[0]
+        np.minimum.at(first, trk[idx], comp[idx])
+    first[first == big] = 0
+    return first[trk]
+
+
 def load(npz, max_tracks=0, comps=None, max_chi2_ndof=0.0, max_inflat=0.0,
-         track_offset=0):
+         track_offset=0, **kw):
     """Read the extraction and select rows.
 
     Returns a dict of the selected per-row arrays with the CSR blocks
@@ -71,6 +212,16 @@ def load(npz, max_tracks=0, comps=None, max_chi2_ndof=0.0, max_inflat=0.0,
     """
     d = np.load(npz, allow_pickle=True)
     keys = set(d.files)
+    if "row_ptr" in keys:
+        # the DATA-side per-hit extraction: variable ncomp per track
+        d.close()
+        return load_perhit(npz, max_tracks=max_tracks,
+                           comps=comps if comps is not None else "hit",
+                           max_chi2_ndof=max_chi2_ndof,
+                           max_inflat=max_inflat, track_offset=track_offset,
+                           **kw)
+    if isinstance(comps, str):
+        comps = [int(c) for c in comps]
     ncomp = int(np.max(d["comp"])) + 1
     ntrk_all = len(d["eta"])
     tkeep = np.ones(ntrk_all, bool)

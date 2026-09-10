@@ -8,7 +8,9 @@ NPAR=${1:-12}
 TASKS_FROM=${2:-0}
 TASKS_TO=${3:-11}
 CFG=${CFG:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/test/runCvhResClosure.py}
-export CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+# Respect a caller-supplied area (the per-hit residual production runs from
+# CMSSW_15_0_19_patch2_dev2); default unchanged.
+export CMSSW_AREA=${CMSSW_AREA:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev}
 RUN_ONE=/work/submit/david_w/ZMass/calibration_studies/slurm/run_one.sh
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
 FILELIST=${FILELIST:-/work/submit/david_w/ZMass/calibration_studies/pixelhits/filelist_mc_all_chunk50.txt}

@@ -13,9 +13,11 @@
 #   inj_*     the same with a 5 % material injection in tib_support
 set -e
 HERE=/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik
-R=/work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik
+# The run tree. Overridable so the DATA-side per-hit study drives the SAME
+# ladder into runs/perhit with its own npz and component spec.
+R=${R:-/work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik}
 NPZ=${NPZ:-$R/mugun20kv2.npz}
-QNPZ=$R/mugun_quad.npz
+QNPZ=${QNPZ:-$R/mugun_quad.npz}
 NTRK=${NTRK:-6000}
 COMPS=${COMPS:-0123}
 # ln(1.05) = 0.0487902 physical k; the card unit is the group's prior sigma,

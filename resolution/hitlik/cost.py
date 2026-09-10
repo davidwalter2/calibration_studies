@@ -55,11 +55,12 @@ def main():
     a = p.parse_args()
     import tensorflow as tf
 
-    comps = [int(c) for c in a.comps]
+    # `comps` is a SPEC resolved by HT.load (digit string for the fixed
+    # truth-referenced components, "hit"/"ref"/... for the per-hit file)
     t0 = time.perf_counter()
-    sel = HT.load(a.npz, max_tracks=a.max_tracks, comps=comps, max_inflat=a.max_inflat)
+    sel = HT.load(a.npz, max_tracks=a.max_tracks, comps=a.comps, max_inflat=a.max_inflat)
     t_load = time.perf_counter() - t0
-    ntrk, ncomp = sel["ntrk"], len(comps)
+    ntrk, ncomp = sel["ntrk"], sel["ncomp_used"]
     nrow = len(sel["z"])
     t0 = time.perf_counter()
     term, data, meta = HT.build(sel, arm=a.arm, prune_frac=a.prune_frac,
@@ -141,9 +142,9 @@ def main():
     print("=" * 74)
     rows = []
     for nres, lab in ((1, "q/p only (the status quo)"),
-                      (ncomp, f"{ncomp} reference-state components (this study)"),
+                      (ncomp, f"{ncomp:g} components (THIS card: {a.comps})"),
                       (5, "5 reference-state components"),
-                      (18, "18 per-HIT residuals")):
+                      (14, "14 per-HIT complement components")):
         flat = nres * NFAM * NTAU * F32
         grp = nres * gm * NFAM * NTAU * F32
         grp16 = nres * gm * NFAM * 16 * F32

@@ -6,9 +6,9 @@
 # without assuming H = J, which is exactly what the sandwich is testing.
 set -e
 HERE=/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik
-R=/work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik
+R=${R:-/work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik}
 NPZ=${NPZ:-$R/mugun20kv2.npz}
-QNPZ=$R/mugun_quad.npz
+QNPZ=${QNPZ:-$R/mugun_quad.npz}
 K=${K:-8}
 NSUB=${NSUB:-2500}
 COMPS=${COMPS:-0123}

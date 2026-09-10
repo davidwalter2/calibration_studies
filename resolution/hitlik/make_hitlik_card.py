@@ -228,16 +228,21 @@ def _poi_set(spec, names):
 
 def main():
     args = parse_args()
-    comps = [int(c) for c in args.comps]
-    sel = HT.load(args.npz, max_tracks=args.max_tracks, comps=comps,
+    # `comps` is passed THROUGH: `HT.load` resolves it, because its meaning
+    # depends on the file.  The truth-referenced npz has a fixed 5 components
+    # and a digit string indexes them; the DATA-side per-hit npz has a
+    # variable number per track and takes a spec ("hit", "ref", "ref0123",
+    # "all").
+    sel = HT.load(args.npz, max_tracks=args.max_tracks, comps=args.comps,
                   max_chi2_ndof=args.max_chi2_ndof, max_inflat=args.max_inflat,
                   track_offset=args.track_offset)
+    comps = sel["comps"]
     groups_file = args.groups or sel["groups_file"]
     gnames_all = sel["group_names"]
     cnames_all = sel["hit_classes"]
     ngroups = len(gnames_all)
-    log(f"{sel['ntrk']} tracks x {len(comps)} components = {len(sel['z'])} "
-        f"rows; arm '{args.arm}'")
+    log(f"{sel['ntrk']} tracks x {sel['ncomp_used']:g} components = "
+        f"{len(sel['z'])} rows; arm '{args.arm}'")
 
     # ---- the CARD UNIT of a material parameter -----------------------------
     # Defined by the groups file alone, so a residual-only card and a joint one

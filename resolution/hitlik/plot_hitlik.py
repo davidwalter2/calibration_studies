@@ -27,6 +27,7 @@ import argparse
 import datetime
 import json
 import os
+import re
 import sys
 
 import matplotlib.pyplot as plt
@@ -60,13 +61,19 @@ def upsample_matrix(tg, up):
     return tf_, CubicSpline(tg, np.eye(len(tg)), axis=0)(tf_)
 
 
-def mean_density(sel, arm, comp, zgrid, upsample=8, chunk=4000):
-    """Row-averaged predicted density of one component, one arm."""
+def mean_density(sel, arm, rows, zgrid, upsample=8, chunk=4000):
+    """Row-averaged predicted density over an explicit row set, one arm.
+
+    `rows` used to be a component INDEX; it is now the row index array, so the
+    same function serves the fixed 5-component truth-referenced study and the
+    per-hit one, where the natural grouping is by hit class or by position
+    along the track rather than by component slot.
+    """
     fam, ptr, gid, ndrop, ng, amp, drop = HT.arm_families(sel, arm)
     tg = sel["tgrid"]
     tfine, U = upsample_matrix(tg, upsample)
     nt = len(tfine)
-    rows = np.where(sel["comp"] == comp)[0]
+    rows = np.asarray(rows)
     seg = np.repeat(np.arange(len(sel["z"])), np.diff(ptr))
     # per-row total exponent
     Sre = np.zeros((len(sel["z"]), len(tg)))
@@ -98,13 +105,56 @@ def mean_density(sel, arm, comp, zgrid, upsample=8, chunk=4000):
     return dens / (np.pi * len(rows))
 
 
+def _groups(args, sel):
+    """(label, row indices) pairs, by whichever axis the figure wants.
+
+    `comp`   the whitened component slot (the prototype's picture: hit order
+             along the track for the complement components, then the
+             truth-referenced ones);
+    `cls`    the hit-resolution class the component's row belongs to -- the
+             axis the 18 hit parameters live on;
+    `relpos` the row's position along the track in five bins;
+    `ckind`  per-hit complement vs truth-referenced, two panels.
+    """
+    ax = getattr(args, "group_by", "comp")
+    if ax == "comp":
+        return [(f"c{c}", np.where(sel["comp"] == c)[0])
+                for c in sorted(set(np.asarray(sel["comp"]).tolist()))]
+    if ax == "cls":
+        names = sel["hit_classes"]
+        out = []
+        cl = np.asarray(sel["cls"])
+        for c in sorted(set(cl.tolist())):
+            if c < 0:
+                continue
+            r = np.where(cl == c)[0]
+            if len(r) >= args.min_rows:
+                out.append((names[c] if c < len(names) else f"cls{c}", r))
+        return out
+    if ax == "relpos":
+        rel = np.asarray(sel["relpos"])
+        e = np.linspace(0, 1, 6)
+        out = []
+        for b in range(5):
+            r = np.where((rel >= e[b]) & (rel < e[b + 1] + (1e-9 if b == 4 else 0))
+                         & (rel >= 0))[0]
+            if len(r) >= args.min_rows:
+                out.append((f"pos{e[b]:.1f}-{e[b+1]:.1f}", r))
+        return out
+    if ax == "ckind":
+        ck = np.asarray(sel["ckind"])
+        return [(lab, np.where(ck == k)[0]) for k, lab in
+                ((0, "perhit"), (1, "reference"))
+                if (ck == k).sum() >= args.min_rows]
+    raise ValueError(ax)
+
+
 def densities(args, sel, outdir):
     zlo, zhi, nb = args.zrange[0], args.zrange[1], args.nbins
     edges = np.linspace(zlo, zhi, nb + 1)
     ctr = 0.5 * (edges[1:] + edges[:-1])
     fine = np.unique(np.concatenate([edges, ctr]))
-    for comp in sorted(set(sel["comp"].tolist())):
-        rows = np.where(sel["comp"] == comp)[0]
+    for comp, rows in _groups(args, sel):
         z = np.clip(sel["z"][rows], zlo, zhi)
         h, _ = np.histogram(z, bins=edges)
         n = len(z)
@@ -113,14 +163,14 @@ def densities(args, sel, outdir):
         zfull = sel["z"][rows]
         models = {}
         for arm in args.arms:
-            f = mean_density(sel, arm, comp, fine, upsample=args.upsample)
+            f = mean_density(sel, arm, rows, fine, upsample=args.upsample)
             g = np.interp(fine, fine, f)
             lo = np.interp(edges[:-1], fine, f)
             hi = np.interp(edges[1:], fine, f)
             mid = np.interp(ctr, fine, f)
             models[arm] = (ratiopanel.bin_average(lo, mid, hi), fine, f)
         zg = np.linspace(-30, 30, 1201)
-        dens_arm = {arm: mean_density(sel, arm, comp, zg,
+        dens_arm = {arm: mean_density(sel, arm, rows, zg,
                                       upsample=args.upsample)
                     for arm in args.arms}
         msg = [f"component {comp}: N {n}, Var(z) {np.var(zfull):.4f}, "
@@ -156,8 +206,13 @@ def densities(args, sel, outdir):
                 ax.set_ylim(max(1e-6, np.nanmin(dens_data[dens_data > 0]) * 0.3),
                             np.nanmax(dens_data) * 2.0)
             ax.legend(loc="upper right", fontsize=13, frameon=False)
-            ax.set_title(f"whitened residual component {comp}  "
-                         f"({CNAME[comp]}),  20-60 GeV $\\mu$ gun",
+            lab = (f"component {comp} ({CNAME[int(str(comp)[1:])]})"
+                   if getattr(args, "group_by", "comp") == "comp"
+                   and str(comp).startswith("c")
+                   and str(comp)[1:].isdigit()
+                   and int(str(comp)[1:]) < len(CNAME)
+                   else str(comp))
+            ax.set_title(f"whitened residual, {lab},  20-60 GeV $\\mu$ gun",
                          fontsize=15)
             # the reference of the ratio panel is the LAST arm (the Gaussian
             # the CF is being compared against): the data points then say which
@@ -187,7 +242,9 @@ def densities(args, sel, outdir):
             rax.set_ylabel(f"/ {ARMLAB[refarm].split(',')[0]}", fontsize=11)
             rax.set_xlabel(r"whitened residual $z$")
             fn = os.path.join(
-                outdir, f"density_c{comp}{'_log' if logy else ''}.pdf")
+                outdir,
+                "density_" + re.sub(r"[^0-9A-Za-z_.+-]", "_", str(comp))
+                + ("_log" if logy else "") + ".pdf")
             fig.savefig(fn, bbox_inches="tight")
             plt.close(fig)
             logger.info(f"wrote {fn}")
@@ -312,6 +369,10 @@ def main():
     p.add_argument("--nbins", type=int, default=112)
     p.add_argument("--upsample", type=int, default=8)
     p.add_argument("--outpath", default=None)
+    p.add_argument("--group-by", choices=["comp", "cls", "relpos", "ckind"],
+                   default="comp",
+                   help="the axis the density panels are grouped on")
+    p.add_argument("--min-rows", type=int, default=200)
     args = p.parse_args()
     logging.setup_logger(__file__, 3, False)
     outdir = args.outpath or os.path.expanduser(
@@ -320,7 +381,7 @@ def main():
     pubhtml.ensure_index(outdir, logger=logger)
     if args.densities:
         sel = HT.load(args.npz, max_tracks=args.max_tracks,
-                      comps=[int(c) for c in args.comps],
+                      comps=args.comps,
                       max_inflat=args.max_inflat)
         densities(args, sel, outdir)
     if args.ratios:

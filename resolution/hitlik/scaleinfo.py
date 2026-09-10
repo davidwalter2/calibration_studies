@@ -36,7 +36,7 @@ p.add_argument("--zmax", type=float, default=25.0)
 p.add_argument("--nz", type=int, default=20001)
 a = p.parse_args()
 
-sel = HT.load(a.npz, max_tracks=a.max_tracks, comps=[int(c) for c in a.comps])
+sel = HT.load(a.npz, max_tracks=a.max_tracks, comps=a.comps)
 zg = np.linspace(-a.zmax, a.zmax, a.nz)
 CN = ("q/p", "lambda", "phi", "d0", "z0")
 

@@ -176,13 +176,18 @@ def main():
     meta_all = {}
     sel_cache = {}
     for cs in args.comps:
-        comps = [int(c) for c in cs]
-        sel = HT.load(args.npz, max_tracks=args.max_tracks, comps=comps,
+        # `cs` is passed THROUGH to HT.load: a digit string indexes the fixed
+        # 5 components of the truth-referenced npz, a spec ("hit", "ref0123",
+        # "all") selects from the DATA-side per-hit one, where the number of
+        # components varies per track.
+        sel = HT.load(args.npz, max_tracks=args.max_tracks, comps=cs,
                       max_chi2_ndof=args.max_chi2_ndof, max_inflat=args.max_inflat)
+        comps = [int(k) for k in np.unique(sel["comp"])]
         sel_cache[cs] = sel
-        log(f"comps {cs}: {sel['ntrk']} tracks x {len(comps)} components = "
-            f"{len(sel['z'])} rows, {len(sel['grp_id'])} group rows")
-        # data pull variance per component
+        log(f"comps {cs}: {sel['ntrk']} tracks x {sel['ncomp_used']:g} "
+            f"components = {len(sel['z'])} rows, "
+            f"{len(sel['grp_id'])} group rows")
+        # data pull variance per component slot
         for k in comps:
             m = sel["comp"] == k
             z = sel["z"][m]

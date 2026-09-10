@@ -1,0 +1,11 @@
+100 tracks x 13.38 components = 1338 rows; arm 'cf'
+injecting material_tib_support=+0.00243951  -> physical k: material_tib_support=+0.0487902 (+5.000 % material)
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789064055.159639 1702437 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789064065.202193 1702437 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[14:15:04] kernel CF tabulation (24000 samples) built in 17.2 s
+E0000 00:00:1789064104.990087 1702437 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+mass term: 24000 J/psi-gun candidates, 498559 group rows (27045 pruned), 42 parameters
+mass NLL(0) = -47429.183517
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/inj_mass.hdf5 (512.2 MB)
