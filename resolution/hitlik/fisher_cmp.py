@@ -1,6 +1,21 @@
 #!/usr/bin/env python3
 """Fisher information of the residual-vector likelihood: CF vs Gaussian.
 
+BOTH matrices are kept, because they answer different questions:
+
+* ``H`` (the observed Hessian) is the curvature a fit reports -- the error the
+  term CLAIMS;
+* ``J`` (the score covariance) is the variance of the score -- with ``H`` it
+  gives the SANDWICH ``H^-1 J H^-1``, the variance the estimator actually HAS
+  under the density that generated the data.
+
+For a correctly specified model ``H = J`` and the two agree.  For the Gaussian
+arms they do NOT: the Gaussian-likelihood estimator of a width is a weighted
+sum of ``z^2``, whose variance is set by the FOURTH moment of the real
+(heavy-tailed) residual, not by the second.  The per-batch gradients ``G`` are
+stored so the same statement can be made by bootstrap.
+
+
 For each ARM (``cf`` / ``gauss`` / ``gaussq``, see ``hitlik_term``) and each
 COMPONENT subset, build the term over the same tracks and compute the observed
 information at the MC truth ``theta = 0``,
@@ -130,7 +145,7 @@ def score_cov(term, x0, nbatch=400):
     term.rechunk(keep)
     gb = G.mean(axis=0)
     D = G - gb
-    return (M / (M - 1.0)) * (D.T @ D), G.sum(axis=0), M
+    return (M / (M - 1.0)) * (D.T @ D), G.sum(axis=0), M, G
 
 
 def model_variance(sel, arm):
@@ -201,7 +216,8 @@ def main():
                     f"{np.abs(g).max():.4g}, H in {time.time()-t0:.0f} s "
                     f"({npar} params)")
             t0 = time.time()
-            J, gtot, M = score_cov(term, np.zeros(npar), args.nbatch)
+            J, gtot, M, G = score_cov(term, np.zeros(npar), args.nbatch)
+            res[f"G_{arm}_{cs}"] = G.astype(np.float64)
             wj = np.linalg.eigvalsh(J)
             log(f"     score covariance ({M} batches) in {time.time()-t0:.0f} "
                 f"s: eig min {wj.min():.3e} max {wj.max():.3e}, "

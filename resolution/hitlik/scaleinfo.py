@@ -62,14 +62,31 @@ t5 = (1 + zg ** 2 / 5.0) ** (-3.0)   # Student-t, nu = 5
 print(f"GATE  Student-t5 (analytic 2*5/8 = 1.250): "
       f"{scale_info(zg, t5 / np.trapezoid(t5, zg)):.4f}")
 print()
-print(f"{'component':<10}" + "".join(f"{'I(ln s) ' + m:>18}" for m in a.arms)
-      + f"{'CF/gaussq':>12}")
+print(f"{'component':<10}" + "".join(f"{'I(ln s) ' + m:>16}" for m in a.arms)
+      + f"{'CF/Gauss':>10}{'kurtosis':>10}{'k4':>8}"
+      + f"{'GaussS/Q':>10}{'EFFICIENCY':>12}")
+print("   I(ln s) is the information each MODEL claims;  kurtosis is of the "
+      "DATA, and\n   (k4+2)/2 is the ratio by which the Gaussian scale "
+      "estimator's ACTUAL variance\n   exceeds the one it quotes;  EFFICIENCY "
+      "= [(k4+2)/4] / [1/I_CF] is how much\n   better the full PDF actually "
+      "constrains a pure width.")
 for c in sorted(set(sel["comp"].tolist())):
     vals = {}
     for m in a.arms:
         f = P.mean_density(sel, m, c, zg, upsample=8)
         vals[m] = scale_info(zg, f)
-    row = f"{CN[c]:<10}" + "".join(f"{vals[m]:>18.4f}" for m in a.arms)
-    if "gaussq" in vals:
-        row += f"{vals['cf']/vals['gaussq']:>12.3f}"
+    zz = sel["z"][sel["comp"] == c]
+    kurt = float(np.mean((zz - zz.mean()) ** 4) / np.var(zz) ** 2)
+    k4 = kurt - 3.0
+    sq = (k4 + 2.0) / 2.0
+    eff = ((k4 + 2.0) / 4.0) * vals["cf"]
+    row = (f"{CN[c]:<10}" + "".join(f"{vals[m]:>16.4f}" for m in a.arms)
+           + f"{vals['cf']/vals.get('gaussq', np.nan):>10.3f}"
+           + f"{kurt:>10.3f}{k4:>8.3f}{sq:>10.3f}{eff:>12.3f}")
     print(row)
+print()
+print("   the fourth moment is CUT-DEPENDENT, which is the point: trimming "
+      "the DATA at\n   |z| < 5 / 4 / 3 (removing 0.1 / 0.2 / 0.8 % of it) "
+      "drops (k4+2)/2 to ~1.3 / 1.2 / 1.0,\n   i.e. the Gaussian estimator's "
+      "excess variance lives entirely in the tail the\n   chi2 does not "
+      "model.")

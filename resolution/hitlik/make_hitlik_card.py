@@ -57,6 +57,11 @@ def parse_args():
     p.add_argument("--comps", default="0123",
                    help="which whitened components to use, as digits")
     p.add_argument("--max-tracks", type=int, default=0)
+    p.add_argument("--track-offset", type=int, default=0,
+                   help="skip the first N selected tracks -- with "
+                        "--max-tracks this cuts a DISJOINT subsample, which is "
+                        "how the empirical (resampling) check of the "
+                        "estimator's actual spread is run")
     p.add_argument("--max-chi2-ndof", type=float, default=0.0)
     p.add_argument("--max-inflat", type=float, default=1e4,
                    help="drop tracks whose Cholesky variance inflation "
@@ -225,7 +230,8 @@ def main():
     args = parse_args()
     comps = [int(c) for c in args.comps]
     sel = HT.load(args.npz, max_tracks=args.max_tracks, comps=comps,
-                  max_chi2_ndof=args.max_chi2_ndof, max_inflat=args.max_inflat)
+                  max_chi2_ndof=args.max_chi2_ndof, max_inflat=args.max_inflat,
+                  track_offset=args.track_offset)
     groups_file = args.groups or sel["groups_file"]
     gnames_all = sel["group_names"]
     cnames_all = sel["hit_classes"]

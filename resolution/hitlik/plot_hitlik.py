@@ -250,6 +250,53 @@ def ratios(args, outdir):
             logger.info(f"wrote {fn}")
 
 
+def efficiency_fig(args, outdir):
+    """The number that answers the question: what the Gaussian CLAIMS against
+    what it actually COSTS."""
+    d = np.load(args.efficiency, allow_pickle=True)
+    params = [str(s) for s in d["params"]]
+    for kind, pref, fam in (("material", "material_", r"material $k_g$"),
+                            ("hitres", "hitres_",
+                             r"hit class $\epsilon_c$")):
+        idx = [i for i, p_ in enumerate(params) if p_.startswith(pref)]
+        cfq = np.asarray(d["sigma_quoted_cf"], float)[idx]
+        cfa = np.asarray(d["sigma_actual_cf"], float)[idx]
+        gq = np.asarray(d["sigma_quoted_gaussq"], float)[idx]
+        ga = np.asarray(d["sigma_actual_gaussq"], float)[idx]
+        pri = np.asarray(d["prior"], float)[idx]
+        nm = [params[i][len(pref):] for i in idx]
+        ok = cfq < 0.98 * pri
+        if ok.sum() < 2:
+            continue
+        claim = (gq[ok] / cfq[ok]) ** 2
+        real = (ga[ok] / cfa[ok]) ** 2
+        o = np.argsort(-real)
+        y = np.arange(int(ok.sum()))
+        nn = [nm[i] for i in np.where(ok)[0][o]]
+        fig, ax = plt.subplots(figsize=(9.0, max(3.5, 0.36 * len(y) + 1.5)))
+        ax.barh(y - 0.19, real[o], height=0.36, color="#d62728", alpha=0.9,
+                label=r"ACTUAL (sandwich)")
+        ax.barh(y + 0.19, claim[o], height=0.36, color="#8c8c8c", alpha=0.9,
+                label=r"what the $\chi^2$ CLAIMS")
+        ax.axvline(1.0, color="k", lw=1.2)
+        ax.set_yticks(y)
+        ax.set_yticklabels(nn, fontsize=10)
+        ax.invert_yaxis()
+        ax.set_xlabel(r"$\sigma^2_{\chi^2}\,/\,\sigma^2_{\rm CF}$"
+                      "     (>1: the full PDF constrains better)")
+        ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",
+                     fontsize=14)
+        ax.legend(loc="center right", fontsize=12, frameon=False)
+        ax.set_xlim(0.0, max(1.35, real.max() * 1.10))
+        ax.text(0.99, 1.012, f"median: actual {np.median(real):.2f}, "
+                             f"claimed {np.median(claim):.2f}",
+                transform=ax.transAxes, ha="right", fontsize=11)
+        fn = os.path.join(outdir, f"efficiency_{kind}.pdf")
+        fig.savefig(fn, bbox_inches="tight")
+        plt.close(fig)
+        logger.info(f"wrote {fn}")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--npz", default=None)
@@ -259,6 +306,7 @@ def main():
     p.add_argument("--arms", nargs="+", default=["cf", "gaussq"])
     p.add_argument("--densities", action="store_true")
     p.add_argument("--ratios", default=None)
+    p.add_argument("--efficiency", default=None)
     p.add_argument("--ratio-keys", nargs="*", default=None)
     p.add_argument("--zrange", type=float, nargs=2, default=[-7.0, 7.0])
     p.add_argument("--nbins", type=int, default=112)
@@ -277,6 +325,8 @@ def main():
         densities(args, sel, outdir)
     if args.ratios:
         ratios(args, outdir)
+    if args.efficiency:
+        efficiency_fig(args, outdir)
 
 
 if __name__ == "__main__":

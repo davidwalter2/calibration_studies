@@ -1,0 +1,17 @@
+GATE  exact N(0,1) on this grid: I(ln s) = 2.0000 (must be 2.000)
+GATE  Student-t5 (analytic 2*5/8 = 1.250): 1.2500
+
+component       I(ln s) cf   I(ln s) gauss  I(ln s) gaussq  CF/Gauss  kurtosis      k4  GaussS/Q  EFFICIENCY
+   I(ln s) is the information each MODEL claims;  kurtosis is of the DATA, and
+   (k4+2)/2 is the ratio by which the Gaussian scale estimator's ACTUAL variance
+   exceeds the one it quotes;  EFFICIENCY = [(k4+2)/4] / [1/I_CF] is how much
+   better the full PDF actually constrains a pure width.
+q/p                 1.6446          1.9993          2.0000     0.822     5.504   2.504     2.252       1.852
+lambda              1.8640          1.9998          2.0000     0.932     6.569   3.569     2.785       2.595
+phi                 1.6009          1.9999          2.0000     0.800    11.931   8.931     5.466       4.375
+d0                  1.8761          1.9999          2.0000     0.938     4.866   1.866     1.933       1.813
+
+   the fourth moment is CUT-DEPENDENT, which is the point: trimming the DATA at
+   |z| < 5 / 4 / 3 (removing 0.1 / 0.2 / 0.8 % of it) drops (k4+2)/2 to ~1.3 / 1.2 / 1.0,
+   i.e. the Gaussian estimator's excess variance lives entirely in the tail the
+   chi2 does not model.

@@ -346,3 +346,61 @@ Remaining in the fit queue (cards built, not blocking any conclusion):
 `inj_hit_gaussq`, `gauss`, `joint` (residual + quadratic), `inj_joint`.
 `cf_c0` did NOT converge (EDM 0.56) -- with q/p alone the 18 hit classes are
 nearly unconstrained; a q/p-only card needs them frozen.
+
+## THE CORRECTED HEADLINE (2026-09-10) — the Gaussian's ACTUAL error, not the
+## one it quotes
+
+The `I_CF/I_chi2` ratio above compares two NOMINAL Fisher informations, i.e.
+what each model CLAIMS.  That is not the decision-relevant number.  Under
+heavy-tailed data the Gaussian-likelihood estimator of a width is a weighted
+sum of `z^2`, whose variance is set by the FOURTH moment of the real residual,
+so its ACTUAL error is the sandwich `(H+P)^-1 J (H+P)^-1` with `H` and `J`
+both evaluated on the real data (`efficiency.py`, `fisherHJ20k.npz`, 20 000
+tracks, 4 components, MC truth, the same tier priors).
+
+**The analytic expectation first** (`scaleinfo.py`, pure scale limit): the
+measured DATA kurtosis is 4.87-11.93, i.e. `k4` 1.87-8.93, so a Gaussian
+scale estimator's variance exceeds its quoted one by `(k4+2)/2` =
+**1.93-5.47**, and against the CF's own `I(ln s)` the efficiency
+`[(k4+2)/4] x I_CF` is
+
+| component | kurtosis | k4 | Gauss actual/quoted (var) | EFFICIENCY |
+|---|---|---|---|---|
+| q/p | 5.504 | 2.504 | 2.252 | **1.852** |
+| lambda | 6.569 | 3.569 | 2.785 | **2.595** |
+| phi | 11.931 | 8.931 | 5.466 | **4.375** |
+| d0 | 4.866 | 1.866 | 1.933 | **1.813** |
+
+and it is CUT-DEPENDENT exactly as it should be: trimming the data at
+|z| < 5 / 4 / 3 (removing 0.1 / 0.2 / 0.8 %) drops `(k4+2)/2` to 1.3 / 1.2 /
+1.0.  The Gaussian estimator's excess variance lives entirely in the tail the
+chi2 does not model.
+
+**Measured, on the real multi-parameter problem:**
+
+| | material groups | hit classes |
+|---|---|---|
+| sandwich/quoted, CF (1.000 = the model is right) | **0.974** | **1.052** |
+| sandwich/quoted, Gaussian chi2 | **1.338** | **1.222** |
+| EFFICIENCY `sigma^2(chi2, ACTUAL) / sigma^2(CF, actual)`, marginal | **1.825** (1.62-2.12) | **1.204** (1.07-1.61) |
+| ... prior-free (standalone) | **2.093** (1.52-3.71) | **1.221** (1.06-1.57) |
+| what the chi2 CLAIMS (quoted/quoted) | 1.028 | 0.969 |
+
+Per group (marginal, 20 000 tracks): `fpix_support` 2.48, `bpix_services`
+2.17, `tibtid_services` 2.12, `pixel_patch` 2.07, `tec_services` 2.04,
+`other` 1.83, `tid_support` 1.80, `tob_services` 1.77, `tib_support` 1.63,
+`tec_structure` 1.62, `tob_support` 1.54, `bpix_support6` 1.48.
+
+**So: the full PDF DOES constrain better -- by 1.8-2.1x in variance
+(1.35-1.45x in sigma) on the material amounts and 1.20-1.22x on the hit
+classes -- while the chi2 claims parity.  The CF's own quoted error is right
+to 3-5 %; the chi2's is optimistic by 34 % (material) / 22 % (hit classes) in
+variance.**  Figure `efficiency_{material,hitres}.pdf`.
+
+**Bootstrap.**  A 2000-resample bootstrap over the 2000 stored per-batch
+gradients (10 tracks/batch) reproduces the sandwich to **1.0007 / 0.9992 /
+0.9987** for cf / gauss / gaussq -- as it must algebraically at one Newton
+step, so it validates the linearisation and the batch independence, not the
+sandwich itself.  The assumption-free version is `subfits.sh` + `subspread.py`:
+8 DISJOINT subsamples of 2500 tracks, fitted for real in both arms, the spread
+of `theta_hat` across them divided by sqrt(8).
