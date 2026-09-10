@@ -113,7 +113,7 @@ an inverse.  Then
 | 1c `|sum_k z_k^2 - chi2|/chi2` | median **2.6e-8**, p90 6.1e-8, max **1.9e-7** |
 | 2 `max_k |sum_b v^(k)_b - 1|` (`phres_vchk`) | median **1.2e-9**, p99 2.4e-7, max 7.7e-7 (per-hit only); **2.3e-4** worst with the truth-referenced components, which is the float32 storage of `refCov` and is the same number hitlik measured for `sum_b B_b B_b^T` |
 | 2b rank gap `lambda_d/lambda_(d+1)` | median **1.2e15**, min 1.7e14 (was 4.5e7 with the assembled `G`) |
-| 3 model Var(z_k) under the fit's own Q | **1 by construction** = gate 2.  DATA variance pooled **0.926**, mean +0.006, skew +0.04, kurt **2.98** |
+| 3 | model Var(z_k) under the fit's own Q | **1.00000 EXACTLY** (`valdens.py`, below).  DATA variance pooled **0.926**, mean +0.006, skew +0.04, kurt **2.98** |
 | 4 `corr(z_k, truth-referenced pull_j)` | all `|corr| < 0.21` at N=200, i.e. `< 3 sigma` of the 1/sqrt(200)=0.071 statistical error; to be re-measured on the production |
 | 5 reference component 0 vs the validated `cfqop_*` | **1.2e-7** worst-track relative on ALL SIX families (`ms`, `del`, `ioni_re`, `ioni_im`, `rad_re`, `rad_im`) -- the float32 storage of the reference |
 | 5b `phcf_grp_closure` (`sum_g S_g` vs `S`) | max **2.5e-15** |
@@ -135,6 +135,34 @@ an inverse.  Then
   `|T_k|^2 ~ 1/pivot_k`, so it simply re-measures `phresinflat`.  A component
   whose conditional variance is 1e-11 of its marginal has an accurate `z`
   (~1e-6 relative, and gate 1c holds) but its own row of the whitener is huge.
+
+### GATE 3 IN FULL (`valdens.py`, 120 tracks, all three arms)
+Row-averaged predicted density by the same inverse Fourier transform the term
+uses, integrated on |z| < 40:
+
+| component set | N | arm | norm | mean | var(density) | var(model) | var(DATA) |
+|---|---|---|---|---|---|---|---|
+| per-hit | 1608 | cf | 1.000000 | +0.000000 | 1.00320 | 1.00318 | **0.89864** |
+| per-hit | 1608 | gauss | 1.000000 | +0.000000 | 1.00318 | 1.00318 | 0.89864 |
+| per-hit | 1608 | gaussq | 1.000000 | +0.000000 | **1.00000** | **1.00000** | 0.89864 |
+| reference | 600 | cf | 0.999996 | +0.000010 | 1.03281 | 1.02836 | **1.00720** |
+| reference | 600 | gauss | 1.000000 | +0.000000 | 1.02836 | 1.02836 | 1.00720 |
+| reference | 600 | gaussq | 1.000000 | +0.000000 | **1.00000** | **1.00000** | 1.00720 |
+
+Three things at once:
+1. `gaussq`'s variance is **1.00000 exactly** for BOTH component sets, so it
+   really is the fit's own Q-matrix decomposition of a unit-variance
+   component -- i.e. it IS the Gaussian hit-chi2 the study is measured
+   against, not an approximation to it.
+2. the CF's model variance is **1.0032** for the per-hit components against
+   **1.0328** for the reference ones.  Same Rossi-vs-Moliere gap, diluted by
+   the hit share: a per-hit innovation is 98.7 % Gaussian hit noise, so 1.3 %
+   of a ~25 % gap is 0.3 %.  **That is quantitatively why the non-Gaussianity
+   cannot buy anything on the per-hit components and does on the reference
+   ones.**
+3. `cf`'s norm 0.999996 / var(density) 1.0328 against var(model) 1.0284 on the
+   reference set is the tau-grid truncation at 7.89 -- 0.4 % on the second
+   moment, the same truncation the prototype ran with.
 
 ### GATE 5 IS WHAT FIXED THE SIGN CONVENTION
 Reference component 0 IS the q/p functional -- column 0 of `L^-T` is
