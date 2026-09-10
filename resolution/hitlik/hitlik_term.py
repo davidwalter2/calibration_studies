@@ -62,7 +62,7 @@ def kappa2_from_grid(S, tgrid):
     return -(16.0 * S[:, 1] - S[:, 2]) / (6.0 * t1 * t1)
 
 
-def load(npz, max_tracks=0, comps=None, max_chi2_ndof=0.0):
+def load(npz, max_tracks=0, comps=None, max_chi2_ndof=0.0, max_inflat=0.0):
     """Read the extraction and select rows.
 
     Returns a dict of the selected per-row arrays with the CSR blocks
@@ -75,6 +75,11 @@ def load(npz, max_tracks=0, comps=None, max_chi2_ndof=0.0):
     tkeep = np.ones(ntrk_all, bool)
     if max_chi2_ndof > 0.0:
         tkeep &= d["chi2ndof"] < max_chi2_ndof
+    if max_inflat > 0.0 and "inflat" in keys:
+        # a guard on the CONDITIONING of the whitening, i.e. on the fit's own
+        # covariance -- NOT on the residual being measured.
+        cs_ = list(range(ncomp)) if comps is None else sorted(set(comps))
+        tkeep &= np.asarray(d["inflat"])[:, cs_].max(axis=1) < max_inflat
     tidx = np.where(tkeep)[0]
     if max_tracks and max_tracks < len(tidx):
         tidx = tidx[:max_tracks]
@@ -86,7 +91,7 @@ def load(npz, max_tracks=0, comps=None, max_chi2_ndof=0.0):
     for k in ("z", "sigma", "vgf", "vg_other", "comp", "trk"):
         out[k] = np.asarray(d[k])[rows]
     for k in ("eta", "phi", "charge", "chi2ndof", "nvhit", "trackPt",
-              "genPt", "covdev", "sigqop", "xcum"):
+              "genPt", "covdev", "sigqop", "xcum", "rres", "inflat"):
         if k in keys:
             out[k] = np.asarray(d[k])[tidx]
     out["tgrid"] = np.asarray(d["tgrid"], np.float64)

@@ -279,6 +279,7 @@ def process_file(fname):
     store = G.GroupStore(fams, ncomp * len(_TSEL))   # nt slot = ncomp * nt
     out = {k: [] for k in ("eta", "phi", "charge", "chi2ndof", "nvhit",
                            "trackPt", "genPt", "covdev", "sigqop")}
+    rres, infl_l = [], []
     zrow, vgfrow, vothrow = [], [], []
     hit_cls, hit_v, hit_ptr = [], [], [0]
     vQms_l, vQio_l = [], []
@@ -334,7 +335,19 @@ def process_file(fname):
             continue
         r = np.asarray(a["refParms"][ic], np.float64) - \
             np.asarray(a["genParms"][ic], np.float64)
+        # PHI IS AN ANGLE.  `genParms[2] = g->phi()` is wrapped to (-pi, pi]
+        # and the fitted `refParms[2]` is not, so a track near the branch cut
+        # gets a residual of +-2 pi = 3.7e4 sigma(phi).  Measured before this
+        # line existed: 8 tracks in 20 000 with |z_2| up to 24 011, which alone
+        # made Var(z_2) = 2.9e4 (robust sigma 0.93) and, through the Cholesky
+        # nesting, Var(z_3) = 9.7e4.
+        r[2] = (r[2] + np.pi) % (2.0 * np.pi) - np.pi
         z = (L @ r)[:ncomp]
+        # the whitening's conditioning: V_kk / d_k, d = diag(chol)^2, i.e. how
+        # much smaller the CONDITIONAL variance of component k is than its
+        # marginal.  A guard on this is a statement about the fit's covariance,
+        # not about the residual being measured.
+        infl = np.diag(V) / np.maximum(np.diag(Lc) ** 2, 1e-300)
         if not np.all(np.isfinite(z)):
             ndrop += 1
             continue
@@ -561,6 +574,8 @@ def process_file(fname):
         out["genPt"].append(float(a["genPt"][ic]))
         out["covdev"].append(covdev)
         out["sigqop"].append(sig)
+        rres.append(r)
+        infl_l.append(infl)
         nsel += 1
 
     res = {k: (np.asarray(v) if len(v) else None) for k, v in out.items()}
@@ -577,6 +592,9 @@ def process_file(fname):
                    else np.zeros((0, ncomp), np.float32))
     res["xcum"] = (np.stack(xcum_l).astype(np.float32) if xcum_l
                    else np.zeros((0, 6), np.float32))
+    res["rres"] = (np.stack(rres) if rres else np.zeros((0, 5)))
+    res["inflat"] = (np.stack(infl_l).astype(np.float32) if infl_l
+                     else np.zeros((0, 5), np.float32))
     stats = dict(nsel=nsel, ndrop=ndrop, ncut=ncut, want_rad=int(want_rad),
                  grp_mult=grp_mult, valmax=valmax)
     return fname, res, stats
@@ -617,6 +635,8 @@ def main():
         out[k] = np.concatenate([r[1][k] for r in parts if r[1][k] is not None])
     n = len(out["eta"])
     for k in ("z", "vgf", "vg_other"):
+        out[k] = np.concatenate([r[1][k] for r in parts])
+    for k in ("rres", "inflat"):
         out[k] = np.concatenate([r[1][k] for r in parts])
     out["vQms"] = np.concatenate([r[1]["vQms"] for r in parts])
     out["vQio"] = np.concatenate([r[1]["vQio"] for r in parts])

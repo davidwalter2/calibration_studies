@@ -193,6 +193,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--npz", default=None)
     p.add_argument("--max-tracks", type=int, default=4000)
+    p.add_argument("--max-inflat", type=float, default=1e4)
     p.add_argument("--comps", default="0123")
     p.add_argument("--arms", nargs="+", default=["cf", "gaussq"])
     p.add_argument("--densities", action="store_true")
@@ -209,7 +210,8 @@ def main():
     pubhtml.ensure_index(outdir, logger=logger)
     if args.densities:
         sel = HT.load(args.npz, max_tracks=args.max_tracks,
-                      comps=[int(c) for c in args.comps])
+                      comps=[int(c) for c in args.comps],
+                      max_inflat=args.max_inflat)
         densities(args, sel, outdir)
     if args.ratios:
         ratios(args, outdir)

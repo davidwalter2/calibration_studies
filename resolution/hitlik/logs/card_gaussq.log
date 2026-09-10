@@ -1,9 +1,9 @@
 6000 tracks x 4 components = 24000 rows; arm 'gaussq'
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789005677.222394 4119269 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789006002.456602 4125467 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789005683.028284 4119269 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789005690.608752 4119269 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+I0000 00:00:1789006008.427366 4125467 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789006015.684914 4125467 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
 residual term: 24000 rows, 321187 group rows (132437 pruned), 60 parameters
-NLL(0) = 34591.204724, max|grad| = 198.1
+NLL(0) = 34591.204724, max|grad| = 877.4
 wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/gaussq.hdf5 (129.5 MB)

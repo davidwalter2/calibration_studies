@@ -58,6 +58,10 @@ def parse_args():
                    help="which whitened components to use, as digits")
     p.add_argument("--max-tracks", type=int, default=0)
     p.add_argument("--max-chi2-ndof", type=float, default=0.0)
+    p.add_argument("--max-inflat", type=float, default=1e4,
+                   help="drop tracks whose Cholesky variance inflation "
+                        "V_kk/d_k exceeds this in any used component -- a "
+                        "guard on the FIT COVARIANCE, not on the residual")
     p.add_argument("--groups", default=None,
                    help="materialGroups tier file (default: the one recorded "
                         "in the extraction)")
@@ -106,13 +110,24 @@ def main():
     args = parse_args()
     comps = [int(c) for c in args.comps]
     sel = HT.load(args.npz, max_tracks=args.max_tracks, comps=comps,
-                  max_chi2_ndof=args.max_chi2_ndof)
+                  max_chi2_ndof=args.max_chi2_ndof, max_inflat=args.max_inflat)
     groups_file = args.groups or sel["groups_file"]
     gnames_all = sel["group_names"]
     cnames_all = sel["hit_classes"]
     ngroups = len(gnames_all)
     log(f"{sel['ntrk']} tracks x {len(comps)} components = {len(sel['z'])} "
         f"rows; arm '{args.arm}'")
+
+    # ---- the CARD UNIT of a material parameter -----------------------------
+    # Defined by the groups file alone, so a residual-only card and a joint one
+    # use the SAME units.  (Deriving it from the quadratic catalog, as an
+    # earlier version did, silently left --no-quadratic cards unwhitened and
+    # turned a 5 % injection into a 0.24 % one.)
+    import groups as G
+    gparams_grp, gpriors_grp = G.group_param_names(ngroups, groups_file)
+    gscale = gpriors_grp.copy() if args.whiten else np.ones(ngroups)
+    group_units = 1.0 / np.maximum(gscale, 1e-300)   # k_phys = value * units
+    gprior_card = gpriors_grp * gscale               # 1 prior sigma, card units
 
     # ---- the global parameter catalog, from the quadratic extraction -------
     qd = None
@@ -132,22 +147,21 @@ def main():
             pscale, _ = MGT.param_scales(parmtype[isel], subidx[isel],
                                          args.coeffs, groups_file)
             prior_sigmas = prior_sigmas * pscale
-        group_units = np.array([1.0 / pscale[matcol[g]] if g in matcol else 1.0
-                                for g in range(ngroups)])
+        # GATE: the quadratic catalog's material scale must be the groups
+        # file's, or the two terms are floating different variables.
+        for g, j in matcol.items():
+            if g < ngroups and abs(pscale[j] - gscale[g]) > 1e-12 * max(
+                    gscale[g], 1e-30):
+                sys.exit(f"material scale mismatch for group {g}: quadratic "
+                         f"catalog {pscale[j]:g} vs groups file {gscale[g]:g}")
         log(f"{nfit} global parameters from the quadratic catalog; whiten="
             f"{bool(args.whiten)}")
     else:
         names, prior_sigmas = [], np.zeros(0)
         nfit, isel, matcol, pscale = 0, None, {}, None
-        group_units = np.ones(ngroups)
         parmtype = subidx = None
 
     # ---- injection ---------------------------------------------------------
-    gparams, gpriors = MGT.name_params(
-        np.full(ngroups, 15), np.arange(ngroups), groups_file, 0.0,
-        args.material_prior_scale) if nfit == 0 else (None, None)
-    import groups as G
-    gparams_grp, gpriors_grp = G.group_param_names(ngroups, groups_file)
     hparams = [f"hitres_{c}" for c in cnames_all]
     allnames = list(names) if nfit else list(gparams_grp) + hparams
     nameidx = {nm: i for i, nm in enumerate(allnames)}
@@ -206,7 +220,7 @@ def main():
             sys.exit("the residual term is not finite at theta = 0")
 
         poi_set = _poi_set(args.poi, term.param_names)
-        prior_by_name = dict(zip(gparams_grp, gpriors_grp))
+        prior_by_name = dict(zip(gparams_grp, gprior_card))
         if nfit:
             prior_by_name.update(dict(zip(names, prior_sigmas)))
         defaults, sig, means, ispoi = [], [], [], []

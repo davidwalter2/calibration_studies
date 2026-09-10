@@ -112,3 +112,44 @@ densities integrate to 1.000000 and have mean 0.00000; `gaussq`'s variance is
 decomposition of `refCov` sums to unity, so `gaussq` IS the pull model the
 quadratic hit-chi2 term assumes.  `cf` is 1.3-7.7 % wider: the Rossi-vs-Moliere
 gap of NOTES 2026-08-16, seen here directly as a model variance.
+
+## Step 1b — TWO DEFECTS FOUND IN THE FIRST 20 k EXTRACTION (2026-09-09)
+
+1. **`phi` is an angle and the residual was not wrapped.** `genParms[2] =
+   g->phi()` is in `(-pi, pi]`; the fitted `refParms[2]` is not, so a track
+   near the branch cut has `r_2 = +-2 pi = 3.7e4 sigma(phi)`.  MEASURED: 8
+   tracks in 20 000 (0.04 %), `max |z_2| = 24 011`, which alone made
+   `Var(z_2) = 2.9e4` against a robust sigma of 0.93 -- and, through the
+   Cholesky nesting, `Var(z_3) = 9.7e4` with `max |z_3| = 44 134`.
+   `covdev` of those tracks is 3e-7, i.e. the block decomposition is perfect
+   and the defect is purely the branch cut.  FIXED in `extract_res5.py`
+   (`r[2] = (r[2] + pi) % 2pi - pi`).
+
+2. **The Cholesky conditioning needs a guard.** `V_kk / d_k` (marginal over
+   conditional variance) has median 1.00 / 1.00 / 1.39 / 3.67 / 5.41 but a
+   tail; it is now exported (`inflat`) and `hitlik_term.load(max_inflat=...)`
+   cuts on it.  This is a cut on the FIT'S COVARIANCE, not on the residual
+   being measured, so it cannot bias the residual distribution.
+
+The extraction also now stores the raw residual `rres` (5,) per track.
+
+## The composite-likelihood approximation, SIZED (`xcum`)
+
+The whitened components are uncorrelated by construction but NOT independent:
+they are different linear functionals of the same non-Gaussian block noises.
+The product-of-marginals likelihood therefore drops the joint cumulants.  The
+leading one is the fourth, and for the MS blocks (which carry the
+non-Gaussianity) its correlation
+`kappa(z_j,z_j,z_k,z_k) / sqrt(kappa_4(j) kappa_4(k))` is, per track (median):
+
+| pair | q/p-lam | q/p-phi | q/p-d0 | lam-phi | lam-d0 | phi-d0 |
+|---|---|---|---|---|---|---|
+| median | 0.138 | 0.088 | 0.095 | 0.329 | 0.279 | **0.712** |
+
+So `q/p` is nearly independent of the other three in its fourth cumulant
+(0.09-0.14), while `phi` and `d0` share 71 % of theirs -- unsurprising, they
+are the same bending-plane measurement at two lever arms.  The composite
+likelihood is therefore a good approximation for what `q/p` adds and a
+NOTICEABLE one for the `phi`/`d0` pair: their joint information is
+over-counted, and the honest reading is that `phi + d0` together contribute
+less than the product form says.

@@ -44,6 +44,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--npz", required=True)
     p.add_argument("--max-tracks", type=int, default=2000)
+    p.add_argument("--max-inflat", type=float, default=1e4)
     p.add_argument("--comps", default="0123")
     p.add_argument("--arm", default="cf")
     p.add_argument("--chunk", type=int, default=8192)
@@ -56,7 +57,7 @@ def main():
 
     comps = [int(c) for c in a.comps]
     t0 = time.perf_counter()
-    sel = HT.load(a.npz, max_tracks=a.max_tracks, comps=comps)
+    sel = HT.load(a.npz, max_tracks=a.max_tracks, comps=comps, max_inflat=a.max_inflat)
     t_load = time.perf_counter() - t0
     ntrk, ncomp = sel["ntrk"], len(comps)
     nrow = len(sel["z"])

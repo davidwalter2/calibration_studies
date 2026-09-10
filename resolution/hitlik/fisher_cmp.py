@@ -55,6 +55,10 @@ def parse_args():
     p.add_argument("--npz", required=True)
     p.add_argument("--max-tracks", type=int, default=0)
     p.add_argument("--max-chi2-ndof", type=float, default=0.0)
+    p.add_argument("--max-inflat", type=float, default=1e4,
+                   help="drop tracks whose Cholesky variance inflation "
+                        "V_kk/d_k exceeds this in any used component -- a "
+                        "guard on the FIT COVARIANCE, not on the residual")
     p.add_argument("--arms", nargs="+", default=list(HT.ARMS))
     p.add_argument("--comps", nargs="+", default=["0", "01234"],
                    help="component subsets, each a string of digits")
@@ -113,7 +117,7 @@ def main():
     for cs in args.comps:
         comps = [int(c) for c in cs]
         sel = HT.load(args.npz, max_tracks=args.max_tracks, comps=comps,
-                      max_chi2_ndof=args.max_chi2_ndof)
+                      max_chi2_ndof=args.max_chi2_ndof, max_inflat=args.max_inflat)
         sel_cache[cs] = sel
         log(f"comps {cs}: {sel['ntrk']} tracks x {len(comps)} components = "
             f"{len(sel['z'])} rows, {len(sel['grp_id'])} group rows")

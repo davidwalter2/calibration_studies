@@ -14,7 +14,7 @@
 set -e
 HERE=/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik
 R=/work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik
-NPZ=${NPZ:-$R/mugun20k.npz}
+NPZ=${NPZ:-$R/mugun20kv2.npz}
 QNPZ=$R/mugun_quad.npz
 NTRK=${NTRK:-6000}
 COMPS=${COMPS:-0123}
