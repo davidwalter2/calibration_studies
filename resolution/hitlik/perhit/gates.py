@@ -18,13 +18,13 @@ is a CLOSURE test of the maker's own arithmetic -- nothing is fitted.
      a component's exponent depends on (v, tau) only through sqrt(v/sq2)*tau,
      by comparing two components at a matched product.
 """
-import argparse, glob, math
+import argparse, glob, math, os
 import numpy as np
 import uproot
 
 
 BR = ['phres_d', 'phres_nmeas', 'phres_nfree', 'phres_chi2', 'phres_vchk',
-      'phres_ok', 'phres_rankgap', 'phresz', 'phresraw', 'phresrow', 'phreshit', 'phresdim',
+      'phres_ok', 'phres_rankgap', 'phres_nref', 'phresz', 'phresraw', 'phresrow', 'phreshit', 'phresdim',
       'phrescls', 'phrespiv', 'phresinflat', 'phresvarv',
       'phcf_vgf', 'phcf_nok', 'phcf_msec', 'phcf_grp_closure',
       'chisqval', 'ndof', 'nValidHits', 'nValidPixelHits',
@@ -53,11 +53,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--files', required=True)
     ap.add_argument('--max-tracks', type=int, default=None)
+    ap.add_argument('--require-complete', action='store_true')
     ap.add_argument('--maxchi2ndof', type=float, default=None,
                     help='optional chi2/ndof cut (a cut on the FIT, stated as such)')
     a = ap.parse_args()
 
     files = sorted(glob.glob(a.files))
+    if a.require_complete:
+        # cmsRun creates its output at START, so a running task leaves a
+        # non-empty but TRUNCATED file; only tasks with the sentinel are read.
+        files = [f for f in files
+                 if os.path.exists(os.path.join(os.path.dirname(f), '.complete'))]
     print(f'# {len(files)} files')
     d = load(files, a.max_tracks)
     n = len(d['phres_d'])
@@ -151,9 +157,16 @@ def main():
     ok = sel & np.isfinite(pulls).all(axis=1) & (np.abs(pulls) < 20).all(axis=1)
     print(f'  {ok.sum()} rows with a usable 5-pull')
     print('  Var(pull_j):', np.round(np.nanvar(pulls[ok], axis=0), 4))
+    # ONLY the per-hit components: `phresz` carries the `phres_nref`
+    # truth-referenced ones after them, and slot k >= phres_d of a short track
+    # IS one of them -- comparing that against the pull it was built from
+    # gives a spurious correlation rising to 1 (it cost an hour on
+    # 2026-09-10: the table read +0.38 at k = 24 and the algebraic per-track
+    # check said 2e-9).
+    nd_ = d['phres_d'].astype(int)
     print('   k   N     corr(z_k, pull_qp)  pull_lam   pull_phi   pull_d0   pull_z0')
     for k in range(min(maxd, 25)):
-        m = ok & np.array([len(z) > k for z in d['phresz']])
+        m = ok & (nd_ > k) & np.array([len(z) > k for z in d['phresz']])
         if m.sum() < 50:
             continue
         zk = np.array([d['phresz'][i][k] for i in np.nonzero(m)[0]], dtype=np.float64)
@@ -163,8 +176,10 @@ def main():
     # ---------------- misc ----------------
     print('\n=== export health')
     print(f'  phres_ok            : {d["phres_ok"][good].mean()*100:.2f} %')
-    print(f'  phcf_nok == d       : '
-          f'{(d["phcf_nok"][good] == dd[good]).mean()*100:.2f} %')
+    ntot = dd + (d['phres_nref'].astype(int) if 'phres_nref' in d
+                 else np.zeros_like(dd))
+    print(f'  phcf_nok == d + nref: '
+          f'{(d["phcf_nok"][good] == ntot[good]).mean()*100:.2f} %')
     print(f'  phcf_grp_closure    : max {d["phcf_grp_closure"][good].max():.3e}')
     ms = d['phcf_msec'][good].astype(np.float64)
     print(f'  phcf_msec / track   : median {np.median(ms):.1f}  mean {ms.mean():.1f}  '

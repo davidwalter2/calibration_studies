@@ -135,7 +135,15 @@ def process(fname, args, ptype=None):
         want = [b for b in BR if b in have]
         if "phres_d" not in have:
             return fname, None, dict(nsel=0, ndrop=0, msg="no perhit branches")
-        a = t.arrays(want, library="np")
+        # Read only as far as `--max-cands` can possibly need.  The whole
+        # per-candidate payload is ~660 kB, so reading 2000 entries to keep
+        # 125 of them costs 1.3 GB of RAM per worker and 16x the I/O; the
+        # factor 2 is the margin for the quality cuts below (which reject a
+        # few per cent).
+        stop = None
+        if args.max_cands:
+            stop = min(t.num_entries, 2 * args.max_cands + 20)
+        a = t.arrays(want, library="np", entry_stop=stop)
         tg = None
         if "runtree" in fh:
             rt = fh["runtree"].arrays(["cftau"], library="np")
@@ -314,6 +322,7 @@ def main():
     p.add_argument("--max-grad", type=float, default=1e6)
     p.add_argument("--max-cands", type=int, default=0)
     p.add_argument("--max-files", type=int, default=0)
+    p.add_argument("--require-complete", action="store_true")
     p.add_argument("--groups", default="")
     p.add_argument("--no-compress", action="store_true",
                    help="np.savez instead of savez_compressed. The S arrays "
@@ -323,6 +332,14 @@ def main():
     args = p.parse_args()
 
     files = sorted(glob.glob(args.files))
+    if args.require_complete:
+        # only tasks that wrote their completion sentinel: cmsRun creates its
+        # output at START, so a running task leaves a non-empty but TRUNCATED
+        # file and a plain glob would silently read half a task.
+        files = [f for f in files
+                 if os.path.exists(os.path.join(os.path.dirname(f), ".complete"))]
+        print(f"# {len(files)} of the globbed files have a .complete sentinel",
+              flush=True)
     if args.max_files:
         files = files[: args.max_files]
     print(f"# {len(files)} files, {args.jobs} workers", flush=True)

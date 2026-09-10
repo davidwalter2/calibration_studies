@@ -35,7 +35,7 @@ case $step in
     exec python3 -u extract_perhit.py \
       --files "$CEPH/$PROD/task_*/globalcor_resclosure_*.root" \
       --groups $GRP --max-chi2-ndof 3 --max-hess 1e8 --max-grad 1e6 \
-      --max-cands ${MAXCANDS:-125} --no-compress \
+      --max-cands ${MAXCANDS:-125} --no-compress --require-complete \
       -j ${J:-24} -o $NPZ "$@"
     ;;
   quad)
@@ -45,7 +45,8 @@ case $step in
   gates)
     source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
     cd $HERE
-    exec python3 -u gates.py --files "$CEPH/$PROD/task_*/globalcor_resclosure_*.root" "$@"
+    exec python3 -u gates.py --require-complete \
+      --files "$CEPH/$PROD/task_*/globalcor_resclosure_*.root" "$@"
     ;;
   xcum)
     source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
