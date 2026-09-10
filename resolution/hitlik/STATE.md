@@ -320,3 +320,29 @@ component) after pruning at 1e-3), rank-16 tau PCA:
 | 4 reference-state components | **26.7 kB** | **1.10 TB** |
 | 5 components | 33.4 kB | 1.37 TB |
 | 18 per-HIT residuals | 120.3 kB | 4.93 TB |
+
+### Step 4, the JOINT injection (2026-09-10 00:06)
+
+| channel | sigma | prior-corrected shift/truth | pull |
+|---|---|---|---|
+| residual vector, CF | 0.00202 | 0.979 | -0.01 |
+| residual vector, fit's Q | 0.00200 | 0.943 | -0.04 |
+| J/psi-gun mass term | 0.00186 | 0.978 | -0.02 |
+| **JOINT (residual + mass)** | **0.00171** | **0.985** | -0.02 |
+
+One consistent amount across the two channels, and the joint is both the
+tightest and the most accurate.
+
+### Step 4, the HIT-CLASS injection (2026-09-10 00:14)
+
+`hitres_str_N3_lo` variance x1.10 on the data side.  `hit_mode` is LINEAR, so
+the expected shift is `-eps_inj/(1+eps_inj) x (1+eps_base) = -0.07844` from
+`eps_base = -0.13711 +- 0.11688`.  Measured `-0.21482 +- 0.10643`, shift
+**-0.07771 = 99.1 %**, pull **+0.007 sigma**, leakage < 0.0005 sigma on every
+other parameter.
+
+## STATUS: steps 0-6 done.
+Remaining in the fit queue (cards built, not blocking any conclusion):
+`inj_hit_gaussq`, `gauss`, `joint` (residual + quadratic), `inj_joint`.
+`cf_c0` did NOT converge (EDM 0.56) -- with q/p alone the 18 hit classes are
+nearly unconstrained; a q/p-only card needs them frozen.
