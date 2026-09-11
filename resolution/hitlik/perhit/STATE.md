@@ -1,96 +1,52 @@
 # perhit — the DATA version of the hit-residual CF likelihood
 
-## RESUME HERE (2026-09-10 17:00)
+## RESUME HERE (2026-09-10 20:15) — THE STUDY IS COMPLETE
 
-STATUS: maker DONE and committed; production **160/160 COMPLETE**; offline
-chain running.  Everything below "THE OBJECT" is settled and needs no
-re-deriving.
+Everything the coordinator asked for is measured and banked.  NOTES.md entry
+appended (`/work/submit/david_w/Documents/Resolution/NOTES.md`, section
+"2026-09-10 — THE DATA VERSION OF THE HIT-RESIDUAL CF LIKELIHOOD").  Scripts
+committed on `resolution-energy-loss-corrections`.
 
-**Verified this session (17:00):**
-* production `resolution_trackres_mugun_ul16_260910_perhit`: 160 `task_NNNN`
-  dirs, **160 `.complete` sentinels, 160 root files, 190 GB** on ceph.  DONE.
-  (The task dirs are `task_0000`-style, not `task_0`; a `seq 0 159` check
-  reports everything missing.)
-* extraction `runs/perhit/perhit.npz` = **8750 tracks / 169 709 rows**, made at
-  15:25 from the **70** tasks complete at the time.  A full re-extract at 160
-  tasks x `--max-cands 125` gives ~20 k tracks.
-* cards: 14 of 15 in `runs/perhit/cards` (on ceph); `ph_gauss.hdf5` still in
-  `runs/perhit/cards_local` (open by the running fit); `ph_inj_cf_all` MISSING
-  (it died on the /work quota).
+**DONE**
+| item | where |
+|---|---|
+| production 160/160, 190 GiB, 634 kB/track | ceph `resolution_trackres_mugun_ul16_260910_perhit` |
+| extraction 8750 tracks (`perhit.npz`) + **20 000 tracks (`perhit20k.npz`)** | ceph `runs_perhit_260910/` |
+| gates 1-5 on all 160 tasks, after fixing two indexing traps in `gates.py` | "THE GATES, FINAL" |
+| 15/15 cards, **15/15 fits EDM-certified** | "THE FITS, CERTIFIED" |
+| the sandwich, 3 component sets x 3 arms | "THE HEADLINE" |
+| the composite likelihood MEASURED (prior-free S/Q) | "THE HEADLINE" |
+| extra deliverable 1 (cross-cumulants by hit position) | "EXTRA DELIVERABLE 1" |
+| extra deliverable 2 (both joints, same-track and disjoint) | "EXTRA DELIVERABLE 2" + "THE HEADLINE" |
+| injections, material and hit class | "INJECTION RECOVERY" |
+| 8 disjoint subsample fits | "THE ASSUMPTION-FREE CHECK" |
+| tails, cost on one pinned CPU, export bill measured | their own sections |
+| saturation and the data-fit recommendation | "SATURATION" |
+| 66 figures + `index.php` | `~/public_html/cvh/260910_perhit/` |
 
-**DISK (do not undo this):** `/work/submit` quota is 500 G and was full.
-`runs/perhit/cards` and `runs/perhit/perhit.npz` are now SYMLINKS into
-`/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_perhit_260910/`, so every path
-in the scripts still works and new cards land on ceph.  Anything > 0.5 G goes
-there.  **ceph is NOT visible from submit82** (permission denied — cephx
-eviction); do ceph I/O from submit50/51/52 through
-`/home/submit/david_w/.claude-work/jobs/perhit/s5{0,1,2}.sh '<cmd>'`
-(persistent ControlMaster), always with `cd /abs/path || exit 9`.
+**OPEN ITEMS (none blocking; each is a new study)**
+1. **`z0` is not described.**  `Var(z_4) = 1.928`, 4-sigma tail 26x the CF.
+   New observable (it did not exist before the `genParms[4]` fix).
+2. **A non-Gaussian HIT model.**  Both arms treat the hit noise as exactly
+   Gaussian; the data have 5.1e-4 beyond 4 sigma against a CF 1.5e-4.  It
+   would enter the CF machinery as one more family.
+3. **The residual MEAN** (`D = W^T J`) for alignment and field — the one piece
+   a DATA fit still needs.  13 kB/track, 0.6 TB at 41 M; NOT justified by the
+   saturation numbers unless the CF term is wanted for the means themselves.
+4. The maker's concatenated-tau trick (`extract_res5.py`'s) is not ported;
+   `phcf_msec` is 163 ms/component, ~2.1 s/track under 60-way contention.
 
-**Live processes (kill only these PIDs; never `pkill -f`):**
-| host | what | state |
-|---|---|---|
-| submit50 | `run_stage2.sh fits` PID 1757773, log `logs/stage2_fits.log` | RUNNING: ph_cf edm 5.05e-12, ph_gaussq edm 1.64e-9, ph_gauss from 16:37, 12 to go |
-
-**NEXT STEPS, in order**
-1. [x] rebuild `ph_inj_cf_all` -- DONE 17:03 on submit52 (`CARDOK`), on ceph
-2. [~] let `run_stage2.sh fits` finish; certify with `run_stage2.sh certify`
-       (`perhit/certify.py`: value + NLL(reduced) + rabbit EDM, PASS at
-       EDM < 1e-3).  Done so far: ph_cf 5.05e-12, ph_gaussq 1.64e-9,
-       ph_gauss 7.65e-10; ph_cf_ref running from 16:56.
-       ALL 15 CARDS ARE BUILT AND ON CEPH (17:05), `ph_gauss.hdf5` moved out
-       of `cards_local`, which is gone.
-3. [~] fisher: A = `--comps hit ref --arms cf gauss gaussq` on submit52
-       (`logs/stage2_fisher.log` -> `runs/perhit/fisherHJ.npz`);
-       B = `--comps all --arms cf gaussq` on submit51
-       (`logs/fisher_all.log` -> `fisherHJ_all.npz`).  Both 8000 tracks of
-       `perhit.npz`, `--nbatch 200`.
-4. [~] `xcum` on the 20 k npz (submit51, `logs/xcum20k.log`)
-5. [ ] `run_stage2.sh efficiency effall joint saturation recovery cost plots
-       finaltable subfits` -- NEW stages `certify`, `effall` (the SAME-TRACK
-       joint, `--cset all`), `joint` (the DISJOINT residual+mass joint via
-       `perhit/fisher_joint.py`), `tails`, `subfits` were added to
-       `run_stage2.sh` this session.
-6. [ ] NOTES.md entry, commit
-7. [x] gates re-run on all 160 tasks after fixing two indexing traps in
-       `gates.py` -- see "THE GATES, FINAL"
-8. [x] the measured export bill at production scale -- see "THE EXPORT BILL,
-       MEASURED AT PRODUCTION SCALE"
-
-**SECOND EXTRACTION (this session):** `perhit20k.npz` on ceph,
-**20 000 tracks / 388 641 rows** (19.4 comps/track), 227 s, 11.5 GB, from all
-160 tasks.  Used for the STATISTICS-hungry steps (xcum, tails, cost, plots);
-the FITS and the Fisher/sandwich stay on `perhit.npz` (8750 tracks, 8000 used)
-because the whole card ladder was built from it -- quote the N with every
-number.
-
-**run_tf.sh CHANGED (this session):** it now binds `/ceph/submit` whenever the
-host can read it (it used to need `WANT_CEPH=1`).  Without that the cards
-symlink does not resolve inside the container and every fit after the move
-would have failed.  `.bak` of the original next to it.
-
-**Paths**: npz `runs/perhit/perhit.npz`; cards/fits `runs/perhit/{cards,fits}`;
-figures `~/public_html/cvh/260910_perhit/`; maker branch
-`perhit-residual-cf-260910` in `CMSSW_15_0_19_patch2_dev2` (4 commits on top of
-ca6058d96fc).
-
-## FIGURES (`~/public_html/cvh/260910_perhit/`, `index.php` in place)
-66 files, one panel per file, every density plot with its data/model ratio
-panel underneath, `bbox_inches='tight'`, `hep.style.ROOT` + `wums`:
-* `density_<hitclass>{,_log}.pdf` -- 18 classes, per-hit innovation density vs
-  the CF and the chi2, linear and log
-* `density_pos0.0-0.2 ... 0.8-1.0{,_log}.pdf` -- by position along the track
-* `density_perhit{,_log}.pdf`, `density_reference{,_log}.pdf` -- the two
-  component sets pooled
-* `tailclosure_all.pdf`, `tailclosure_rel*.pdf` -- data/model of `P(|z|>t)`
-  for the per-hit components, pooled and by position
-* `tailclosure_{qp,lambda,phi,d0,z0}.pdf` -- the truth-referenced ones
-* `efficiency_material.pdf`, `efficiency_hitres.pdf` -- the sandwich
-* `xcum_{corr_zqp,ref0,adjacent}_vs_relpos.pdf`, `xcum_ref0_by_class.pdf` --
-  extra deliverable 1
-(The `tailclosure_k=NN.pdf` produced by an early run were DELETED: on the
-per-hit file a truth-referenced component sits at slot `d + j`, so grouping by
-the raw slot index mixes q/p with z0.  Use `--group-by refparm`.)
+**INFRASTRUCTURE NOTES FOR A FRESH AGENT**
+* `/work/submit` quota is 500 G and was FULL.  `runs/perhit/{cards,perhit.npz}`
+  are SYMLINKS into `/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_perhit_260910/`
+  (32 G).  Anything > 0.5 G goes there.  `cards_local` is gone.
+* **ceph is NOT readable from submit82**; use submit50/51/52 via
+  `/home/submit/david_w/.claude-work/jobs/perhit/s5{0,1,2}.sh '<cmd>'`
+  (persistent ControlMaster), always with `cd /abs/path || exit 9`.
+* `run_tf.sh` now binds `/ceph/submit` whenever the host can read it (it used
+  to require `WANT_CEPH=1`); without that no fit after the quota move would
+  have found its card.
+* **Do not edit a running bash script** — see the trap section below.
 
 ## THE OBJECT (derivation, so a fresh agent does not have to redo it)
 
