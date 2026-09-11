@@ -16,8 +16,9 @@ VNPZ=${VNPZ:-$R/vtx.npz}
 MNPZ=${MNPZ:-$R/mass.npz}
 GRP=${GRP:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/materialGroups50.txt}
 NCAND=${NCAND:-8000}
-# ln(1.05) = 0.0487902 physical k; --whiten means the CARD value is
-# k / prior_sigma.  `material_bpix_support6` is the group the VERTEX term sees
+# ln(1.05) = 0.0487902 physical k.  --whiten makes the card float
+# k * prior_sigma, so the injected CARD value is 0.0487902 x 0.05.
+# `material_bpix_support6` is the group the VERTEX term sees
 # most (the innermost support the first propagation crosses).
 INJ=${INJ:-material_bpix_support6:0.00243951}
 # a 10 % hit-variance scale on an INNERMOST PIXEL class (linear mode: the card

@@ -20,8 +20,8 @@ NPZ=${NPZ:-$R/mugun20kv2.npz}
 QNPZ=${QNPZ:-$R/mugun_quad.npz}
 NTRK=${NTRK:-6000}
 COMPS=${COMPS:-0123}
-# ln(1.05) = 0.0487902 physical k; the card unit is the group's prior sigma,
-# so --whiten means the injected CARD value is k / prior_sigma.
+# ln(1.05) = 0.0487902 physical k.  --whiten makes the card float
+# k * prior_sigma, so the injected CARD value is 0.0487902 x 0.05.
 INJ=${INJ:-material_tib_support:0.00243951}
 # a 10 % hit-variance scale on the highest-share strip class (linear mode, so
 # the card value IS eps)

@@ -18,6 +18,7 @@ module_level_corrections/diag_run*/
 
 # resolution study caches and job logs (multi-GB npz + logs)
 resolution/runs/
+resolution/runs_*.log
 # ... and its scan caches, the same rule module_level_corrections already has
 resolution/*.npz
 

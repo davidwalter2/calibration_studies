@@ -1,3 +1,10 @@
+// Render one Markdown file to a standalone, self-contained HTML page in the
+// MIT palette, for serving a STATE/notes file out of ~/public_html.
+//
+//   node md2html.js <in.md> <out.html> <title>
+//
+// markdown-it comes from the mit-slides skill's node_modules, the only copy
+// on this host; the CSS is inlined so the page needs no other file.
 const fs=require('fs'); const path=require('path');
 const md=require(path.join(process.env.HOME,'.claude-work/skills/mit-slides/node_modules/markdown-it'))({html:true,linkify:true,typographer:false});
 const [,, inp, out, title]=process.argv;
