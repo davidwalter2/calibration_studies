@@ -1,8 +1,61 @@
 # vtxres — the VERTEX-CONSTRAINT RESIDUAL of the two-track CVH fit, as a CF term
 
-## RESUME HERE (2026-09-11, step 0 done)
+## RESUME HERE (2026-09-11 10:45) — THE STUDY IS COMPLETE
 
-Status: understanding banked, implementation starting.  Nothing produced yet.
+Everything the coordinator asked for is measured and banked.  NOTES.md entry
+appended (`/work/submit/david_w/Documents/Resolution/NOTES.md`, section
+"2026-09-11 — THE VERTEX-CONSTRAINT RESIDUAL OF THE TWO-TRACK FIT").
+Scripts committed on `resolution-energy-loss-corrections` (c931a47); the maker
+on `vtxres-cf-260911` of `CMSSW_15_0_19_patch2_dev2` (4b3984312f6).
+
+**DONE**
+| item | where |
+|---|---|
+| maker export `exportVtxResidual` + `vtxConstraintZeroSeed` | "STEP 1" |
+| gates (a)-(e) on a 400-event FREE/FROZEN pair and 20 000 production candidates | "THE GATES", `logs/gates_smoke*.log`, `logs/gates_prod.log` |
+| production 160/160, 2000 events each, 328 kB/candidate | ceph `runs_vtxres_260911/prod` |
+| distribution + tails + composition, **96 160 candidates** | "STEP 4 RESULT", `logs/plots.log` |
+| 13/13 cards, 8/11 fits EDM-certified (the 3 failures are all Gaussian arms) | "STEP 5" |
+| the sandwich, 3 arms x 3 channels | `logs/eff_*_p2.log` |
+| injections: a material group and an innermost pixel hit class | "THE INJECTIONS" |
+| the vertex-mass correlation at three levels | "STEP 6 RESULT", `logs/xcum.log` |
+| cost A/B on a pinned CPU + the export bill | "STEP 7", `logs/bill.log` |
+| the Z-like check on DY MC | "STEP 8 RESULT" |
+| 20 figures + `index.php` | `~/public_html/cvh/260911_vtxres/` |
+
+**OPEN ITEMS (none blocking; each is a new study)**
+1. **The mass term's Gaussian arm returns a NaN Hessian.**  `mass_gaussq` and
+   `joint_gaussq` have a finite NLL and gradient at theta = 0 but
+   `H` is NaN; with `floor="clip"` instead of `"softplus"` the Hessian is
+   finite and the NLL is `inf`, so the density is going to <= 0 (or
+   underflowing) for some candidates and the softplus floor's SECOND
+   derivative is what NaNs there.  Localised to the MASS term with a Gaussian
+   arm (the vertex term's three arms and the mass term's CF arm are all fine)
+   and time-boxed: no headline needs it.
+2. **A non-Gaussian HIT model.**  Both arms treat the hit noise as exactly
+   Gaussian.  On the gun the CF is within 1.4-1.7 of the data out to 5 sigma;
+   on DY it is a factor 85 short (section "STEP 8"), and a data fit will need
+   an outlier component whose size is now measured (~2 %).
+3. **The concatenated-tau trick is not ported.**  Every exponent primitive
+   depends on `weight * tau` alone, so the mass and the vertex functional
+   could share ONE `cvhcf` pass; as it stands the second call costs the same
+   as the first (+0.54 s/candidate, +48 %).
+4. `hitlik/recovery.py` prints `nan` in its `/truth` columns on these cards
+   (it reads the injected truth under a key `make_vtx_card.py` does not
+   write); the recovery numbers in this file were obtained from its own
+   `shift` and `f_pri` columns by hand.
+
+**INFRASTRUCTURE NOTES FOR A FRESH AGENT**
+* `/work/submit` quota is 500 G and nearly full.  `runs/vtxres/{vtx,mass,
+  smoke_*}.npz` and `runs/vtxres/cards` are SYMLINKS into
+  `/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/runs/`.
+  Anything > 0.5 G goes there.
+* ceph is NOT readable from submit82; use submit50/51/52 (helpers
+  `/home/submit/david_w/.claude-work/jobs/28e0dfa8/s5{0,1,2}.sh '<cmd>'`).
+* **Do not `scram b` in `..._dev2` while a production runs from it**, and do
+  not edit a bash script that is executing (both traps were respected here;
+  the `.py` modules were edited freely).
+* `run_tf.sh` binds ceph when the host can read it.
 
 ## THE OBJECT (derivation; a fresh agent does not have to redo it)
 
@@ -532,14 +585,43 @@ and `Var(z)` is 1123 untrimmed (1.147 trimmed at 5 sigma, skew -0.014, kurt
 60-120 GeV MiniAOD dimuon sample.  **A vertex term on data needs an outlier
 (background) component**, and the size of it is now measured: ~2 %.
 
+## STEP 7 RESULT -- COST AND THE EXPORT BILL
+
+**Cost, A/B on ONE PINNED CPU** (`taskset -c 40`, 200 events of the J/psi gun,
+identical configuration but for the switch; time from the first event to the
+last stamped line):
+| | wall for 200 events | per candidate |
+|---|---|---|
+| fit + the MASS export | 226 s | 1.13 s |
+| + the VERTEX block | 334 s | 1.68 s |
+| **the vertex block** | **+108 s** | **+0.54 s (+48 %)** |
+It is the same `cvhcf` call at different weights, so it costs what the mass
+functional's own call costs.  The concatenated-tau trick (every primitive
+depends on `weight * tau` alone) would make the second functional nearly free
+and is NOT ported.
+
+**Export, compressed, measured** (`cost_vtx.py --file`):
+| block | kB/cand | TB at 41 M |
+|---|---|---|
+| vertex: per-group exponents | 26.37 | 1.107 |
+| vertex: flat exponents | 1.44 | 0.060 |
+| vertex: shares + scalars | 0.61 | 0.026 |
+| vertex: the influence `a_b` (`resinfvtxv`) | 1.63 | 0.069 |
+| vertex: the D row (`Jpsi_jacVtx`) | 0.91 | 0.038 |
+| **the VERTEX block** | **30.96** | **1.300** |
+| the MASS block, for comparison | 29.98 | 1.259 |
+| (`hesspackedv`, the quadratic term's, for scale) | 105.3 | 4.42 |
+**the vertex term costs 1.03x the mass term's export** -- as expected, it is
+ONE more component per candidate.  The whole file is 328 kB/candidate.
+
 ## Plan / status
 - [x] step 0: the object, the state layout, the sign rule, the production to match
 - [x] step 1: maker export `exportVtxResidual`
 - [x] step 2: gates -- ALL PASS
-- [x] step 3: production LAUNCHED (see below)
-- [x] step 4: distribution + composition -- DONE (below)
+- [x] step 3: production 160/160
+- [x] step 4: distribution + composition (96 160 candidates)
 - [x] step 5: fits + sandwich + injections
 - [x] step 6: correlation with the mass term
-- [ ] step 7: cost + export bill
-- [x] step 8: Z-like check on DY (beamspot rows: OFF in every config, see the report)
-- [ ] step 9: figures, NOTES.md, commits
+- [x] step 7: cost + export bill
+- [x] step 8: Z-like check on DY (beamspot rows: OFF in every config -- see NOTES section 9)
+- [x] step 9: figures, NOTES.md, commits
