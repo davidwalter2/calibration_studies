@@ -13,3 +13,17 @@
 === fit ph_inj_gaussq 18:05:02
 [38;21mINFO:rabbit_fit.py: edmval: 1.6563913714194178e-12[0m
 === fit ph_inj_hit 18:27:21
+[38;21mINFO:rabbit_fit.py: edmval: 1.0174963829110008e-09[0m
+=== fit ph_inj_hit_gaussq 18:53:33
+[38;21mINFO:rabbit_fit.py: edmval: 3.049511371918756e-14[0m
+=== fit ph_inj_cf_ref 19:20:56
+[38;21mINFO:rabbit_fit.py: edmval: 1.864639415918629e-12[0m
+  skip ph_inj_cf_all
+  skip ph_mass
+  skip ph_resmass
+  skip ph_inj_mass
+  skip ph_inj_resmass
+./run_stage2.sh: line 134: it: command not found
+./run_stage2.sh: line 137: ./run_tf.sh: No such file or directory
+./run_stage2.sh: line 144: syntax error near unexpected token `;;'
+./run_stage2.sh: line 144: `    cd $HERE ;;'

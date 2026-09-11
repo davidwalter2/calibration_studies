@@ -1,9 +1,9 @@
-2500 tracks x 4 components = 10000 rows; arm 'gaussq'
+1000 tracks x 13.361 components = 13361 rows; arm 'gaussq'
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789019595.904843   76438 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789084360.353779 2238633 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789019601.985457   76438 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789019608.249625   76438 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-residual term: 10000 rows, 133454 group rows (55534 pruned), 60 parameters
-NLL(0) = 14357.074785, max|grad| = 866.5
-wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/sub_gaussq_6.hdf5 (53.9 MB)
+I0000 00:00:1789084366.996800 2238633 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789084374.206358 2238633 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+residual term: 13361 rows, 139877 group rows (113549 pruned), 60 parameters
+NLL(0) = 18674.077458, max|grad| = 93.28
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/sub_gaussq_6.hdf5 (57.7 MB)

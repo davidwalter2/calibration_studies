@@ -1,0 +1,14 @@
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py:344: SyntaxWarning: invalid escape sequence '\c'
+  ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",
+[38;21mINFO:plot_hitlik.py: component perhit: N 106998, Var(z) 0.9587, mean +0.0042, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03898   cf 0.04583 (data/model 0.851)   gaussq 0.04555 (data/model 0.856)
+   P(|z| > 3): data 0.00313   cf 0.00295 (data/model 1.063)   gaussq 0.00271 (data/model 1.157)
+   P(|z| > 4): data 0.00050   cf 0.00015 (data/model 3.248)   gaussq 0.00006 (data/model 7.793)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_perhit.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_perhit_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component reference: N 40000, Var(z) 1.2296, mean -0.0013, norm(cf) 0.99999, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.06440   cf 0.04553 (data/model 1.414)   gaussq 0.04555 (data/model 1.414)
+   P(|z| > 3): data 0.01317   cf 0.00533 (data/model 2.472)   gaussq 0.00271 (data/model 4.870)
+   P(|z| > 4): data 0.00400   cf 0.00142 (data/model 2.823)   gaussq 0.00006 (data/model 62.927)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_reference.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_reference_log.pdf[0m

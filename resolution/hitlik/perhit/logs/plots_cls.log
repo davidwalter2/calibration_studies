@@ -48,3 +48,57 @@
    P(|z| > 4): data 0.00169   cf 0.00013 (data/model 12.793)   gaussq 0.00006 (data/model 26.593)[0m
 [38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q3.pdf[0m
 [38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pix_y_q3_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component str_N1_lo: N 14415, Var(z) 0.9080, mean -0.0140, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03115   cf 0.04565 (data/model 0.682)   gaussq 0.04555 (data/model 0.684)
+   P(|z| > 3): data 0.00049   cf 0.00275 (data/model 0.176)   gaussq 0.00271 (data/model 0.179)
+   P(|z| > 4): data 0.00007   cf 0.00008 (data/model 0.915)   gaussq 0.00006 (data/model 1.091)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N1_lo.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N1_lo_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component str_N1_hi: N 1826, Var(z) 1.0310, mean -0.0123, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03888   cf 0.04575 (data/model 0.850)   gaussq 0.04555 (data/model 0.854)
+   P(|z| > 3): data 0.00219   cf 0.00285 (data/model 0.769)   gaussq 0.00271 (data/model 0.810)
+   P(|z| > 4): data 0.00055   cf 0.00011 (data/model 4.876)   gaussq 0.00006 (data/model 8.615)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N1_hi.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N1_hi_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component str_N2_lo: N 18360, Var(z) 0.9309, mean -0.0078, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03350   cf 0.04567 (data/model 0.734)   gaussq 0.04555 (data/model 0.735)
+   P(|z| > 3): data 0.00087   cf 0.00276 (data/model 0.315)   gaussq 0.00271 (data/model 0.322)
+   P(|z| > 4): data 0.00022   cf 0.00008 (data/model 2.745)   gaussq 0.00006 (data/model 3.427)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N2_lo.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N2_lo_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component str_N2_hi: N 6218, Var(z) 0.9652, mean +0.0045, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03731   cf 0.04577 (data/model 0.815)   gaussq 0.04555 (data/model 0.819)
+   P(|z| > 3): data 0.00177   cf 0.00287 (data/model 0.617)   gaussq 0.00271 (data/model 0.654)
+   P(|z| > 4): data 0.00000   cf 0.00012 (data/model 0.000)   gaussq 0.00006 (data/model 0.000)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N2_hi.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N2_hi_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component str_N3_lo: N 14062, Var(z) 0.9605, mean -0.0127, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03847   cf 0.04569 (data/model 0.842)   gaussq 0.04555 (data/model 0.845)
+   P(|z| > 3): data 0.00156   cf 0.00278 (data/model 0.563)   gaussq 0.00271 (data/model 0.578)
+   P(|z| > 4): data 0.00007   cf 0.00009 (data/model 0.830)   gaussq 0.00006 (data/model 1.119)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N3_lo.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N3_lo_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component str_N3_hi: N 8209, Var(z) 0.9839, mean -0.0107, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03789   cf 0.04581 (data/model 0.827)   gaussq 0.04555 (data/model 0.832)
+   P(|z| > 3): data 0.00171   cf 0.00288 (data/model 0.592)   gaussq 0.00271 (data/model 0.630)
+   P(|z| > 4): data 0.00012   cf 0.00012 (data/model 1.006)   gaussq 0.00006 (data/model 1.916)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N3_hi.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N3_hi_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component str_N4_lo: N 3584, Var(z) 0.8077, mean -0.0181, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.02902   cf 0.04564 (data/model 0.636)   gaussq 0.04555 (data/model 0.637)
+   P(|z| > 3): data 0.00195   cf 0.00275 (data/model 0.710)   gaussq 0.00271 (data/model 0.722)
+   P(|z| > 4): data 0.00028   cf 0.00008 (data/model 3.666)   gaussq 0.00006 (data/model 4.389)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N4_lo.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N4_lo_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component str_N4_hi: N 2724, Var(z) 0.9545, mean +0.0015, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.04038   cf 0.04581 (data/model 0.882)   gaussq 0.04555 (data/model 0.887)
+   P(|z| > 3): data 0.00294   cf 0.00287 (data/model 1.023)   gaussq 0.00271 (data/model 1.086)
+   P(|z| > 4): data 0.00037   cf 0.00012 (data/model 3.144)   gaussq 0.00006 (data/model 5.775)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N4_hi.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N4_hi_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component str_N5_lo: N 1083, Var(z) 0.7433, mean -0.0024, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.01662   cf 0.04559 (data/model 0.365)   gaussq 0.04555 (data/model 0.365)
+   P(|z| > 3): data 0.00369   cf 0.00272 (data/model 1.356)   gaussq 0.00271 (data/model 1.365)
+   P(|z| > 4): data 0.00000   cf 0.00007 (data/model 0.000)   gaussq 0.00006 (data/model 0.000)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N5_lo.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_str_N5_lo_log.pdf[0m

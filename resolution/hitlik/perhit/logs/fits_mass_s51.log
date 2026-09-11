@@ -3,3 +3,7 @@
 === fit_ph_inj_mass 18:16:59
 [38;21mINFO:rabbit_fit.py: edmval: 9.33458504497276e-11[0m
 === fit_ph_resmass 18:21:51
+[38;21mINFO:rabbit_fit.py: edmval: 1.0485212927709345e-11[0m
+=== fit_ph_mass 18:59:36
+[38;21mINFO:rabbit_fit.py: edmval: 2.0358690420926934e-14[0m
+ALL DONE 19:03:33

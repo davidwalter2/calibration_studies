@@ -74,6 +74,24 @@ figures `~/public_html/cvh/260910_perhit/`; maker branch
 `perhit-residual-cf-260910` in `CMSSW_15_0_19_patch2_dev2` (4 commits on top of
 ca6058d96fc).
 
+## FIGURES (`~/public_html/cvh/260910_perhit/`, `index.php` in place)
+66 files, one panel per file, every density plot with its data/model ratio
+panel underneath, `bbox_inches='tight'`, `hep.style.ROOT` + `wums`:
+* `density_<hitclass>{,_log}.pdf` -- 18 classes, per-hit innovation density vs
+  the CF and the chi2, linear and log
+* `density_pos0.0-0.2 ... 0.8-1.0{,_log}.pdf` -- by position along the track
+* `density_perhit{,_log}.pdf`, `density_reference{,_log}.pdf` -- the two
+  component sets pooled
+* `tailclosure_all.pdf`, `tailclosure_rel*.pdf` -- data/model of `P(|z|>t)`
+  for the per-hit components, pooled and by position
+* `tailclosure_{qp,lambda,phi,d0,z0}.pdf` -- the truth-referenced ones
+* `efficiency_material.pdf`, `efficiency_hitres.pdf` -- the sandwich
+* `xcum_{corr_zqp,ref0,adjacent}_vs_relpos.pdf`, `xcum_ref0_by_class.pdf` --
+  extra deliverable 1
+(The `tailclosure_k=NN.pdf` produced by an early run were DELETED: on the
+per-hit file a truth-referenced component sits at slot `d + j`, so grouping by
+the raw slot index mixes q/p with z0.  Use `--group-by refparm`.)
+
 ## THE OBJECT (derivation, so a fresh agent does not have to redo it)
 
 CVH single-track fit: `ncons` constraints, `nstatefree` free local params,
@@ -527,6 +545,47 @@ is worth a factor **7.7** on what this production actually wrote, and the
 per-hit term then costs **3.0 TB** against the truth-referenced version's
 1.3 TB and the status quo's 0.22 TB.
 
+## A TRAP: DO NOT EDIT A RUNNING BASH SCRIPT
+`run_stage2.sh fits` was running on submit50 while this session patched
+`run_stage2.sh` (new stages, the `QNPZ` and `--prior-sigma` fixes).  bash reads
+a script INCREMENTALLY by byte offset, so the running instance resumed at a
+shifted offset and died with
+`line 144: syntax error near unexpected token ';;'`.
+**No fit was lost** -- the loop had already reached the `skip ...` lines for
+the last four cards, so all 15 exist -- but it could have been.  Copy the
+script (or wait) before editing one that is executing.
+
+## THE FITS, CERTIFIED (`perhit/certify.py`, value + NLL + rabbit EDM)
+
+**14/15 certified at EDM < 1e-3** at 19:45 (`ph_inj_cf_all` still
+writing).  NLL is
+`nllvalreduced` at the minimum; values are `material_tib_support` and
+`hitres_str_N3_lo` in CARD units.
+
+| fit | npar | NLL(min) | EDM | tib_support | str_N3_lo |
+|---|---|---|---|---|---|
+| `ph_cf` | 60 | 148 811.839 | **5.05e-12** | -0.00061 +- 0.00229 | +0.07197 +- 0.01588 |
+| `ph_gauss` | 60 | 148 870.137 | 7.65e-10 | -0.00212 +- 0.00225 | +0.07038 +- 0.01583 |
+| `ph_gaussq` | 60 | 148 867.779 | 1.64e-09 | -0.00098 +- 0.00227 | +0.07232 +- 0.01585 |
+| `ph_cf_ref` | 60 | 59 270.305 | 4.59e-10 | +0.00048 +- 0.00193 | **-0.13748 +- 0.09170** |
+| `ph_cf_all` | 60 | 208 289.954 | 5.38e-11 | -0.00155 +- 0.00184 | +0.06377 +- 0.01555 |
+| `ph_inj_cf` | 60 | 148 812.157 | 1.48e-11 | -0.00102 +- 0.00227 | +0.07164 +- 0.01587 |
+| `ph_inj_gaussq` | 60 | 148 868.249 | 1.66e-12 | -0.00142 +- 0.00225 | +0.07197 +- 0.01584 |
+| `ph_inj_hit` | 60 | 148 811.836 | 1.02e-09 | -0.00061 +- 0.00229 | **-0.02546 +- 0.01443** |
+| `ph_inj_mass` | 42 | -47 431.358 | 9.33e-11 | -0.00225 +- 0.00186 | -- |
+| `ph_resmass` | 60 | 101 379.751 | 1.05e-11 | -0.00155 +- 0.00183 | +0.07212 +- 0.01587 |
+| `ph_inj_resmass` | 60 | 101 380.580 | 1.65e-10 | -0.00270 +- 0.00180 | +0.07198 +- 0.01587 |
+
+**THE NUMBER THAT SHOWS WHAT THE PER-HIT COMPONENTS BUY.**  On
+`hitres_str_N3_lo` the five truth-referenced components give **+-0.0917** and
+the per-hit ones **+-0.0159** -- **5.8x tighter in sigma, 33x in variance** on
+the same 8000 tracks.  (`ph_cf_ref`'s -0.1375 +- 0.0917 also reproduces the
+prototype's -0.13711 +- 0.11688 within its error, from a different production.)
+That is the whole point of the per-hit term, and it is the extra COMPONENTS,
+not the non-Gaussianity -- consistent with the sandwich efficiency of 1.00 on
+the hit classes.  On the MATERIAL the two sets are comparable
+(+-0.00229 vs +-0.00193) and the joint `ph_cf_all` is the tightest, +-0.00184.
+
 ## INJECTION RECOVERY (8000 tracks; `logs/recovery_*.log`)
 
 `material_tib_support` x1.05 material (card value +0.00243951 = k +0.0487902).
@@ -538,16 +597,77 @@ equals k = 0.0487902, i.e. the tier prior 0.05 in k is **0.0025** in card
 units.  With 1.0 the prior-shrinkage factor came out `f = 1.000` and the RAW,
 prior-shrunk shift (-0.17) was quoted as if it were the recovery.
 
-| channel | baseline | injected | shift | /truth | f_prior | **corrected/truth** | pull | leak rms |
-|---|---|---|---|---|---|---|---|---|
-| per-hit, CF | -0.00061 +- 0.00229 | -0.00102 +- 0.00227 | -0.00041 | -0.170 | 0.176 | **-0.964** | **-0.02** | 0.016 |
-| per-hit, fit's Q | -0.00098 +- 0.00227 | -0.00142 +- 0.00225 | -0.00044 | -0.181 | 0.187 | **-0.965** | **-0.02** | 0.015 |
+**THE COMPLETE LADDER** (all 15 fits certified, 19:49):
 
-Both recover the 5 % injection to **96.4-96.5 %** with a 0.02-sigma pull;
-largest leakage `hitres_str_N3_hi` -0.06 sigma.  (The prototype's
-truth-referenced term gave 0.979 / 0.943 on the same injection.)  The remaining
-channels (`cf_ref`, `cf_all`, `mass`, `resmass`, and the hit-class injection)
-are in the fit queue.
+| channel | sigma | shift/truth | f_prior | **corrected/truth** | pull | leak rms |
+|---|---|---|---|---|---|---|
+| per-hit, CF | 0.00229 | -0.170 | 0.176 | **-0.964** | -0.02 | 0.016 |
+| per-hit, fit's Q (the chi2) | 0.00227 | -0.181 | 0.187 | **-0.965** | -0.02 | 0.015 |
+| truth-referenced (5 comps), CF | 0.00193 | -0.411 | 0.419 | **-0.982** | -0.01 | 0.028 |
+| **per-hit + truth-referenced, SAME tracks** | **0.00184** | -0.465 | 0.472 | **-0.985** | -0.01 | 0.028 |
+| J/psi-gun MASS term alone | 0.00189 | -0.436 | 0.446 | **-0.978** | -0.02 | 0.052 |
+| **per-hit + MASS, DISJOINT samples** | **0.00183** | -0.472 | 0.481 | **-0.981** | -0.02 | 0.043 |
+
+Every channel recovers the 5 % material injection to **96-99 %** with a pull
+below 0.02 sigma.  The two joints are the tightest and the most accurate, and
+they agree with each other (0.00184 / 0.00183) -- one consistent amount across
+three different objectives.  Largest leakage is `material_tob_support` at
+-0.15 to -0.27 sigma in the material-sensitive channels and
+`hitres_str_N3_hi` at -0.06 sigma in the per-hit ones.
+(Prototype, same injection: residual CF 0.00202 / 0.979, mass 0.00186 / 0.978,
+joint 0.00171 / 0.985.)
+
+**THE HIT-CLASS INJECTION** -- `hitres_str_N3_lo` variance x1.10 on the data
+side.  `hit_mode` is LINEAR, so the expected shift is
+`-eps_inj/(1+eps_inj) x (1+eps_base) = -0.097452` from `eps_base = +0.07197`:
+
+| channel | baseline | injected | shift | **/truth** | pull | leak rms |
+|---|---|---|---|---|---|---|
+| per-hit, CF | +0.07197 +- 0.01588 | -0.02546 +- 0.01443 | -0.09743 | **-1.000** | **-0.00** | **0.000** |
+
+Exact recovery, zero pull, and the largest leakage onto any other parameter is
+below 0.005 sigma.  The hit classes carry no prior shrinkage here
+(`f_prior = 1.000`), so this is the raw, uncorrected number.
+
+## THE FITTED HIT-CLASS SCALES AT MC TRUTH (physical `eps`, 8000 tracks)
+From `final_table.py --efficiency eff_hit.npz`.  These are what the per-hit
+term MEASURES, and they are large and structured -- the fit's assumed hit
+variances are wrong class by class, not by an overall factor:
+
+| class | CF `eps` | class | CF `eps` |
+|---|---|---|---|
+| `str_N1_lo` | **-0.141 +- 0.016** | `pix_x_q3` | **+0.574 +- 0.067** |
+| `str_N2_lo` | -0.031 +- 0.015 | `pix_x_q2` | +0.261 +- 0.060 |
+| `str_N3_lo` | +0.072 +- 0.016 | `pix_x_q1` | -0.111 +- 0.034 |
+| `str_N4_lo` | **-0.419 +- 0.026** | `pix_y_q1` | -0.138 +- 0.032 |
+| `str_N2_hi` | -0.091 +- 0.031 | `pix_y_q3` | +0.144 +- 0.050 |
+| `str_N3_hi` | +0.167 +- 0.028 | `pix_y_q0` | -0.106 +- 0.046 |
+
+The Gaussian arm gives the same values to well within one sigma, as the
+efficiency 1.00 says it must.  The per-class spread (-0.42 to +0.57 in
+variance) is a measurement the truth-referenced term could not make: its errors
+on the same parameters are 0.09-0.12.
+
+## THE ASSUMPTION-FREE CHECK: 8 DISJOINT SUBSAMPLE FITS (`logs/subspread.log`)
+
+`subfits.sh` K=8 x NSUB=1000 = the SAME 8000 tracks the sandwich used, both
+arms, each subsample FITTED for real; `sigma_full = spread/sqrt(K)`.  This
+assumes nothing -- in particular not `H = J`.
+
+**Convergence, itself a result: 8/8 in BOTH arms** (CF EDM 1.3e-17 .. 2.6e-12,
+chi2 4.8e-16 .. 1.6e-11).  The prototype's truth-referenced version had CF 7/8
+and the Gaussian only 5/8; on the per-hit components, where both densities are
+nearly the same, both are equally well conditioned.
+
+| | EMPIRICAL (spread), median | 16-84 % | SANDWICH, median | agree? |
+|---|---|---|---|---|
+| **MATERIAL groups** | **1.130** | 0.928 - 1.219 | **1.097** | **yes** |
+| **HIT CLASSES** | **1.025** | 0.953 - 1.086 | **1.002** | **yes** |
+
+With K = 8 the spread carries a 27 % statistical error per parameter, so the
+MEDIAN is the number.  Both agree with the sandwich within that -- so the
+per-hit headline (the full PDF buys ~10 % in variance on the material and
+nothing on the hit classes) is confirmed without any model assumption.
 
 ## SATURATION -- how many tracks before the term stops needing its prior
 `saturation.py` (**fixed this session**: it used the MARGINAL prior-free

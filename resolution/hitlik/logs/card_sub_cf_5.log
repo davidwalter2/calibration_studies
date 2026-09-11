@@ -1,9 +1,9 @@
-2500 tracks x 4 components = 10000 rows; arm 'cf'
+1000 tracks x 13.272 components = 13272 rows; arm 'cf'
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789017796.580987 1176637 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789081641.266125 2216027 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789017802.625978 1176637 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789017809.251478 1176637 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-residual term: 10000 rows, 137208 group rows (51324 pruned), 60 parameters
-NLL(0) = 14225.814819, max|grad| = 222.4
-wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik/cards/sub_cf_5.hdf5 (177.1 MB)
+I0000 00:00:1789081647.633655 2216027 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789081655.014646 2216027 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+residual term: 13272 rows, 139255 group rows (112674 pruned), 60 parameters
+NLL(0) = 18591.962755, max|grad| = 83.08
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/cards/sub_cf_5.hdf5 (183.7 MB)

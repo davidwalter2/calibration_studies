@@ -1,0 +1,32 @@
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/plot_hitlik.py:344: SyntaxWarning: invalid escape sequence '\c'
+  ax.set_title(f"efficiency of the full PDF over the $\chi^2$: {fam}",
+[38;21mINFO:plot_hitlik.py: component pos0.0-0.2: N 32686, Var(z) 1.0064, mean +0.0331, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.04730   cf 0.04604 (data/model 1.027)   gaussq 0.04555 (data/model 1.038)
+   P(|z| > 3): data 0.00667   cf 0.00318 (data/model 2.098)   gaussq 0.00271 (data/model 2.465)
+   P(|z| > 4): data 0.00128   cf 0.00025 (data/model 5.216)   gaussq 0.00006 (data/model 20.215)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.0-0.2.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.0-0.2_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pos0.2-0.4: N 29209, Var(z) 0.9457, mean -0.0090, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03745   cf 0.04587 (data/model 0.816)   gaussq 0.04555 (data/model 0.822)
+   P(|z| > 3): data 0.00223   cf 0.00298 (data/model 0.747)   gaussq 0.00271 (data/model 0.823)
+   P(|z| > 4): data 0.00014   cf 0.00016 (data/model 0.835)   gaussq 0.00006 (data/model 2.154)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.2-0.4.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.2-0.4_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pos0.4-0.6: N 28881, Var(z) 0.9562, mean -0.0091, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.03622   cf 0.04569 (data/model 0.793)   gaussq 0.04555 (data/model 0.795)
+   P(|z| > 3): data 0.00107   cf 0.00278 (data/model 0.386)   gaussq 0.00271 (data/model 0.397)
+   P(|z| > 4): data 0.00010   cf 0.00008 (data/model 1.240)   gaussq 0.00006 (data/model 1.634)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.4-0.6.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.4-0.6_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pos0.6-0.8: N 15266, Var(z) 0.8881, mean -0.0086, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.02994   cf 0.04557 (data/model 0.657)   gaussq 0.04555 (data/model 0.657)
+   P(|z| > 3): data 0.00124   cf 0.00271 (data/model 0.459)   gaussq 0.00271 (data/model 0.460)
+   P(|z| > 4): data 0.00020   cf 0.00007 (data/model 3.016)   gaussq 0.00006 (data/model 3.092)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.6-0.8.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.6-0.8_log.pdf[0m
+[38;21mINFO:plot_hitlik.py: component pos0.8-1.0: N 956, Var(z) 0.8886, mean +0.0303, norm(cf) 1.00000, norm(gaussq) 1.00000
+   P(|z| > 2): data 0.02929   cf 0.04555 (data/model 0.643)   gaussq 0.04555 (data/model 0.643)
+   P(|z| > 3): data 0.00209   cf 0.00271 (data/model 0.773)   gaussq 0.00271 (data/model 0.773)
+   P(|z| > 4): data 0.00105   cf 0.00006 (data/model 16.429)   gaussq 0.00006 (data/model 16.456)[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.8-1.0.pdf[0m
+[38;21mINFO:plot_hitlik.py: wrote /home/submit/david_w/public_html/cvh/260910_perhit/density_pos0.8-1.0_log.pdf[0m

@@ -3,3 +3,31 @@
 === sub_cf_1 (offset 1000) 18:45:21
 [38;21mINFO:rabbit_fit.py: edmval: 7.350895086087972e-13[0m
 === sub_cf_2 (offset 2000) 18:52:09
+[38;21mINFO:rabbit_fit.py: edmval: 1.2680444779397347e-12[0m
+=== sub_cf_3 (offset 3000) 18:57:10
+[38;21mINFO:rabbit_fit.py: edmval: 8.787604743239823e-13[0m
+=== sub_cf_4 (offset 4000) 19:02:00
+[38;21mINFO:rabbit_fit.py: edmval: 1.416096634409975e-16[0m
+=== sub_cf_5 (offset 5000) 19:07:05
+[38;21mINFO:rabbit_fit.py: edmval: 1.6193548890085227e-16[0m
+=== sub_cf_6 (offset 6000) 19:12:29
+[38;21mINFO:rabbit_fit.py: edmval: 1.3033938224221497e-17[0m
+=== sub_cf_7 (offset 7000) 19:17:28
+[38;21mINFO:rabbit_fit.py: edmval: 2.56191345643751e-12[0m
+=== sub_gaussq_0 (offset 0) 19:22:29
+[38;21mINFO:rabbit_fit.py: edmval: 1.5788742137603132e-11[0m
+=== sub_gaussq_1 (offset 1000) 19:27:30
+[38;21mINFO:rabbit_fit.py: edmval: 3.9183415114188005e-15[0m
+=== sub_gaussq_2 (offset 2000) 19:33:02
+[38;21mINFO:rabbit_fit.py: edmval: 1.945634505064533e-14[0m
+=== sub_gaussq_3 (offset 3000) 19:38:19
+[38;21mINFO:rabbit_fit.py: edmval: 1.7487390076714623e-12[0m
+=== sub_gaussq_4 (offset 4000) 19:42:50
+[38;21mINFO:rabbit_fit.py: edmval: 2.572620913861569e-13[0m
+=== sub_gaussq_5 (offset 5000) 19:47:29
+[38;21mINFO:rabbit_fit.py: edmval: 1.0080680879363704e-12[0m
+=== sub_gaussq_6 (offset 6000) 19:52:20
+[38;21mINFO:rabbit_fit.py: edmval: 8.895876575574335e-12[0m
+=== sub_gaussq_7 (offset 7000) 19:57:05
+[38;21mINFO:rabbit_fit.py: edmval: 4.782354348828203e-16[0m
+SUBFITS DONE 20:02:09
