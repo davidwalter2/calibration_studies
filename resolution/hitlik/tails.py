@@ -140,6 +140,6 @@ if a.plot:
         ax.legend(loc="upper left", fontsize=12, frameon=False)
         tag = lab.replace(" ", "").replace("/", "").replace("-", "_")
         fn = os.path.join(out, f"tailclosure_{tag}.pdf")
-        fig.savefig(fn, bbox_inches="tight")
+        pubhtml.savefig(fig, fn)
         plt.close(fig)
         print("wrote", fn)

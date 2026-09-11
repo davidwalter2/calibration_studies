@@ -18,8 +18,7 @@ BANDS = [r"$|\eta|<0.9$", r"$0.9-1.6$", r"$1.6-2.4$"]
 
 
 def save(fig, outdir, name):
-    for e in ("png", "pdf"):
-        fig.savefig(os.path.join(outdir, f"{name}.{e}"), bbox_inches="tight")
+    pubhtml.savefig(fig, os.path.join(outdir, f"{name}.pdf"))
     plt.close(fig)
     logger.info(f"  {name}")
 

@@ -33,6 +33,7 @@ logger = logging.child_logger(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "resolution"))
+import pubhtml  # noqa: E402      (savefig: .png twin for every .pdf)
 from model_odd_mass import PROBES  # noqa: E402
 from mixture_legs import odd, boot_odd, flatness, BANDS  # noqa: E402
 from measure_a import wls_slope  # noqa: E402  (ONE implementation)
@@ -103,7 +104,7 @@ def panel_am(out):
     ax2.set_xticklabels([b[2] for b in ABANDS])
     ax2.set_xlabel(r"$|\eta|$ of the leading muon")
     fn = os.path.join(out, "am_closed.png")
-    fig.savefig(fn, bbox_inches="tight", dpi=140)
+    pubhtml.savefig(fig, fn, dpi=140)
     plt.close(fig)
     logger.info(f"-> {fn}")
 
@@ -186,7 +187,7 @@ def panel_mixture(out, pct=90.0, nboot=150):
     ax2.set_xticklabels([b[2] for b in BANDS[:3]])
     ax2.set_xlabel(r"$|\eta|$ of the leg (generator)")
     fn = os.path.join(out, "mixture_legs.png")
-    fig.savefig(fn, bbox_inches="tight", dpi=140)
+    pubhtml.savefig(fig, fn, dpi=140)
     plt.close(fig)
     logger.info(f"-> {fn}")
 

@@ -28,6 +28,12 @@ import numpy as np                # noqa: E402
 
 from wums import logging          # noqa: E402
 
+# `pubhtml.savefig` writes the .png twin every .pdf needs to show up in the
+# plot browser; it lives two directories up, in resolution/.
+sys.path.insert(0, os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
+import pubhtml                    # noqa: E402
+
 hep.style.use(hep.style.ROOT)
 
 
@@ -107,7 +113,7 @@ def main():
     ax.set_title("second order: the per-hit innovations are uncorrelated with "
                  "the q/p pull", fontsize=13)
     fn = os.path.join(a.outpath, "xcum_corr_zqp_vs_relpos.pdf")
-    fig.savefig(fn, bbox_inches="tight")
+    pubhtml.savefig(fig, fn)
     plt.close(fig)
     log.info(f"wrote {fn}")
 
@@ -133,7 +139,7 @@ def main():
         ax.legend(loc="upper right", fontsize=13)
         ax.set_title(ttl, fontsize=13)
         fn = os.path.join(a.outpath, tag + ".pdf")
-        fig.savefig(fn, bbox_inches="tight")
+        pubhtml.savefig(fig, fn)
         plt.close(fig)
         log.info(f"wrote {fn}")
 
@@ -158,7 +164,7 @@ def main():
     ax.set_title("shared non-Gaussianity with the q/p pull, by hit class",
                  fontsize=13)
     fn = os.path.join(a.outpath, "xcum_ref0_by_class.pdf")
-    fig.savefig(fn, bbox_inches="tight")
+    pubhtml.savefig(fig, fn)
     plt.close(fig)
     log.info(f"wrote {fn}")
     return 0

@@ -245,7 +245,7 @@ def densities(args, sel, outdir):
                 outdir,
                 "density_" + re.sub(r"[^0-9A-Za-z_.+-]", "_", str(comp))
                 + ("_log" if logy else "") + ".pdf")
-            fig.savefig(fn, bbox_inches="tight")
+            pubhtml.savefig(fig, fn)
             plt.close(fig)
             logger.info(f"wrote {fn}")
 
@@ -302,7 +302,7 @@ def ratios(args, outdir):
                     transform=ax.transAxes, ha="right", fontsize=12)
             tag = key.replace("ratio_", "").replace("[", "_").replace("]", "")
             fn = os.path.join(outdir, f"inforatio_{tag}_{kind}.pdf")
-            fig.savefig(fn, bbox_inches="tight")
+            pubhtml.savefig(fig, fn)
             plt.close(fig)
             logger.info(f"wrote {fn}")
 
@@ -349,7 +349,7 @@ def efficiency_fig(args, outdir):
                              f"claimed {np.median(claim):.2f}",
                 transform=ax.transAxes, ha="right", fontsize=11)
         fn = os.path.join(outdir, f"efficiency_{kind}.pdf")
-        fig.savefig(fn, bbox_inches="tight")
+        pubhtml.savefig(fig, fn)
         plt.close(fig)
         logger.info(f"wrote {fn}")
 

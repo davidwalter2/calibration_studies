@@ -33,8 +33,11 @@ from wums import logging
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_HERE, "..", "resolution"))
+sys.path.insert(0, _HERE)
 import certtable as CT  # noqa: E402
+import pubhtml  # noqa: E402      (savefig: .png twin for every .pdf)
 
 # the fit-free prediction of sec. 0f.1, MeV: conditioning on sigma vs on k
 PREDICT = {"z_full380_fl": -15.33, "z_M_etaB": -12.04,
@@ -174,7 +177,7 @@ def panel_bandpair(outdir, name):
     ax.legend(fontsize=12, loc="best")
     os.makedirs(outdir, exist_ok=True)
     o = os.path.join(outdir, name)
-    fig.savefig(o, bbox_inches="tight", dpi=140)
+    pubhtml.savefig(fig, o, dpi=140)
     plt.close(fig)
     logger.info(f"wrote {o}")
 
@@ -223,7 +226,7 @@ def panel(outdir, name, cards, ticks, q, title, ylabel, predict=None,
     rx.set_xlim(-0.5, len(ticks) - 0.5)
     os.makedirs(outdir, exist_ok=True)
     out = os.path.join(outdir, name)
-    fig.savefig(out, bbox_inches="tight", dpi=140)
+    pubhtml.savefig(fig, out, dpi=140)
     plt.close(fig)
     logger.info(f"wrote {out}")
 

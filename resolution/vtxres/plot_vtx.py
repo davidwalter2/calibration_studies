@@ -115,7 +115,7 @@ def densities(a, sel, outdir, tag):
         rax.set_ylabel(f"/ {ARMLAB[ref].split(',')[0]}", fontsize=10)
         rax.set_xlabel(r"$z_v = r_v/\sigma_v$")
         fn = os.path.join(outdir, f"density_{tag}{'_log' if logy else ''}.pdf")
-        fig.savefig(fn, bbox_inches="tight")
+        pubhtml.savefig(fig, fn)
         plt.close(fig)
         logger.info(f"wrote {fn}")
     return tails
@@ -136,7 +136,7 @@ def composition(a, sel, outdir, tag):
         ax.legend(fontsize=11)
         ax.set_title(f"{tag}: what the residual is made of", fontsize=13)
         fn = os.path.join(outdir, f"family_shares_{tag}.pdf")
-        fig.savefig(fn, bbox_inches="tight")
+        pubhtml.savefig(fig, fn)
         plt.close(fig)
         logger.info(f"wrote {fn}")
         logger.info(f"{tag} family shares (median): " + ", ".join(
@@ -159,7 +159,7 @@ def composition(a, sel, outdir, tag):
         ax.legend(fontsize=11)
         ax.set_title(f"{tag}: MS- or hit-dominated?", fontsize=13)
         fn = os.path.join(outdir, f"shares_vs_genpt_{tag}.pdf")
-        fig.savefig(fn, bbox_inches="tight")
+        pubhtml.savefig(fig, fn)
         plt.close(fig)
         logger.info(f"wrote {fn}")
         for k, v in fams:
@@ -186,7 +186,7 @@ def composition(a, sel, outdir, tag):
         ax.set_xlabel(r"mean share of $\sigma_v^2$ (MS + ionization)")
         ax.set_title(f"{tag}: which material the term sees", fontsize=13)
         fn = os.path.join(outdir, f"group_shares_{tag}.pdf")
-        fig.savefig(fn, bbox_inches="tight")
+        pubhtml.savefig(fig, fn)
         plt.close(fig)
         logger.info(f"wrote {fn}")
         logger.info(f"{tag} top material groups: " + ", ".join(
@@ -207,7 +207,7 @@ def composition(a, sel, outdir, tag):
         ax.set_xlabel(r"mean share of $\sigma_v^2$")
         ax.set_title(f"{tag}: which hit classes the term sees", fontsize=13)
         fn = os.path.join(outdir, f"hitclass_shares_{tag}.pdf")
-        fig.savefig(fn, bbox_inches="tight")
+        pubhtml.savefig(fig, fn)
         plt.close(fig)
         logger.info(f"wrote {fn}")
         logger.info(f"{tag} top hit classes: " + ", ".join(
@@ -241,7 +241,7 @@ def sigma_check(a, sel, outdir, tag):
     ax.legend(fontsize=11)
     ax.set_title(f"{tag}: is the pull flat in the fit's own error?", fontsize=13)
     fn = os.path.join(outdir, f"sigma_check_{tag}.pdf")
-    fig.savefig(fn, bbox_inches="tight")
+    pubhtml.savefig(fig, fn)
     plt.close(fig)
     logger.info(f"wrote {fn}")
 

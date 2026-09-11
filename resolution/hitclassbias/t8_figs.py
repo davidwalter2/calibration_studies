@@ -21,8 +21,7 @@ SDN = {1: "BPix", 2: "FPix", 3: "TIB", 4: "TID", 5: "TOB", 6: "TEC"}
 
 
 def save(fig, outdir, name):
-    for ext in ("png", "pdf"):
-        fig.savefig(os.path.join(outdir, f"{name}.{ext}"), bbox_inches="tight")
+    pubhtml.savefig(fig, os.path.join(outdir, f"{name}.pdf"))
     plt.close(fig)
     logger.info(f"  {name}")
 
