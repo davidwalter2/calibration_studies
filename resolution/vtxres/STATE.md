@@ -40,7 +40,12 @@ on `vtxres-cf-260911` of `CMSSW_15_0_19_patch2_dev2` (4b3984312f6).
    depends on `weight * tau` alone, so the mass and the vertex functional
    could share ONE `cvhcf` pass; as it stands the second call costs the same
    as the first (+0.54 s/candidate, +48 %).
-4. `hitlik/recovery.py` prints `nan` in its `/truth` columns on these cards
+4. The `--prior-power` unit trap (section "A THIRD ITEM"): a Fisher matrix
+   built through `hitlik_term.build` is in PHYSICAL k units (prior `gprior`,
+   `--prior-power 1`), one built through `make_*_card.build_term` is in CARD
+   units (prior `gprior**2`, `--prior-power 2`).  Making `build` and the card
+   share one convention would remove the trap.
+5. `hitlik/recovery.py` prints `nan` in its `/truth` columns on these cards
    (it reads the injected truth under a key `make_vtx_card.py` does not
    write); the recovery numbers in this file were obtained from its own
    `shift` and `f_pri` columns by hand.
@@ -421,6 +426,9 @@ hit classes (prior 1.0): `pix_y_q1` **0.172**, `pix_y_q3` 0.199,
 `pix_y_q2` 0.212, `pix_x_q1` 0.213, `pix_y_q0` 0.252, `pix_x_q0` 0.271 --
 the innermost PIXEL classes, measured to 17-27 % from 8 000 candidates.
 
+## A THIRD ITEM -- A UNIT TRAP, *NOT* AN INHERITED DEFECT
+### (CORRECTED 2026-09-11 later; the paragraph below is kept for the record
+### but its last sentence was WRONG -- see the correction under it)
 ## A THIRD DEFECT, INHERITED: `hitlik/efficiency.py`'s PRIOR UNITS
 A whitened card carries a material parameter in units of its own tier prior,
 so **1 prior sigma is `gprior**2` in card units**, not `gprior`
@@ -430,8 +438,30 @@ which left the "marginal" numbers effectively prior-free and inflated the
 material efficiency ratios (my first run read a median EFF of 69.8 with
 individual groups at 623 and `inf`).  Fixed with a `--prior-power` option
 (default 1, so every number produced before today is unchanged; pass 2 for a
-whitened card).  The corrected numbers are the ones quoted below.  The same
-correction applies to `hitlik`'s and `perhit`'s material marginal tables.
+whitened card).  The corrected numbers are the ones quoted below.
+
+### THE CORRECTION (2026-09-11, later)
+"The same correction applies to `hitlik`'s and `perhit`'s material marginal
+tables" is **WRONG and withdrawn**.  `efficiency.py` applies the prior in
+whatever units the FISHER MATRICES carry, and the two pipelines differ:
+* `hitlik/fisher_cmp.py` builds through `hitlik_term.build`, which sets
+  **`group_units = ones`** -- the parameter IS the physical `k`, 1 tier prior
+  is `gprior`, and `--prior-power 1` (the default) is RIGHT there.
+* `make_*_card.py` OVERRIDES `term.group_units` to `1/gprior`, where 1 tier
+  prior is `gprior**2`; `vtxres/fisher_vtx.py` builds through
+  `make_vtx_card.build_term`, i.e. in CARD units, so **only THIS pipeline
+  needs `--prior-power 2`**.
+Re-evaluating the STORED matrices (`runs/hitlik/fisherHJ20k.npz`,
+`runs/perhit/fisherHJ{,_all}.npz`) at `--prior-power 1` reproduces every
+published hitlik/perhit number EXACTLY (1.825 / 2.093, 0.974 / 1.338, 1.204 /
+1.221; 1.097 / 1.171, 0.529 / 0.563; 1.486 / 1.393; 1.510 / 1.657).  At
+`--prior-power 2` those k-unit matrices get a 20x-too-tight prior, `(H+P)^-1`
+collapses onto it and the informativeness test rejects every material group --
+the material table comes out EMPTY, which is the diagnostic that found this.
+Correction blocks appended to `hitlik/STATE.md`, `hitlik/perhit/STATE.md` and
+`Documents/Resolution/NOTES.md`.  **The vtxres numbers below are unaffected**:
+they were produced at `--prior-power 2`, which is the correct choice for
+card-unit matrices.
 
 ## STEP 5 RESULT -- THE SANDWICH, CORRECTED PRIOR (8 000 candidates)
 `logs/eff_vtx_p2.log`

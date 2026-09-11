@@ -963,3 +963,44 @@ The saturation number below decides between them.
    the joint that neither arm shows alone is the signature of over-counting.
    This is the answer to "are there correlations between the mass term and the
    hit residuals and how are they accounted for".
+
+## CORRECTION / CONFIRMATION (2026-09-11) — THE PRIOR UNITS: NOTHING ABOVE CHANGES
+
+The `vtxres` study claimed that `efficiency.py`'s prior units invalidated the
+material MARGINAL numbers in this file.  **That claim is WITHDRAWN.  Every
+number here is reproduced exactly.**
+
+`efficiency.py` applies the tier prior in whatever units the FISHER MATRICES
+carry.  `fisher_cmp.py` builds its term through `hitlik_term.build`, which
+sets **`group_units = np.ones(ng)`** — the parameter IS the physical `k`, so 1
+tier prior is `gprior` and the default `--prior-power 1` is RIGHT.  Only a
+pipeline that builds the term in CARD units (`make_*_card.py`'s
+`group_units = 1/gprior`, where 1 tier prior is `gprior**2`) needs
+`--prior-power 2`; `vtxres/fisher_vtx.py` does, and that is the whole content
+of the "defect".
+
+**VERIFIED** by re-running `efficiency.py` on the stored `runs/perhit/
+fisherHJ.npz` and `fisherHJ_all.npz` (no fit, no production re-run),
+`--prior-power 1`:
+
+| component set | quantity | published above | re-run 2026-09-11 |
+|---|---|---|---|
+| `hit` | MATERIAL marginal | 1.097 (1.043-1.174) | **1.097 (1.043-1.174)** |
+| `hit` | MATERIAL prior-free | 1.171 (1.083-1.240) | **1.171 (1.083-1.240)** |
+| `hit` | MATERIAL S/Q, CF / chi2, prior-free | 0.529 / 0.563 | **0.529 / 0.563** |
+| `hit` | HIT CLASSES marginal / prior-free | 0.999 / 1.001 | **0.999 / 1.001** |
+| `hit` | HIT CLASSES S/Q, CF / chi2 | 1.067 / 1.090 | **1.067 / 1.090** |
+| `ref` | MATERIAL marginal | 1.486 (1.405-1.863) | **1.486 (1.405-1.863)** |
+| `ref` | MATERIAL prior-free | 1.393 (1.129-1.976) | **1.393 (1.129-1.976)** |
+| `ref` | MATERIAL S/Q, CF / chi2, prior-free | 0.999 / 1.237 | **0.999 / 1.237** |
+| `ref` | HIT CLASSES marginal / prior-free | 1.108 / 1.117 | **1.108 / 1.117** |
+| `all` | MATERIAL marginal | 1.510 (1.400-1.860) | **1.510 (1.400-1.860)** |
+| `all` | MATERIAL prior-free | 1.657 (1.267-2.166) | **1.657 (1.267-2.166)** |
+| `all` | MATERIAL S/Q, CF / chi2, prior-free | 0.939 / 1.204 | **0.939 / 1.204** |
+| `all` | HIT CLASSES marginal / prior-free | (0.98-1.33 per class) | **1.011 / 1.018** |
+
+Applying `--prior-power 2` to these k-unit matrices is simply wrong: the prior
+becomes 20x too tight, `(H+P)^-1` collapses onto it, and the informativeness
+test `sq < 0.98 pv` then rejects EVERY material group, so the material table
+comes out empty.  That is what a mismatched prior looks like, and it is the
+diagnostic that found the real explanation.

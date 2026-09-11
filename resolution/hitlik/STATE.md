@@ -468,3 +468,47 @@ SANDWICH at full statistics, 1.81, is the number to quote.
 Both methods, and the analytic scale-limit prediction (1.81-4.38 per
 component), say the same thing: **the full PDF constrains better, the chi2's
 own error being optimistic.**
+
+## CORRECTION / CONFIRMATION (2026-09-11) — THE PRIOR UNITS: NOTHING ABOVE CHANGES
+
+The `vtxres` study (the two-track vertex-constraint residual) reported a
+"defect" in `efficiency.py`'s prior units and claimed it invalidated the
+material MARGINAL numbers above.  **That claim is WITHDRAWN.  Every number in
+this file is reproduced exactly.**  What follows is the accurate statement,
+because the underlying trap is real and will bite the next person.
+
+`efficiency.py` applies the tier prior in whatever units the FISHER MATRICES
+were built in, and the two pipelines build them in DIFFERENT units:
+
+* `fisher_cmp.py` builds its term through `hitlik_term.build`, which sets
+  **`group_units = np.ones(ng)`** — the parameter IS the physical `k`, so 1
+  tier prior is `gprior` (0.05) and `efficiency.py`'s default is RIGHT.
+* `make_hitlik_card.py` OVERRIDES `term.group_units` (and `term._gunits`) to
+  the CARD units `1/gprior` — there the parameter is `k/gprior` and 1 tier
+  prior is `gprior**2` (0.0025).  That is the convention `recovery.py
+  --prior-sigma 0.0025` already uses.
+* `vtxres/fisher_vtx.py` builds through `make_vtx_card.build_term`, i.e. in
+  CARD units, so IT needs `--prior-power 2`.  That is the whole content of the
+  "defect": a unit mismatch in the NEW pipeline, not an error here.
+
+**VERIFIED** by re-running `efficiency.py` on the stored
+`runs/hitlik/fisherHJ20k.npz` (no fit, no production re-run), `--cset 0123`,
+`--prior-power 1`:
+
+| quantity | published above | re-run 2026-09-11 |
+|---|---|---|
+| MATERIAL, EFFICIENCY marginal | 1.825 (1.62-2.12) | **1.825 (1.616-2.124)** |
+| MATERIAL, EFFICIENCY prior-free | 2.093 (1.52-3.71) | **2.093 (1.521-3.707)** |
+| MATERIAL, sandwich/quoted CF | 0.974 | **0.974** |
+| MATERIAL, sandwich/quoted chi2 | 1.338 | **1.338** |
+| HIT CLASSES, EFFICIENCY marginal | 1.204 (1.07-1.61) | **1.204 (1.069-1.607)** |
+| HIT CLASSES, EFFICIENCY prior-free | 1.221 (1.06-1.57) | **1.221 (1.055-1.565)** |
+| HIT CLASSES, sandwich/quoted CF / chi2 | 1.052 / 1.222 | **1.052 / 1.222** |
+
+The unit convention is also visible directly: `material_tib_support`'s CF
+quoted sigma from the cached `H` is **0.0324**, i.e. the same scale as the
+fitted `k = -0.0269 +- 0.0408`, not the 20x smaller card-unit number.
+
+`efficiency.py` now takes `--prior-power` (default **1**, so every number in
+this file and in `perhit/STATE.md` is produced by the default).  Pass 2 only
+for matrices built in card units.
