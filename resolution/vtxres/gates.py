@@ -157,7 +157,8 @@ def main():
     if 'cfmass_vgf' in d:
         mg = np.asarray(d['cfmass_vgf'], dtype=float)[good]
         print(f'  cfmass_vgf for comparison           : median {np.median(mg):.4f}')
-    # is sigma_v correlated with z_v?  (the self-consistent-sigma lesson)
+    # is sigma_v correlated with z_v?  If it is, the term needs the
+    # self-consistent-sigma correction; if not, it must be switched off.
     print(f'  corr(sigma_v, z_v)     = {np.corrcoef(sig[good], z)[0,1]:+.5f} '
           f'(+-{1/np.sqrt(z.size):.5f})')
     print(f'  corr(sigma_v, |z_v|)   = {np.corrcoef(sig[good], np.abs(z))[0,1]:+.5f}')

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Size the composite-likelihood approximation, and answer the WG question.
+"""Size the composite-likelihood approximation: are the mass term and the
+per-hit residuals correlated, and what does multiplying their marginals cost?
 
 The whitened components are UNCORRELATED by construction -- exactly, and per
 track: `sum_b A_b[j] . A_b[k] = 0`, which for a per-hit component against the
@@ -15,12 +16,11 @@ is what `extract_perhit.py` stores per track.  Three tables:
 
   (1) the truth-referenced q/p component (the functional the MASS term uses)
       against every per-hit innovation, BY HIT POSITION along the track --
-      the answer to "are there correlations between the mass term and the hit
-      residuals";
-  (2) adjacent per-hit innovations (component k against k-1), which the task
-      expects to be larger than for the reference parameters;
-  (3) the 6 pairs among the first 4 truth-referenced components, directly
-      comparable with the prototype's table (q/p-lam 0.138 ... phi-d0 0.712).
+      i.e. whether the mass term and the hit residuals are correlated;
+  (2) adjacent per-hit innovations (component k against k-1), where the
+      cross-cumulant is larger than for the reference parameters;
+  (3) the 6 pairs among the first 4 truth-referenced components
+      (q/p-lam 0.138 ... phi-d0 0.712).
 
 and the GAUSSIAN-LEVEL check, both per track (algebraic, `dot_ref0`) and as an
 ensemble correlation of the `z` themselves.

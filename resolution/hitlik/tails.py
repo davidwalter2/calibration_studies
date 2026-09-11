@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """P(|z| > t) of the data against each arm's model density, per component.
 
-The two tails are integrated SEPARATELY -- one trapezoid over the union would
-add a spurious slab across the core, which is the bug the first version of
-this table had.
+The two tails are integrated SEPARATELY: one trapezoid over the union of
+|z| > t would add a spurious slab across the core.
 """
 import argparse
 import os
@@ -39,9 +38,11 @@ CN = ("q/p", "lambda", "phi", "d0", "z0")
 
 
 def _groups(sel, how):
-    """(label, row-index array) pairs.  `mean_density` takes ROW INDICES --
-    it used to take a component index, and passing the index straight through
-    is what broke this script on the per-hit file (2026-09-10)."""
+    """(label, row-index array) pairs.
+
+    `mean_density` takes ROW INDICES, not a component index; on the per-hit
+    file the two are not the same thing.
+    """
     cs = sorted(set(sel["comp"].tolist()))
     if how == "pooled":
         return [("all", np.arange(len(sel["z"])))]

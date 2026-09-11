@@ -87,7 +87,6 @@ def parse_args():
     p.add_argument("--prune-frac", type=float, default=0.001)
     p.add_argument("--no-hits", action="store_true")
     p.add_argument("--chunk", type=int, default=4096)
-    p.add_argument("--upsample", type=int, default=1)
     p.add_argument("--no-hessian", action="store_true",
                    help="skip the observed Hessian (nparams HVPs); the score "
                         "covariance is the estimator the comparison uses")
@@ -208,8 +207,6 @@ def main():
                 sel, arm=arm, prune_frac=args.prune_frac,
                 groups_file=sel["groups_file"], chunk=args.chunk,
                 no_hits=args.no_hits)
-            if args.upsample > 1:
-                pass  # upsample is a constructor arg; kept 1 for the Hessian
             npar = len(term.param_names)
             t0 = time.time()
             if args.no_hessian:

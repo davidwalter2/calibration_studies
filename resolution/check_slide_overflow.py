@@ -41,11 +41,11 @@ below the page number but ends on a narrow line of text.
 MINROW = 10 % is set high on purpose. The only class this detector has to
 catch by itself is a severed table RULE (30.4 %); a page cut mid-glyph trips
 the edge band anyway (73 px against MINPIX = 25), so nothing is lost by
-letting the 6.4 % page fall to the other detector. A first attempt at 2.5 %
-was calibrated on the fixture alone and then FALSE-POSITIVED on
-260814_cvh_noise_model_walter page 21 -- an ordinary last bullet line, fully
-visible, whose baseline row is 2.7 % wide. 10 % sits 3.7x above that and 3.0x
-below the rule it must catch; 2.5 % had only 1.5x on either side.
+letting the 6.4 % page fall to the other detector. A threshold of 2.5 %
+separates the fixture too, but FALSE-POSITIVES on an ordinary last bullet
+line -- fully visible, baseline row 2.7 % wide -- because it sits only 1.5x
+away on either side. 10 % sits 3.7x above that line and 3.0x below the rule
+it must catch.
 
 The width statistic is resolution dependent (a 1 px CSS rule antialiases away
 above ~110 dpi: the ionization page reads 30.4 % at DPI 70 and 4.2 % at 150),

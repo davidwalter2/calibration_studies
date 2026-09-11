@@ -39,7 +39,7 @@ case $step in
   *)          echo "unknown step $step"; exit 1 ;;
 esac
 
-# Recipe that produced the 2026-09-05 numbers (NOTES.md 2026-09-05 (II)):
+# The full ladder, end to end:
 #
 #   RUNS=.../runs/matres
 #   # per-group exponents, 24k ditrack candidates, 64-point tau grid
@@ -59,10 +59,9 @@ esac
 #       mass=$RUNS/fits/mass/fitresults.hdf5 \
 #       joint=$RUNS/fits/joint/fitresults.hdf5
 #   ./run_joint.sh report --fit $RUNS/fits/inj/fitresults.hdf5 \
-#       --card $RUNS/cards/inj.hdf5 --compare base=$RUNS/fits/joint/fitresults.hdf5 \
-#       --physical
+#       --card $RUNS/cards/inj.hdf5 --compare base=$RUNS/fits/joint/fitresults.hdf5
 #
-# MASSCFTERM_SPEC gate (self-consistent resolution), 2026-09-05:
+# MASSCFTERM_SPEC gate (self-consistent resolution):
 #   C="--groups-npz $RUNS/gun_groups_probe.npz --groups $GRP --whiten \
 #      --max-chi2-ndof 3 --freeze-zero-info --prune-frac 0.001 --no-quadratic \
 #      --no-jac --with-alpha --poi none"

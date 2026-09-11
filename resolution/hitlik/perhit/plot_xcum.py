@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Figures for the WG question: how the per-hit innovations depend on the
-truth-referenced q/p pull -- the variable the MASS term is built from.
+"""How the per-hit innovations depend on the truth-referenced q/p pull --
+the variable the MASS term is built from.
 
 Two statements, two panels each, one file per panel:
 

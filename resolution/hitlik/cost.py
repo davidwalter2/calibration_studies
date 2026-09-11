@@ -165,8 +165,8 @@ def main():
               f"{n_all/1e6:.0f} M tracks")
     print()
     print("  (`B_b` assumes the 68 resolution blocks/track measured on this "
-          "production;\n   `rank16` is the tau-axis PCA of NOTES 2026-09-05 "
-          "(II) s8, exact to 1e-5)")
+          "production;\n   `rank16` is the tau-axis PCA of the CF "
+          "compression study, exact to 1e-5)")
 
 
 if __name__ == "__main__":

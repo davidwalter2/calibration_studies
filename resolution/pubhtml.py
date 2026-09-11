@@ -28,10 +28,9 @@ directory in the web browser.
     local tweaks survive) and only for directories that really sit under
     ~/public_html (a --outpath pointing elsewhere is left alone).
 
-The old template path (~/public_html/cvh/260814_cleanprop/index.php) is
-gone -- that directory no longer exists -- so `TEMPLATE` is resolved at
-import: the shared ~/public_html/_index.php if it is there, else the
-newest plot-browser `index.php` found under ~/public_html/cvh/*/.
+`TEMPLATE` is resolved at import rather than hard-coded, so moving the
+browser does not break this module: the shared ~/public_html/_index.php if it
+is there, else the newest plot-browser `index.php` under ~/public_html/cvh/*/.
 """
 
 import glob
@@ -43,7 +42,7 @@ _PUBHTML = os.path.realpath(os.path.expanduser("~/public_html"))
 #: the shared plot browser installed at the top of ~/public_html
 _PRIMARY = os.path.expanduser("~/public_html/_index.php")
 
-#: where to look for a copy if the shared browser has moved again
+#: where to look for a copy if the shared browser is not at _PRIMARY
 _FALLBACK_GLOB = os.path.expanduser("~/public_html/cvh/*/index.php")
 
 

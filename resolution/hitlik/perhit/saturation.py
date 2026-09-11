@@ -89,9 +89,8 @@ def main():
         # version (`psd_inv(H) J psd_inv(H)`) is NOT usable here: with 32 of
         # the 42 groups carrying essentially no information of their own, the
         # pseudo-inverse drops their directions and returns sigma = 0, which
-        # then reports `N_sat = 1e-27 tracks`.  Measured 2026-09-10; the
-        # standalone form is well defined for every parameter and is the one
-        # that scales exactly as 1/sqrt(N).
+        # then reports `N_sat = 1e-27 tracks`.  The standalone form is well
+        # defined for every parameter and scales exactly as 1/sqrt(N).
         hd = np.diag(H)
         live = hd > 1e-8 * np.max(hd)
         free = np.where(live, np.sqrt(np.clip(np.diag(J), 0, None))

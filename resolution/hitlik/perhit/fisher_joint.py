@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """H and J of the J/psi-gun MASS term, added to the per-hit residual term's.
 
-WHY.  The working group asked whether the mass term and the hit residuals are
-correlated and how that is accounted for.  Two different questions hide in
-that, and they need two different objects:
+WHY.  "Are the mass term and the hit residuals correlated, and how is that
+accounted for" is two different questions, and they need two different
+objects:
 
 * SAME tracks.  The truth-referenced q/p pull -- the variable the mass
   functional is built from -- and the per-hit innovations live on the same

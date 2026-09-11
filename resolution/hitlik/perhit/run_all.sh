@@ -9,7 +9,7 @@
 #   ./run_all.sh fits         rabbit_fit.py on all of them (EDM certified)
 #   ./run_all.sh fisher       H and J per arm (the sandwich inputs)
 #   ./run_all.sh efficiency   the sandwich table
-#   ./run_all.sh xcum         the cross-cumulant tables (the WG question)
+#   ./run_all.sh xcum         the cross-cumulant tables (mass vs hit terms)
 #   ./run_all.sh cost         time + export bill
 #   ./run_all.sh plots        figures into ~/public_html/cvh/<YYMMDD>_perhit
 #   ./run_all.sh subfits      8 disjoint subsample fits per arm

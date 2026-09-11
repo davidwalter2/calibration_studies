@@ -142,8 +142,7 @@ def parse_args():
                         "candidate's max|S| into a fixed (weight-1) baseline")
     p.add_argument("--decimate", type=int, default=1,
                    help="keep every Nth tau point (4 + --tmax 8 reproduces the "
-                        "in-maker 64-point grid TG[0:256:4], validated in the "
-                        "2026-09-04 compression study)")
+                        "in-maker 64-point grid TG[0:256:4])")
     p.add_argument("--tmax", type=float, default=0.0,
                    help="drop tau points above this value (0 = keep all)")
     p.add_argument("--validate", action="store_true",

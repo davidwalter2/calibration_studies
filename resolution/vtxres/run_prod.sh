@@ -4,12 +4,11 @@
 # Same input, same fit settings as the mass-card production
 # `resolution_trackres_jpsigun_ul16_260905d_m0` (so a joint vertex+mass fit
 # shares candidates), plus:
-#   exportVtxResidual=True        the new block
+#   exportVtxResidual=True        the vertex-constraint residual block
 #   exportCfGroupExponents=True   the per-material-group split BOTH functionals
 #                                 need for a MaterialCF card
-#   exportStepRecords=False       the in-maker exponents replace them (the
-#                                 260905d production had to carry 430 kB/cand
-#                                 because its exponents were built offline)
+#   exportStepRecords=False       the in-maker exponents make the 430 kB/cand
+#                                 raw step records unnecessary
 # doVtxConstraint stays FALSE -- index 6 free, so the fit reports the DCA,
 # which is what every production does.
 #

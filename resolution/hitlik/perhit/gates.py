@@ -89,8 +89,7 @@ def main():
           f'{(nm[good] == (nvalid + npix)[good]).sum()}/{good.sum()}')
     # ONLY the first `d` slots: `phresz` carries the `phres_nref`
     # truth-referenced components AFTER the per-hit ones, and summing those in
-    # too adds ~5 to a chi2 of ~13, i.e. a spurious 0.36 relative violation
-    # (measured 2026-09-10 -- the same indexing trap gate 4 hit).
+    # too adds ~5 to a chi2 of ~13, i.e. a spurious 0.36 relative violation.
     zc = np.array([float(np.sum(np.asarray(z[:k], dtype=np.float64) ** 2))
                    if k > 0 and len(z) >= k else np.nan
                    for z, k in zip(d['phresz'], dd)])
@@ -173,9 +172,8 @@ def main():
     # ONLY the per-hit components: `phresz` carries the `phres_nref`
     # truth-referenced ones after them, and slot k >= phres_d of a short track
     # IS one of them -- comparing that against the pull it was built from
-    # gives a spurious correlation rising to 1 (it cost an hour on
-    # 2026-09-10: the table read +0.38 at k = 24 and the algebraic per-track
-    # check said 2e-9).
+    # gives a spurious correlation rising to 1 (the table reads +0.38 at
+    # k = 24 where the algebraic per-track check says 2e-9).
     nd_ = d['phres_d'].astype(int)
     print('   k   N     corr(z_k, pull_qp)  pull_lam   pull_phi   pull_d0   pull_z0')
     for k in range(min(maxd, 25)):

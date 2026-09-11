@@ -62,26 +62,17 @@ def kappa2_from_grid(S, tgrid):
     return -(16.0 * S[:, 1] - S[:, 2]) / (6.0 * t1 * t1)
 
 
-def _resolve_comps(spec, ncomp):
-    """A component selection, as either the legacy digit string or a spec.
-
-    Legacy (fixed 5 reference components): ``"0123"`` -> ``[0,1,2,3]``.
-    Per-hit npz (variable count per track): ``"hit"`` (every complement
-    component), ``"ref"`` (every truth-referenced one), ``"ref0"`` /
-    ``"ref0123"`` (those reference components), ``"all"``, or ``"hit:3"``
-    (the first 3 complement components of each track).
-    """
-    if spec is None:
-        return None
-    if not isinstance(spec, str):
-        return list(spec)
-    return spec
-
-
 def load_perhit(npz, max_tracks=0, comps="hit", max_chi2_ndof=0.0,
                 max_inflat=0.0, track_offset=0, max_relpos=0.0,
                 min_relpos=0.0):
     """``load`` for the DATA-side per-hit npz, where ncomp VARIES per track.
+
+    ``comps`` is a spec rather than a digit string here, because the number of
+    components is not fixed: ``"hit"`` (every complement component), ``"ref"``
+    (every truth-referenced one), ``"ref0"`` / ``"ref0123"`` (those reference
+    components), ``"all"``, or ``"hit:3"`` (the first 3 complement components
+    of each track).  A plain index list keeps the digit string's meaning,
+    i.e. those reference components.
 
     Same return contract as :func:`load`, so everything downstream --
     ``arm_families``, ``build``, ``make_hitlik_card`` -- is unchanged.  The

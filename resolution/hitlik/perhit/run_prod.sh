@@ -11,8 +11,8 @@
 #   exportPerHitResidual=True   the d = n_meas - 5 whitened complement
 #                               components + 5 truth-referenced ones
 #   perHitCfGroups=True         their per-material-group CF exponents
-#   exportStepRecords=False     the 430 kB/track raw records are no longer
-#                               needed -- the exponents are in the maker now
+#   exportStepRecords=False     the exponents come from the maker, so the
+#                               430 kB/track raw records are not needed
 #   exportCfGroupExponents=False redundant: reference component 0 IS the q/p
 #                               functional, and it carries its own group split
 #

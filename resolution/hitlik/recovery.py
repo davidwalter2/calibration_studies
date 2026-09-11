@@ -99,7 +99,6 @@ def main():
                    help="the tier file; the card's own string datasets are "
                         "written with an HDF5 filter the image does not ship, "
                         "so the names and units are rebuilt from here")
-    p.add_argument("--whiten", action="store_true", default=True)
     a = p.parse_args()
 
     card = read_card(a.card)
@@ -108,8 +107,7 @@ def main():
         inj = dict(zip(card["params"], np.asarray(card["injected"])))
     import groups as G
     gnames, gpri = G.group_param_names(42, a.groups)
-    units = dict(zip(gnames, G.card_group_units(len(gnames), a.groups,
-                                                whiten=a.whiten)))
+    units = dict(zip(gnames, G.card_group_units(len(gnames), a.groups)))
     if "group_units" in card and len(card["group_units"]) == len(gnames):
         units = dict(zip(gnames, np.asarray(card["group_units"])))
     if inj is None and "injected" in card:

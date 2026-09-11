@@ -64,10 +64,10 @@ def upsample_matrix(tg, up):
 def mean_density(sel, arm, rows, zgrid, upsample=8, chunk=4000):
     """Row-averaged predicted density over an explicit row set, one arm.
 
-    `rows` used to be a component INDEX; it is now the row index array, so the
-    same function serves the fixed 5-component truth-referenced study and the
-    per-hit one, where the natural grouping is by hit class or by position
-    along the track rather than by component slot.
+    `rows` is a row INDEX array, so the same function serves the fixed
+    5-component truth-referenced study and the per-hit one, where the natural
+    grouping is by hit class or by position along the track rather than by
+    component slot.
     """
     fam, ptr, gid, ndrop, ng, amp, drop = HT.arm_families(sel, arm)
     tg = sel["tgrid"]
