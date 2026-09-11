@@ -21,9 +21,11 @@ that, and they need two different objects:
   can be run on the joint the same way as on either arm alone.
 
 The mass term is built by `make_hitlik_card.build_mass_term`, i.e. the same
-object the `ph_resmass` card carries, with the SAME material parameters and
-the same card units, and its H and J are computed by the SAME two functions
-`fisher_cmp.py` uses.  Parameters are matched BY NAME into the residual term's
+object the `ph_resmass` card carries, with the SAME material parameters, and
+its H and J are computed by the SAME two functions `fisher_cmp.py` uses and
+converted to PHYSICAL units (`groups.term_units`) before they are added --
+the residual matrices are physical too, and only in one common unit is the
+sum meaningful.  Parameters are matched BY NAME into the residual term's
 60-parameter space; the hit classes get zero rows from the mass term (the
 two-track maker exports no parmtype-8/9 blocks, so the mass term does not see
 them), which is why the joint must be inverted with the priors -- as
@@ -105,11 +107,14 @@ def main():
     # same variable as the residual term.
     import groups as G
     ngroups = sum(1 for q in params if q.startswith("material_"))
-    gparams_grp, gpriors_grp = G.group_param_names(ngroups, a.groups)
-    group_units = 1.0 / np.maximum(gpriors_grp, 1e-300)
+    gparams_grp, _ = G.group_param_names(ngroups, a.groups)
+    group_units = G.card_group_units(ngroups, a.groups)
 
     if a.mass_cache and os.path.exists(a.mass_cache) and not a.mass_only:
         mc = np.load(a.mass_cache, allow_pickle=True)
+        if "param_units" not in mc.files:
+            sys.exit(f"{a.mass_cache} predates the physical-unit convention; "
+                     "delete it and let this script rebuild it")
         Hm, Jm = np.asarray(mc["H"], float), np.asarray(mc["J"], float)
         mnames = [str(x) for x in mc["names"]]
         ncand = int(mc["ncand"])
@@ -135,9 +140,12 @@ def main():
     Jm, gtot, M, Gm = FC.score_cov(mterm, np.zeros(nm), a.nbatch)
     log(f"mass J ({M} batches) in {time.time()-t0:.0f} s: "
         f"|grad check| {np.abs(gtot - g0).max():.3e}")
+    um = G.term_units(mterm)
+    Hm = G.matrix_to_physical(Hm, um)
+    Jm = G.matrix_to_physical(Jm, um)
 
     if a.mass_cache:
-        np.savez_compressed(a.mass_cache, H=Hm, J=Jm,
+        np.savez_compressed(a.mass_cache, H=Hm, J=Jm, param_units=um,
                             names=np.array(mnames, dtype=object),
                             ncand=int(mterm.n))
         log(f"wrote mass cache {a.mass_cache}")

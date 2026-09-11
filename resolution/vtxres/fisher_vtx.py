@@ -3,6 +3,11 @@
 `hitlik/efficiency.py` reads (`H_<arm>_<channel>`, `J_<arm>_<channel>`,
 `G_<arm>_<channel>`, `params`).
 
+The terms are built exactly as `make_vtx_card.py` builds them, card units and
+all, but everything WRITTEN here is in PHYSICAL units -- `k_g` for a material
+group, `eps_c` for a hit class -- converted with the terms' own
+`groups.term_units`.
+
 `H` is the curvature the term CLAIMS; `J` is the score covariance, so the
 SANDWICH `(H+P)^-1 J (H+P)^-1` is the variance the estimator actually has.
 The two `hessian` / `score_cov` routines are imported from
@@ -67,8 +72,8 @@ def main():
 
     gmap, _ = G.read_groups(a.groups)
     ngroups = (max(gmap) + 1) if gmap else 0
-    gparams, gpriors = G.group_param_names(ngroups, a.groups)
-    group_units = 1.0 / np.maximum(gpriors, 1e-300)   # whitened, as the cards
+    gparams, _ = G.group_param_names(ngroups, a.groups)
+    group_units = G.card_group_units(ngroups, a.groups)   # as the cards
     import hitres_classes
     hparams = [f"hitres_{c}" for c in hitres_classes.CLASSES]
 
@@ -125,9 +130,12 @@ def main():
             J = (M / (M - 1.0)) * (D.T @ D)
             log(f"{ch}/{arm}: J from {M} batches, "
                 f"|sum_m g_m - g| = {np.abs(Gsum.sum(axis=0)-gtot).max():.3g}")
-            res[f"H_{arm}_{ch}"] = H
-            res[f"J_{arm}_{ch}"] = J
-            res[f"G_{arm}_{ch}"] = Gsum
+            u = G.term_units(terms[0])
+            res["param_units"] = u
+            res[f"H_{arm}_{ch}"] = G.matrix_to_physical(H, u)
+            res[f"J_{arm}_{ch}"] = G.matrix_to_physical(J, u)
+            res[f"G_{arm}_{ch}"] = np.asarray(
+                [G.gradient_to_physical(gb, u) for gb in Gsum], np.float64)
             res[f"n_{ch}"] = terms[0].n
     res["params"] = np.array(params)
     os.makedirs(os.path.dirname(os.path.abspath(a.output)), exist_ok=True)

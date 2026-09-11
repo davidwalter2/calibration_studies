@@ -11,6 +11,10 @@ and the ratio `sigma_full(Gauss) / sigma_full(CF)` squared is the same
 EFFICIENCY the sandwich predicts.  Parameters whose subsample errors are at
 their prior carry no information and are skipped.
 
+Values and errors are converted to PHYSICAL units (`groups.card_group_units`)
+so they, the tier priors and the sandwich sigmas of the efficiency npz are all
+one quantity.
+
 usage:
     subspread.py --fits runs/hitlik/fits --k 8 --arms cf gaussq \\
         --compare runs/hitlik/efficiency.npz
@@ -96,6 +100,12 @@ def main():
     npar = len(names)
     pv = np.array([prior_of.get(q, a.hit_prior if q.startswith("hitres_")
                                 else np.inf) for q in names])
+    # the fits float the CARD variable; report the physical one
+    uarr = G.units_for(names, gnames,
+                       G.card_group_units(len(gnames), a.groups))
+    for arm in a.arms:
+        V[arm] = V[arm] * uarr
+        E[arm] = E[arm] * uarr
     K = {arm: V[arm].shape[0] for arm in a.arms}
     sub = {arm: V[arm].std(axis=0, ddof=1) for arm in a.arms}
     full = {arm: sub[arm] / np.sqrt(K[arm]) for arm in a.arms}

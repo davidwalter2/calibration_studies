@@ -26,6 +26,12 @@ by ``nparams`` reverse-over-reverse Hessian-vector products (the same tape path
 rabbit's fitter uses, so the chunked graph loop is honoured and the memory
 stays bounded to one chunk).
 
+``H``, ``J`` and the per-batch gradients ``G`` are written in PHYSICAL units
+-- ``k_g``, the log material amount of the group, and ``eps_c``, the linear
+variance scale of a hit class -- whatever units the term itself was built in
+(``groups.term_units``), so a consumer never has to be told which convention
+a file carries.
+
 Reported per parameter:
 
     sigma_marg  = sqrt( (H^-1)_pp )      -- with every other parameter free
@@ -58,6 +64,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 
 import hitlik_term as HT  # noqa: E402
+import groups as G  # noqa: E402
 
 
 def log(m):
@@ -139,13 +146,13 @@ def score_cov(term, x0, nbatch=400):
         return tf.zeros_like(p) if g is None else g
 
     x = tf.constant(np.asarray(x0, np.float64))
-    G = np.zeros((M, npar))
+    Gb = np.zeros((M, npar))
     for m in range(M):
-        G[m] = np.asarray(gchunk(x, tf.constant(m, tf.int32)).numpy())
+        Gb[m] = np.asarray(gchunk(x, tf.constant(m, tf.int32)).numpy())
     term.rechunk(keep)
-    gb = G.mean(axis=0)
-    D = G - gb
-    return (M / (M - 1.0)) * (D.T @ D), G.sum(axis=0), M, G
+    gm = Gb.mean(axis=0)
+    D = Gb - gm
+    return (M / (M - 1.0)) * (D.T @ D), Gb.sum(axis=0), M, Gb
 
 
 def model_variance(sel, arm):
@@ -221,16 +228,20 @@ def main():
                     f"{np.abs(g).max():.4g}, H in {time.time()-t0:.0f} s "
                     f"({npar} params)")
             t0 = time.time()
-            J, gtot, M, G = score_cov(term, np.zeros(npar), args.nbatch)
-            res[f"G_{arm}_{cs}"] = G.astype(np.float64)
+            J, gtot, M, Gb = score_cov(term, np.zeros(npar), args.nbatch)
             wj = np.linalg.eigvalsh(J)
             log(f"     score covariance ({M} batches) in {time.time()-t0:.0f} "
                 f"s: eig min {wj.min():.3e} max {wj.max():.3e}, "
                 f"|grad check| {np.abs(gtot - g).max():.3e}")
-            res[f"J_{arm}_{cs}"] = J
-            res[f"H_{arm}_{cs}"] = H
+            # everything that leaves the term is in PHYSICAL units
+            u = G.term_units(term)
+            res["param_units"] = u
+            res[f"G_{arm}_{cs}"] = np.asarray(
+                [G.gradient_to_physical(gb, u) for gb in Gb], np.float64)
+            res[f"J_{arm}_{cs}"] = G.matrix_to_physical(J, u)
+            res[f"H_{arm}_{cs}"] = G.matrix_to_physical(H, u)
             res[f"nll0_{arm}_{cs}"] = v
-            res[f"grad0_{arm}_{cs}"] = g
+            res[f"grad0_{arm}_{cs}"] = G.gradient_to_physical(g, u)
             res[f"modelvar_rows_{arm}_{cs}"] = np.float32(mv.mean())
             meta_all[f"{arm}_{cs}"] = dict(
                 params=list(term.param_names), n=int(meta["n"]),

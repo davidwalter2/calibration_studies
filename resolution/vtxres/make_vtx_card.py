@@ -323,8 +323,8 @@ def main():
     ngroups = (max(gmap) + 1) if gmap else 0
     gparams, gpriors = G.group_param_names(ngroups, args.groups)
     gscale = gpriors.copy() if args.whiten else np.ones(ngroups)
-    group_units = 1.0 / np.maximum(gscale, 1e-300)
-    gprior_card = gpriors * gscale
+    group_units = G.card_group_units(ngroups, args.groups, whiten=args.whiten)
+    gprior_card = gpriors * gscale               # 1 prior sigma, card units
     import hitres_classes
     cnames = list(hitres_classes.CLASSES)
     hparams = [f"hitres_{c}" for c in cnames]

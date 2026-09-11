@@ -246,13 +246,11 @@ def main():
 
     # ---- the CARD UNIT of a material parameter -----------------------------
     # Defined by the groups file alone, so a residual-only card and a joint one
-    # use the SAME units.  (Deriving it from the quadratic catalog, as an
-    # earlier version did, silently left --no-quadratic cards unwhitened and
-    # turned a 5 % injection into a 0.24 % one.)
+    # use the SAME units, whether or not a quadratic catalog is present.
     import groups as G
     gparams_grp, gpriors_grp = G.group_param_names(ngroups, groups_file)
     gscale = gpriors_grp.copy() if args.whiten else np.ones(ngroups)
-    group_units = 1.0 / np.maximum(gscale, 1e-300)   # k_phys = value * units
+    group_units = G.card_group_units(ngroups, groups_file, whiten=args.whiten)
     gprior_card = gpriors_grp * gscale               # 1 prior sigma, card units
 
     # ---- the global parameter catalog, from the quadratic extraction -------
@@ -327,12 +325,9 @@ def main():
             inject=(inj_groups if not args.inject_quad_only else None),
             hit_inject=(inj_hits if not args.inject_quad_only else None),
             amount_mode=args.amount_mode, hit_mode=args.hit_mode,
-            chunk=args.chunk, no_hits=args.no_hits, floor=args.floor)
-        # the group_units of the term must be the CARD units
-        data["group_units"] = group_units
-        term.group_units = group_units
+            chunk=args.chunk, no_hits=args.no_hits, floor=args.floor,
+            group_units=group_units)
         import tensorflow as tf
-        term._gunits = tf.constant(group_units, term.dtype)
         log(f"residual term: {meta['n']} rows, {meta['nrows']} group rows "
             f"({meta['ndrop']} pruned), {len(term.param_names)} parameters")
 

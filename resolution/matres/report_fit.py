@@ -31,12 +31,6 @@ def parse_args():
     p.add_argument("--card", default=None,
                    help="datacard, for the injected vector and the units")
     p.add_argument("--compare", nargs="*", default=[], metavar="LABEL=PATH")
-    p.add_argument("--physical", action="store_true",
-                   help="also print the PHYSICAL value: for a whitened card "
-                        "theta_raw = theta_card / scale, i.e. d ln(dE/dx) for a "
-                        "material group and the coefficient's own unit for a "
-                        "field mode; the material column is then the fractional "
-                        "material change exp(k) - 1")
     p.add_argument("--eig", action="store_true",
                    help="eigen-analysis of the material block's covariance")
     p.add_argument("--top", type=int, default=60)
@@ -97,9 +91,13 @@ def main():
         if np.any(truth):
             print("injected truth: " + ", ".join(
                 f"{n}={truth[i]:+.6g}" for i, n in enumerate(names) if truth[i]))
-    scale = None
-    if card and "params" in card and "scale" in card:
-        scale = dict(zip(card["params"], card["scale"]))
+    # the card may float a rescaled variable; `physical = value * units`
+    units = None
+    if card and "params" in card and "units" in card:
+        units = dict(zip(card["params"], np.asarray(card["units"])))
+    elif card and "params" in card and "scale" in card:
+        units = {n: 1.0 / max(sc, 1e-300)
+                 for n, sc in zip(card["params"], np.asarray(card["scale"]))}
     others = {}
     for spec in args.compare:
         lab, path = spec.split("=", 1)
@@ -124,7 +122,7 @@ def main():
               f"{names[idx[int(np.argmax(np.abs(pulls)))]]}   "
               f"mean {pulls.mean():+.3f}")
         hdr = f"  {'parameter':<28} {'value':>13} {'error':>12} {'pull':>7}"
-        if args.physical and scale is not None:
+        if units is not None:
             hdr += f" {'k_phys':>11} {'+-':>10}"
             if label == "material groups":
                 hdr += f" {'dmat [%]':>10}"
@@ -136,9 +134,9 @@ def main():
             j = idx.index(i)
             line = (f"  {names[i]:<28} {val[i]:+13.6f} {err[i]:12.6f} "
                     f"{pulls[j]:+7.2f}")
-            if args.physical and scale is not None:
-                sc = scale.get(names[i], 1.0)
-                kp, ke = val[i] / sc, err[i] / sc
+            if units is not None:
+                u = units.get(names[i], 1.0)
+                kp, ke = val[i] * u, err[i] * u
                 line += f" {kp:+11.5f} {ke:10.5f}"
                 if label == "material groups":
                     line += f" {100.*(np.exp(kp)-1.):+10.2f}"

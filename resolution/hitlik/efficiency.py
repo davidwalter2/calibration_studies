@@ -32,6 +32,14 @@ BOOTSTRAP over the stored per-batch gradients (algebraically the sandwich at
 one Newton step, so it validates the linearisation and the batch
 independence, not the sandwich itself), and -- with `--subfits` -- the spread
 of REAL rabbit fits over DISJOINT subsamples, which assumes nothing.
+
+UNITS.  `H`, `J` and `G` are read in PHYSICAL units -- `k_g`, the log material
+amount of a group, and `eps_c`, the linear variance scale of a hit class --
+because that is what every producer writes (`fisher_cmp.py`,
+`vtxres/fisher_vtx.py`, `perhit/fisher_joint.py` all convert with the term's
+own `groups.term_units`).  So the prior `P` is the parmtype-15 tier prior of
+the groups file as it stands, and every sigma printed here is directly
+comparable with a fitted `k`.
 """
 
 import argparse
@@ -64,10 +72,6 @@ def main():
     p.add_argument("--arms", nargs="+", default=["cf", "gauss", "gaussq"])
     p.add_argument("--ref", default="cf")
     p.add_argument("--hit-prior", type=float, default=1.0)
-    p.add_argument("--prior-power", type=float, default=1.0,
-                   help="exponent on the material tier prior: 2 for a "
-                        "WHITENED card, where 1 prior sigma is gprior**2 in "
-                        "card units (1 = the historical, too-loose, value)")
     p.add_argument("--nboot", type=int, default=2000)
     p.add_argument("--ntrk", type=int, default=20000)
     p.add_argument("--scale-to", type=int, default=0,
@@ -82,19 +86,14 @@ def main():
     d = np.load(a.fisher, allow_pickle=True)
     params = [str(s) for s in d["params"]]
     npar = len(params)
+    if "param_units" not in d.files:
+        print(f"   note: {a.fisher} carries no `param_units`; its matrices "
+              "are taken as physical")
     import groups as G
     gnames, gpri = G.group_param_names(42, a.groups)
     prior_of = dict(zip(gnames, gpri))
-    # THE PRIOR MUST BE IN CARD UNITS.  A whitened card carries the material
-    # parameter in units of its own tier prior, so 1 prior sigma is
-    # `gprior**2` in card units, not `gprior` (`make_*_card.py`:
-    # `gprior_card = gpriors * gscale`).  With `--prior-power 1` the prior
-    # matrix `P` is 1/gprior too LOOSE -- typically a factor 20 -- which
-    # leaves the "marginal" numbers effectively prior-free and inflates the
-    # material efficiency ratios.  Default 1 preserves every number produced
-    # before 2026-09-11; pass 2 for a whitened card.
-    pv = np.array([prior_of.get(q, np.nan) ** a.prior_power
-                   if q in prior_of else
+    # The matrices are physical, so the prior is the tier prior itself.
+    pv = np.array([prior_of.get(q, np.nan) if q in prior_of else
                    (a.hit_prior if q.startswith("hitres_") else np.inf)
                    for q in params])
     P = np.diag(np.where(np.isfinite(pv), 1.0 / np.maximum(pv, 1e-300) ** 2, 0.0))

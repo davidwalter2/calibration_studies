@@ -8,6 +8,10 @@ A fit is quoted only if all three are there:
     convergence statement that means anything (NOTES: |g|_inf and diagonal
     proxies sit 1-5 sigma off).
 
+Values are printed in PHYSICAL units -- `k`, the log material amount of the
+group, and `eps`, the linear variance scale of a hit class -- with the card
+unit taken from the groups file (`groups.card_group_units`).
+
 usage: certify.py --fits runs/perhit/fits [--param material_tib_support]
 """
 
@@ -33,7 +37,14 @@ def main():
     p.add_argument("--params", nargs="+",
                    default=["material_tib_support", "hitres_str_N3_lo"])
     p.add_argument("--max-edm", type=float, default=1e-3)
+    p.add_argument("--groups", default="/work/submit/david_w/ZMass/"
+                   "CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/"
+                   "materialGroups50.txt")
     a = p.parse_args()
+
+    import groups as G
+    gnames, _ = G.group_param_names(42, a.groups)
+    unit_of = dict(zip(gnames, G.card_group_units(len(gnames), a.groups)))
 
     names = a.names or sorted(d for d in os.listdir(a.fits)
                               if os.path.exists(os.path.join(a.fits, d,
@@ -59,8 +70,8 @@ def main():
         idx = {q: i for i, q in enumerate(f["names"])}
         for q in a.params:
             if q in idx:
-                i = idx[q]
-                row += f"{f['val'][i]:>+14.5f} +- {f['err'][i]:<9.5f}"
+                i, u = idx[q], unit_of.get(q, 1.0)
+                row += f"{f['val'][i]*u:>+14.5f} +- {f['err'][i]*u:<9.5f}"
             else:
                 row += f"{'--':>26}"
         print(row)

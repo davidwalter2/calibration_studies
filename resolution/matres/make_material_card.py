@@ -191,9 +191,15 @@ def main():
         log("whitened: 1 card unit = 1 T of RMS |dB| (parmtype 14) / 1 group "
             f"prior sigma (parmtype 15); scale {pscale.min():.3e} .. "
             f"{pscale.max():.3e}")
-    # k_phys = value / s  (theta_card = theta_raw * s)
-    group_units = np.array([1.0 / pscale[matcol[g]] if g in matcol else 1.0
-                            for g in range(ngroups)])
+    # k_phys = value * units, the one definition of the card unit; the
+    # quadratic catalog's own whitening must agree with it, or the two terms
+    # would float different variables under the same name
+    group_units = G.card_group_units(ngroups, args.groups, whiten=args.whiten)
+    for g, j in matcol.items():
+        if g < ngroups and abs(pscale[j] * group_units[g] - 1.0) > 1e-9:
+            sys.exit(f"material scale mismatch for group {g}: quadratic "
+                     f"catalog {pscale[j]:g} vs groups file "
+                     f"{1.0 / group_units[g]:g}")
 
     # ---- injection vector --------------------------------------------------
     inject = np.zeros(nfit)

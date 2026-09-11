@@ -44,8 +44,9 @@ def main():
     p.add_argument("--inj-cf", default="inj_cf")
     p.add_argument("--inj-gauss", default="inj_gaussq")
     p.add_argument("--inj-param", default="material_tib_support")
-    p.add_argument("--inj-truth", type=float, default=0.00243951)
-    p.add_argument("--inj-prior", type=float, default=0.0025)
+    p.add_argument("--inj-truth", type=float, default=0.00243951,
+                   help="the value given to make_hitlik_card.py --inject, in "
+                        "card units as typed there")
     p.add_argument("--hit-inj-cf", default="inj_hit")
     p.add_argument("--hit-inj-gauss", default="inj_hit_gaussq")
     p.add_argument("--hit-param", default="hitres_str_N3_lo")
@@ -61,7 +62,9 @@ def main():
     import groups as G
     gnames, gpri = G.group_param_names(42, a.groups)
     pri_of = dict(zip(gnames, gpri))
-    units = {n: 1.0 / p_ for n, p_ in zip(gnames, gpri)}
+    # the card is whitened; the factor that takes a fitted value back to the
+    # physical k is the card unit of the group
+    units = dict(zip(gnames, G.card_group_units(len(gnames), a.groups)))
 
     d = np.load(a.efficiency, allow_pickle=True)
     params = [str(s) for s in d["params"]]
@@ -130,11 +133,16 @@ def main():
     print("-" * 132)
     print(f"{'injection':<34}{'arm':<8}{'baseline':>11}{'injected':>11}"
           f"{'shift':>11}{'f_pri':>7}{'corrected/truth':>17}{'pull':>7}")
-    for nm, tru, spri, kcf, kg, lab in (
-            (a.inj_param, a.inj_truth, a.inj_prior, "cf", "gauss",
+    for nm, tru, kcf, kg, lab in (
+            (a.inj_param, a.inj_truth, "cf", "gauss",
              f"{a.inj_param} x1.05 material"),
-            (a.hit_param, None, 1.0, "hcf", "hgauss",
+            (a.hit_param, None, "hcf", "hgauss",
              f"{a.hit_param} x1.10 variance")):
+        # PHYSICAL throughout: the fitted value times the card unit, the
+        # injected truth likewise, and the group's own tier prior (1 for a hit
+        # class, which the card floats unscaled)
+        u = units.get(nm, 1.0)
+        spri = pri_of.get(nm, 1.0)
         for arm, key in (("CF", kcf), ("Gauss", kg)):
             b = F["cf"] if arm == "CF" else F["gauss"]
             q = I[key]
@@ -142,10 +150,10 @@ def main():
                 print(f"{lab:<34}{arm:<8}   (fit not present)")
                 continue
             ib, iq = b["names"].index(nm), q["names"].index(nm)
-            v0, e0 = b["val"][ib], b["err"][ib]
-            v1, e1 = q["val"][iq], q["err"][iq]
+            v0 = b["val"][ib] * u
+            v1, e1 = q["val"][iq] * u, q["err"][iq] * u
             sh = v1 - v0
-            t = tru if tru is not None else \
+            t = tru * u if tru is not None else \
                 -(a.hit_inj / (1.0 + a.hit_inj)) * (1.0 + v0)
             f_pri = 1.0 - (e1 ** 2) / (spri ** 2) if e1 < spri else np.nan
             corr = sh / f_pri if np.isfinite(f_pri) and f_pri else np.nan

@@ -12,6 +12,12 @@ gun the model has a known offset from the fit's own error (the Rossi-vs-
 Moliere gap), so a material amount does not sit at zero even with no
 injection -- see the `truth` table this also prints.
 
+Everything is printed in PHYSICAL units: `k`, the log material amount of the
+group, and `eps`, the linear variance scale of a hit class.  The card may
+float a rescaled variable; the factor is read from the card's own
+`group_units` (`groups.card_units`) and divided out here, so the values, the
+errors, the injected truth and the prior are all directly comparable.
+
 usage:
     recovery.py --pairs cf=fits/cf:fits/inj_cf gaussq=fits/gaussq:fits/inj_gaussq \\
         --card cards/inj_cf.hdf5 --param material_tib_support
@@ -80,12 +86,10 @@ def main():
                    metavar="LABEL=BASEDIR:INJDIR")
     p.add_argument("--card", default=None)
     p.add_argument("--param", default="material_tib_support")
-    p.add_argument("--prior-sigma", type=float, default=0.0,
-                   help="the CARD-unit prior sigma of --param (for a whitened "
-                        "card it is the group's tier prior SQUARED)")
     p.add_argument("--truth", type=float, default=None,
-                   help="the injected CARD value of --param, when the card's "
-                        "own string datasets cannot be read")
+                   help="the value of --param given to make_*_card.py "
+                        "--inject, for when the card's own string datasets "
+                        "cannot be read; card units, as typed there")
     p.add_argument("--truth-only", nargs="*", default=[],
                    metavar="LABEL=DIR", help="fits to tabulate values for")
     p.add_argument("--top", type=int, default=10)
@@ -104,12 +108,11 @@ def main():
         inj = dict(zip(card["params"], np.asarray(card["injected"])))
     import groups as G
     gnames, gpri = G.group_param_names(42, a.groups)
-    units = {nm: (1.0 / p_ if a.whiten else 1.0)
-             for nm, p_ in zip(gnames, gpri)}
+    units = dict(zip(gnames, G.card_group_units(len(gnames), a.groups,
+                                                whiten=a.whiten)))
     if "group_units" in card and len(card["group_units"]) == len(gnames):
         units = dict(zip(gnames, np.asarray(card["group_units"])))
     if inj is None and "injected" in card:
-        allp = list(gnames)
         inj = {}     # names unreadable; fall back to the CLI truth
 
 
@@ -172,13 +175,13 @@ def main():
 
     print()
     print("=" * 96)
-    print(f"B. INJECTION RECOVERY for {a.param}")
+    print(f"B. INJECTION RECOVERY for {a.param}  (physical units)")
+    upar = units.get(a.param, 1.0)
     _t = (a.truth if a.truth is not None
           else (inj.get(a.param, np.nan) if inj else np.nan))
     if np.isfinite(_t):
-        u = units.get(a.param, 1.0)
         print(f"   injected card value {_t:+.6g}  = k "
-              f"{_t*u:+.6f}  = {100*(np.exp(_t*u)-1):+.3f} % material")
+              f"{_t*upar:+.6f}  = {100*(np.exp(_t*upar)-1):+.3f} % material")
     print("=" * 96)
     print("   SIGN: the injection scales that group's exponents by exp(+k) in "
           "the CARD, i.e.\n   it declares the model at k = 0 to already have "
@@ -201,26 +204,28 @@ def main():
             print(f"{lab:<14} parameter not in the fit")
             continue
         ib, iq = b["names"].index(a.param), q["names"].index(a.param)
-        sh = q["val"][iq] - b["val"][ib]
-        e = q["err"][iq]
+        vb, vq = b["val"][ib] * upar, q["val"][iq] * upar
+        sh = vq - vb
+        e = q["err"][iq] * upar
         tru = (a.truth if a.truth is not None
                else (inj.get(a.param, np.nan) if inj else np.nan))
+        tru = tru * upar
         # leakage: shift of every OTHER parameter, in units of its own error
         common = [n for n in b["names"] if n in q["names"] and n != a.param]
         d_ = np.array([(q["val"][q["names"].index(n)]
                         - b["val"][b["names"].index(n)])
                        / max(q["err"][q["names"].index(n)], 1e-300)
                        for n in common])
-        # the prior on this parameter, in CARD units, from the card
-        spri = a.prior_sigma if a.prior_sigma else np.nan
-        if not np.isfinite(spri) and "prior_sigmas" in card and a.param in b["names"]:
-            j_ = None
+        # the prior on this parameter, PHYSICAL: the group's tier prior, or
+        # the card's own prior vector converted with the same units
+        spri = dict(zip(gnames, gpri)).get(a.param, np.nan)
+        if not np.isfinite(spri) and "prior_sigmas" in card:
             # the card's prior vector is in the same order as its params list,
             # which is (materials, hit classes) for a residual-only card
             gp_ = list(gnames) + [n for n in b["names"]
                                   if n.startswith("hitres_")]
             if a.param in gp_ and len(card["prior_sigmas"]) == len(gp_):
-                spri = float(card["prior_sigmas"][gp_.index(a.param)])
+                spri = float(card["prior_sigmas"][gp_.index(a.param)]) * upar
         f_pri = np.nan
         if np.isfinite(spri) and spri > 0 and e < spri:
             # posterior precision = likelihood + prior, so a shift of the
@@ -229,8 +234,8 @@ def main():
             f_pri = 1.0 - (e ** 2) / (spri ** 2)
         corr = sh / f_pri if np.isfinite(f_pri) and f_pri else np.nan
         slik = e / np.sqrt(max(f_pri, 1e-300)) if np.isfinite(f_pri) else e
-        print(f"{lab:<12}{b['val'][ib]:>11.5f}{b['err'][ib]:>9.5f}"
-              f"{q['val'][iq]:>11.5f}{e:>9.5f}{sh:>11.5f}"
+        print(f"{lab:<12}{vb:>11.5f}{b['err'][ib]*upar:>9.5f}"
+              f"{vq:>11.5f}{e:>9.5f}{sh:>11.5f}"
               f"{sh/tru if tru else np.nan:>8.3f}{f_pri:>7.3f}"
               f"{corr/tru if tru else np.nan:>11.3f}"
               f"{(abs(corr) - abs(tru))/slik if tru else np.nan:>9.2f}"

@@ -101,20 +101,16 @@ case $st in
     for n in cf gaussq cf_ref cf_all mass resmass; do
       P="$P $n=$R/fits/ph_$n:$R/fits/ph_inj_$n"
     done
-    # PRIOR SIGMA IN CARD UNITS.  The card is whitened, and for
-    # material_tib_support the tier prior 0.05 in k maps to 0.0025 of the card
-    # value (the injection 0.00243951 IS k = 0.0487902).  Passing 1.0 here --
-    # which is right for a HIT CLASS, whose card prior is --hit-prior = 1 --
-    # makes f_prior come out 1.000 and quotes the RAW, prior-shrunk shift
-    # (-0.17 instead of -1.06).  Measured 2026-09-10.
+    # `--truth` is the card value that was injected; recovery.py converts it,
+    # the fitted values and the group's tier prior to physical k itself.
     ./run_tf.sh python3 -u recovery.py --pairs $P \
-      --param material_tib_support --prior-sigma 0.0025 --truth 0.00243951 \
+      --param material_tib_support --truth 0.00243951 \
       > $HERE/logs/recovery_mat.log 2>&1
     cat $HERE/logs/recovery_mat.log
     ./run_tf.sh python3 -u recovery.py --pairs \
       cf=$R/fits/ph_cf:$R/fits/ph_inj_hit \
       gaussq=$R/fits/ph_gaussq:$R/fits/ph_inj_hit_gaussq \
-      --param hitres_str_N3_lo --prior-sigma 1.0 \
+      --param hitres_str_N3_lo \
       > $HERE/logs/recovery_hit.log 2>&1
     cat $HERE/logs/recovery_hit.log
     cd $HERE ;;

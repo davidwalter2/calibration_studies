@@ -68,16 +68,19 @@ def main():
     hits = [i for i, s in enumerate(params) if s.startswith("hitres_")]
     ng = len(mats)
     _, gpri = G.group_param_names(ng, a.groups)
-    # the card is WHITENED: a material parameter is in units of its own tier
-    # prior, so every material prior sigma is 1 in card units.  The hit
-    # classes carry `--hit-prior` (1.0 by default) in the same way.
+    # `H` and `J` are PHYSICAL (`fisher_cmp.py` converts with the term's own
+    # units), so the prior a saturation point is measured against is the
+    # group's parmtype-15 tier prior itself, and `--hit-prior` for a class.
     pri = np.ones(npar)
+    for k, i in enumerate(mats):
+        pri[i] = gpri[k]
     for i in hits:
         pri[i] = a.hit_prior
     P = np.diag(1.0 / pri ** 2)
 
-    print(f"# {a.ntrk} tracks, cset '{a.cset}', priors: material 1.0 "
-          f"(whitened tier), hit {a.hit_prior}")
+    print(f"# {a.ntrk} tracks, cset '{a.cset}', priors: material "
+          f"{gpri.min():g}-{gpri.max():g} (parmtype-15 tier), hit "
+          f"{a.hit_prior}")
     for arm in a.arms:
         H = np.asarray(d[f"H_{arm}_{a.cset}"], float)
         J = np.asarray(d[f"J_{arm}_{a.cset}"], float)

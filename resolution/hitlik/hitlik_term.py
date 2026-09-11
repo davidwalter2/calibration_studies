@@ -366,14 +366,26 @@ def arm_families(sel, arm, prune_frac=0.0, freeze_dead=True, ngroups=None,
 
 def build(sel, arm="cf", prune_frac=0.0, groups_file=None, ngroups=None,
           inject=None, hit_inject=None, amount_mode="exp", hit_mode="linear",
-          chunk=4096, no_hits=False, floor="softplus", name="hitres"):
-    """(term, data, meta).  ``inject``/``hit_inject`` are {index: value}."""
+          chunk=4096, no_hits=False, floor="softplus", name="hitres",
+          group_units=None):
+    """(term, data, meta).  ``inject``/``hit_inject`` are {index: value}.
+
+    ``group_units`` is the card unit of the material parameters,
+    ``k_g = value * group_units[g]`` (:func:`groups.card_group_units`); the
+    default ``None`` means the parameter IS the physical ``k_g``.  It is set
+    HERE and nowhere else, so a term built directly and a term built inside a
+    card carry the same convention.  ``inject`` is always a PHYSICAL ``k``.
+    """
     from rabbit import unbinned
 
     fam, ptr, gid, ndrop, ng, amp, drop = arm_families(
         sel, arm, prune_frac=prune_frac, ngroups=ngroups, inject=inject,
         amount_mode=amount_mode)
     gparams, gpriors = G.group_param_names(ng, groups_file)
+    gunits = (np.ones(ng) if group_units is None
+              else np.asarray(group_units, dtype=np.float64))
+    if gunits.shape != (ng,):
+        raise ValueError("group_units must have one entry per group")
     hclasses = sel["hit_classes"]
     hparams = [f"hitres_{c}" for c in hclasses]
 
@@ -405,7 +417,7 @@ def build(sel, arm="cf", prune_frac=0.0, groups_file=None, ngroups=None,
         "tgrid": sel["tgrid"],
         "grp_ptr": ptr,
         "grp_id": gid,
-        "group_units": np.ones(ng),
+        "group_units": gunits,
         "hit_ptr": share[0], "hit_cls": share[1], "hit_v": share[2],
         "vg_other": share[3], "vgf": vgf,
         "hit_units": np.ones(len(hparams)),
@@ -425,8 +437,9 @@ def build(sel, arm="cf", prune_frac=0.0, groups_file=None, ngroups=None,
         group_families=[{k: v for k, v in m.items()
                          if k in ("name", "re", "im", "fix_re", "fix_im")}
                         for m in fam],
-        grp_ptr=ptr, grp_id=gid, group_units=np.ones(ng),
+        grp_ptr=ptr, grp_id=gid, group_units=gunits,
         hit_params=hparams, hit_share=share,
+        hit_units=data["hit_units"],
         amount_mode=amount_mode, hit_mode=hit_mode,
         kernel=unbinned.DeltaKernel(),
         background=None, m_ref=0.0, scale_param=None, bkg_frac=0.0,
@@ -434,5 +447,6 @@ def build(sel, arm="cf", prune_frac=0.0, groups_file=None, ngroups=None,
     )
     meta = dict(arm=arm, ngroups=ng, ndrop=int(ndrop), nrows=len(gid),
                 group_params=gparams, group_priors=gpriors,
-                hit_params=hparams, n=n, amp=amp, drop=drop)
+                group_units=gunits, hit_params=hparams, n=n, amp=amp,
+                drop=drop)
     return term, data, meta

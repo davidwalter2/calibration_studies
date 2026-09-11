@@ -88,12 +88,12 @@ recovery)
             mass_cf=$R/fits/mass_cf:$R/fits/inj_mass_cf \
             joint_cf=$R/fits/joint_cf:$R/fits/inj_joint_cf \
     --card $R/cards/inj_vtx_cf.hdf5 --param material_bpix_support6 \
-    --prior-sigma 0.0025 --groups $GRP 2>&1 | tee logs/recovery.log ;;
+    --groups $GRP 2>&1 | tee logs/recovery.log ;;
 recovery-hit)
   ./run_tf.sh python3 -u /work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/recovery.py \
     --pairs vtx_cf=$R/fits/vtx_cf:$R/fits/injhit_vtx_cf \
             vtx_gaussq=$R/fits/vtx_gaussq:$R/fits/injhit_vtx_gaussq \
     --card $R/cards/injhit_vtx_cf.hdf5 --param hitres_pix_x_q2 \
-    --prior-sigma 1.0 --groups $GRP 2>&1 | tee logs/recovery_hit.log ;;
+    --groups $GRP 2>&1 | tee logs/recovery_hit.log ;;
 *) echo "usage: run_all.sh extract|extract-dy|gates|xcum|bill|cards|fits|fisher|eff|certify|plots|plots-dy|recovery|recovery-hit"; exit 2 ;;
 esac

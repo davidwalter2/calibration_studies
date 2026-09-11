@@ -137,6 +137,96 @@ def group_param_names(ngroups, groups_file):
     return names, sigmas
 
 
+# ---------------------------------------------------------------------------
+# UNITS
+#
+# A card may float a RESCALED material parameter, because the minimiser is
+# better conditioned on it.  The physical quantity is always the log material
+# amount ``k_g`` of the group (and, for a hit class, the linear variance scale
+# ``eps_c``), and exactly one factor relates the two,
+#
+#     physical = value * units
+#
+# which is the convention ``rabbit.unbinned.MaterialCFTerm`` itself applies
+# (``k = values[group_params] * group_units``).  The factor is READ from the
+# object that carries it -- a built term, or the ``global_index_map`` a card
+# writes -- never assumed by the consumer.  Everything that LEAVES a term
+# (Fisher/Hessian/score matrices, fitted values and errors, priors, injected
+# amounts, tables) is reported in physical units, so no tool needs to be told
+# which convention it is looking at.
+
+
+def card_group_units(ngroups, groups_file, whiten=True):
+    """``units`` of the parmtype-15 material parameters of a card.
+
+    A whitened card floats ``value = k_g * gprior_g`` (the whitening
+    ``make_global_term.param_scales`` applies to the quadratic term's gradient
+    and Hessian, ``theta_card = theta_raw * s``), so ``k_g = value / gprior_g``
+    and ``units = 1 / gprior_g``.  Without whitening the parameter IS ``k_g``
+    and ``units = 1``.
+
+    This is the ONE definition of the card unit; every card builder and every
+    Fisher driver takes it from here, so a term built by hand and a term built
+    inside a card cannot drift apart.
+    """
+    _, gpriors = group_param_names(ngroups, groups_file)
+    if not whiten:
+        return np.ones(ngroups)
+    return 1.0 / np.maximum(gpriors, 1e-300)
+
+
+def units_for(param_names, group_params=(), group_units=None,
+              hit_params=(), hit_units=None):
+    """``units`` per parameter, in ``param_names`` order (1 where unknown)."""
+    u = {}
+    if group_units is not None:
+        u.update(zip(group_params, np.asarray(group_units, dtype=np.float64)))
+    if hit_units is not None:
+        u.update(zip(hit_params, np.asarray(hit_units, dtype=np.float64)))
+    return np.array([u.get(p, 1.0) for p in param_names], dtype=np.float64)
+
+
+def term_units(term):
+    """``units`` of a ``MaterialCFTerm``, read off the term itself."""
+    return units_for(term.param_names,
+                     getattr(term, "group_params", ()),
+                     getattr(term, "group_units", None),
+                     getattr(term, "hit_params", ()),
+                     getattr(term, "hit_units", None))
+
+
+def card_units(card, param_names):
+    """``units`` of the parameters of a card, from its ``global_index_map``.
+
+    ``card`` is the decoded auxiliary dict (``group_params``/``group_units``,
+    or the flat ``params``/``units`` pair).  Missing entries are 1.
+    """
+    if "params" in card and "units" in card:
+        return units_for(param_names, list(card["params"]), card["units"])
+    return units_for(param_names, list(card.get("group_params", [])),
+                     card.get("group_units"))
+
+
+def to_physical(values, units):
+    """A value vector (or its errors) in physical units."""
+    return np.asarray(values, dtype=np.float64) * np.asarray(units)
+
+
+def matrix_to_physical(M, units):
+    """A Hessian / score covariance in physical units.
+
+    ``value = physical / u`` so ``d/dvalue = u d/dphysical`` and a second
+    derivative picks up ``u_i u_j``; dividing it out is the inverse.
+    """
+    u = np.asarray(units, dtype=np.float64)
+    return np.asarray(M, dtype=np.float64) / np.outer(u, u)
+
+
+def gradient_to_physical(g, units):
+    """A score / gradient vector in physical units."""
+    return np.asarray(g, dtype=np.float64) / np.asarray(units)
+
+
 def pair_ioni_rows(xg, n_ioni):
     """Indices (ascending) of the Moliere rows that produced an Urban record.
 
