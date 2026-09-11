@@ -64,6 +64,10 @@ def main():
     p.add_argument("--arms", nargs="+", default=["cf", "gauss", "gaussq"])
     p.add_argument("--ref", default="cf")
     p.add_argument("--hit-prior", type=float, default=1.0)
+    p.add_argument("--prior-power", type=float, default=1.0,
+                   help="exponent on the material tier prior: 2 for a "
+                        "WHITENED card, where 1 prior sigma is gprior**2 in "
+                        "card units (1 = the historical, too-loose, value)")
     p.add_argument("--nboot", type=int, default=2000)
     p.add_argument("--ntrk", type=int, default=20000)
     p.add_argument("--scale-to", type=int, default=0,
@@ -81,8 +85,18 @@ def main():
     import groups as G
     gnames, gpri = G.group_param_names(42, a.groups)
     prior_of = dict(zip(gnames, gpri))
-    pv = np.array([prior_of.get(q, a.hit_prior if q.startswith("hitres_")
-                                else np.inf) for q in params])
+    # THE PRIOR MUST BE IN CARD UNITS.  A whitened card carries the material
+    # parameter in units of its own tier prior, so 1 prior sigma is
+    # `gprior**2` in card units, not `gprior` (`make_*_card.py`:
+    # `gprior_card = gpriors * gscale`).  With `--prior-power 1` the prior
+    # matrix `P` is 1/gprior too LOOSE -- typically a factor 20 -- which
+    # leaves the "marginal" numbers effectively prior-free and inflates the
+    # material efficiency ratios.  Default 1 preserves every number produced
+    # before 2026-09-11; pass 2 for a whitened card.
+    pv = np.array([prior_of.get(q, np.nan) ** a.prior_power
+                   if q in prior_of else
+                   (a.hit_prior if q.startswith("hitres_") else np.inf)
+                   for q in params])
     P = np.diag(np.where(np.isfinite(pv), 1.0 / np.maximum(pv, 1e-300) ** 2, 0.0))
 
     res = {}
