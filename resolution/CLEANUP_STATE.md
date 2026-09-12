@@ -166,3 +166,167 @@ end to end (`theta_card = theta_raw * s` for the quadratic gradient/Hessian,
 `prior_sigmas * pscale`, `group_units = 1/pscale`), it is inside the fit, and
 changing it would change every card — so only the misleading comments were
 corrected, not the convention.
+
+---
+
+# JOB 2 — FINAL-STATE CODE (in progress)
+
+## Rules applied
+
+* Comments and docstrings say what the code does and why it is correct.  No
+  dates, no "used to", no "the first attempt", no agent/person narrative, no
+  references to another file's line numbers, and nothing about the withdrawn
+  "prior units" bug report.
+* A superseded script is deleted only after grepping the whole repo for its
+  basename (`.py` imports, `.sh` callers, `.md` citations) AND checking it is
+  not the producer of a number or figure still quoted in a STATE/SUMMARY file.
+* Interfaces of surviving scripts stay as they are, except the unit flags of
+  Job 1.
+* Every surviving python script must import and pass `--help`.
+
+## Done so far
+
+**`hitlik/`, `hitlik/perhit/`, `vtxres/`, `matres/`, `pubhtml.py`,
+`check_slide_overflow.py`, `md2html.js`** (commit `dde4b37`, `cb60314`):
+
+| file | removed |
+|---|---|
+| `hitlik/tails.py` | 2 (the "bug the first version had", "it used to take a component index ... (2026-09-10)") |
+| `hitlik/perhit/gates.py` | 2 (dated "measured 2026-09-10", "it cost an hour on 2026-09-10") |
+| `hitlik/perhit/xcum_perhit.py` | 4 ("the WG question", "the task expects", prototype comparison) |
+| `hitlik/plot_hitlik.py` | 1 ("`rows` used to be a component INDEX") |
+| `hitlik/cost.py`, `hitlik/perhit/saturation.py`, `hitlik/perhit/plot_xcum.py`, `hitlik/perhit/run_all.sh`, `hitlik/perhit/fisher_joint.py`, `hitlik/perhit/run_prod.sh` | 1 each (dates, "the WG asked", "no longer needed") |
+| `vtxres/gates.py`, `vtxres/run_prod.sh`, `matres/extract_groups.py` | 1 each |
+| `matres/run_joint.sh` | 2 (dated recipe header, the removed `--physical` flag) |
+| `pubhtml.py` | 2 ("the old template path ... is gone") |
+| `check_slide_overflow.py` | 1 ("a first attempt at 2.5 %") |
+| `hitlik/run_ladder.sh`, `vtxres/run_ladder.sh` | 1 each — and both were WRONG: `--whiten` makes the card float `k * prior_sigma`, not `k / prior_sigma` |
+| `md2html.js` | header added (it had none) |
+
+**Dead code removed:**
+
+* `hitlik/fisher_cmp.py --upsample` — selected a `pass`; the term's upsample is
+  a constructor argument and the Hessian always uses 1.
+* `hitlik/recovery.py --whiten` — `store_true` with `default=True`, so it could
+  never be unset; the card's own `group_units` decide anyway.
+* `hitlik/hitlik_term._resolve_comps` — no caller; `load` / `load_perhit`
+  resolve the spec inline.  Its documentation moved into `load_perhit`.
+
+**Files deleted (commit `cb60314`):** the 32 tracked `resolution/runs_*.log`
+(31 empty, one a traceback) from the CGF scheduling scans — no reference
+anywhere.  `.gitignore` now carries `resolution/runs_*.log`.
+
+**Verification:** every `.py` under `hitlik`, `hitlik/perhit`, `vtxres`,
+`matres` imports and passes `--help` in the container (`matres/pick_models.py`
+takes a bare path and has no argparse — expected); `bash -n` clean on every
+`.sh`; end-to-end `efficiency.py`, `recovery.py`, `perhit/certify.py` and the
+three card builders all run.
+
+## `resolution/` top level — 109 scripts deleted (commit `d3b3f78`)
+
+A survey resolved all 228 top-level scripts against every caller, every python
+import, and the twelve final-state notes in `Documents/Resolution` (citations
+in their `archive/`, the retired dev log, were NOT counted as evidence of
+life).  81 are KEEP-CORE, 37 KEEP-REPRO, 109 deleted:
+
+* **62 dated one-offs** with a later sibling or a rewritten replacement:
+  `chain_*` / `drive_*` / `finish_*` / `rerun_*` babysitters; the four-step
+  `chain_windownorm_260904` chain and the five `censor_*_260904` scripts (that
+  test appears in no final note); `clampfix_*_260904`; the six-member
+  `kms_solve` ladder; the six pair builders replaced by `masspairs_parallel.sh`;
+  `check_exports_260906.py` (`smoke_exports_260906.sh` is what production runs).
+* **9 hand-rolled minimisers**: `fit_ms_material.py`, `fit_hit_ms_joint.py`,
+  `cf_ms_moliere.py`, `cf0_ecf.py`, `cgf_scoring_test.py`, `cgf_irls_exact.py`,
+  `cgf_twocomp.py`, `cgf_mc_closure.py`, `cgf_infit_prep.py`.
+* **17 superseded probes**: `attribute_skew_mass.py`, `mixture_test.py`,
+  `scale_closure.py`, `tail_symmetry.py`, `jpsi_mass_closure.py`,
+  `jpsi_bias_decompose.py`, `simhit_compare.py`, `phi_charge_parity.py`,
+  `field_structure_test.py`, `census_probe.py`, `hit_residual_localize.py`,
+  `hitres_cf_kmsscan.py`, `cf_pair_ditrack.py`, `cf_kernel_tt.py`,
+  `fsr_kernel_study.py`, `plot_radiative_spectrum.py`, `fit_transmission.py`.
+* **9 pass/fail gates** whose gated code is shipped: `cgf_cxx_validate.py`,
+  `cgfshim.py`, `cgf_delta_validate.py`, `cf_delta_term_validate.py`,
+  `cf_delta_term_impact.py`, `radterm_validate.py`, `hadrad_check.py`,
+  `window_norm_validate.py`, `ioni_sign_probe.py`.
+
+The one survey DELETE not acted on is `check_slide_overflow.py`: it has no
+caller, but the cleanup brief names it as a file to clean, so it stays.
+
+KEPT WITH REASON (marginal): `extract_parallel.sh` (no live caller, but the
+generic `--extract` twin of the kept `masspairs_parallel.sh`, and every
+track-resolution cache behind `CLOSURE_STATE.md` came through it); the
+`*_260906` export-gate trio `check_variance_grads_260906.py` /
+`fd_variance_260906.sh` / `fdinmaker_260906.sh` (dated one-offs, but
+`PROCESS_NOISE_CGF.md` quotes their numbers); `run_transmission_scan.sh` (not
+in `TRANSMISSION.md`'s Reproduce block, but it produces the six coherent dE/dx
+shifts the quoted T_sys fit is made of).
+
+## `hitclassbias/` + `oddmoment/` + `qmsmodel/` (commit `8a9acc8`)
+
+17 deleted from `hitclassbias/`: `s8_variants.py`, `s9_who_moved.py`,
+`s10_tail.py`, `s11_unconv.py` (pair on `(run,lumi,event)` with two muons per
+event -- their own banner said retracted; `c1_conv.py`/`c2_pair.py`/
+`conv_common.py` replace them), `s2_quality.py`, `s3_pixel.py`,
+`s4_control.py`, `s5_joint.py` (binned splits on the fitted sigma, the trap
+`c5_scaling.py` exists to avoid), `explore1.py`, `probe2.py`,
+`probe_branches.py`, `list_branches.py`, `t0_consistency.py`,
+`t1_locations.py`, `t1b_orient.py`, `t2b_diag.py`, `t7_scaling.py`.
+
+Dead code: `oddmoment/aux_gen.py`'s post-check read locals of another function
+(`main()` raised NameError on every run); `hitclassbias/t2_predict.py`'s
+`stat()` was never called and was broken; two overwritten assignments.
+32 comment blocks cleaned across 25 files.
+
+## `fullscale/` (77 comment blocks across 36 files)
+
+7 deleted: `test_jointhessp.py` (replaced by `gate_joint_hessian.py`),
+`report.py`, `native_table.py` (both replaced by `certtable.py`),
+`check_normz_sigma.py`, `corr_census.py`, `run_full380.sh`, `run_kernfix.sh`
+(build cards that are not in the certified table).  `test_hessp.py` is KEPT:
+`STATE.md` §9 publishes its four-random-tangent gate.
+
+Dead code: `make_card.py`'s `if args.shape_prior and not args.shape: pass`;
+`make_joint_card.py --clip-vg-other`, which clips the exact algebraic
+remainder `vgf - sum_c v_c` at 0 and thereby breaks `vg_other + sum = vgf` for
+40 % of J/psi candidates -- never passed by anything.
+
+LEFT IN PLACE with reason: the `fit.py` / `fit_joint.py` / `chunkfit.py` /
+`devobj.py` / `shardobj.py` / `minimize_driver.py` family drives
+`scipy.optimize.minimize` directly, but `fullscale/STATE.md` retains them as
+the reference implementation the rabbit path is checked against and as the
+only source of the sandwich covariance; `gate_nanstep.py` calls scipy
+deliberately, to see the abort rabbit's Fitter swallows.
+
+## Figure paths and documentation pointers
+
+The canonical figure root is `~/public_html/ZMass/cvh/<YYMMDD>_<tag>/`;
+`~/public_html/cvh/` holds only symlinks into it.  `pubhtml.py` now defines
+`FIGROOT` and `figdir(tag, date=None)`, and its index-template fallback looks
+under the canonical root.  Repointed: `hitlik/plot_hitlik.py`,
+`hitlik/tails.py`, `hitlik/perhit/run_stage2.sh` + `run_all.sh` +
+`plot_xcum.py`, `vtxres/plot_vtx.py`, `cf_masslik_fit.py`,
+`qmsmodel/qms_report.py`, `hitclassbias/{t8,s7,c3}_figs.py`,
+`oddmoment/{figs,jensen_figs,mass_figs}.py`, and six `fullscale/` plotters.
+
+`Documents/Resolution/NOTES.md` no longer exists; the bare citations to it are
+repointed at the topical note that carries the material (IONISATION_MODEL,
+MULTIPLE_SCATTERING, HIT_RESOLUTION, CLOSURE_STATE, PROCESS_NOISE_CGF) or at
+`RESOLUTION.md`.  Citations to `NOTES_*.md` were left: those files still exist
+under `Documents/Resolution/archive/`.
+
+## Two wrong-signed figures removed
+
+`~/public_html/ZMass/cvh/260908_hitclassbias/{pred_vs_meas,lever_subdet}.{pdf,png}`
+were built from `t2_predict.py`, which propagates
+`delta z = +sum_b s_b a_b mu_b`.  `c9_phipred.py` derives the minus the
+exported influence functional carries (`F` is the RESIDUAL Jacobian) and is
+the corrected implementation.  Regenerating from `t2_predict.py` would
+reproduce the wrong sign, so the four files were DELETED from the figure
+directory and `t2_predict.py` now states its convention explicitly.  Making
+the two agree is a physics decision, not a cleanup one, and is left open.
+
+## Still to do
+
+* `production/`, `cleanprop/`, `cfcompress/`, `simprod/`, `globalfit/` --
+  delegated, report pending (includes the `PRODUCTION_NEXT.md` ->
+  `PRODUCTIONS.md` citations and the dead cfcompress scratchpad defaults).

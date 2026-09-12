@@ -8,6 +8,12 @@ per-hit influence weights, with NO free parameter.
 geometry, gen-anchored, so it IS the CPE location bias); `s_b sqrt(a2_b)` is
 the fit's own signed response, from `resinfbv` and `resinfvarv`.
 
+SIGN.  The formula above is written WITHOUT the minus that the exported
+influence functional carries (`F` is the RESIDUAL Jacobian, so a positive
+`r_b` moves q/p by `-wqop_b r_b`).  `c9_phipred.py` derives that minus and
+applies it; the two conventions must not be mixed, and a figure built from
+this script's `--save` output is in the convention written here.
+
 The FIRST-order consequence of a location bias is a MEAN SHIFT of z, and the
 odd moment `<z e^{-u z^2}>` of a shifted unit Gaussian is
 `m (1+2u)^{-3/2}` to first order -- so the prediction is tested on both.
