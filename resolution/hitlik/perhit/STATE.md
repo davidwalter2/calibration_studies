@@ -200,7 +200,7 @@ Figures for the cross-cumulants come from
 | `perhit20k.npz` | 20 000 tracks (gates, tails, cross-cumulants) |
 | `fisherHJ.npz` | H, J, per-batch gradients: `hit` + `ref`, 3 arms |
 | `fisherHJ_all.npz` | the same-track joint (`all`), 2 arms |
-| `fisherHJ_joint.npz` | the disjoint joint (per-hit + mass), via `fisher_joint.py` |
+| `fisherHJ_joint.npz` | the disjoint joint (per-hit + mass), via `fisher_joint.py` (rebuilt 2026-09-12, see below; the superseded pair is `*.cardunitsbug.bak.npz`) |
 | `mass_HJ.npz` | the J/psi-gun mass term's own H and J, cached |
 | `eff_{hit,ref,all,hitmass,mass,refmass}.npz` | the sandwich tables |
 | `cards/*.hdf5`, `fits/*/fitresults.hdf5` | the 15-card ladder + 16 subsample fits |
@@ -674,6 +674,33 @@ that neither arm shows alone.  DISJOINT samples (per-hit + the J/psi-gun mass
 term, `fisher_joint.py` summing by parameter NAME into
 `fisherHJ_joint.npz`): `H` and `J` are additive exactly and there is nothing to
 over-count.
+
+**The disjoint joint was WRONG until 2026-09-12 and its numbers are reissued.**
+`fisher_joint.py` added a CARD-unit mass Hessian to a PHYSICAL residual one, so
+the mass term entered **400x too strong** (the card unit of a material
+parameter is `1/gprior ~ 20`, and a Hessian picks up `u_i u_j`). The symptom
+is diagnostic: the joint `H + P` came out INDEFINITE — rank **59/60**, minimum
+eigenvalue **-1.53e3** — and every material efficiency collapsed to exactly
+**1.000** because both arms were dominated by the same wrong block. Rebuilt
+from the SAME stored matrices with `groups.matrix_to_physical` (logs
+`logs/{fisher_joint,eff_hitmass,eff_refmass,eff_mass,eff_res}.log`; the
+pre-fix evaluations are kept as `logs/eff_*_cardunitsbug.log`):
+
+| cset | quantity | pre-fix | CORRECTED |
+|---|---|---|---|
+| `hitmass` | `H+P` spectrum | rank 59/60, -1.53e3 .. 4.1e5 | rank **60/60**, +2.75e1 .. 1.0e4 |
+| | median sandwich/quoted | 0.715 | **0.914** (cf) / 0.919 (gaussq) |
+| | material efficiency, marginal / prior-free | 1.000 / 1.000 | **1.020** (1.006-1.035) / **1.030** |
+| | material sandwich/quoted, CF / Gauss | **0.910** / 0.910 | **0.896** / 0.907 |
+| | hit-class efficiency | 0.999 / 1.001 | 0.999 / 1.001 (unchanged) |
+| `refmass` | `H+P` spectrum | rank 59/60, -1.54e3 | rank **60/60**, +3.08e0 |
+| | material efficiency, marginal / prior-free | 1.001 / 1.000 | **1.313** (1.090-1.553) / **1.263** |
+| | material sandwich/quoted, CF / Gauss | 0.911 / 0.912 | **0.950** / 1.068 |
+| | hit-class efficiency | 1.117 / 1.117 | 1.113 / 1.117 |
+
+The hit classes are untouched because the two-track mass term exports no
+parmtype-8/9 blocks, so its rows there are zero. **The "S/Q 0.910" that was
+quoted for the disjoint joint is the artefact, not a measurement.**
 
 The mass term's own `H` and `J` are MEASURED and cached in `$R/mass_HJ.npz`:
 24 000 J/psi-gun candidates, 498 559 group rows (27 045 pruned at

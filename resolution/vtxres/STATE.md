@@ -13,6 +13,10 @@ constrain them than the Gaussian chi2 ACTUALLY does (sandwich errors, never
 nominal Fisher ones)? may it be multiplied into the mass term? and what does it
 cost in CPU and bytes?
 
+**The vertex constraint is now ON by default** (`doVtxConstraint=True`), and
+the whole study was re-run in that regime: **section 12**. Sections 1-11 are
+the FREE regime, which is what every production before 2026-09-11 used.
+
 **Why have the term at all:** the vertex residual measures the **INNER** tracker
 — beam pipe, BPix support and active layers, the innermost PIXEL hit classes —
 where the mass residual measures the OUTER one (TIB/TEC/TOB support, the STRIP
@@ -136,6 +140,13 @@ Config switches on `runCvhJpsiGenMC.py`: `exportVtxResidual` (default False),
                (symlinked as resolution/runs/vtxres/{vtx,mass,dy_vtx,dy_mass}.npz,
                 runs/vtxres/cards, runs/vtxres/fits)
 
+    CONSTRAINT ON (the re-analysis, section 12)
+    J/psi gun  .../runs_vtxres_260911/prod_vtxon/task_NNNN/     160 x 2000 ev
+    DY MC      .../runs_vtxres_260911/dy_vtxon/task_NNNN/       6 x 4000 ev
+    npz/cards  .../runs_vtxres_260911/vtxon/   (symlinked as
+                resolution/runs/vtxres_on, same file names)
+    logs       resolution/vtxres/logs_on/
+
 The J/psi-gun production is **160 tasks x 2000 events**, the same SIM and the same
 fit settings as the mass-card production
 `resolution_trackres_jpsigun_ul16_260905d_m0` (`runCvhJpsiGenMC.py`,
@@ -147,7 +158,12 @@ each of submit50/51/52, ~31 min/task, 1.61 GB RSS each, **328 kB/candidate**.
 Switches added on top:
 
     exportVtxResidual=True exportCfGroupExponents=True exportStepRecords=False
-    doVtxConstraint=False        (index 6 FREE -- what every production does)
+    doVtxConstraint=False        (index 6 FREE -- what the study above used)
+
+`prod_vtxon` / `dy_vtxon` are the SAME inputs and the SAME settings with
+`doVtxConstraint=True`, which is now the maker's default (slurm 6432438 /
+6432439, `slurm/array.sbatch`, which writes no `.complete` sentinel -- so the
+extraction of that leg runs with `COMPLETE=""`).
 
 The in-maker exponents replace the raw step records the 260905d production had to
 carry at ~400 kB/cand, and the per-group split is carried for BOTH functionals.
@@ -176,10 +192,9 @@ geometry, pileup, MiniAOD, `massMin=60 massMax=120`, GT
 
 `run_tf.sh` runs a command in the rabbit TF container against `rabbit-vmass` (and
 binds `/ceph/submit` when the host can read it); `run_ladder.sh card_<name>` and
-`run_fit.sh <name>` are the per-card entry points. Every efficiency call on this
-pipeline must carry `--prior-power 2` (see the unit trap below); `run_all.sh eff`
-does not add it, so the certified numbers come from the explicit calls whose logs
-are `logs/eff_{vtx,mass,joint}_p2.log`.
+`run_fit.sh <name>` are the per-card entry points. Every matrix and every
+fitted value that leaves a term is in PHYSICAL units (`k`, `eps`) — see trap 1 —
+so `run_all.sh eff` is the certified path and no unit flag is needed anywhere.
 
 | script | role |
 |---|---|
@@ -191,6 +206,10 @@ are `logs/eff_{vtx,mass,joint}_p2.log`.
 | `xcum_vtx.py` | the vertex-mass correlation at three levels |
 | `cost_vtx.py --bill / --timing` | the export bill and the per-candidate cost |
 | `plot_vtx.py` | the figures |
+| `cmp_vtxon.py` | the same-candidate ON-vs-OFF comparison and the selection flow |
+| `plot_vtxon.py` | the constraint-ON figures (gain, correlation, DCA identity, DY) |
+| `drop_params.py` | a Fisher npz with uninformative parameters removed (section 12) |
+| `report_vtxon.sh` | the whole ON-vs-OFF comparison, read off the two log sets |
 
 Third-party consumers: `hitlik/efficiency.py` (the sandwich),
 `hitlik/recovery.py` (the injections), `hitlik/perhit/certify.py` (value + NLL +
@@ -199,7 +218,14 @@ cards, `trust-exact` otherwise).
 
 ### Figures
 
-`~/public_html/ZMass/cvh/260911_vtxres/` — 20 panels plus `index.php`:
+`~/public_html/ZMass/cvh/260912_vtxon/` — the constraint-ON set (section 12):
+`sigma_m_gain`, `sigma_m_gain_vs_genpt`, `mass_vertex_correlation`,
+`dca_identity`, `dy_mass_shift`, plus the `plot_vtx.py` panels for both
+regimes side by side (tags `vtx`/`mass`/`dyvtx` ON and `vtxoff`/`massoff`/
+`dyvtxoff`/`vtxfull`/`vtxfulloff` OFF).
+
+`~/public_html/ZMass/cvh/260911_vtxres/` — the free regime, 20 panels plus
+`index.php`:
 `density_{vtx,mass,dyvtx}[_log]`, `family_shares_*`, `group_shares_*`,
 `hitclass_shares_*`, `shares_vs_genpt_{vtx,dyvtx}`, `sigma_check_*`.
 NOTES entry: `/work/submit/david_w/Documents/Resolution/archive/NOTES_devlog_until_260911.md`, section
@@ -347,7 +373,7 @@ Gaussian, so the vertex term's non-Gaussianity is of the same size.)
 ### 5. The sandwich — what each arm's own error is worth
 
 `fisher_vtx.py` (H by 60 HVPs in 83-113 s per arm, J by 200 batch means,
-`|sum_m g_m - g| = 0`) + `hitlik/efficiency.py --prior-power 2`. 8 000
+`|sum_m g_m - g| = 0`) + `hitlik/efficiency.py`. 8 000
 candidates, at MC truth, with the parmtype-15 tier priors and 1.0 on every hit
 class. Every number is the ACTUAL (sandwich) variance, never the nominal Fisher
 one. `logs/eff_vtx_p2.log`.
@@ -557,6 +583,289 @@ candidate).
 
 ---
 
+### 12. THE VERTEX CONSTRAINT ON — the study re-run on `prod_vtxon`
+
+Sections 1-11 are the FREE regime (`doVtxConstraint=False`). The maker now
+defaults to the constraint ON, freezes state index 6 at `theta_6 = 0`, and
+exports `Jpsi_vtxres` (the DCA the unconstrained fit would report, through the
+one-step identity), `Jpsi_mass` AND `Jpsi_mass_unc`, and
+`Jpsi_covmassvtx` = `cov(m, theta_6)`. The whole chain was re-run on
+`prod_vtxon` / `dy_vtxon` — same SIM, same settings, the switch the only
+difference — and the free-regime numbers were re-produced with the current
+physical-unit code so every comparison is like for like.
+Logs `logs_on/`, figures `~/public_html/ZMass/cvh/260912_vtxon/`.
+
+**Every conclusion of sections 1-11 survives. Four things change, all for the
+better, and one number in section 10 was wrong for a reason that is now
+understood.**
+
+#### 12.1 The gates (20 000 candidates; `logs_on/gates_prod{,_off}.log`)
+
+| gate | ON | OFF |
+|---|---|---|
+| (a) `max_i \|g_i\| sqrt(C_ii)` (free idx) / `\|b_6\| sigma_v` | median **9.7e-12** | 2.4e+05 (6 is free there) |
+| (c) `Jpsi_vtxvchk` | 7.79e-11 | 7.71e-11 |
+| (c) mass, `\|sum_b\|a_b\|^2 - (cov+covhit)\|/(.)` | **7.4e-8**; vs `sigma_m^2` 5.1e-8 | — |
+| (e) sign rule, candidates at 100 % of blocks | 99.82 % | 99.78 % |
+| per-group closure, both functionals | max 3.1e-15 | max 2.7e-15 |
+| `sum_g(vqms+vqio)+vgf` on all 96 160 | 1.000000 | 1.000000 |
+| `Jpsi_d` | **identically 0** | the raw `theta_6` |
+| `\|m_unc - (m_c + cov sigma_v^-2 r_v)\|` | median **6.9e-8 GeV**, max 4.7e-6 | — |
+| `sum_c cfmass_hitv` vs `cfmass_vgf` | 9.9e-7 median, 7.6e-6 q99 | 9.7e-7 / 8.6e-6 |
+
+#### 12.2 ON against OFF on the SAME candidate (39 832 matched pairs)
+
+`cmp_vtxon.py`, `logs_on/cmp_vtxon.log`.
+
+| | median | p90 | p99 | max |
+|---|---|---|---|---|
+| `\|r_v(ON) - r_v(OFF)\|/sigma_v` | **1.37e-3** | 1.31e-2 | 7.95e-2 | 111 |
+| `\|sigma_v(ON)/sigma_v(OFF) - 1\|` | **8.3e-4** | 5.3e-3 | 3.3e-2 | 51 |
+| `\|m_unc(ON)/m(OFF) - 1\|` | **4.2e-5** | 4.6e-4 | 2.4e-3 | 0.69 |
+| `\|m_c(ON)/m(OFF) - 1\|`, no identity | 7.2e-4 | 3.4e-3 | 1.0e-2 | 0.69 |
+
+The one-step identity removes a factor **17** in the median; 2.0 % of
+candidates move by more than 0.05 `sigma_v` and 0.05 % by more than 0.5, the
+second-order tail of a one-Newton-step projection. `m_c - m_unc` has mean
++0.040 MeV and rms 11.2 MeV.
+
+**THE MASS RESOLUTION GAIN.** `sigma_m(ON)/sigma_m(OFF)` = **0.98109** in the
+mean (median 0.99013, p16-p84 0.9626-0.9996) — **1.89 % in sigma, 3.75 % in
+variance**. It is PREDICTED candidate by candidate from the ON export alone:
+freezing `theta_6` conditions the mass on it, so the ratio must be
+`sqrt(1 - rho^2)` with `rho = cov(m,theta_6)/(sigma_m^{unc} sigma_v)`, and the
+predicted mean is **0.98103** — agreeing in the mean to 5e-5 and per candidate
+to 0.17 % (median). `rho` has mean -0.00016 and **rms 0.19132**, i.e. exactly
+the free regime's per-candidate mass-vertex influence correlation (0.1928), and
+its distribution lies on top of it (`mass_vertex_correlation.pdf`). The gain
+grows with momentum — 1.32 / 1.20 / 1.52 / 1.75 / 1.98 / 2.23 / 2.47 / **2.66**
+per cent across the softer muon's GEN `pT` octiles (`sigma_m_gain_vs_genpt.pdf`,
+measured over predicted flat at 1.00 in every bin).
+
+**THE PER-CANDIDATE CORRELATION IS GONE.** `corr(w_mass, w_vtx)` in the `V`
+metric: mean 0.000000, **rms 0.000000, max 1.2e-5** (free: rms 0.1928,
+max 0.997). `xcum_vtx.py` level (1) agrees: per-candidate
+`Cov(r_v, dm)/(sigma_v sigma_m)` rms **3.1e-5** against 0.1924. The two
+functionals are now orthogonal BY CONSTRUCTION rather than by the mirror
+symmetry of section 9.
+
+#### 12.3 The distribution, 96 160 candidates (`logs_on/plots_full_{on,off}.log`)
+
+| | ON | OFF |
+|---|---|---|
+| mean | +0.00065 +- 0.00324 | -0.00604 +- 0.00487 |
+| Var / skew / kurt, UNTRIMMED | **1.00652 / +0.051 / 5.14** | 2.28357 / -75.99 / 12 764 |
+| Var / skew / kurt, trimmed `\|z\|<5` | 0.97095 / +0.0100 / 3.929 | 0.9729 / +0.0091 / 3.946 |
+| trim drops | 0.100 % | 0.162 % |
+| `P(\|z\|>5)` | **0.000998** | 0.001622 |
+| data/CF at 3 / 4 / 5 sigma | **1.250 / 1.256 / 1.033** | 1.358 / 1.582 / 1.679 |
+| data/chi2 at 3 / 4 / 5 sigma | 2.988 / 39.9 / 1741 | 3.246 / 50.3 / 2829 |
+
+The constraint removes the far tail that made the free-regime moments
+unquotable, and the CF now describes the 5-sigma tail to **3 %**.
+
+#### 12.4 Composition — identical
+
+Vertex family shares hit **0.3700** / MS 0.6300 / ionisation 0.0000 (free
+0.370 / 0.630 / 0.0000); hit share 0.064 -> 0.547 across GEN `pT` (free
+0.066 -> 0.548); `bpix_support6` 0.3234 (0.324), `bpix_active_L1` 0.0736
+(0.074), `tib_support` 0.0555 (0.055), `beampipe` 0.0309 (0.031); hit classes
+`pix_y_q1` 0.0650 (0.065), `pix_x_q1` 0.0420 (0.043). On DY, hit 0.7297
+(0.732), `bpix_support6` 0.1080 (0.108), `pix_x_q1` 0.1992 (0.198).
+`corr(sigma_v, z_v)` = +0.0012 +- 0.0071, still zero, so the vertex term still
+needs no self-consistent-sigma correction.
+
+The MASS functional moves a little and only where it should: MS 0.9036 (0.8979),
+hit 0.0962 (0.1021), `tib_support` 0.2154 (0.2206), `tec_structure` 0.1780
+(0.1833), `tob_support` 0.1299 (0.1351) and **`bpix_support6` 0.1151 (0.0999)**
+— the constrained mass leans ~15 % more on the innermost support. Its
+`corr(sigma_m, z_m)` is **+0.0347 +- 0.0071 ON against +0.0344 +- 0.0071 OFF**
+on the same 20 000 candidates, so the two mandatory mass corrections
+(self-consistent sigma, Jensen) behave exactly as before.
+
+#### 12.5 A degeneracy the published sandwich carried: `hitres_str_N5_hi`
+
+`H` has a NEGATIVE eigenvalue along `hitres_str_N5_hi` in every arm and both
+regimes (CF -7.5 ON / -5.6 OFF, `gaussq` **-9.0 ON / -2.7 OFF**), and the class
+carries only 0.27 % of `sigma_v^2` on 3 048 candidates — the SAME occupancy in
+the two productions (3 048 / 3 049 rows, `sum v` 8.08 / 8.10). With the 1.0 hit
+prior `H + P` then has min eigenvalue **8.3e-3** ON against 0.48 OFF, so
+`(H+P)^-1` is enormous along that one direction and inherits into every
+marginal error: the raw ON material efficiency reads 609.6. It also inflates
+rabbit's EDM, `1/2 g^T (H+P)^-1 g`, on the JOINT fits.
+
+`drop_params.py` removes the parameter from `H`, `J` and `G`, and
+`--freezeParameters hitres_str_N5_hi` removes it from the fit — the same
+decision, applied identically to every arm and both regimes, and not a scale,
+a bound or a clip on anything measured. Everything below is quoted that way,
+and the free-regime table is re-quoted the same way beside it.
+
+#### 12.6 The sandwich (8 000 candidates, 59 parameters, physical units)
+
+| | ON | OFF | published (60 par) |
+|---|---|---|---|
+| CF, median sandwich/quoted | **0.915** | 0.914 | 0.885 |
+| `gauss` / `gaussq`, median S/Q | 1.049 / 1.081 | 1.089 / 1.101 | 1.040 / 1.099 |
+| MATERIAL efficiency, marginal | **2.256** (2.198-3.067) | **2.632** (2.217-3.173) | 2.659 |
+| MATERIAL efficiency, prior-free | 3.310 | 2.778 | 2.778 |
+| MATERIAL S/Q prior-free, CF / Gauss | 0.957 / 1.549 | 0.961 / 1.543 | 0.961 / 1.543 |
+| HIT efficiency, marginal | **1.238** (1.028-1.434) | 1.197 (0.965-1.377) | 1.215 |
+| HIT efficiency, prior-free | 1.186 | 1.104 | 1.115 |
+| HIT S/Q, CF / Gauss | 1.034 / 1.204 | 1.055 / 1.170 | 1.061 / 1.177 |
+| bootstrap/sandwich | 1.001-1.005 | 0.996-0.998 | 0.995-0.998 |
+
+The CF arm's own quoted and sandwich errors per parameter are unchanged to the
+third digit: `bpix_support6` 0.0403/0.0243 ON against 0.0399/0.0237 OFF,
+`bpix_services` 0.0956/0.0317 against 0.0954/0.0318, `tib_support`
+0.0489/0.0103 against 0.0488/0.0106; `pix_y_q1` 0.1653/0.1591 against
+0.1671/0.1614, `pix_x_q1` 0.2019/0.1858 against 0.2060/0.1811. The same three
+material groups pass the informativeness test.
+
+#### 12.7 Vertex vs mass vs joint — the information is re-partitioned, not created
+
+Quoted sigma, CF arm, physical units:
+
+| parameter | VTX ON | VTX OFF | MASS ON | MASS OFF | JOINT ON | JOINT OFF |
+|---|---|---|---|---|---|---|
+| `material_bpix_support6` | 0.0403 | 0.0399 | 0.0481 | 0.0485 | **0.0394** | 0.0393 |
+| `material_tib_support` | 0.0489 | 0.0488 | 0.0455 | 0.0452 | **0.0436** | 0.0432 |
+| `material_tec_structure` | (unin.) | (unin.) | 0.0445 | 0.0438 | 0.0429 | 0.0425 |
+| `material_tob_support` | (unin.) | (unin.) | 0.0474 | 0.0473 | 0.0464 | 0.0463 |
+| `material_bpix_services` | 0.0956 | 0.0954 | 0.0961 | 0.0958 | 0.0921 | 0.0918 |
+| **`hitres_pix_y_q1`** | **0.1653** | 0.1671 | 0.9364 | 0.958 | **0.1645** | 0.1661 |
+| **`hitres_pix_x_q1`** | **0.2019** | 0.2060 | 0.8364 | 0.800 | 0.2002 | 0.2038 |
+| `hitres_pix_y_q3` | 0.1900 | 0.1947 | 0.9366 | (unin.) | 0.1890 | 0.1933 |
+| `hitres_str_N1_lo` | 0.3767 | 0.3769 | 0.4672 | 0.4396 | **0.3084** | 0.3003 |
+| `hitres_str_N3_lo` | 0.4178 | 0.4043 | 0.5662 | 0.5612 | **0.3594** | 0.3478 |
+| `hitres_str_N2_hi` | 0.4451 | 0.4527 | 0.7962 | 0.6236 | 0.4228 | 0.3698 |
+
+**`sigma_m` shrinks by 1.9 % and the mass term learns nothing extra.** Its
+quoted errors are the same to ~1 % on the material and 3-18 % WORSE on the
+outer strip classes, and so are the joint's. That is the expected answer:
+conditioning on `theta_6` removes exactly the part of the mass variance the
+VERTEX term measures on its own, so the information is re-partitioned between
+the two terms rather than created. The vertex term's own numbers do not move,
+so its 4-6x advantage over the mass term on the innermost pixel classes stands
+verbatim.
+
+**THE JOINT VERDICT** (sandwich/quoted, CF arm, 59 parameters):
+
+| | ON | OFF |
+|---|---|---|
+| vertex alone | **0.915** | 0.914 (0.885 with the degenerate class) |
+| mass alone | **0.358** | 0.432 |
+| **joint** | **0.857** | **0.880** |
+
+The joint is BELOW the vertex term's own value in both regimes: **the joint
+still does not over-count**, and it is the same statement even though the
+per-candidate first-order correlation is now identically zero. The ensemble
+correlations stay zero (`corr(z_v,z_m)` = +0.0054 +- 0.0071 ON against
++0.0047 +- 0.0071; `corr(z_v^2, z_m^2)` -0.0023 against -0.0014) and the
+FOURTH cross cumulant RISES, **0.178** (p16-84 0.092-0.308) against 0.132 —
+which is what is left once the first-order piece is removed.
+
+#### 12.8 The fits and the injections
+
+All 13 cards build and all 13 fits RUN: the free regime's three hard failures
+(`vtx_gauss` not positive-definite, `mass_gaussq` / `joint_gaussq` NaN Hessian
+— open item 1) are GONE. Under the default `trust-krylov` four stall at
+EDM ~0.5 (`joint_cf`, `inj_joint_cf`, `joint_gaussq`, `mass_gaussq`), and they
+are not unconverged — `tf-trust-krylov` lands on the same point (`joint_cf`
+NLL -42 151.62111 against -42 151.62167, 1.4e-8 relative) with the same EDM.
+It is the `hitres_str_N5_hi` direction of 12.5 inflating
+`1/2 g^T (H+P)^-1 g`. Freezing that one parameter certifies all of them:
+
+| fit | free EDM | FROZEN EDM |
+|---|---|---|
+| `joint_cf` ON | 0.5028 | **5.64e-12** |
+| `inj_joint_cf` ON | 0.5030 | **1.81e-12** |
+| `joint_gaussq` ON | 0.5136 | **1.14e-09** |
+| `mass_gaussq` ON | 0.5062 | **9.40e-10** |
+| `joint_cf` OFF | 7.69e-12 | 5.76e-12 |
+
+and moves nothing (`joint_cf` ON `material_bpix_support6` +0.0670 +- 0.0385
+frozen against +0.0676 +- 0.0385 free). **13/13 certified in both regimes.**
+
+| fit | ON NLL(min) | ON EDM | OFF NLL(min) | OFF EDM | `bpix_support6` ON / OFF | `pix_y_q1` ON / OFF |
+|---|---|---|---|---|---|---|
+| `vtx_cf` | -26 049.779 | 4.9e-16 | -26 059.934 | 1.3e-12 | +0.0794 / +0.0731 | **-0.400 +- 0.133 / -0.400 +- 0.132** |
+| `vtx_gauss` | -25 916.956 | 8.8e-11 | (FAILED) | — | +0.0417 | -0.536 |
+| `vtx_gaussq` | -25 912.798 | 2.0e-12 | -25 890.002 | 2.5e-08 | +0.0666 / +0.0621 | -0.510 / -0.538 |
+| `mass_cf` | -16 094.041 | 7.1e-19 | -15 896.129 | 6.2e-14 | -0.0133 / -0.0088 | -0.146 +- 0.934 / -0.181 +- 0.958 |
+| `mass_gaussq` (frozen) | -15 574.636 | 9.4e-10 | (FAILED) | — | +0.0417 | -0.031 |
+| `joint_cf` (frozen) | -42 148.660 | 5.6e-12 | -41 954.485 | 5.8e-12 | +0.0670 / +0.0649 | -0.394 / -0.410 |
+
+The vertex term still MEASURES the innermost pixel resolution:
+`hitres_pix_y_q1 = -0.400 +- 0.133` against -0.146 +- 0.934 from the mass term
+on the same candidates, **7.0x tighter in sigma** (free 7.3x).
+`mass_cf` NLL(0) is 198 lower ON over 8 000 candidates, of which
+`8000 x ln(1/0.98109)` = 153 is the smaller `sigma_m` alone.
+
+**Injections**, `material_bpix_support6` x1.05, truth `ln(1.05)` = 0.0487902
+physical, `corrected/truth = shift / (f_pri x truth)`:
+
+| channel | OFF shift / `f_pri` | OFF corr/truth | ON shift / `f_pri` | ON corr/truth |
+|---|---|---|---|---|
+| vertex, CF | -0.01922 / 0.400 | **0.985** | -0.01899 / 0.395 | **0.985** |
+| vertex, fit's Q | -0.02287 / 0.443 | 1.058 | -0.02180 / 0.431 | **1.037** |
+| MASS, CF | -0.00296 / 0.063 | 0.963 | -0.00348 / 0.075 | 0.951 |
+| JOINT, CF (frozen) | -0.02017 / 0.419 | 0.987 | -0.02017 / 0.420 | **0.984** |
+
+Leakage rms 0.034 (CF) in both; the free regime's 0.118 on the fit's-Q arm
+(+0.81 sigma onto `pix_y_q3`) drops to **0.035** ON.
+`hitres_pix_x_q2` variance x1.10 (linear mode, expected
+`-eps_inj/(1+eps_inj) x (1+eps_base)`): vertex CF **0.932** ON / 0.944 OFF,
+fit's Q 0.946 / 0.963; leakage < 0.01 sigma everywhere.
+
+#### 12.9 DY — section 10's 1.86 % is COMBINATORICS, not resolution
+
+`logs_on/dy_outliers.log`, `logs_on/cmp_dy.log`, `dy_mass_shift.pdf`.
+The constrained fit writes **10 654** candidates against 7 948, and every
+OFF candidate is also an ON candidate (OFF-only = 0 at the event level): the
+constraint converges on 2 616 events the free fit produced nothing for. After
+the extraction selection, 10 325 against 7 841, with 27 event keys the OFF
+selection keeps and the ON one drops.
+
+| sample | `P(\|z\|>3)` | `P(\|z\|>4)` | `P(\|z\|>5)` |
+|---|---|---|---|
+| ON, all 10 325 | 1.36 % | 0.38 % | **0.165 %** |
+| OFF, all 7 841 (the section-10 number) | 3.10 % | 2.13 % | **1.862 %** |
+| **ON, uniquely matched 7 498** | 1.214 % | 0.293 % | **0.107 %** |
+| **OFF, uniquely matched 7 498** | 1.214 % | 0.280 % | **0.107 %** |
+| ON, 1 candidate/event (10 201) | 1.225 % | — | 0.108 % |
+| ON, >1 candidate/event (124) | 12.10 % | — | **4.84 %** |
+| OFF, 1 candidate/event (7 530) | 1.554 % | — | 0.398 % |
+| OFF, >1 candidate/event (311) | 40.51 % | — | **37.30 %** |
+| OFF-only (29 candidates) | 100 % | — | **89.7 %** |
+
+**On the same candidate the tail is identical.** Section 10's 1.86 % is made
+of the 311 candidates that sit in multi-candidate events — combinatorial
+dimuon pairings, 116 of the 146 outliers — plus the 29 candidates the
+constrained selection rejects. So a vertex term on data still needs an outlier
+component, but it is a PAIRING/selection component, not a resolution one, and
+with the constraint on the inclusive figure is 0.165 % with data/CF at 5 sigma
+**7.5** instead of 85 (data/chi2 2 871 instead of 32 468), and untrimmed
+`Var(z)` 1.189 instead of 1 123.
+
+**Why both masses are exported**, measured on the ON DY sample:
+
+| | n | median `\|m_c - m_unc\|` | in units of `sigma_m`, median | p90 |
+|---|---|---|---|---|
+| core, `\|z_v\| < 3` | 10 185 | 55.6 MeV | 0.052 | 0.289 |
+| tail, `\|z_v\| > 5` | 17 | **684 MeV** | **0.511** | **10.76** |
+
+For a tail candidate the unconstrained mass is up to ten sigma from the
+constrained one while the core moves by 5 % of a sigma: having both is what
+lets that be seen, and vetoed, at analysis level.
+
+#### 12.10 Cost — unchanged
+
+`cost_vtx.py --bill` on `task_0000` of each production: the vertex block
+**30.40** kB/candidate ON against 30.41 OFF, the mass block 30.26 against
+30.23, the file 327.0 MB against 328.0 MB for the same 2 000 events. The two
+new scalars are free.
+
+
 ## Defects found and fixed
 
 1. **`Jpsi_d`'s charge re-sign destroys the sign it claims to define.**
@@ -606,33 +915,35 @@ candidate).
 
 ## Traps and standing rules
 
-1. **The `--prior-power` unit trap.** `hitlik/efficiency.py` applies the prior in
-   whatever units the FISHER MATRICES carry, and the two pipelines differ:
-   * `hitlik/fisher_cmp.py` builds through `hitlik_term.build`, which sets
-     `group_units = ones` — the parameter IS the physical `k`, one tier prior is
-     `gprior`, and `--prior-power 1` (the default) is RIGHT there;
-   * `make_*_card.py` OVERRIDES `term.group_units` to `1/gprior`, where one tier
-     prior is `gprior**2`; `vtxres/fisher_vtx.py` builds through
-     `make_vtx_card.build_term`, i.e. in CARD units, so **only THIS pipeline
-     needs `--prior-power 2`**.
+1. **One unit convention: everything that leaves a term is PHYSICAL.**
+   `matres/groups.py` is the single definition. `card_group_units` gives the
+   card unit of a material parameter (`1/gprior` when the card is whitened, 1
+   otherwise) and `term_units` / `card_units` READ it off a term or a card;
+   `matrix_to_physical` / `gradient_to_physical` convert. Every Fisher, score
+   and Hessian matrix, every fitted value and error, every prior, injection and
+   table that leaves a term is converted to physical `k` (the log material
+   amount of a group) or `eps` (the linear variance scale of a hit class)
+   before it is written or printed, so no downstream tool has to be TOLD which
+   convention it is holding and `efficiency.py --prior-power` /
+   `recovery.py --prior-sigma` are gone.
 
-   Every vtxres number in this file was produced at `--prior-power 2`. Getting it
-   wrong the other way is diagnosable: re-evaluating the stored k-unit matrices
-   (`runs/hitlik/fisherHJ20k.npz`, `runs/perhit/fisherHJ{,_all}.npz`) at
-   `--prior-power 2` gives them a 20x-too-tight prior, `(H+P)^-1` collapses onto
-   it and the informativeness test rejects every material group — the material
-   table comes out EMPTY. At `--prior-power 1` they reproduce every published
-   hitlik/perhit number exactly (1.825 / 2.093, 0.974 / 1.338, 1.204 / 1.221;
-   1.097 / 1.171, 0.529 / 0.563; 1.486 / 1.393; 1.510 / 1.657). Making `build`
-   and the card share one convention would remove the trap.
+   Historical note: while the two conventions coexisted, this pipeline's
+   matrices were in CARD units and its efficiency calls carried
+   `--prior-power 2`. Those logs (`logs/eff_*_p2.log`) reproduce exactly what
+   the physical-unit code now produces with no flag at all
+   (`logs_on/eff_off_*.log`: 0.885 / 2.659 / 2.778 / 1.215 / 1.115 / 0.961 /
+   1.543 / 1.061 / 1.177).
 
 2. **The `--max-vchk 1e-4` cut is a cut on the FIT'S OWN COVARIANCE, not on the
    residual.** `extract_vtx.py --max-vchk 1e-4` drops **0.245 %** of candidates
    (49 in 20 000). Every one of them has a `sigma_v` of order 10^2 m (the printed
    examples run 76 m to 462 m) — a fit whose vertex direction is unconstrained.
 
-3. **Never quote the untrimmed moments of this residual.** They are set by ~0.2 %
-   of candidates on the gun and ~2 % on DY; the tails table is the description.
+3. **Never quote the untrimmed moments of this residual IN THE FREE REGIME.**
+   They are set by ~0.2 % of candidates on the gun and ~2 % on DY; the tails
+   table is the description. With the vertex constraint ON that tail is gone
+   (untrimmed Var 1.0065, skew +0.05, kurt 5.14) and the moments are quotable
+   — section 12.
 
 4. **The ionization sign is per block, not global.** 16 % of vertex blocks carry
    -1. A single `ioniSign` would be wrong; use `cvhcf::TrackInput::ressgn`.
@@ -653,7 +964,9 @@ candidate).
 
 None blocking; each is a new study.
 
-1. **The mass term's Gaussian arm returns a NaN Hessian.** `mass_gaussq` and
+1. ~~**The mass term's Gaussian arm returns a NaN Hessian.**~~ GONE with the
+   vertex constraint on (section 12.8): `mass_gaussq` and `joint_gaussq` both
+   run and certify there. The free-regime symptom is recorded below. `mass_gaussq` and
    `joint_gaussq` have a finite NLL and gradient at theta = 0 but `H` is NaN;
    with `floor="clip"` instead of `"softplus"` the Hessian is finite and the NLL
    is `inf`, so the density is going to <= 0 (or underflowing) for some
@@ -662,17 +975,19 @@ None blocking; each is a new study.
    and the mass term's CF arm are all fine — and no headline needs it.
 
 2. **A non-Gaussian HIT model.** Both arms treat the hit noise as exactly
-   Gaussian. On the gun the CF is within 1.4-1.7 of the data out to 5 sigma; on
-   DY it is a factor 85 short, and a data fit will need an outlier component
-   whose size is now measured (~2 %).
+   Gaussian. On the gun the CF is within 1.4-1.7 of the data out to 5 sigma in
+   the free regime and 1.03-1.26 with the constraint on; on DY it is a factor
+   85 short free and 7.5 constrained, and the residual DY excess is
+   combinatorial rather than a resolution effect (section 12.9).
 
 3. **The concatenated-tau trick is not ported.** Every exponent primitive depends
    on `weight * tau` alone, so the mass and the vertex functional could share ONE
    `cvhcf` pass; as it stands the second call costs the same as the first
    (+0.54 s/candidate, +48 %).
 
-4. **Unify the prior-unit convention** between `hitlik_term.build` and
-   `make_*_card.build_term` so that `--prior-power` is no longer needed.
+4. ~~Unify the prior-unit convention~~ — DONE. `hitlik_term.build` takes
+   `group_units`, the card builders pass it in, and `matres/groups.py` is the
+   one definition (trap 1).
 
 5. **`hitlik/recovery.py` prints `nan` in its `/truth` columns on these cards**
    (it reads the injected truth under a key `make_vtx_card.py` does not write).

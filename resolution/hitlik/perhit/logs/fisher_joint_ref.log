@@ -1,0 +1,3 @@
+[08:34:12] residual fisher: 60 parameters, cset 'ref'
+[08:34:12] mass H/J from cache /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/mass_HJ.npz: 42 params, 24000 candidates
+[08:34:12] wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/fisherHJ_joint_ref.fix.npz  (csets: refmass, mass, res)

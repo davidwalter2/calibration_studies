@@ -39,7 +39,8 @@ BR = ['Jpsi_vtxres', 'Jpsi_vtxsig', 'Jpsi_vtxz', 'Jpsi_vtxb6', 'Jpsi_vtxdchi2',
       'Jpsi_pt', 'Jpsi_eta', 'chisqval', 'ndof', 'edmval',
       'run', 'lumi', 'event', 'Muplus_pt', 'Muminus_pt',
       'Muplusgen_pt', 'Muminusgen_pt', 'Muplusgen_eta', 'Muminusgen_eta',
-      'Jpsi_jacVtx', 'Jpsi_jacMass']
+      'Jpsi_jacVtx', 'Jpsi_jacMass',
+      'resinfcov', 'resinfcovhit', 'Jpsi_mass_unc', 'Jpsi_covmassvtx']
 
 
 def load(pattern, nmax=None, extra=()):
@@ -81,6 +82,11 @@ def main():
     ap.add_argument('--files', required=True, help='the FREE (doVtxConstraint=False) tree')
     ap.add_argument('--cons-files', default=None, help='the FROZEN tree, same events')
     ap.add_argument('--max', type=int, default=None)
+    ap.add_argument('--max-vchk', type=float, default=1e-4,
+                    help='the physics block and the mass identity are quoted '
+                         'on candidates that pass the extraction cut on the '
+                         "FIT'S OWN closure figure -- a cut on the fit's "
+                         'covariance, not on the residual')
     a = ap.parse_args()
 
     d, files = load(a.files, a.max)
@@ -117,6 +123,22 @@ def main():
             va = (av ** 2).sum(axis=1) / sig[i] ** 2
             rel_a.append(np.max(np.abs(va - vv)) / max(vv.max(), 1e-300))
         q('|a_b|^2/sigma^2 vs vtxvarv (rel)', rel_a)
+    # the same closure for the MASS functional:  sum_b |a_b^m|^2 must be the
+    # exported material + hit variance AND sigma_m^2 itself.
+    if 'resinfv' in d and 'resinfcov' in d and 'resinfcovhit' in d:
+        rel_c, rel_s = [], []
+        sm = np.asarray(d['Jpsi_sigmamass'], dtype=float)
+        for i in np.flatnonzero(good)[:2000]:
+            am = np.asarray(d['resinfv'][i], dtype=float)
+            tot = float((am ** 2).sum())
+            ref = float(d['resinfcov'][i]) + float(d['resinfcovhit'][i])
+            if ref > 0:
+                rel_c.append(abs(tot - ref) / ref)
+            if sm[i] > 0:
+                rel_s.append(abs(tot / sm[i] ** 2 - 1.))
+        q('mass: |sum_b |a_b|^2 - (cov+covhit)| / (.)', rel_c)
+        q('mass: |sum_b |a_b|^2 / sigma_m^2 - 1|', rel_s)
+
     # the hit-class shares must sum to the Gaussian share
     if 'cfvtx_hitv' in d:
         hs = np.array([np.sum(x) for x in d['cfvtx_hitv']])
@@ -144,6 +166,11 @@ def main():
 
     # ---------------- THE PHYSICS ----------------
     print('\n=== the residual itself')
+    # the degenerate population (sigma_v of order 10^2 m, |vtxvchk| = 1) is
+    # excluded here by the extraction's own cut so the moments are the ones
+    # the cards see.
+    good = good & (np.abs(np.asarray(d['Jpsi_vtxvchk'], dtype=float)) < a.max_vchk)
+    print(f'  (|vtxvchk| < {a.max_vchk:g} keeps {good.sum()} of {n})')
     z = np.asarray(d['Jpsi_vtxz'], dtype=float)[good]
     rv = np.asarray(d['Jpsi_vtxres'], dtype=float)[good]
     print(f'  r_v   : mean {rv.mean()*1e4:+.4f} um   rms {rv.std()*1e4:.4f} um')
@@ -151,6 +178,12 @@ def main():
     print(f'  z_v   : mean {z.mean():+.5f} +- {z.std()/np.sqrt(z.size):.5f}  '
           f'var {z.var():.5f}  skew {((z-z.mean())**3).mean()/z.std()**3:+.4f}  '
           f'kurt {((z-z.mean())**4).mean()/z.var()**2:.4f}')
+    zt = z[np.abs(z) < 5]
+    print(f'  z_v trimmed |z|<5 ({100*(1-zt.size/z.size):.3f} % dropped): '
+          f'Var {zt.var():.4f}  skew {((zt-zt.mean())**3).mean()/zt.std()**3:+.4f}  '
+          f'kurt {((zt-zt.mean())**4).mean()/zt.var()**2:.4f}')
+    print('  P(|z_v| > t): ' + '  '.join(
+        f't={t} {np.mean(np.abs(z)>t):.5f}' for t in (1, 2, 3, 4, 5)))
     vgf = np.asarray(d['Jpsi_vtxvgf'], dtype=float)[good]
     print(f'  vtxvgf (GAUSSIAN=hit share of sigma_v^2): median {np.median(vgf):.4f} '
           f'p10 {np.percentile(vgf,10):.4f} p90 {np.percentile(vgf,90):.4f}')
@@ -162,7 +195,7 @@ def main():
     print(f'  corr(sigma_v, z_v)     = {np.corrcoef(sig[good], z)[0,1]:+.5f} '
           f'(+-{1/np.sqrt(z.size):.5f})')
     print(f'  corr(sigma_v, |z_v|)   = {np.corrcoef(sig[good], np.abs(z))[0,1]:+.5f}')
-    if 'Jpsi_d' in d:
+    if 'Jpsi_d' in d and np.any(np.asarray(d['Jpsi_d'], dtype=float)[good] != 0):
         # `Jpsi_d` IS q(leg 0) * theta_6.  theta_6 is swap-invariant, so the
         # two differ by a sign that tracks the LEG ORDERING; showing both
         # skews on the same candidates is the evidence for the note in
@@ -175,6 +208,25 @@ def main():
         print(f'  skew(z)   q(leg0)*theta_6  = {((zc-zc.mean())**3).mean()/zc.std()**3:+.4f}'
               f'   (the `Jpsi_d` convention)')
         print(f'  mean(z) RAW {z.mean():+.5f}   q-signed {zc.mean():+.5f}')
+
+    if 'Jpsi_mass_unc' in d and 'Jpsi_covmassvtx' in d:
+        # with the constraint ON the fit reports the CONSTRAINED mass; the
+        # unconstrained one is one back-substitution away and is exported.
+        print('\n=== the one-step mass identity (constraint ON)')
+        mc = np.asarray(d['Jpsi_mass'], dtype=float)[good]
+        mu = np.asarray(d['Jpsi_mass_unc'], dtype=float)[good]
+        cv = np.asarray(d['Jpsi_covmassvtx'], dtype=float)[good]
+        rv2 = np.asarray(d['Jpsi_vtxres'], dtype=float)[good]
+        q('|m_unc - (m_c + cov/sigma_v^2 r_v)| [GeV]',
+          np.abs(mu - (mc + cv / sig[good] ** 2 * rv2)))
+        rho = cv / (np.sqrt(np.asarray(d['Jpsi_sigmamass'], float)[good] ** 2
+                            + (cv / sig[good]) ** 2) * sig[good])
+        print(f'  rho = cov(m,theta_6)/(sigma_m(unc) sigma_v): mean {rho.mean():+.5f}  '
+              f'rms {np.sqrt((rho**2).mean()):.5f}')
+        print(f'  implied sigma_m gain sqrt(1-rho^2): mean '
+              f'{np.sqrt(1-rho**2).mean():.6f}')
+        print(f'  m_c - m_unc: mean {np.mean(mc-mu)*1e3:+.4f} MeV  '
+              f'rms {np.std(mc-mu)*1e3:.4f} MeV')
 
     nb = np.abs(np.asarray(d['Jpsi_vtxvchk'], dtype=float)) > 1e-4
     if nb.any():

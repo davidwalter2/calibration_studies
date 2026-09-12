@@ -12,6 +12,10 @@ VENV=/work/submit/david_w/ZMass/mfs/.venv/bin/activate
 NCAND=${NCAND:-8000}
 NEXT=${NEXT:-60000}
 J=${J:-24}
+# `run_prod.sh` writes a `.complete` sentinel per task; the slurm array that
+# made the vertex-constraint-ON production does not, so that leg runs with
+# COMPLETE="".
+COMPLETE=${COMPLETE---require-complete}   # ${x-...}: an EMPTY COMPLETE means "no filter"
 mkdir -p $R/cards $R/fits $HERE/logs
 cd $HERE
 export VNPZ=$R/vtx.npz MNPZ=$R/mass.npz R GRP NCAND
@@ -21,7 +25,7 @@ extract)
   source $VENV
   for F in vtx mass; do
     python3 -u extract_vtx.py --files "$PROD/task_*/globalcor_*.root" \
-      --functional $F --groups $GRP -j $J --require-complete \
+      --functional $F --groups $GRP -j $J $COMPLETE \
       --max-chi2-ndof 3 --max-cands $((NEXT/160+1)) -o $R/$F.npz \
       2>&1 | tee logs/extract_$F.log
   done ;;
@@ -29,7 +33,7 @@ extract-dy)
   source $VENV
   for F in vtx mass; do
     python3 -u extract_vtx.py --files "$DY/task_*/globalcor_*.root" \
-      --functional $F --groups $GRP -j $J --require-complete \
+      --functional $F --groups $GRP -j $J $COMPLETE \
       --max-chi2-ndof 3 -o $R/dy_$F.npz 2>&1 | tee logs/extract_dy_$F.log
   done ;;
 gates)

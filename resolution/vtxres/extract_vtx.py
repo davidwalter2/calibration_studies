@@ -23,6 +23,10 @@ Output (npz), per functional
     run, lumi, event                          the candidate key
     genpt_plus/minus, geneta_plus/minus       GEN kinematics (MC only)
     vtxz, vtxsig, massz                       the two pulls, for the joint
+    mass_unc, covmassvtx, vtxd                only with the vertex constraint
+                                              ON: the mass the unconstrained
+                                              fit would report, cov(m, theta_6)
+                                              and the frozen DCA (== 0)
 
 usage:
   source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
@@ -71,6 +75,11 @@ def process_file(fn):
         "run", "lumi", "event", "Jpsi_mass", "Jpsigen_mass",
         "Jpsi_vtxz", "Jpsi_vtxsig", "Jpsi_vtxvchk", "Jpsi_vtxsgnchk",
         "Jpsi_sigmamass", "Jpsi_pt", "Jpsi_eta",
+        # the constrained regime (`doVtxConstraint=True`): the mass the
+        # UNCONSTRAINED fit would report, the covariance element that makes it,
+        # and the frozen DCA (identically zero).  Absent with the constraint
+        # off, and every use below is guarded.
+        "Jpsi_mass_unc", "Jpsi_covmassvtx", "Jpsi_d",
         "Muplusgen_pt", "Muminusgen_pt", "Muplusgen_eta", "Muminusgen_eta",
         "Muplus_pt", "Muminus_pt", "Muplus_eta", "Muminus_eta",
     ] + [f"{pre}_grp_{SUF[f]}" for f in FAMS]
@@ -160,7 +169,9 @@ def process_file(fn):
                    ("genpt_plus", "Muplusgen_pt"), ("genpt_minus", "Muminusgen_pt"),
                    ("geneta_plus", "Muplusgen_eta"), ("geneta_minus", "Muminusgen_eta"),
                    ("pt_plus", "Muplus_pt"), ("pt_minus", "Muminus_pt"),
-                   ("sigmamass", "Jpsi_sigmamass"), ("mass", "Jpsi_mass")):
+                   ("sigmamass", "Jpsi_sigmamass"), ("mass", "Jpsi_mass"),
+                   ("mass_unc", "Jpsi_mass_unc"), ("covmassvtx", "Jpsi_covmassvtx"),
+                   ("vtxd", "Jpsi_d")):
         if br in d:
             res[nm] = np.asarray(d[br], np.float64)[idx]
     return fn, res, {"n0": n0, "nsel": n}

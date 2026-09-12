@@ -1,0 +1,62 @@
+   note: /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/fisherHJ_joint.fix.npz carries no `param_units`; its matrices are taken as physical
+============================================================================================================
+THE GAUSSIAN TERM'S ACTUAL ERROR (sandwich) vs THE ONE IT QUOTES
+   10000 tracks, components 'mass', at MC truth, with the parmtype-15 tier priors and 1 on every hit class
+============================================================================================================
+   cf       H+P rank 60/60, eig +1.000e+00 .. 1.000e+04;  median sandwich/quoted over the informative parameters: 0.382   (bootstrap/sandwich nan)
+   gaussq   H+P rank 60/60, eig +1.000e+00 .. 1.000e+04;  median sandwich/quoted over the informative parameters: 0.382   (bootstrap/sandwich nan)
+
+------------------------------------------------------------------------------------------------------------
+MATERIAL GROUPS the term constrains
+------------------------------------------------------------------------------------------------------------
+parameter                      cf quoted     cf ACTUAL    S/Q gaussq quoted gaussq ACTUAL    S/Q  EFF marg  EFF alone
+material_tec_structure            0.0351        0.0199   0.57        0.0351        0.0199   0.57     1.000      1.000
+material_tib_support              0.0372        0.0169   0.45        0.0372        0.0169   0.45     1.000      1.000
+material_tibtid_services          0.0809        0.0360   0.45        0.0809        0.0360   0.45     1.000      1.000
+material_tob_support              0.0423        0.0164   0.39        0.0423        0.0164   0.39     1.000      1.000
+material_bpix_services            0.0901        0.0339   0.38        0.0901        0.0339   0.38     1.000      1.000
+material_bpix_support6            0.0461        0.0172   0.37        0.0461        0.0172   0.37     1.000      1.000
+material_tob_services             0.0943        0.0234   0.25        0.0943        0.0234   0.25     1.000      1.000
+material_tec_services             0.0954        0.0247   0.26        0.0954        0.0247   0.26     1.000      1.000
+   EFFICIENCY sigma^2(Gauss, ACTUAL) / sigma^2(CF, actual):  median 1.000   16-84 % 1.000-1.000   min 1.000  max 1.000
+   PRIOR-FREE (standalone) efficiency:              median 1.000   16-84 % 1.000-1.000
+   (the QUOTED-vs-QUOTED ratio, i.e. what the Gaussian CLAIMS: median 1.000)
+   sandwich/quoted, PRIOR-FREE: CF 0.927 (1.000 = the model is right), Gaussian 0.927
+
+------------------------------------------------------------------------------------------------------------
+HIT CLASSES
+------------------------------------------------------------------------------------------------------------
+parameter                      cf quoted     cf ACTUAL    S/Q gaussq quoted gaussq ACTUAL    S/Q  EFF marg  EFF alone
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/efficiency.py:175: RuntimeWarning: invalid value encountered in scalar divide
+  eff = (S["gaussq"]["actual"][i] / S[ref]["actual"][i]) ** 2 \
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/efficiency.py:177: RuntimeWarning: invalid value encountered in scalar divide
+  effa = (S["gaussq"]["aa"][i] / S[ref]["aa"][i]) ** 2 \
+hitres_pix_y_q2                   1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_pix_y_q3                   1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_str_N1_lo                  1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_pix_x_q0                   1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_pix_x_q1                   1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_pix_x_q2                   1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_pix_x_q3                   1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_pix_y_q0                   1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_pix_y_q1                   1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_str_N4_lo                  1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_str_N4_hi                  1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_str_N5_lo                  1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_str_N1_hi                  1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+hitres_str_N2_lo                  1.0000        0.0000   0.00        1.0000        0.0000   0.00       nan        nan
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/efficiency.py:182: RuntimeWarning: invalid value encountered in scalar divide
+  e = np.array([(S["gaussq"]["actual"][i] / S[ref]["actual"][i]) ** 2
+   EFFICIENCY sigma^2(Gauss, ACTUAL) / sigma^2(CF, actual):  median nan   16-84 % nan-nan   min nan  max nan
+/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/efficiency.py:188: RuntimeWarning: invalid value encountered in scalar divide
+  ea = np.array([(S["gaussq"]["aa"][i] / S[ref]["aa"][i]) ** 2
+   PRIOR-FREE (standalone) efficiency:              median nan   16-84 % nan-nan
+   (the QUOTED-vs-QUOTED ratio, i.e. what the Gaussian CLAIMS: median 1.000)
+   sandwich/quoted, PRIOR-FREE: CF 0.000 (1.000 = the model is right), Gaussian 0.000
+
+READING: EFFICIENCY > 1 means the full PDF constrains that parameter better,
+ by that factor in VARIANCE, than the Gaussian chi2 actually does -- as opposed
+ to the factor the Gaussian claims.  `S/Q` is each arm's own sandwich-over-quoted:
+ it is ~1 when the model describes the data and > 1 when it does not.
+
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/eff_mass.fix.npz

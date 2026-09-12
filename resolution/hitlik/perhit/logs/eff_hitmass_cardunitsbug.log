@@ -1,0 +1,58 @@
+   note: /work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit/fisherHJ_joint.npz carries no `param_units`; its matrices are taken as physical
+============================================================================================================
+THE GAUSSIAN TERM'S ACTUAL ERROR (sandwich) vs THE ONE IT QUOTES
+   10000 tracks, components 'hitmass', at MC truth, with the parmtype-15 tier priors and 1 on every hit class
+============================================================================================================
+   cf       H+P rank 59/60, eig -1.528e+03 .. 4.119e+05;  median sandwich/quoted over the informative parameters: 0.715   (bootstrap/sandwich nan)
+   gaussq   H+P rank 59/60, eig -1.528e+03 .. 4.119e+05;  median sandwich/quoted over the informative parameters: 0.715   (bootstrap/sandwich nan)
+
+------------------------------------------------------------------------------------------------------------
+MATERIAL GROUPS the term constrains
+------------------------------------------------------------------------------------------------------------
+parameter                      cf quoted     cf ACTUAL    S/Q gaussq quoted gaussq ACTUAL    S/Q  EFF marg  EFF alone
+material_tec_structure            0.0045        0.0030   0.67        0.0045        0.0030   0.67     1.000      1.000
+material_tib_support              0.0052        0.0036   0.68        0.0052        0.0036   0.68     1.000      1.000
+material_bpix_active_L2           0.0024        0.0021   0.88        0.0024        0.0021   0.88     0.999      1.000
+material_tob_support              0.0070        0.0046   0.66        0.0070        0.0046   0.66     1.000      1.000
+material_bpix_support6            0.0089        0.0073   0.82        0.0089        0.0073   0.82     1.000      1.000
+material_tibtid_services          0.0191        0.0137   0.72        0.0191        0.0137   0.72     1.001      1.000
+material_bpix_services            0.0252        0.0222   0.88        0.0252        0.0222   0.88     1.001      1.001
+material_tec_services             0.0313        0.0261   0.83        0.0313        0.0261   0.83     1.000      1.000
+material_tob_services             0.0325        0.0242   0.74        0.0325        0.0242   0.75     1.001      1.001
+material_tid_support              0.0164        0.0106   0.64        0.0164        0.0106   0.64     1.001      1.000
+material_fpix_support             0.0174        0.0168   0.97        0.0174        0.0168   0.97     1.000      1.000
+material_tob_active_L2            0.0102        0.0041   0.40        0.0102        0.0041   0.40     1.000      1.000
+material_tib_active_L1            0.0104        0.0067   0.65        0.0104        0.0067   0.65     1.000      1.000
+material_tob_active_L1            0.0105        0.0033   0.31        0.0105        0.0033   0.31     1.000      1.000
+   EFFICIENCY sigma^2(Gauss, ACTUAL) / sigma^2(CF, actual):  median 1.000   16-84 % 1.000-1.000   min 0.999  max 1.001
+   PRIOR-FREE (standalone) efficiency:              median 1.000   16-84 % 1.000-1.000
+   (the QUOTED-vs-QUOTED ratio, i.e. what the Gaussian CLAIMS: median 1.000)
+   sandwich/quoted, PRIOR-FREE: CF 0.910 (1.000 = the model is right), Gaussian 0.910
+
+------------------------------------------------------------------------------------------------------------
+HIT CLASSES
+------------------------------------------------------------------------------------------------------------
+parameter                      cf quoted     cf ACTUAL    S/Q gaussq quoted gaussq ACTUAL    S/Q  EFF marg  EFF alone
+hitres_str_N3_lo                  0.0156        0.0135   0.87        0.0155        0.0135   0.87     1.004      1.006
+hitres_str_N2_lo                  0.0158        0.0149   0.95        0.0157        0.0149   0.95     0.998      1.000
+hitres_str_N1_lo                  0.0193        0.0172   0.89        0.0192        0.0172   0.90     1.007      1.008
+hitres_str_N3_hi                  0.0249        0.0222   0.89        0.0247        0.0224   0.90     1.012      1.021
+hitres_str_N2_hi                  0.0347        0.0325   0.93        0.0346        0.0324   0.93     0.995      1.002
+hitres_pix_x_q1                   0.0359        0.0356   0.99        0.0349        0.0365   1.05     1.051      1.069
+hitres_pix_x_q3                   0.0375        0.0403   1.08        0.0363        0.0405   1.11     1.011      1.026
+hitres_pix_y_q1                   0.0384        0.0417   1.09        0.0378        0.0418   1.11     1.004      1.009
+hitres_str_N4_lo                  0.0406        0.0696   1.71        0.0406        0.0696   1.71     0.999      0.998
+hitres_pix_x_q2                   0.0419        0.0445   1.06        0.0410        0.0434   1.06     0.952      0.950
+hitres_pix_y_q3                   0.0434        0.0428   0.99        0.0424        0.0430   1.01     1.010      1.016
+hitres_pix_y_q2                   0.0455        0.0554   1.22        0.0441        0.0548   1.24     0.977      0.977
+hitres_pix_y_q0                   0.0524        0.0908   1.73        0.0485        0.0815   1.68     0.806      0.807
+hitres_str_N4_hi                  0.0537        0.0691   1.29        0.0529        0.0682   1.29     0.975      0.976
+   EFFICIENCY sigma^2(Gauss, ACTUAL) / sigma^2(CF, actual):  median 0.999   16-84 % 0.968-1.011   min 0.574  max 1.051
+   PRIOR-FREE (standalone) efficiency:              median 1.001   16-84 % 0.969-1.018
+   (the QUOTED-vs-QUOTED ratio, i.e. what the Gaussian CLAIMS: median 0.981)
+   sandwich/quoted, PRIOR-FREE: CF 1.067 (1.000 = the model is right), Gaussian 1.090
+
+READING: EFFICIENCY > 1 means the full PDF constrains that parameter better,
+ by that factor in VARIANCE, than the Gaussian chi2 actually does -- as opposed
+ to the factor the Gaussian claims.  `S/Q` is each arm's own sandwich-over-quoted:
+ it is ~1 when the model describes the data and > 1 when it does not.
