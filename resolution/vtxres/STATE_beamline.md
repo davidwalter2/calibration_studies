@@ -293,3 +293,213 @@ So: the beam-spot parameters are OVER-determined by the residuals they
 create, the per-candidate response is a resolution effect and not a scale
 one, and whether the centroid must FLOAT is decided by the ensemble mean,
 which the 10 k sample pins to ~0.8 MeV per 5 um.
+
+## G4b -- THE SIZE OF THE DEFECT, measured
+
+The correct build at nominal widths against the OLD (double-emitting) build,
+3153 same candidates, relative differences:
+
+| branch | median | p99 | max |
+|---|---|---|---|
+| `Muplus_pt` | **5.6e-4** | 5.0e-3 | 4.4e-2 |
+| `Muminus_pt` | 5.6e-4 | 4.6e-3 | 2.4e-2 |
+| `Jpsi_mass` | **5.9e-4** (54 MeV at the Z) | 3.9e-3 (356 MeV) | 2.3e-2 |
+| `Jpsi_sigmamass` | **1.2 %** | 3.3 % | 11.7 % |
+| `Jpsi_vtxz` | 5.2e-2 | 1.23 | 1.98 |
+| `Jpsi_x` | 1.4e-3 | 7.2e-3 | 1.6e-2 |
+| `chisqval` | 2.8 % | 18 % | 28 % |
+| `ndof` | **0** (the old build counted ndof right; only the WEIGHT was wrong) | | |
+
+A **5.6e-4 median shift of the fitted muon momentum** -- 5.6x the W-mass
+target and 56x the Z-mass one. `bsConstraint` is `False` in every cfi and
+every production, so nothing shipped carried it; but it could not have been
+turned on.
+
+## The nominal pulls, 1200-event leg (3157 candidates on the baseline)
+
+| | mean | Var | trimmed Var | P(abs(z)>3) | P(abs(z)>5) |
+|---|---|---|---|---|---|
+| `z_bs,x` | +0.0088 +- 0.0195 | 1.202 | 1.132 | 1.27e-2 | 1.58e-3 |
+| `z_bs,y` | +0.0017 +- 0.0183 | 1.055 | 0.990 | 6.3e-3 | 9.5e-4 |
+
+**The mean is zero**, as it must be for a constraint residual. `Var > 1`
+means the residual is WIDER than the nominal (Gaussian, fit-`Q`) sigma --
+and the beam-spot record being 8-12 % WIDER than the simulated luminous
+region pushes the other way (correcting it would take `Var(z_x)` from 1.20 to
+~1.27), so the excess is in `C_{-B}`, the fit's own vertex covariance: the
+same statement as "the fit's `Q` is Rossi and 14 % low". Which is what the CF
+term is for; the CF data/model ratio is the number to quote, not `Var`.
+
+Family composition, nominal: **beam line 0.225 / 0.214, hit 0.604 / 0.613,
+MS 0.172 / 0.174, ionization 0.000** (x / y). The beam block carries
+**4.0 %** of `sigma_m^2` and **6.2 %** of `sigma_v^2`.
+
+## Checkpoint 2026-09-12 18:10
+
+`dy_bs` (4000 ev x 6) and `dy_bsoff` (4000 ev x 6) COMPLETE at 17:32.
+The 1200-event gate legs all complete; the gates pass (above).
+dev3 @ `a6169b7e0d0`, built 13:52, working tree clean.
+`cvh-exports-clean-260911` has moved to **`dbfe6e4b2c2`** ("minLegHits = 8 by
+default") -- the rebase target. My productions ran with `minLegHits = 0` and
+the cut is applied OFFLINE in the baseline, which is the same selection.
+
+NEXT: the study chain on `dy_bs` (`run_all_bs.sh all`), then the rebase.
+
+## THE STUDY, 10 254 candidates (`dy_bs` 4000 ev x 6, against `dy_bsoff`)
+
+### The two pulls (`plot_vtx.py`, figures in `~/public_html/ZMass/cvh/260913_beamline/`)
+
+| | N | mean | Var | skew | kurt | corr(sigma, z) |
+|---|---|---|---|---|---|---|
+| `z_bs,x` | 10254 | **+0.0128 +- 0.0107** | 1.1810 | +0.062 | 5.00 | +0.017 +- 0.010 |
+| `z_bs,y` | 10254 | **+0.0043 +- 0.0107** | 1.1810 | +0.011 | 4.92 | +0.009 +- 0.010 |
+| `z_v` (for scale) | 10254 | +0.0078 +- 0.0104 | 1.1165 | -0.031 | 3.55 | +0.003 +- 0.010 |
+
+**The mean is zero and there is no skew** -- the two beam residuals are
+constraint residuals of exactly the vertex kind. `corr(sigma, z)` is
+consistent with zero, so no self-consistent-sigma correction is needed
+(the same justification the vertex term uses).
+
+Tails, data / model:
+
+| | 2 sigma | 3 sigma | 4 sigma | 5 sigma |
+|---|---|---|---|---|
+| `z_bs,x` CF | 1.35 | 3.57 | 10.9 | **16.0** |
+| `z_bs,x` Gaussian (variance-matched) | 1.34 | 4.33 | 54.4 | 2621 |
+| `z_bs,x` Gaussian (the fit's `Q`) | 1.37 | 4.59 | 60.1 | 3061 |
+| `z_v` CF (for scale) | 1.32 | 2.10 | 1.09 | -- |
+
+The CF beats the Gaussian by **160x at 5 sigma** and is still **16x short**.
+The vertex residual's CF closes at 5 sigma; the beam one does not. The tail
+is NOT the background (the displaced `otherdecay` class is 8 candidates and
+contributes 1e-4 of the 1.8e-3 total): it is candidates where
+`M = covBS - C_vtx` is nearly singular -- the back-to-back direction in which
+the two tracks barely constrain the vertex -- so the leave-one-out
+amplification `covBS M^-1` is large. That is a property of the construction
+and it is the one place where the beam term is worse described than the
+vertex term.
+
+### Composition (median share)
+
+| | beam line | hit | MS | ionization |
+|---|---|---|---|---|
+| `z_bs,x` | **0.212** | 0.603 | 0.141 | 0.000 |
+| `z_bs,y` | 0.200 | 0.609 | 0.143 | 0.000 |
+| `z_v` | -- | 0.656 | 0.286 | 0.000 |
+
+Material: `bpix_support6` 0.067, `tib_support` 0.024, `bpix_services` 0.013,
+`fpix_support` 0.012, `bpix_active_L1` 0.009 -- the same INNER-tracker weight
+as the vertex residual (which has 0.118 / 0.039 / 0.019), diluted by the
+beam block's own 0.21. Hit classes: `pix_x_q1` 0.100, `pix_y_q1` 0.097,
+`str_N3_lo` 0.049 -- against the vertex residual's much more concentrated
+`pix_x_q1` **0.258**, `pix_x_q2` 0.102, `pix_x_q3` 0.077. So the beam
+residual sees the innermost pixel classes in BOTH local coordinates where the
+vertex residual sees local-x only: the DCA direction `n_hat` is one
+direction, the beam residual is two.
+
+The beam block carries **4.0 %** of `sigma_m^2` and **6.1 %** of `sigma_v^2`.
+
+### Against gen truth (`bkg_bs.py`, classes from `genbkg.classify`)
+
+After the baseline: signal 10214 (99.61 %), unmatched 31, otherdecay 8,
+dup 1 -- **0.39 % background**.
+
+| class | n | <z_x> | Var z_x | P(abs(z)>3) | P(abs(z)>5) | <chi2_bs> |
+|---|---|---|---|---|---|---|
+| signal | 10214 | +0.014 | 1.176 | 0.0210 | 0.0030 | 2.29 |
+| **otherdecay** | 8 | **-1.24** | **6.10** | **0.250** | **0.125** | **9.97** |
+| unmatched | 31 | -0.074 | 0.972 | 0.000 | 0.000 | 1.77 |
+
+**The beam residual sees exactly the class it should**: `otherdecay` -- a leg
+matched to a muon from a different (heavy-flavour, DISPLACED) decay -- has 25 %
+of its candidates beyond 3 sigma against the signal's 2.1 %. The `unmatched`
+class is PROMPT (a pileup muon or one below the gen-pruning threshold) and the
+beam line cannot see it.
+
+But **on top of the recommended baseline the beam pulls buy no rejection**,
+because what survives the baseline is prompt:
+
+| cut | eff(signal) | eff(bkg) | rejection | signal loss |
+|---|---|---|---|---|
+| `abs(z_bs) < 3` | 0.97905 | 0.950 | 0.050 | 0.0210 |
+| `abs(z_bs) < 5` | 0.99696 | 0.975 | 0.025 | 0.0030 |
+| `abs(z_v) < 5` | 1.00000 | 1.000 | 0.000 | 0.0000 |
+| beam-row chi2 < 16 | 0.99951 | 1.000 | 0.000 | 0.0005 |
+
+WITHOUT the baseline (3185 candidates of the 1200-event leg, 17 background):
+`abs(z_bs) < 5` rejects **53 %** for a 0.73 % signal loss and the beam-row
+chi2 < 16 rejects 35 % for 0.095 %, while `abs(z_v) < 5` rejects 0 %. So the
+beam residual IS a powerful tag for the pathological candidates -- the
+recommended baseline simply catches the same ones first.
+
+**Cosmic-like pairs**: `abs(dphi - pi) < 0.05 AND abs(eta+ + eta-) < 0.05`
+tags 21 of 10254 (0.20 %), ALL of them gen-signal, with NARROWER beam pulls
+than average. That cut selects a Z produced at rest, not a cosmic: DY MC has
+no cosmic background by construction, so this is a null test and it has to be
+repeated on data.
+
+### Same-candidate ON vs OFF, 10 237 candidates (`cmp_bson.py`)
+
+* `ndof(ON) - ndof(OFF) = 3` on **10 237 / 10 237**.
+* **`sigma_m(ON)/sigma_m(OFF) = 0.9434` (mean) / 0.9580 (median)** -- 5.66 %
+  in sigma, **11.0 % in variance**, FLAT in the softer muon's gen `pT`
+  (5.37-6.26 % across the whole range). The vertex constraint, for scale,
+  buys 1.9 %.
+* **The mechanism is the CURVATURES.** `Jpsi_fang`, the angular share of
+  `sigma_m^2`, is **9e-5**. `sigma(p)/p` improves **2.98 %** on each leg
+  (median). The `sigma_m` ratio predicted from the two curvatures and their
+  correlation alone is **0.95802 / 0.94351** (median / mean) against the
+  measured **0.95795 / 0.94351** -- the mean agrees to five decimals. The
+  beam spot is an extra measurement at `r ~ 0` with 10 um resolution: the
+  longest possible inward lever arm, which is what a curvature wants.
+* `rms(m_ON - m_OFF) = 861 MeV` against the predicted
+  `sqrt(sigma_OFF^2 - sigma_ON^2) = 804 MeV`.
+* **The mass MOVES**: `mean(m_ON - m_OFF) = -7.9 +- 3.6 MeV` (1 % trimmed;
+  -7.0 +- 2.8 at 5 %, -7.3 +- 9.2 untrimmed), i.e. **-9e-5 relative**. It
+  moves TOWARD the truth: `<m - m_gen>` goes **+58.6 +- 11.6 -> +53.1 +- 10.8
+  MeV** (1 % trimmed). An 11 % variance reduction on a bias proportional to
+  `sigma_m^2` predicts `0.11 x 58.6 = 6.4 MeV`; the measured shift is
+  5.5-7.9 MeV. **So the shift is the resolution-proportional (Jensen-type)
+  bias shrinking with the resolution, not a new bias** -- but at 9e-5
+  relative it is far above the 1e-5 Z-mass target, so turning the rows on is
+  NOT a neutral change and has to go through the calibration chain.
+* **The vertex residual's DISTRIBUTION is unchanged** (`Var(z_v)` 1.12589 ON
+  against 1.12593 OFF) but **candidate by candidate it is not**:
+  median `abs(z_v(ON) - z_v(OFF))` = **0.194**, max 6.03, and
+  `sigma_v(ON)/sigma_v(OFF)` = 0.944 in the median. The premise that the beam
+  line touches the vertex POSITION and the DCA is a different direction is
+  WRONG: index 6 and indices 7-9 are separate COORDINATES but the hits couple
+  them, so `h_f6` has entries on 7, 8, 9 and
+  `sigma_v^2 = 1/(h_66 - h_f6^T C h_f6)` moves when `C` does. Both shifts are
+  exactly what conditioning predicts.
+
+### The beam-spot MEAN TERM (10 237 candidates)
+
+Per candidate, for a **5 um** shift of the centroid; `mean` is the ENSEMBLE
+mean (a BIAS) and `rms` the per-candidate spread (a RESOLUTION effect):
+
+| functional | mean | rms | mean/sigma |
+|---|---|---|---|
+| mass, `d x0` | **-0.41 +- 0.89 MeV** | 89.8 MeV | -8.5e-4 |
+| mass, `d y0` | **-1.03 +- 0.96 MeV** | 97.3 MeV | -5.3e-4 |
+| mass, `d x0` (relative) | -4.2e-6 +- 9.7e-6 | 9.8e-4 | |
+| vertex `r_v/sigma_v`, `d x0` | -0.0015 +- 0.0008 | 0.082 | |
+| beam `z_bs,x`, `d x0` | **-0.1994 +- 0.0009** | 0.092 | |
+
+and for a **1e-4** slope change (`= the same weight x (z_v - z0)`,
+`<abs(z_v - z0)> = 2.89 cm`):
+
+| functional | mean | rms |
+|---|---|---|
+| mass, `d dxdz` | **-1.63 +- 0.63 MeV** | 63.2 MeV |
+| mass, `d dydz` | -0.72 +- 0.66 MeV | 67.1 MeV |
+| beam `z_bs,x`, `d dxdz` | -0.0018 +- 0.0016 | 0.157 |
+
+**Read:** the per-candidate response is large (0.066 `sigma_m`) but
+`phi`-random, so it cancels; the ensemble mean is consistent with zero and
+bounded at **< 2 MeV per 5 um** of centroid and **1.6 +- 0.6 MeV per 1e-4**
+of slope. Meanwhile the BEAM PULLS respond COHERENTLY (`mean = mean|.|`
+= -0.199 per 5 um), which is the statement that **the two beam residuals ARE
+a measurement of the beam-spot centroid**: `sigma(x0) = 5 um/(0.199 sqrt(N))
+= 25 um/sqrt(N)`, i.e. 0.01 um at 7 M candidates. The parameters are
+over-determined by the residuals they create, so floating them is free.

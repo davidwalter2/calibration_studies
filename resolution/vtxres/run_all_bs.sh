@@ -19,6 +19,9 @@ J=${J:-24}
 mkdir -p $R/cards $R/fits $HERE/logs_bs
 cd $HERE
 export R GRP NCAND
+CARDS=${CARDS:-"bs_cf bs_gauss bs_gaussq vtx_cf mass_cf vtxbs_cf vtxbsm_cf \
+  inj_bs_cf inj_vtx_cf inj_vtxbs_cf inj_vtxbsm_cf \
+  injhit_bs_cf injhit_vtx_cf injhit_vtxbs_cf"}
 export VNPZ=$R/dy_vtx.npz MNPZ=$R/dy_mass.npz XNPZ=$R/dy_bsx.npz YNPZ=$R/dy_bsy.npz
 
 case ${1:-} in
@@ -56,21 +59,15 @@ plots)
   # the figure directory is named explicitly (`260913_beamline`) rather than
   # by today's date: it is the study's directory and it is referenced by name
   # in the report and in STATE.
-  python3 -u plot_vtx.py --npz $XNPZ $YNPZ $VNPZ $MNPZ --tags bsx bsy vtx mass \
+  python3 -u plot_vtx.py --npz $XNPZ $YNPZ $VNPZ --tags bsx bsy vtx \
     --maxn ${2:-20000} --outpath $FIG --densities --composition --sigma \
     2>&1 | tee logs_bs/plots.log ;;
 cards)
-  for c in bs_cf bs_gauss bs_gaussq vtx_cf vtx_gaussq mass_cf \
-           vtxbs_cf vtxbs_gaussq vtxbsm_cf \
-           inj_bs_cf inj_vtx_cf inj_vtxbs_cf inj_vtxbsm_cf \
-           injhit_bs_cf injhit_vtx_cf injhit_vtxbs_cf; do
+  for c in $CARDS; do
     echo "=== card $c"; ./run_ladder_bs.sh card_$c 2>&1 | tee logs_bs/card_$c.log
   done ;;
 fits)
-  for c in bs_cf bs_gauss bs_gaussq vtx_cf vtx_gaussq mass_cf \
-           vtxbs_cf vtxbs_gaussq vtxbsm_cf \
-           inj_bs_cf inj_vtx_cf inj_vtxbs_cf inj_vtxbsm_cf \
-           injhit_bs_cf injhit_vtx_cf injhit_vtxbs_cf; do
+  for c in $CARDS; do
     [ -s $R/cards/$c.hdf5 ] || { echo "skip $c (no card)"; continue; }
     [ -s $R/fits/$c/fitresults.hdf5 ] && { echo "skip $c (done)"; continue; }
     echo "=== fit $c"; ./run_fit.sh $c 2>&1 | tee logs_bs/fit_$c.log
@@ -79,6 +76,7 @@ fisher)
   ./run_tf.sh python3 -u fisher_vtx.py --vtx-npz $VNPZ --mass-npz $MNPZ \
     --bsx-npz $XNPZ --bsy-npz $YNPZ \
     --channels bs vtx vtxbs vtxbsmass --arms cf gauss gaussq \
+    --m-ref 91.1876 --m-window 30 \
     --maxn $NCAND --groups $GRP -o $R/fisherHJ.npz 2>&1 | tee logs_bs/fisher.log ;;
 eff)
   for ch in bs vtx vtxbs vtxbsmass; do
@@ -110,5 +108,13 @@ bill)
   source $VENV
   python3 -u cost_vtx.py --file $(ls $ON/task_0000/globalcor_*.root | head -1) \
     2>&1 | tee logs_bs/bill.log ;;
-*) echo "usage: run_all_bs.sh gates|genvtx|cmp|extract|bkg|plots|cards|fits|fisher|eff|recovery|recovery-hit|certify|bill"; exit 2 ;;
+all)
+  # the whole chain, in order, each stage logged.  Long: the cards and fits
+  # dominate.
+  for st in extract cmp bkg plots bill cards fits fisher eff recovery recovery-hit certify; do
+    echo "########## $st  $(date)"
+    "$0" $st || echo "[FAIL] $st"
+  done
+  echo "########## done $(date)" ;;
+*) echo "usage: run_all_bs.sh gates|genvtx|cmp|extract|bkg|plots|cards|fits|fisher|eff|recovery|recovery-hit|certify|bill|all"; exit 2 ;;
 esac

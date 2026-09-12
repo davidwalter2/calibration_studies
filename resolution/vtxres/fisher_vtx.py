@@ -66,12 +66,19 @@ def main():
     p.add_argument("--chunk", type=int, default=4096)
     p.add_argument("--no-hessian", action="store_true")
     p.add_argument("--max-abs-z", type=float, default=40.0)
+    p.add_argument("--m-ref", type=float, default=None,
+                   help="the mass channel's reference mass (GeV); 91.1876 for Z")
+    p.add_argument("--m-window", type=float, default=0.5)
     p.add_argument("-o", "--output", required=True)
     a = p.parse_args()
 
     import tensorflow as tf
     tf.config.optimizer.set_jit(False)
 
+    if a.m_ref is not None:
+        # the card builder's module-level reference mass, so a Z sample's mass
+        # channel is built the same way here as in `make_vtx_card`
+        MVC.MREF[0], MVC.MREF[1] = float(a.m_ref), float(a.m_window)
     gmap, _ = G.read_groups(a.groups)
     ngroups = (max(gmap) + 1) if gmap else 0
     gparams, _ = G.group_param_names(ngroups, a.groups)

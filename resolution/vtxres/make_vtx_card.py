@@ -42,6 +42,12 @@ import make_global_term as MGT  # noqa: E402
 import selection            # noqa: E402  (the standard two-track selection)
 
 MJPSI = 3.0969
+# The mass channel's reference mass and its background window, settable so the
+# same builder serves a Z sample: `--m-ref` replaces the hardcoded J/psi mass
+# everywhere the mass channel uses it (the |z| guard, `m_ref`, and the kernel
+# offset `mgen - m_ref`), and `--m-window` the uniform-background half width.
+# Set at parse time; nothing else in the module reads MJPSI directly.
+MREF = [MJPSI, 0.5]
 FAMS = ("ms", "io_re", "io_im", "rad_re", "rad_im")
 
 
@@ -185,7 +191,7 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     # pull is beyond 40 sigma.  The UNCUT tails are reported separately
     # (`plot_vtx.py --densities`), so nothing about the tail is hidden by it.
     if args.max_abs_z > 0 and idx_in is None:
-        mref0 = MJPSI if name == "mass" else 0.0
+        mref0 = MREF[0] if name == "mass" else 0.0
         zz = np.abs(d["m0"] - mref0) / np.maximum(d["sigma"], 1e-300)
         bad = zz[idx] > args.max_abs_z
         if bad.any():
@@ -305,7 +311,7 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     # zero, no kernel, no self-consistent-sigma correction.  That is the
     # vertex DCA and the two transverse BEAM-LINE residuals.
     isvtx = name != "mass"
-    mref = 0.0 if isvtx else MJPSI
+    mref = 0.0 if isvtx else MREF[0]
     mobs = d["m0"][idx].astype(np.float64) - mref
     data = {"sigma": sigma, "mobs": mobs, "tgrid": tg, "grp_ptr": nptr,
             "grp_id": ngid, "group_units": group_units,
@@ -378,12 +384,12 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
             log(f"  truncation normalisation on [-{wnorm:g}, {wnorm:g}] sigma, "
                 f"{len(norm['sigma'])} class(es), {args.norm_tpoints} t points")
     else:
-        dm = d["mgen"][idx] - MJPSI
+        dm = d["mgen"][idx] - MREF[0]
         tabs, phik = MGT.build_phik_table(dm, tg[-1] / max(sigma.min(), 1e-12), 4096)
         data["phik_t"] = tabs
         data["phik_re"] = phik.real.copy()
         data["phik_im"] = phik.imag.copy()
-        kw.update(background=unbinned.UniformBackground((MJPSI - 0.5, MJPSI + 0.5)),
+        kw.update(background=unbinned.UniformBackground((MREF[0] - MREF[1], MREF[0] + MREF[1])),
                   phik=(tabs, phik.real.copy(), phik.imag.copy()))
 
     term = unbinned.MaterialCFTerm(
@@ -435,7 +441,7 @@ def common_index(npz_list, args):
         k &= _m
         _s.log(lambda l: log("  " + name + ": " + l))
         if args.max_abs_z > 0:
-            mref0 = MJPSI if name == "mass" else 0.0
+            mref0 = MREF[0] if name == "mass" else 0.0
             k &= np.abs(d["m0"] - mref0) / np.maximum(d["sigma"], 1e-300) <= args.max_abs_z
         keep = k if keep is None else (keep & k)
     idx = np.flatnonzero(keep)
@@ -465,6 +471,10 @@ def main():
     # the vertex kind, so they take the same delta-kernel path.
     p.add_argument("--bsx-npz", default=None)
     p.add_argument("--bsy-npz", default=None)
+    p.add_argument("--m-ref", type=float, default=MJPSI,
+                   help="the mass channel's reference mass (GeV); 91.1876 for Z")
+    p.add_argument("--m-window", type=float, default=0.5,
+                   help="half width of the mass channel's uniform background")
     p.add_argument("--groups", required=True)
     p.add_argument("-o", "--output", required=True)
     p.add_argument("--arm", choices=["cf", "gauss", "gaussq"], default="cf")
@@ -507,10 +517,11 @@ def main():
                    help="require the two npz to be the SAME candidates, and "
                         "use one index set for both (the JOINT card)")
     args = p.parse_args()
-    if not (args.vtx_npz or args.mass_npz):
+    if not any(npz for _, npz in CHANNELS(args)):
         sys.exit("nothing to build")
     if args.mass_arm is None:
         args.mass_arm = args.arm
+    MREF[0], MREF[1] = float(args.m_ref), float(args.m_window)
 
     gmap, _ = G.read_groups(args.groups)
     ngroups = (max(gmap) + 1) if gmap else 0

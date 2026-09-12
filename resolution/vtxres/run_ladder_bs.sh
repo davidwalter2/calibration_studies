@@ -23,8 +23,14 @@ NCAND=${NCAND:-8000}
 # ln(1.05) = 0.0487902 physical k; --whiten makes the card float k*prior_sigma
 INJ=${INJ:-material_bpix_support6:0.00243951}
 HINJ=${HINJ:-hitres_pix_x_q2:0.10}
+# THE SAMPLE IS DY, NOT J/psi: the mass channel's reference mass and its
+# background window have to be the Z's, or the |z| < 40 guard alone removes
+# 97 % of the candidates (m0 - 3.0969 GeV over sigma_m is ~85).
+MREF=${MREF:-91.1876}
+MWIN=${MWIN:-30.0}
 COMMON="--groups $GRP --maxn $NCAND --whiten --prune-frac ${PRUNE:-0.001} \
-        --poi ${POI:-all} --hit-prior ${HITPRIOR:-1.0} --max-chi2-ndof ${MAXCHI2:-3.0}"
+        --poi ${POI:-all} --hit-prior ${HITPRIOR:-1.0} --max-chi2-ndof ${MAXCHI2:-3.0} \
+        --m-ref $MREF --m-window $MWIN"
 mkdir -p $R/cards $R/fits $HERE/logs
 cd $HERE
 M=make_vtx_card.py
