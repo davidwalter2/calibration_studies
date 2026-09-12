@@ -1226,7 +1226,7 @@ against rejection, the three event-multiplicity classes) and
 version of each.
 
 
-### 14. THE SELECTION DECISIONS, AND WHERE EACH ONE LIVES
+### 15. THE SELECTION DECISIONS, AND WHERE EACH ONE LIVES
 
 David, 2026-09-12, on the two cuts section 13 recommended:
 
@@ -1235,8 +1235,8 @@ David, 2026-09-12, on the two cuts section 13 recommended:
 > candidates and only put the cuts downstream, e.g. when running the fits or
 > evaluating some other quantity."
 
-Read as: **the leg-hit minimum is a maker default; the vertex-residual cut is
-downstream, once, as one documented standard selection.**  They are different
+(Section 14 is the beam-line agent's.)  Read as: **the leg-hit minimum is a
+maker default; the vertex-residual cut is downstream, once, as one documented standard selection.**  They are different
 kinds of cut, and that is why they live in different places.
 
 * `minLegHits = 8` removes candidates that carry no usable resolution
@@ -1250,7 +1250,7 @@ kinds of cut, and that is why they live in different places.
   candidates in the trees is what makes that possible, and what lets the tail
   still be measured.
 
-#### 14.1 The maker default (`dbfe6e4b2c2`)
+#### 15.1 The maker default (`dbfe6e4b2c2`)
 
 `minLegHits` 0 -> **8** in `ResidualGlobalCorrectionMakerTwoTrackG4e.cc` (the
 member default, the `existsAs` fallback and the member documentation), in all
@@ -1278,7 +1278,7 @@ candidates in common events at all.  Four of the six DY ones sit at `|z_v|` =
 `genbkg.py --gate` grew `--gate-min-leg-hits` so it can attribute those
 candidates instead of calling them unexplained.
 
-#### 14.2 The standard selection (`resolution/selection.py`)
+#### 15.2 The standard selection (`resolution/selection.py`)
 
     |z_v| < 5              on `Jpsi_vtxz`, the vertex-constraint pull
     weaker leg >= 8 hits   on `Mu{plus,minus}_nvalid`
@@ -1306,7 +1306,7 @@ truncation window to the window that was actually cut -- by itself or by the
 extraction -- so a truncated sample cannot be fitted with an untruncated
 likelihood by forgetting a flag.
 
-#### 14.3 THE TRUNCATED NORMALISATION, and two things that were missing
+#### 15.3 THE TRUNCATED NORMALISATION, and two things that were missing
 
 The fitted density on a sample selected in `|z_v| < w` is `L_i / Z_i` with
 `Z_i = Int_{-w}^{+w} L_i dz`.  `Z` depends on the WIDTH -- a wider model
@@ -1335,7 +1335,7 @@ pulled towards a narrower model.  `rabbit.unbinned.MassCFTerm` already had
    centimetres, 5 against a `sigma_v` of 0.004-0.04 cm is 125-1250 sigma and
    `NLL(0)` moved by **0.0057**; read as sigma it moves by **21.058**.
 
-#### 14.4 The gate on the J/psi gun
+#### 15.4 The gate on the J/psi gun
 
 One extraction of `prod_vtxon` (160 x 130 = 20 800 candidates), three cards,
 so only the LIKELIHOOD differs between them.  Every fit through
@@ -1391,7 +1391,7 @@ they are a real pull from the 26 removed candidates and not a fluctuation.
 They do not grow with statistics: the removed FRACTION is fixed, so the shift
 and the error both scale as `1/sqrt(N)` and the ratio stays at 0.07.
 
-#### 14.5 The DY class table (`sel_dytable.py`)
+#### 15.5 The DY class table (`sel_dytable.py`)
 
 `bkg/dy_vtxon_gen`, 6 x 4000 events, constraint ON, no chi2 cut (the full
 flow, in the order the cuts are applied):
@@ -1416,7 +1416,7 @@ FREE regime, where the tail lives, the same flow gives 10 628 -> 10 324
 gun: 567 of 300 017 fail `Jpsi_vtxok`, 76 more have a non-finite `sigma_m`,
 and `min leg hits >= 8` removes **5 263** (1.76 %).
 
-#### 14.6 The v2 caches (the productions that predate the vertex export)
+#### 15.6 The v2 caches (the productions that predate the vertex export)
 
 `fullscale/make_card.py` on `runs/gpairs_v2_n50.npz`:
 
@@ -1433,7 +1433,7 @@ Neither v2 production carries `Jpsi_vtxz`, so the residual cut is genuinely
 unavailable there and is REPORTED as such rather than silently skipped.
 `cf_inmaker.py` now caches the columns, so the next cache needs no aux.
 
-#### 14.7 Running it, and the figures
+#### 15.7 Running it, and the figures
 
     ./run_sel.sh extract|cards|fits|report        (SELROOT on ceph)
     python3 sel_dytable.py --npz <dy gen npz> [--chi2 3]
@@ -1573,7 +1573,7 @@ None blocking; each is a new study.
    0.0020 +- 0.0004 for the rest.
 
 6. ~~**Should `minLegHits` be on by default?**~~ DECIDED and DONE, section
-   14: `minLegHits = 8` is the maker default (`dbfe6e4b2c2`), gated
+   15: `minLegHits = 8` is the maker default (`dbfe6e4b2c2`), gated
    bit-identical on the surviving candidates of both gate samples. The
    companion `|z_v| < 5` is NOT a maker cut -- it is the downstream standard
    selection (`resolution/selection.py`) with the matching truncated
