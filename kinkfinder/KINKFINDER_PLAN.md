@@ -537,7 +537,7 @@ untouched by this handle.
    veto, becomes interesting).
 4. **Side benefit:** the angle-only pulls on muons are a direct diagnostic of MS-tail
    mismodeling — feed observations back into the resolution-corrections workstream
-   (`Documents/Resolution/NOTES.md`).
+   (`Documents/Resolution/archive/NOTES_devlog_until_260911.md`).
 
 ## Phase 4 — Documentation
 
