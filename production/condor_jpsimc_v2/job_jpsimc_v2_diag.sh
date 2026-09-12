@@ -4,16 +4,16 @@
 # VmRSS sampler, an unconditional stage-out of local.log + memtrace.txt, and
 # `tail -400` instead of `tail -60` on failure -- 60 lines truncates the gdb
 # thread dump to the PAUSED threads and hides the one that took the signal,
-# which is how the 2026-09-06 XrdAdaptor crash was misread as a Geant4 one.
-# One HTCondor job = one CHUNK of one UL16 DY MiniAODv2 file -> one CVH
-# two-track (Z -> mumu) refit output directory on /ceph.
+# which is how an XrdAdaptor crash gets misread as a Geant4 one.
+# One HTCondor job = one CHUNK of one UL16 J/psi MC ALCARECO file -> one CVH
+# two-track refit output directory on /ceph.
 #
-# WHY THIS IS A GRID JOB AND NOT array_dymc_dev2.sbatch WITH A DIFFERENT HEADER
+# WHY THIS IS A GRID JOB AND NOT array_jpsimc.sbatch WITH A DIFFERENT HEADER
 # ------------------------------------------------------------------------
 # The submit HTCondor pool has exactly ONE local execute slot -- 1 CPU on
 # submit06, whose START expression demands `Submit_LocalTest` -- and everything
-# else is glideins flocked to the CMS global pool via t3serv009. Measured
-# 2026-09-06 on real slots:
+# else is glideins flocked to the CMS global pool via t3serv009. Measured on
+# real slots:
 #   * mit_tier3 (t3btch001)      : el7, NO /ceph, NO /work, NO /home, no singularity
 #   * global pool (DESY, IIHE)   : el9 under cms:rhel9-x86_64, NO /ceph, cvmfs OK,
 #                                  xrootd read of the input OK, /srv scratch 3-7 TB
@@ -30,9 +30,9 @@
 #   3. the output      -> xrdcp back to root://submit50.mit.edu/, whose namespace
 #      root is /ceph/submit
 #
-# THE STAGE-OUT IS VERIFIED BY SIZE, NEVER BY EXIT CODE. `xrdcp` has truncated
-# outputs on this cluster before (two condor attempts of the BtoJpsiX
-# production were destroyed that way) and returned 0 while doing it. The
+# THE STAGE-OUT IS VERIFIED BY SIZE, NEVER BY EXIT CODE. `xrdcp` truncates
+# outputs on this cluster and returns 0 while doing it (two condor attempts of
+# the BtoJpsiX production were destroyed that way). The
 # `.complete` sentinel is copied LAST, after every payload file has been read
 # back and its size compared, so a partial stage-out can never look finished.
 #
@@ -204,9 +204,9 @@ out=(globalcor_*.root)
   || fail "expected $NTHREADS stream file(s), found ${#out[@]}" 4
 for f in "${out[@]}"; do [[ -s "$f" ]] || fail "empty output $f" 4; done
 # `skipBadFiles=True` makes an unreadable input SILENT: the job writes a valid,
-# EMPTY output. 2026-09-07: the "the maker always prints a fit summary" premise
-# is FALSE when PoolSource drops the file -- the maker never runs at all, no
-# summary line is written, and task_1313 of jpsimc_20M_260906_v2 therefore
+# EMPTY output. The "the maker always prints a fit summary" premise is FALSE
+# when PoolSource drops the file -- the maker never runs at all, no summary
+# line is written, and task_1313 of jpsimc_20M_260906_v2 therefore
 # staged four empty stream files and a .complete for a whole 19 797-event
 # chunk (its input, FDB8C946-..., has NO StreamerInfo: ROOT opens it, CMSSW
 # cannot deserialise it).  So test for the skip message AND for the presence

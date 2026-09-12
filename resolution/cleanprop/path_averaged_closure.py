@@ -3,8 +3,8 @@
 THE PROBLEM THIS FIXES. The standard closure compares the simulated ensemble
 against a model CF built from the material along ONE reference path. But the
 tracker material is transversely NON-UNIFORM on the scale the tracks spread
-over (measured 2026-08-08: tracks in the most-wandered quartile lose 1.6x more
-energy in the outer interval than the least-wandered), so the simulated
+over (tracks in the most-wandered quartile lose 1.6x more energy in the outer
+interval than the least-wandered), so the simulated
 ensemble samples material the reference never sees:
 
     <dE(path)>  !=  dE(<path>)

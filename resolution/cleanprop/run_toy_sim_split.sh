@@ -8,7 +8,7 @@
 # events, so N jobs at different seeds are N chunks of the SAME sample --
 # `toy_loader.load_toy_sim` takes a glob and concatenates them in sorted order.
 #
-# Measured scaling (2026-08-15). The EVENT LOOP scales essentially perfectly:
+# Measured scaling. The EVENT LOOP scales essentially perfectly:
 # 3.02 ms/event for one job alone, 3.15 at 16-way, 3.11 at 32-way. What does not
 # scale is STARTUP -- every job parses 278 geometry XMLs and pulls the same
 # conditions -- so the useful width is bounded by the herd, not by the cores:
@@ -47,8 +47,8 @@ TESTDIR=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnal
 LOCK=$TESTDIR/cmsswlock.sh
 
 PER=$(( (NEV + NJOB - 1) / NJOB ))
-# TOYGEOM selects the toy. Default is the generated layered toy, so every
-# existing invocation is unchanged; the real-material toy (gen_toy_realmat.py)
+# TOYGEOM selects the toy. The default is the generated layered toy; the
+# real-material toy (gen_toy_realmat.py)
 # carries its own plane file and its own watcher radii, which runToyGeomCheck.py
 # picks up from the geometry path, so nothing else has to be passed.
 TOYGEOM=${TOYGEOM:-Analysis/HitAnalyzer/data/tracker.xml}
@@ -76,7 +76,7 @@ fi
 
 s=$(date +%s.%N)
 for i in $(seq 1 "$NJOB"); do
-    # seed MUST be non-zero and distinct: seed=0 is the historical default and
+    # seed MUST be non-zero and distinct: seed=0 is the config default, and
     # every job would then produce the identical sample.
     printf -v n "%04d" "$i"
     "$LOCK" run cmsRun runToyGeomCheck.py \

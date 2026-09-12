@@ -6,8 +6,8 @@
 # ------------------------------------------------------------------------
 # The submit HTCondor pool has exactly ONE local execute slot -- 1 CPU on
 # submit06, whose START expression demands `Submit_LocalTest` -- and everything
-# else is glideins flocked to the CMS global pool via t3serv009. Measured
-# 2026-09-06 on real slots:
+# else is glideins flocked to the CMS global pool via t3serv009. Measured on
+# real slots:
 #   * mit_tier3 (t3btch001)      : el7, NO /ceph, NO /work, NO /home, no singularity
 #   * global pool (DESY, IIHE)   : el9 under cms:rhel9-x86_64, NO /ceph, cvmfs OK,
 #                                  xrootd read of the input OK, /srv scratch 3-7 TB
@@ -23,9 +23,9 @@
 #   3. the output      -> xrdcp back to root://submit50.mit.edu/, whose namespace
 #      root is /ceph/submit
 #
-# THE STAGE-OUT IS VERIFIED BY SIZE, NEVER BY EXIT CODE. `xrdcp` has truncated
-# outputs on this cluster before (two condor attempts of the BtoJpsiX
-# production were destroyed that way) and returned 0 while doing it. The
+# THE STAGE-OUT IS VERIFIED BY SIZE, NEVER BY EXIT CODE. `xrdcp` truncates
+# outputs on this cluster and returns 0 while doing it (two condor attempts of
+# the BtoJpsiX production were destroyed that way). The
 # `.complete` sentinel is copied LAST, after every payload file has been read
 # back and its size compared, so a partial stage-out can never look finished.
 #

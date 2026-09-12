@@ -3,16 +3,17 @@
 # in the two-track maker's factored-Hessian export, from the FIXED area
 # (CMSSW_15_0_19_patch2_dev2, branch cvh-exports-260906).
 #
-# THE BUG (2026-09-06). `ndof` is unsigned and equals nvalid + nvalidpixel - 10
+# THE BUG. `ndof` is unsigned and equals nvalid + nvalidpixel - 10
 # for the two-track fit. A Z candidate whose two MiniAOD legs carry only ten
 # valid-hit-equivalents between them -- e.g. nhits=(8,1), the second leg a
 # single stored hit -- lands on ndof == 0, so nrank = min(ndof, nparsfinal) = 0
 # and the truncation-gap report reads `eigvals(nparsfinal)`, one past the end
 # of the length-nparsfinal eigenvalue vector. Eigen's bounds assert aborts the
 # PROCESS. Measured rate 0.033 aborts per 1000 Z candidates, which at ~9850
-# candidates a chunk killed 37 of the first 133 finished tasks (28 %) -- and a
-# crashed cmsRun output has NO KEYS, so the whole task is lost, not just the
-# candidate. Fixed at cvh-exports-260906 fab515e.
+# candidates a chunk kills 28 % of tasks (37 of the first 133 that finished)
+# -- and a crashed cmsRun output has NO KEYS, so the whole task is lost, not
+# just the candidate. The fix is cvh-exports-260906 fab515e, which is why this
+# script points at the dev2 area.
 #
 # WHY A SEPARATE SCRIPT AND NOT resume_dy.sh: resume_dy.sh resubmits from
 # $CMSSW_AREA in config_dymc8p5M.sh, which is the (unfixed, and deliberately
@@ -21,11 +22,11 @@
 # stay poolable with the rest of the set (see array_dymc_dev2.sbatch's header).
 #
 # IT DRIVES EVERY UNFINISHED CHUNK, not only the ones that have already
-# crashed. On 2026-09-06 the 168 still-PENDING elements of the original array
-# 6406978 were cancelled (`scancel --state=PENDING 6406978`; the 69 RUNNING
-# ones were left to finish) precisely so that the remaining tail runs the FIXED
-# build once instead of the unfixed one plus a recovery -- ~28 % of them would
-# otherwise have burned up to 4 h of Geant4e each and produced a keyless file.
+# crashed. Cancel the still-PENDING elements of the unfixed array first
+# (`scancel --state=PENDING <jobid>`, leaving the RUNNING ones to finish) so
+# that the remaining tail runs the FIXED build once instead of the unfixed one
+# plus a recovery -- ~28 % of them would otherwise burn up to 4 h of Geant4e
+# each and produce a keyless file.
 # So a chunk is submitted iff it has no `.complete` sentinel AND is not in
 # squeue right now; whether it was never started, crashed, or was cancelled
 # makes no difference and is deliberately NOT read from sacct (which expires
@@ -127,9 +128,8 @@ done
 mkdir -p "$OUTBASE/logs"
 # NOT `GROUPS`: that is a bash BUILT-IN array (the caller's group ids).
 # `declare -A GROUPS` fails with "cannot convert indexed to associative
-# array" and the writes then land in the builtin, so `--array` came out as
-# the user's gids (100999, 169571, 1000000...). Found 2026-09-06 -- this
-# path had never actually been exercised.
+# array" and the writes then land in the builtin, so `--array` comes out as
+# the user's gids (100999, 169571, 1000000...).
 declare -A CHUNKGRP=()
 for i in "${DEAD[@]}"; do
   g=$(( i / 1000 ))

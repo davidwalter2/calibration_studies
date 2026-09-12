@@ -17,7 +17,7 @@
 #   * exportStepRecords=False: the RAW per-step records are 430 kB/candidate
 #     (~5x the whole rest of the event) and their only consumer was the offline
 #     exponent extractor, which the in-maker export replaces. Proven inert:
-#     every other branch is bit-identical with and without it (see STATE.md).
+#     every other branch is bit-identical with and without it (PRODUCTIONS.md).
 #
 # ARRAY SIZING: Slurm MaxArraySize here is 1001, and the production is ~1640
 # tasks, so it goes out as several arrays with an index offset into the shared

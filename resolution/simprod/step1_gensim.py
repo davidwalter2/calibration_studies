@@ -101,7 +101,7 @@ from Configuration.AlCa.GlobalTag import GlobalTag
 # Conditions MUST match what the CVH refit uses, because the fit
 # RE-EVALUATES hit positions with its own CPEs: a mismatched
 # SiPixelLorentzAngle / SiPixelTemplate payload shifts local-x per
-# module and fakes a pixel hit-quality bias. Measured 2026-08-07:
+# module and fakes a pixel hit-quality bias. Measured:
 # with auto:run2_design (-> 131X_mcRun2_design_v3, whose pixel
 # templates are SiPixelTemplates38T_2010_2011_mc) against a fit on
 # 106X_mcRun2_asymptotic_v17, 97.5% of BPix L1 modules carried a
@@ -121,8 +121,9 @@ _GT = os.environ.get('SIMPROD_GT', '150X_mcRun2_asymptotic_v1')
 process.GlobalTag = GlobalTag(process.GlobalTag, _GT, '')
 
 # --- Geant4 field-integration precision in the tracker -----------------------
-# Josh: "really really really important" for the CVH momentum scale. The
-# official UL16 SIM sets the GLOBAL DeltaOneStep=1e-5 / DeltaIntersection=1e-6
+# The field-integration precision matters directly for the CVH momentum
+# scale. The official UL16 SIM sets the GLOBAL DeltaOneStep=1e-5 /
+# DeltaIntersection=1e-6
 # (CMSSW_10_6 has no region-specific variants, so the globals are what the
 # tracker uses there -- which is why the B->J/psi+X MC, produced in 10_6_20,
 # genuinely runs at the 100x-looser 1e-4).
@@ -131,7 +132,7 @@ process.GlobalTag = GlobalTag(process.GlobalTag, _GT, '')
 # DeltaOneStepTracker / DeltaIntersectionTracker whenever the track has
 # E > EnergyThTracker (0.2 GeV) and is inside RmaxTracker (8 m) -- always true
 # for our muons. Of those, DeltaIntersectionTracker is ALREADY 1e-6 by default,
-# so the surface-intersection precision was never the loose one here; only
+# so the surface-intersection precision is not the loose one here; only
 # DeltaOneStepTracker (1e-4) sits 10x above the official target.
 #
 # Set the tracker pair to the official targets, and the globals too so that
@@ -144,11 +145,10 @@ _sp.DeltaIntersection = 1e-6
 
 # RADIATION OFF (opt-in: SIMPROD_RADOFF=1). This is half-switch R1 of the
 # three that must move TOGETHER -- the other two are `ReferenceIonizationOnly`
-# on the propagator and the model CF's rad channel. NOTES_RADOFF s1 established
-# at real cost that any ONE of them alone gives a large spurious answer (the CF
-# half alone moved the pT=40 closure by 68 % of the whole non-closure), so a
-# sample produced with this flag is only interpretable together with the other
-# two.
+# on the propagator and the model CF's rad channel. Any ONE of them alone
+# gives a large spurious answer (the CF half alone moves the pT=40 closure by
+# 68 % of the whole non-closure), so a sample produced with this flag is only
+# interpretable together with the other two.
 #
 # It MUST be a SimWatcher inside the Simulation biglib.
 # `process.g4SimHits.G4Commands` is a silent no-op for this, and a watcher
@@ -159,9 +159,9 @@ _sp.DeltaIntersection = 1e-6
 # muPairProd must show EXACTLY 0 steps. Anything else means the deactivation
 # did not take, and the sample is silently radiation-ON.
 # The two ablation knobs share ONE Watchers assignment, because a second
-# `process.g4SimHits.Watchers = ...` silently replaces the first -- which is
-# how a job asking for both would have got only the last one.
-#   SIMPROD_RADOFF=1            muBrems + muPairProd, all particles (as before)
+# `process.g4SimHits.Watchers = ...` silently replaces the first, so a job
+# asking for both would otherwise get only the last one.
+#   SIMPROD_RADOFF=1            muBrems + muPairProd, all particles
 #   SIMPROD_INACTIVATE=msc,...  an explicit list
 #   SIMPROD_INACT_PARTICLES=mu-,mu+   restrict the list to those particles
 #

@@ -15,7 +15,7 @@ Fields that matter for whether two samples are comparable:
   geometry             Ideal vs Extended (aligned)
   stepper              DeltaOneStepTracker etc -- the CMSSW defaults are
                        ~100x looser than the official SIM and shift widths
-                       by 12 % (NOTES.md)
+                       by 12 % (Documents/Resolution/RESOLUTION.md)
   G4Commands           the physics ablations (MS / brems / pair off)
   PSimHits             whether the tracker sim hits were kept
 
@@ -35,8 +35,8 @@ def grab(txt, pat, default="-"):
     run_simprod_mugun.sh builds each job's config by CONCATENATING the shared
     step1_gensim.py template with per-sample override lines, so the template's
     J/psi-gun defaults (ParticleID 443, pT 5-30) appear FIRST and the sample's
-    real values LAST. Taking the first match reports every sample as the J/psi
-    gun -- which is exactly what the first version of this script did.
+    real values LAST. Taking the first match would report every sample as the
+    J/psi gun.
     """
     m = re.findall(pat, txt)
     return m[-1].strip() if m else default
@@ -98,8 +98,7 @@ def read_sample(d):
         # G4Commands. G4Commands is applied while Geant4 is still PreInit and
         # is a silent no-op (measured: two runs with and without came out
         # bit-identical). An inventory keyed on G4Commands therefore reports
-        # every sample as unablated, including ones that are not -- which is
-        # what the first version of this file did.
+        # every sample as unablated, including ones that are not.
         g4cmd=grab(t1, r"G4Commands\s*=\s*cms\.vstring\(([^)]*)\)", ""),
         inact=",".join(re.findall(r"requested INACTIVE '([^']+)'", tl)),
         inactfor=",".join(re.findall(r"restricted to particle '([^']+)'", tl)),

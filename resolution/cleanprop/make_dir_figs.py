@@ -56,7 +56,7 @@ hep.style.use(hep.style.ROOT)
 RED, BLUE, GREY = msf.RED, msf.BLUE, msf.GREY
 OUT = msf.OUT                              # cleanprop/slides/assets
 DATED = os.path.expanduser(
-    f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_directions/")
+    f"~/public_html/ZMass/cvh/{datetime.date.today().strftime('%y%m%d')}_directions/")
 
 IU1 = fn.IHEAD[-1]
 

@@ -4,10 +4,10 @@
 The toy watcher (Analysis/HitAnalyzer/plugins/ToyStateNtuplizer.cc) writes the
 true state in GLOBAL coordinates on purpose: the local frame is a property of the
 SURFACE, fixed by the reference trajectory, and the watcher does not know the
-reference. An earlier version tried to pick a frame there and produced locx
-identically zero. The frame is applied here instead, using the SAME plane
-definitions that were handed to G4ePropagationExport, so the two sides are
-guaranteed to agree by construction rather than by coincidence.
+reference, so any frame it picked would give locx identically zero. The frame
+is applied here instead, using the SAME plane definitions that were handed to
+G4ePropagationExport, so the two sides are guaranteed to agree by construction
+rather than by coincidence.
 
 Frame convention, matching the barrel modules and makePlaneTarget():
     local z = normal  = radial
@@ -75,14 +75,14 @@ def load_toy_sim(path, origin, normal, uaxis):
            ("qop", "dxdz", "dydz", "locx", "locy", "locz", "pabs", "eloss", "globr")}
     valid = np.zeros((nev, nlayer), dtype=bool)
 
-    # FLATTEN ONCE rather than looping over events (2026-08-15). The per-event
-    # loop was 5.7 s of the 13.5 s `toy_closure` run at 100k events, all of it
-    # Python overhead: the arithmetic per event is nine 14-element rotations.
+    # FLATTEN ONCE rather than looping over events. A per-event loop costs
+    # 5.7 s of a 13.5 s `toy_closure` run at 100k events, all of it Python
+    # overhead: the arithmetic per event is nine 14-element rotations.
     # Concatenating the jagged branches and scattering the result back with a
     # (event, plane) index pair does exactly the same arithmetic -- the SAME
     # einsum call with the SAME subscripts, so every output element is still
     # the same three-term sum in the same order -- on one long axis instead of
-    # nev short ones. Verified bit-identical to the loop on hsK1 (100k events).
+    # nev short ones. Bit-identical to the loop on hsK1 (100k events).
     nper = np.fromiter((len(d) for d in a["detid"]), dtype=np.int64, count=nev)
     ev = np.repeat(np.arange(nev, dtype=np.int64), nper)
     if len(ev):

@@ -8,9 +8,9 @@ WHAT THIS ADDS TO THE PUBLISHED SET
 the characteristic function (Re/Im, model vs Geant4) beside the lineshape --
 with the measured closure printed on the second.  Both are ABSOLUTE
 comparisons: at the eye's resolution the model and Geant4 curves lie on top of
-each other, which is the point of the figure but also its limit.  Everything
-this study is now chasing is at the 1e-3 level of a curve that spans 1, so it
-is invisible there.
+each other, which is the point of the figure but also its limit.  The effects
+this study chases are at the 1e-3 level of a curve that spans 1, so they are
+invisible there.
 
 Each panel therefore gains a LOWER panel comparing simulation to model.
 
@@ -90,7 +90,7 @@ hep.style.use(hep.style.ROOT)
 RED, BLUE, GREY = msf.RED, msf.BLUE, msf.GREY
 OUT = msf.OUT                              # cleanprop/slides/assets
 DATED = os.path.expanduser(
-    f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_radoff_species/")
+    f"~/public_html/ZMass/cvh/{datetime.date.today().strftime('%y%m%d')}_radoff_species/")
 
 IU1 = fn.IHEAD[-1]                         # index of u = 1 inside fn.UCURVE
 
@@ -158,9 +158,9 @@ def make(pdg, rad, func, r, args):
              f"{RADLAB[rad]}")
 
     # NO `tight_layout` HERE.  It is incompatible with a height-ratio gridspec
-    # (matplotlib says so, and the first attempt at this set produced exactly
-    # the failure it warns about: the two ratio panels' y-labels rendered
-    # OUTSIDE the canvas and the x-labels collided with the panel above).
+    # (matplotlib says so, and the failure it warns about is real here: the two
+    # ratio panels' y-labels render OUTSIDE the canvas and the x-labels collide
+    # with the panel above).
     # Explicit margins instead, so the geometry is fixed rather than
     # negotiated -- which is also what keeps every figure in the set the same
     # size, as the deck needs.
@@ -187,12 +187,11 @@ def rs_tag(pdg):
 def cmd_check(args):
     """Premise checks, before any figure.
 
-    Everything here is something that has silently produced a plausible-looking
-    figure at some point in this study: a model paired with the wrong sim (the
-    detid sequences differ and nothing complains), a CF that has not decayed by
-    the inversion ceiling (the red curve rings and the ringing looks like
-    physics), and a closure number on the figure that is not the closure number
-    in the table."""
+    Each of these silently produces a plausible-looking figure: a model paired
+    with the wrong sim (the detid sequences differ and nothing complains), a CF
+    that has not decayed by the inversion ceiling (the red curve rings and the
+    ringing looks like physics), and a closure number on the figure that is not
+    the closure number in the table."""
     print("=" * 96)
     print("PREMISE CHECKS")
     print("=" * 96)

@@ -10,7 +10,7 @@
 #
 # partId is a PDG id: 13 = mu- (default), -321 = K-, -211 = pi-. The output
 # directory carries the species so a scan over (pt, eta, species) never
-# collides; muon output keeps the original naming for back-compatibility.
+# collides; muon output carries no species suffix.
 set -euo pipefail
 NTASK=${1:-64}
 NEV=${2:-8000}
@@ -31,10 +31,10 @@ OUT=/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/sim_${TAG}_pt${PT}_eta$
 mkdir -p "$OUT"
 
 # Write to a temp name and rename only on success, so the presence of the
-# final file MEANS complete. Previously cmsRun wrote the final name directly
-# and the skip test was `-s`, so a crashed task left a short-but-non-empty
-# file that a re-run then SKIPPED -- i.e. exactly the tasks that failed were
-# the ones not retried. (Same trap as the partial targets file.)
+# final file MEANS complete. Letting cmsRun write the final name directly and
+# testing it with `-s` is the trap: a crashed task leaves a short-but-non-empty
+# file that a re-run then SKIPS -- i.e. exactly the tasks that failed are the
+# ones not retried. (Same trap as the partial targets file.)
 run_task() {
   local idx=$1
   local f="$OUT/simstates_$(printf '%04d' "$idx").root"

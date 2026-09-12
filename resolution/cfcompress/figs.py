@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Figures for the CF-exponent compression study.  One file per figure."""
-import datetime, json, os, shutil, sys
+import json, os, sys
 import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import pubhtml
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -11,11 +14,10 @@ plt.rcParams.update({"font.size": 13, "axes.labelsize": 13,
                      "xtick.labelsize": 12, "ytick.labelsize": 12,
                      "figure.constrained_layout.use": True})
 
-SCRATCH = ("/tmp/claude-125124/-work-submit-david-w-ZMass/"
-           "9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress")
-DATE = datetime.date.today().strftime("%y%m%d")
-OUT = os.path.expanduser(f"~/public_html/cvh/{DATE}_cfcompress")
-IDX = os.path.expanduser("~/public_html/cvh/260814_cleanprop/index.php")
+# The small artifacts of the study (spec_*.npz, phys_*.npz, the json
+# summaries and the logs) are kept with the code.
+SCRATCH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+OUT = pubhtml.figdir("cfcompress")
 TAGS = ["jpsigun", "btojpsix", "trk_lowpt", "trk_ul16"]
 LBL = {"jpsigun": "J/psi gun (mass pairs)", "btojpsix": "B->J/psi X v3 (mass pairs)",
        "trk_lowpt": "mu gun low pT (single track)", "trk_ul16": "mu gun UL16 (single track)"}
@@ -243,7 +245,7 @@ def fig_fullshift():
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    shutil.copy(IDX, f"{OUT}/index.php")
+    pubhtml.ensure_index(OUT)
     for fn in (fig_spectra, fig_rank_error, fig_perfamily, fig_physbasis,
                fig_weight, fig_nll, fig_fullshift):
         try:

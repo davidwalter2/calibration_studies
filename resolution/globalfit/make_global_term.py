@@ -16,15 +16,16 @@ The objective has two pieces sharing the *same* global calibration parameters
    which ``global_corrections/fit_global_grads.py`` solves offline as
    ``theta = -K^-1 G``, ``cov = 2 K^-1``.
 
-   **This file needs no flag for the 2026-09-06 variance (log-det) term.** It
-   reads ``G`` and ``K`` from the ``extract.py`` npz, and it is ``extract.py``
-   that knows whether a production ran with ``exportVarianceGrads`` -- the
-   presence of ``hessvaridxv`` in the tree -- and adds the separately shipped
-   variance block to the factored Hessian. What DOES change here, silently and
-   on purpose, is the meaning of the parmtype-15 columns: ``k_g`` becomes an
-   amount-of-material parameter measured through the mean loss AND the width,
-   the same functional the mass term measures, instead of a mean-energy-loss
-   parameter. On the J/psi gun its Fisher information rises by 41x. **The stored ``gradv`` /
+   The variance (log-det) term needs no flag here: ``G`` and ``K`` are read
+   from the ``extract.py`` npz, and it is ``extract.py`` that knows whether a
+   production ran with ``exportVarianceGrads`` -- the presence of
+   ``hessvaridxv`` in the tree -- and adds the separately shipped variance
+   block to the factored Hessian. When that block is present the parmtype-15
+   columns change meaning silently: ``k_g`` is then an amount-of-material
+   parameter measured through the mean loss AND the width, the same
+   functional the mass term measures, rather than a mean-energy-loss
+   parameter. Measuring the width as well as the mean carries 41x the Fisher
+   information on the J/psi gun. **The stored ``gradv`` /
    ``hesspackedv`` / ``B^T B`` are in chi2 units** (the factor 2 is inside the
    C++, ``grad = 2 J^T R r``, ``hess = 2 J^T R J``). rabbit's external term is
    in **NLL** units, ``L_ext = g^T theta + 0.5 theta^T H theta``, so the card
@@ -177,8 +178,8 @@ def parse_args():
         default=0.0,
         help="drop mass-term candidates with chisqval/ndof above this (needs "
         "the 'chi2ndof' array in the extraction). The median is ~0.95 but the "
-        "tail reaches 5e8 and a handful of runaway fits otherwise dominate "
-        "everything they enter; see STATE.md.",
+        "tail reaches 5e8, and a handful of runaway fits otherwise dominate "
+        "everything they enter.",
     )
     m.add_argument("--maxk", type=int, default=0, help="use only N kernel samples")
     m.add_argument(
@@ -226,9 +227,10 @@ def parse_args():
     p.add_argument(
         "--whiten",
         action="store_true",
-        help="write the card in the PHYSICAL basis: each parameter is scaled "
-        "so its fitted value is Tesla of RMS |dB| in the tracker (parmtype 14) "
-        "or its own prior sigma (parmtype 15). Strongly recommended -- the raw "
+        help="rescale every parameter by its physical unit: the fitted value "
+        "is then Tesla of RMS |dB| in the tracker (parmtype 14) or the log "
+        "energy-loss scale divided by the group prior sigma (parmtype 15). "
+        "Strongly recommended -- the raw "
         "coefficient basis is ~350x worse conditioned and the raw values are "
         "not comparable between modes. The scale vector is stored in the "
         "global_index_map bundle so results convert back (theta_raw = "
@@ -346,15 +348,25 @@ def field_scales(modes, r_scale, cmssw_norm, rmax=110.0, zmax=280.0,
 
 def param_scales(parmtype, subidx, coeffs_file=None, groups_file=None,
                  rmax=110.0, zmax=280.0):
-    """Physical unit of every parameter.
+    """Card unit of every parameter.
 
-    ``s_j`` such that ``theta_j * s_j`` is physical: Tesla of RMS |dB| in the
-    tracker for a parmtype-14 coefficient, the group's own prior sigma (one
-    "expected" unit of d ln dE/dx) for parmtype 15, and 1 otherwise. Raw
-    parmtype-14 coefficients are NOT comparable to each other -- the basis is
-    ``(R/r_scale)^(l-1)/r_scale``, so a high-l mode needs a huge coefficient to
-    move the field at all -- and the raw field block is ~350x worse conditioned
-    than the whitened one (6.6e9 vs 1.9e7 on the 260904f btojpsix sample).
+    ``s_j`` is the factor the card applies to the raw coefficient,
+    ``theta_card = theta_raw * s_j``, so the *physical* value is recovered as
+    ``theta_raw = theta_card / s_j``.
+
+    * parmtype 14: ``s_j`` is Tesla of RMS |dB| in the tracker per unit
+      coefficient, so the card value is itself in Tesla of RMS |dB|.
+    * parmtype 15: ``s_j`` is the group's prior sigma ``gprior`` (one
+      "expected" unit of d ln dE/dx), so one card unit is ``1/gprior`` of the
+      physical log scale, ``k = theta_card / gprior``. The prior sigma in card
+      units is therefore ``gprior**2``, not 1.
+    * anything else: 1.
+
+    Whitening matters because raw parmtype-14 coefficients are NOT comparable
+    to each other -- the basis is ``(R/r_scale)^(l-1)/r_scale``, so a high-l
+    mode needs a huge coefficient to move the field at all -- and the raw
+    field block is ~350x worse conditioned than the whitened one (6.6e9 vs
+    1.9e7 on the B -> J/psi X sample).
     """
     modes, r_scale, cmssw_norm = read_modes(coeffs_file or DEFAULT_COEFFS)
     fs = field_scales(modes, r_scale, cmssw_norm, rmax, zmax)
@@ -486,7 +498,7 @@ def main():
             if "chi2ndof" not in keys:
                 sys.exit(
                     "--max-chi2-ndof needs the 'chi2ndof' array; re-run "
-                    "extract.py (it stores it since 2026-09-04 evening)"
+                    "extract.py to store it"
                 )
             keep = d["chi2ndof"] < args.max_chi2_ndof
             log(
@@ -544,7 +556,8 @@ def main():
         prior_sigmas = prior_sigmas * pscale
         log(
             "whitened: 1 card unit = 1 T of RMS |dB| (parmtype 14) / "
-            "1 prior sigma (parmtype 15); scale range "
+            "1/gprior of d ln dE/dx (parmtype 15, so one prior sigma is "
+            "gprior**2 card units); scale range "
             f"{pscale.min():.3e} .. {pscale.max():.3e}"
         )
 

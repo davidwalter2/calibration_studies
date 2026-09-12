@@ -4,22 +4,21 @@
 Run from calibration_studies/resolution/ (imports cf_propagation_test):
     python cleanprop/make_slide_figs.py
 
-NORMALIZATION (changed 2026-08-14). The two result figures are standardized by
-the FISHER scale s_F = sigma sqrt(1/I) rather than by the propagator's own
-alpha-truncated sigma. Documents/Resolution/NOTES_FISHERNORM.md: the truncated
-sigma is a convention that moves with StepLengthLimit (7.1x over a 100x step
-change) while s_F moves by 0.13 %. I is the Fisher information of the model's
-own density by EXACT FFT inversion of the block CF (cgf_channels.exact_density
--> fisher_exact, relative floor) -- never the saddlepoint, which NOTES_XXII
-showed is 5-38 % wrong away from the mode.
+NORMALIZATION. The two result figures are standardized by the FISHER scale
+s_F = sigma sqrt(1/I) rather than by the propagator's own alpha-truncated
+sigma: the truncated sigma is a convention that moves with StepLengthLimit
+(7.1x over a 100x step change) while s_F moves by 0.13 %. I is the Fisher
+information of the model's own density by EXACT FFT inversion of the block CF
+(cgf_channels.exact_density -> fisher_exact, relative floor) -- never the
+saddlepoint, which is 5-38 % wrong away from the mode.
 
-The change is exactly a relabelling of the axes (z -> z sqrt(I), so the CF's t
-axis stretches by the same factor and the CF's extrema are invariant); it
-cannot create or destroy a data-model difference, and `--check` verifies
-closure_F(u) == closure_sigma(u I) on this very pair. `--legacy` reproduces the
-old sigma-normalized figures.
+The Fisher scale is exactly a relabelling of the axes (z -> z sqrt(I), so the
+CF's t axis stretches by the same factor and the CF's extrema are invariant);
+it cannot create or destroy a data-model difference, and `--check` verifies
+closure_F(u) == closure_sigma(u I) on this very pair. `--legacy` draws the
+sigma-normalized figures instead.
 
-Each result figure now also PRINTS its closure at u = 1, for this plane and
+Each result figure also PRINTS its closure at u = 1, for this plane and
 averaged over the ladder, so the quantitative residual is visible on the plot
 rather than left to the caption.
 """
@@ -45,15 +44,15 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "slides", "assets
 os.makedirs(OUT, exist_ok=True)
 # Dated mirror, same convention as cf_propagation_test's own plot output.
 DATED = os.path.expanduser(
-    f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_cleanprop/")
+    f"~/public_html/ZMass/cvh/{datetime.date.today().strftime('%y%m%d')}_cleanprop/")
 
 # pT=3, phi=0.70 -- the SAME matched pair the deck's closure results use.
 #
-# NOT the old pt10/phi0.20 pair: regen_models.sh's JOBS table regenerates
+# NOT the pt10/phi0.20 pair: regen_models.sh's JOBS table regenerates
 # model_pt10_eta0.30_phi0.20 against targets_mu_pt3_eta0.30.txt (phi=0.70),
-# i.e. a different material path, so since 2026-08-08 that model's modules do
-# not correspond to the pt10 sim's at all (20 sim planes vs 19 model legs,
-# detid mismatch from index 0). Any comparison on that pair is meaningless.
+# i.e. a different material path, so that model's modules do not correspond to
+# the pt10 sim's at all (20 sim planes vs 19 model legs, detid mismatch from
+# index 0). Any comparison on that pair is meaningless.
 SIM = "/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/sim_260808tight_pt3_eta0.30_phi0.70/simstates_*.root"
 MODEL = "/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/model/model_mu_pt3_eta0.30.root"
 
@@ -63,11 +62,9 @@ RED, BLUE, GREY = "#A31F34", "#1f4e9c", "0.45"
 def save(fig, name, dated=None):
     """Write png+pdf to the assets dir and to a DATED web directory.
 
-    `dated` defaults to this module's, so the existing callers are unchanged;
-    make_dir_figs and make_radsp_figs pass their own (`_directions`,
-    `_radoff_species`) because each deck keeps a separate one.  That argument
-    is the only thing that differed between the three copies of this function
-    that existed before 2026-08-18.
+    `dated` defaults to this module's; make_dir_figs and make_radsp_figs pass
+    their own (`_directions`, `_radoff_species`) because each deck keeps a
+    separate one.
     """
     for d in (OUT, dated if dated is not None else DATED):
         os.makedirs(d, exist_ok=True)
@@ -76,7 +73,7 @@ def save(fig, name, dated=None):
                         bbox_inches="tight", dpi=160)
     plt.close(fig)
     # report the dir actually written, not the module default -- printing the
-    # global here made a correctly-placed figure look misfiled
+    # global here makes a correctly-placed figure look misfiled
     print("wrote", name, "->", OUT, "and",
           dated if dated is not None else DATED)
 
@@ -209,15 +206,15 @@ def plane_scale(legs, k, name, norm="fisher"):
     sigma is the propagator's own alpha-truncated width; 1/I is the Fisher
     information of the MODEL's density in units of that sigma, from the exact
     FFT inversion of the block CF on a grid matched to the block, with a
-    RELATIVE density floor (an absolute one was a 57x error in this study).
+    RELATIVE density floor (an absolute one is a 57x error in this study).
 
-    Routed through `fisher_norm.plane_scales` (2026-08-15) rather than calling
+    Routed through `fisher_norm.plane_scales` rather than calling
     `cc.exact_density` directly. It is the SAME computation -- `plane_scales`
     calls `exact_density` with exactly these defaults (`nt=1<<17`, `npad=32`,
     `lncut=-60`, all three channels) and `fisher_exact` with the same 1e-8
     RELATIVE floor -- but it is memoized per (model, functional), in-process and
-    on disk. That matters here because `fig_results` already builds every
-    plane's scale in its per-plane loop and `_panel` then rebuilt the outermost
+    on disk. That matters here because `fig_results` builds every plane's scale
+    in its per-plane loop and `_panel` would otherwise rebuild the outermost
     plane's from scratch: one full FFT inversion per panel, 2.4 s at plane 13.
     """
     avec = FUNCTIONALS[name]
@@ -261,16 +258,9 @@ def _fit_title(fig, a1, a2, sizes=(17, 16, 15, 14, 13, 12, 11), pad=6.0):
     Measured live for every set that uses it: the toy geometry strings are long
     on the left, and the radoff-species note is long on the right (it carries
     the rms and the peak u as well as the u = 1 value), so the collision is
-    real for both and not assumed.
-
-    HISTORY.  This was three character-identical copies (make_toy_figs,
-    make_dir_figs, make_radsp_figs), duplicated deliberately -- the recorded
-    argument was that the scripts are read side by side and a shared helper one
-    of them outgrows is worse than three copies.  It was consolidated on
-    2026-08-18 after the copies produced exactly the failure that argument did
-    not cover: `make_dir_figs` had a two-axis `panel` while `make_radsp_figs`
-    had the four-axis `panels`, so the closure figures silently lost their
-    difference panel and nobody noticed until the plots were compared by eye.
+    real for both and not assumed.  It is shared by make_toy_figs,
+    make_dir_figs and make_radsp_figs rather than copied into each, so the
+    three decks cannot drift apart panel by panel.
     """
     r = fig.canvas.get_renderer()
     w = fig.get_window_extent(r)
@@ -289,9 +279,8 @@ def _shrink(ax, xs=15, ys=13, ts=13):
     """`hep.style.ROOT` sizes labels for a full-height panel.  A 1/4-height
     ratio panel inherits them and the y-label then runs off the canvas -- which
     `bbox_inches='tight'` does not clip but does not fix either: it widens the
-    image and the label ends up outside the plot box in the deck.  Measured on
-    the first attempt at this set, which is why the sizes are set rather than
-    left to the style."""
+    image and the label ends up outside the plot box in the deck, which is why
+    the sizes are set explicitly rather than left to the style."""
     ax.xaxis.label.set_size(xs)
     ax.yaxis.label.set_size(ys)
     ax.tick_params(labelsize=ts)
@@ -301,8 +290,8 @@ def panels(axcf, axcfr, axls, axlsr, z, phi, title, note):
     """Four axes: CF, CF difference, lineshape, lineshape ratio.
 
     Colours, line widths, scales, legend sizes and the annotation-as-title
-    convention are `make_slide_figs._panel`'s, verbatim, so that these figures
-    sit beside the published ones without a visible style break.
+    convention are `_panel`'s, verbatim, so that these figures sit beside the
+    published ones without a visible style break.
     """
     e = ecf(z, TAU)
 
@@ -452,8 +441,8 @@ def _closure_one_plane(kk):
 
 
 def fig_results(sim, legs, norm="fisher"):
-    # outermost plane, not a hardcoded index: the model file was regenerated
-    # 2026-08-08 with 19 legs (was 20), so k=19 is now out of range
+    # outermost plane, not a hardcoded index: the number of legs in the model
+    # file is not fixed, so a literal index goes out of range
     k = len(legs) - 1
     r = float(np.nanmedian(sim["globr"][:, k]))
     nplane = len(legs)
@@ -559,7 +548,7 @@ def check_identity(sim, legs):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--legacy", action="store_true",
-                    help="reproduce the old sigma-normalized result figures")
+                    help="draw the sigma-normalized result figures instead")
     ap.add_argument("--check", action="store_true",
                     help="identity + j0-guard checks, no figures")
     ap.add_argument("--results-only", action="store_true")
@@ -570,17 +559,16 @@ if __name__ == "__main__":
         fig_bug()
         fig_impact()
     # per-plane, NOT the default "modal": the modal-sequence cut drops whole
-    # tracks that miss a plane, which is tail-first selection and was the
-    # entire pT=3 non-closure (NOTES 2026-08-08). These figures were made with
-    # the modal default before that was understood.
+    # tracks that miss a plane, which is tail-first selection and accounts for
+    # the entire pT=3 non-closure.
     sim = load_sim(SIM, acceptance="perplane")
     # via fisher_norm.load, not load_model directly: it is the same call, but it
     # registers the model file's content hash so the per-plane Fisher scales can
     # be served from (and written to) the on-disk cache.
     legs = fn.load(MODEL)
     # Guard: a sim/model pair built on different rays silently produces a
-    # plausible-looking disagreement (this is how the pt10 mis-targeting was
-    # found). Compare the module sequences before comparing any physics.
+    # plausible-looking disagreement. Compare the module sequences before
+    # comparing any physics.
     sd = sim["detid"]
     ld = np.array([l["detid"] for l in legs])
     assert len(sd) == len(ld) and np.all(sd == ld), (

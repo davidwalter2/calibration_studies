@@ -1,21 +1,20 @@
 #!/bin/bash
 # Regenerate the clean-propagation MODEL files against the current propagator.
 #
-# WHY (2026-08-08). The clean-propagation test compares a Geant4 SIM sample
+# WHY. The clean-propagation test compares a Geant4 SIM sample
 # against a deterministic MODEL job that exports the per-step transport
 # Jacobians and physics records. The two age differently:
 #
-#   * the SIM is Geant4 GROUND TRUTH. runCleanPropSim.py has not changed since
-#     2026-08-04, so every existing sim sample was produced by identical code.
-#     They do NOT need regenerating, and at 100-128 files each that would be
-#     hours of compute for no change.
+#   * the SIM is Geant4 GROUND TRUTH. runCleanPropSim.py is stable, so every
+#     existing sim sample was produced by identical code. They do NOT need
+#     regenerating, and at 100-128 files each that would be hours of compute
+#     for no change.
 #   * the MODEL carries the exported records, so it goes stale whenever the
-#     propagator's export changes. The shipped model_*.root files predate both
-#     the radiative export (2026-08-07) and the per-element Moliere sums
-#     (2026-08-08): verified msmoliv stride 8, not 10. Until they are
-#     regenerated the offline model silently falls back to the effZ
-#     approximation of the screening term, which is precisely the thing under
-#     test.
+#     propagator's export changes. A model file that predates the radiative
+#     export or the per-element Moliere sums has msmoliv stride 8 instead of
+#     10; until it is regenerated the offline model silently falls back to the
+#     effZ approximation of the screening term, which is precisely the thing
+#     under test.
 #
 # Each sample has its OWN phi (0.70 / 0.20 / 0.50 / 0.10 / ...), so the table
 # below is explicit rather than derived -- getting phi wrong would silently
@@ -36,14 +35,13 @@ OUT=/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/model
 # name : pt : eta : phi : pdg   (phi MUST match the corresponding sim sample)
 JOBS=(
   "model_mu_pt3_eta0.30:3:0.30:0.70:13:targets_mu_pt3_eta0.30.txt"
-  # BROKEN, DISABLED 2026-08-11. This job is phi=0.20 but was given the
-  # phi=0.70 targets (targets_mu_pt3_eta0.30.txt) -- exactly the confound the
-  # header warns about. The [[ -f ]] guard did not catch it because that file
-  # exists. The 2026-08-08 regeneration therefore built the model on a
-  # DIFFERENT material path than the sim: 20 sim planes vs 19 model legs,
-  # detids disagreeing from index 0. Re-enable only with a real
-  # targets_mu_pt10_eta0.30_phi0.20.txt, which does not exist yet.
-  # "model_pt10_eta0.30_phi0.20:10:0.30:0.20:13:targets_mu_pt10_eta0.30_phi0.20.txt"
+  # DELIBERATELY ABSENT: model_pt10_eta0.30_phi0.20. That point is phi=0.20
+  # and there is no targets_mu_pt10_eta0.30_phi0.20.txt for it. Adding it with
+  # the phi=0.70 targets (targets_mu_pt3_eta0.30.txt) is exactly the confound
+  # the header warns about, and the [[ -f ]] guard below does NOT catch it
+  # because that file exists: the model is then built on a DIFFERENT material
+  # path than the sim (20 sim planes vs 19 model legs, detids disagreeing from
+  # index 0). Add it only together with its own targets file.
   "model_mu_pt40_eta0.30:40:0.30:0.50:13:targets_mu_pt40_eta0.30.txt"
   "model_mu_pt100_eta0.30:100:0.30:0.10:13:targets_mu_pt100_eta0.30.txt"
   "model_mu_pt10_eta1.00:10:1.00:0.10:13:targets_mu_pt10_eta1.00.txt"
@@ -62,8 +60,8 @@ run_one() {
   IFS=: read -r name pt eta phi pdg tgt <<< "$1"
   [[ -f "$TGT/$tgt" ]] || { echo "[skip] $name (no targets $tgt)"; return 0; }
   # keep the previous model beside the new one rather than clobbering it:
-  # a stride-8 file is still readable and is the only record of what the
-  # earlier comparisons actually used.
+  # a stride-8 file is still readable and is the only record of what a
+  # comparison made with it actually used.
   [[ -f "$OUT/$name.root" ]] && cp -n "$OUT/$name.root" "$OUT/old/$name.root" 2>/dev/null || true
   (
     cd "$AREA/src"

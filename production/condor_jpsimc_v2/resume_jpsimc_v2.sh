@@ -1,7 +1,7 @@
 #!/bin/bash
-# Re-drive the tasks of dymc_8p5M_260906_v2 that have no `.complete` sentinel.
+# Re-drive the tasks of jpsimc_20M_260906_v2 that have no `.complete` sentinel.
 #
-# Same contract as production/resume_dy.sh: the task index IS the chunk-list
+# Same contract as production/resume.sh: the task index IS the chunk-list
 # line, the configuration is sourced from the one shared file so a resumed task
 # can never run a different physics configuration from the original
 # submission, and completion is judged on the sentinel alone.

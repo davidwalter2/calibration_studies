@@ -34,8 +34,7 @@ Output: a single ``.npz`` consumed by ``make_global_term.py``.
 Caveats
 -------
 * The exported Jacobians are built with the *expected* (Fisher) curvature; the
-  per-candidate value scatters by ~6 % about an exact refit
-  (``Documents/Resolution/NOTES_EXPORTS.md`` sec. 8 item 4). That is zero-mean
+  per-candidate value scatters by ~6 % about an exact refit. That is zero-mean
   and averages away for aggregate quantities, but the ``D`` rows here are used
   *per candidate*, so it is a genuine per-candidate error on the mass response.
 * For parmtype 15 (material groups) and 7 (per-module ``dxi``) the same note
@@ -96,7 +95,7 @@ def load_cf_primitives():
 # that the 24 worker processes do not have to pull in matplotlib):
 #   IONI_SGN = RAD_SGN = -1  -- an energy loss on EITHER muon can only lower
 #   the pair mass, so the mass functional of both blocks is negative for both
-#   charges (see cf_mass_likelihood.py lines ~79-104 for the derivation).
+#   charges.
 MJPSI = 3.0969
 IONI_SGN = -1.0
 RAD_SGN = IONI_SGN
@@ -146,10 +145,11 @@ def parse_args():
         default=0.0,
         help="drop candidates with chisqval/ndof above this (0 = no cut) from "
         "BOTH the quadratic accumulation and the mass term. This is not "
-        "cosmetic: on the 260904f productions the median chi2/ndof is 0.95 but "
-        "the tail reaches 5e8, and ~0.02%% of candidates carry ~99.997%% of the "
-        "summed chi2 -- so without a cut the global gradient and Hessian are "
-        "the gradient and Hessian of a handful of runaway fits. Same role as "
+        "cosmetic: on the B -> J/psi X productions the median chi2/ndof is "
+        "0.95 but the tail reaches 5e8, and ~0.02%% of candidates carry "
+        "~99.997%% of the summed chi2 -- so without a cut the global "
+        "gradient and Hessian are the gradient and Hessian of a handful of "
+        "runaway fits. Same role as "
         "fit_global_grads.py --max-chi2-per-hit / --censor-cut.",
     )
     p.add_argument(
@@ -174,12 +174,12 @@ def parse_args():
         default=0.0,
         help="drop candidates whose WORSE leg has |dE_ref| / p above this "
         "(0 = no cut). The per-group material model is a MEAN-loss model and "
-        "NOTES sec. 7(a) measures it biased above dE_ref/p ~ 0.03; 0.01 is the "
-        "prescribed working point. `Mu{plus,minus}_dEref` is present in every "
-        "two-track production (unlike `Mu*_maxfracloss`, which only exists "
-        "from the 2026-09-06 build), so this cut is portable across v1 and v2 "
-        "-- and it is the quantity itself, not a daughter-pT proxy for it. It "
-        "costs ~0.1 %% of Z candidates and ~22 %% of J/psi ones.",
+        "is biased above dE_ref/p ~ 0.03; 0.01 is the working point. "
+        "`Mu{plus,minus}_dEref` is present in every two-track production "
+        "(unlike `Mu*_maxfracloss`), so this cut is portable across "
+        "production versions -- and it is the quantity itself, not a "
+        "daughter-pT proxy for it. It costs ~0.1 %% of Z candidates and "
+        "~22 %% of J/psi ones.",
     )
     p.add_argument(
         "--maxcand",

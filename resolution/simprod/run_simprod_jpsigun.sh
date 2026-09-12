@@ -1,21 +1,15 @@
 #!/bin/bash
-# Z-MOMENTUM single-muon private production, for the single-track PDF test at
-# the momenta the Z mass measurement actually uses.
+# Flat-pT J/psi -> mu mu gun production, GEN-SIM then DIGI..RECO, for the
+# two-track closure at the momenta the J/psi calibration actually uses.
 #
-# Why this sample exists. Every track-level / candidate-level closure so far
-# runs on B->J/psi+X or a J/psi gun, i.e. muons at p ~ 3-15 GeV. The radiative
-# (brems + pair) mean-vs-mode bias measured on 2026-08-06 is
-#   8.2e-6 at pT=10, 1.11e-5 at pT=40, 1.37e-5 at pT=100
-# -- i.e. AT the 1e-5 Z-mass target and pT-DEPENDENT, so it does not cancel
-# when a J/psi-derived calibration is extrapolated to Z muons. There is
-# currently no single-track PDF test at those momenta. This makes one.
+# Same recipe as run_simprod_mugun.sh: CMSSW_15_0 so the simulation Geant4
+# matches the CVH refit propagator, auto:run2_design GT, ideal geometry, DB
+# grid field, NoPileUp, PSimHits kept. The difference is the generator --
+# step1_gensim.py is ALREADY a J/psi -> mu mu gun, so nothing is overridden
+# here except its pT range, whereas the muon samples override it into a muon
+# gun.
 #
-# Identical recipe to the rung-E J/psi gun (run_simprod.sh): CMSSW_15_0 so the
-# simulation Geant4 matches the CVH refit propagator, auto:run2_design GT,
-# ideal geometry, DB grid field, NoPileUp, PSimHits kept. The ONLY change is
-# the generator: a flat-pT muon gun over the Z-muon range instead of J/psi.
-#
-# usage: ./run_simprod_mugun.sh [nparallel] [task_from] [task_to] [nevents] [ptmin] [ptmax]
+# usage: ./run_simprod_jpsigun.sh [nparallel] [task_from] [task_to] [nevents] [ptmin] [ptmax]
 #   env: OUTROOT, PTMIN/PTMAX (the J/psi pT, not the muon pT)
 set -euo pipefail
 NPAR=${1:-12}
@@ -26,17 +20,6 @@ NEVT=${4:-4000}
 # TkAlJpsiMuMu ALCARECO range the calibration actually uses.
 PTMIN=${5:-5}
 PTMAX=${6:-30}
-# BOTH CHARGES by default (2026-08-07). The original sample was mu- only
-# (ParticleID=13, AddAntiParticle=False), which made q+ = 0 and left the
-# charge parity of any bias UNTESTABLE -- and charge parity is the natural
-# discriminator between a curvature/field-like effect (charge-ODD) and a
-# material/energy-loss-like one (charge-EVEN). This blocked the diagnosis of
-# the +-0.07 pull-unit (dp/p ~ 7e-4) PHI-dependent bias that survives
-# matching the SIM and refit field models.
-# Listing both IDs makes Pythia8PtGun emit one particle PER ID per event,
-# each with INDEPENDENTLY sampled pt/eta/phi -- preferable to
-# AddAntiParticle=True, which would mirror the momentum (eta -> -eta,
-# phi -> phi+pi) and correlate the two charges' kinematics.
 CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
 SIMPROD=/work/submit/david_w/ZMass/calibration_studies/resolution/simprod
 OUTROOT=${OUTROOT:-/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_simprod_jpsigun_ul16}
@@ -99,4 +82,4 @@ run_task() {
 export -f run_task
 export CMSSW_AREA SIMPROD OUTROOT NEVT PTMIN PTMAX SIMPROD_GT NPAR STAGGER SIMPROD_RADOFF
 seq "$FROM" "$TO" | xargs -P "$NPAR" -I{} bash -c 'run_task {}'
-echo "all mugun simprod tasks finished -> $OUTROOT"
+echo "all jpsigun simprod tasks finished -> $OUTROOT"

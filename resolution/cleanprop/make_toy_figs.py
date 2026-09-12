@@ -72,18 +72,17 @@ from cf_propagation_test import FUNCTIONALS, TAU, model_phi      # noqa: E402
 hep.style.use(hep.style.ROOT)
 
 # `make_slide_figs` already resolves both destinations: the deck's assets
-# directory and the date-derived mirror under ~/public_html/cvh/.  Reused rather
-# than recomputed so the toy figures land beside the real ones.
+# directory and the date-derived mirror under ~/public_html/ZMass/cvh/.  Reused
+# rather than recomputed so the toy figures land beside the real ones.
 OUT, DATED = msf.OUT, msf.DATED
 
 # --------------------------------------------------------------------------
 # The four toy configurations.
 #
 # Keys are `geom_closure.GEOMS` entries, so the model/sim file pairing is the
-# one NOTES_GEOMCLOSURE validated and not a fresh guess.  The `H_` prefix is the
-# 100k-event regeneration (scratchpad/hs_regen.sh); the 2000-event originals
-# leave a +-0.006 correlated error at u = 1, larger than the whole layered-toy
-# signal.
+# one NOTES_GEOMCLOSURE validated and not a fresh guess.  The `H_` prefix marks
+# the 100k-event samples; a 2000-event one leaves a +-0.006 correlated error at
+# u = 1, larger than the whole layered-toy signal.
 #
 # hsT0.50 / hsT2.00 are DELIBERATELY ABSENT.  The generator fixes rho = 9.0, so
 # varying T scales the TOTAL material: those two lose 118.6 and 473.0 MeV

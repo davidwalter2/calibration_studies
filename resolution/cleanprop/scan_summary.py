@@ -15,7 +15,7 @@ was run for:
 Labels must parse as <species>_pt<pt>_eta<eta>, e.g. K_pt2_eta0.30.
 
 usage:
-    python scan_summary.py '~/public_html/calibration_studies/260806_cleanprop_scan/cleanprop_rows_*.npz'
+    python scan_summary.py '~/public_html/ZMass/cvh/<YYMMDD>_cleanprop_scan/cleanprop_rows_*.npz'
 """
 
 import argparse
@@ -111,8 +111,8 @@ def scan_plot(pts, xkey, sel, xlabel, outdir, args, name, logx=True):
         ax.grid(alpha=0.3)
     axes[0].set_ylabel(r"worst $|$data$-$model$|$")
     axes[0].legend(fontsize=16)
-    # figure-level label: add_decor writes inside one axes and collided with
-    # both the panel title and the (13 TeV) tag on a 3-panel row
+    # figure-level label: add_decor writes inside one axes, where it collides
+    # with both the panel title and the (13 TeV) tag on a 3-panel row
     fig.text(0.09, 0.97, "CMS", fontsize=25, fontweight="bold", va="top")
     fig.text(0.155, 0.965, "Simulation Work in progress",
              fontsize=18, style="italic", va="top")
@@ -165,7 +165,7 @@ def main():
     today = datetime.date.today().strftime("%y%m%d")
     outdir = output_tools.make_plot_dir(
         args.outpath or os.path.expanduser(
-            f"~/public_html/calibration_studies/{today}_cleanprop_scan/"))
+            f"~/public_html/ZMass/cvh/{today}_cleanprop_scan/"))
 
     pts = load(args.pattern)
     if not pts:

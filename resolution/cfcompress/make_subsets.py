@@ -15,8 +15,10 @@ import numpy as np
 import numpy.lib.format as fmt
 
 RUNS = "/work/submit/david_w/ZMass/calibration_studies/resolution/runs"
-SCRATCH = ("/tmp/claude-125124/-work-submit-david-w-ZMass/"
-           "9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress")
+# The shuffled subsamples are multi-GB, so they live beside the full CF
+# caches under resolution/runs, never in the repository.
+SCRATCH = ("/work/submit/david_w/ZMass/calibration_studies/resolution/"
+           "runs/cfcompress")
 
 CACHES = {
     "jpsigun": dict(

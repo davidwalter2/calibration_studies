@@ -64,9 +64,6 @@ zchannel/data/prov/*
 # oddmoment study outputs (regenerable tables + npz)
 resolution/oddmoment/out/
 resolution/oddmoment/tmp/
-production/.watch_dy_recover.pid
-production/.watch_dy_recover.stop
-production/.watch_dy_recover.counts
 
 # fullscale: multi-GB pairs caches, datacards and job logs, all regenerable
 # from the scripts and the productions

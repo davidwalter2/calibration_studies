@@ -1,7 +1,7 @@
 """Scan an EDM file's ParameterSets tree for runs of NUL bytes.
 
-The 2026-09-07 finding: four of the 620 repacked JPsiToMuMu ALCARECO files
-carry NUL runs INSIDE the uncompressed ParameterSets payload -- the pset value
+Four of the 620 repacked JPsiToMuMu ALCARECO files carry NUL runs INSIDE
+the uncompressed ParameterSets payload -- the pset value
 content replaced by zeros with its byte length exactly preserved.  cmsRun then
 dies while constructing PoolSource with
 

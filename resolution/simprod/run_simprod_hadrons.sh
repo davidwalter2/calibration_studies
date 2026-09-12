@@ -1,11 +1,11 @@
 #!/bin/bash
 # Kaon / pion / proton flat-pT gun samples, GEN-SIM-DIGI-RECO.
 #
-# Why these exist. Until now only MUONS had a full gun sample; the hadron
-# work (2026-08-06 pT/eta scan) was all `cleanprop`, i.e. single-track
-# Geant4 propagation with NO digitisation, NO reconstruction and NO fit.
-# That tests the propagation and energy-loss MODEL but leaves the FIT
-# untested on hadrons -- which matters for two channels the analysis needs:
+# Why these exist. The other full gun samples are MUONS; the hadron pT/eta
+# scan is all `cleanprop`, i.e. single-track Geant4 propagation with NO
+# digitisation, NO reconstruction and NO fit. That tests the propagation and
+# energy-loss MODEL but leaves the FIT untested on hadrons -- which matters
+# for two channels the analysis needs:
 #   * the kaon in B+- -> J/psi K+-, the channel that breaks the A-epsilon
 #     degeneracy (kaons have different dE/dx than muons at the same pT);
 #   * protons from Lambda0 -> p pi.

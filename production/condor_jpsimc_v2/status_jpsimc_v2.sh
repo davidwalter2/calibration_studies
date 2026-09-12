@@ -1,5 +1,5 @@
 #!/bin/bash
-# Progress of the HTCondor DY re-production (dymc_8p5M_260906_v2).
+# Progress of the HTCondor J/psi re-production (jpsimc_20M_260906_v2).
 #
 # The counting rule is the slurm production's: completion comes from the
 # `.complete` SENTINEL, never from the .root, because cmsRun creates its output

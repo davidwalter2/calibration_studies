@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Text tables for the CF-exponent compression study (stdout + <out>/tables.txt)."""
-import datetime, os, sys
+import os, sys
 import numpy as np
 
-SCRATCH = ("/tmp/claude-125124/-work-submit-david-w-ZMass/"
-           "9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress")
-OUT = os.path.expanduser("~/public_html/cvh/%s_cfcompress"
-                         % datetime.date.today().strftime("%y%m%d"))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import pubhtml
+
+# The small artifacts of the study (spec_*.npz, phys_*.npz, the json
+# summaries and the logs) are kept with the code.
+SCRATCH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+OUT = pubhtml.figdir("cfcompress")
 TAGS = ["jpsigun", "btojpsix", "trk_lowpt", "trk_ul16"]
 BUF = []
 
@@ -90,6 +93,7 @@ def main():
                   f"{d[f'{b}/poly/ewgt_q999'][i]:10.2e} "
                   f"{d[f'{b}/pca/ewgt_q999'][i]:10.2e}")
     os.makedirs(OUT, exist_ok=True)
+    pubhtml.ensure_index(OUT)
     open(f"{OUT}/tables.txt", "w").write("\n".join(BUF) + "\n")
     print("\nwrote", f"{OUT}/tables.txt")
 

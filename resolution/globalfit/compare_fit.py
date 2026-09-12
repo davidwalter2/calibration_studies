@@ -56,7 +56,6 @@ def parse_args():
         metavar="NAME:VALUE",
         help="expected shift of --fit relative to --fit2; prints a pull table",
     )
-    p.add_argument("--select", default=None, help="regex on parameter names")
     p.add_argument("--top", type=int, default=30)
     p.add_argument("--tol", type=float, default=1e-6, help="pass/fail tolerance")
     return p.parse_args()
@@ -86,13 +85,6 @@ def read_fit(path):
 def main():
     args = parse_args()
     names, val, err, cov, nll = read_fit(args.fit)
-    sel = list(range(len(names)))
-    if args.select:
-        import re
-
-        rx = re.compile(args.select)
-        sel = [i for i, nm in enumerate(names) if rx.search(nm)]
-
     print(f"=== {args.label}: {args.fit}")
     if nll:
         print("    " + "  ".join(f"{k}={v:.6f}" for k, v in nll.items()))

@@ -64,7 +64,7 @@ if (( SLOW )); then
   echo "--- slow scan ---"
   du -sh "$OUTBASE" 2>/dev/null
   # STREAM FILES. A multithreaded task writes one `globalcor_<stream>.root` per
-  # EDM stream, so "how many .root does a completed task have" is now a real
+  # EDM stream, so "how many .root does a completed task have" is a real
   # question and not a constant. Anything but a single mode here means some
   # tasks lost streams -- which is invisible downstream, because every stream
   # file is individually valid and carries its own copy of the runtree.

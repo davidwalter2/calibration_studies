@@ -1,4 +1,4 @@
-## CVH two-track refit PROFILING driver (2026-09-05).
+## CVH two-track refit PROFILING driver.
 ##
 ## One config for every input we want to compare like-for-like, so the maker
 ## is instantiated identically and only the tracks change:

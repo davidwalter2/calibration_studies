@@ -22,10 +22,12 @@ with a UNIVERSAL (candidate-independent) basis B and k scalars per candidate:
                     of that one tabulated universal function.
   ``poly_design``   the cumulant/Taylor baseline, S ~ sum_p kappa_p (it)^p/p!.
 """
+import os
+
 import numpy as np
 
-GTAB = ("/tmp/claude-125124/-work-submit-david-w-ZMass/"
-        "9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress/gshape_tab.npz")
+GTAB = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                    "results", "gshape_tab.npz")
 _G = None
 
 

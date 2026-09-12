@@ -1,7 +1,7 @@
 """Does the material a track meets DEPEND on how far it has already scattered,
 and does that change the predicted width?
 
-THE QUESTION (David, 2026-08-08). The CF product assumes the per-step noise is
+THE QUESTION. The CF product assumes the per-step noise is
 a fixed function of step index: chi_c^2, chi_a^2 and the step length are all
 taken from the REFERENCE path. But a track that has already been deflected is
 somewhere else transversely, and the tracker material is NOT transversely

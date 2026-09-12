@@ -94,8 +94,9 @@ def main():
         K = K * np.outer(inv, inv)
         prior_sigmas = prior_sigmas * pscale
         print(
-            "whitened: 1 unit = 1 T of RMS |dB| (parmtype 14) / 1 prior sigma "
-            f"(parmtype 15); scale range {pscale.min():.3e} .. {pscale.max():.3e}"
+            "whitened: 1 unit = 1 T of RMS |dB| (parmtype 14) / 1/gprior of "
+            "d ln(dE/dx) (parmtype 15); scale range "
+            f"{pscale.min():.3e} .. {pscale.max():.3e}"
         )
 
     if args.inject:

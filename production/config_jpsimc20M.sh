@@ -4,9 +4,8 @@
 # It lives in one file because a resumed task that ran a DIFFERENT
 # configuration from the original submission would silently produce a mixed
 # sample -- the outputs look identical and nothing downstream would catch it.
-# The field option alone was edited in two places on 2026-09-05.
 #
-# See STATE.md for the option-by-option rationale.
+# See PRODUCTIONS.md §5 for the option-by-option rationale.
 
 TAG=jpsimc_20M_260905
 OUTBASE=/ceph/submit/data/user/d/david_w/ZMass/cvh/$TAG

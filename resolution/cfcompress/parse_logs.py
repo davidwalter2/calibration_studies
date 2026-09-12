@@ -3,13 +3,14 @@
 
 `nll_impact.py --mode compress` only writes its json at the very end, so this
 recovers the rows that are already in the log (same schema, minus the fields
-that only the json carries).  Used to make the figures without waiting for the
-tail of the scan.
+that only the json carries), which is enough to make the figures without
+waiting for the tail of the scan.
 """
-import json, re, sys
+import json, os, re, sys
 
-SCRATCH = ("/tmp/claude-125124/-work-submit-david-w-ZMass/"
-           "9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress")
+# The small artifacts of the study (spec_*.npz, phys_*.npz, the json
+# summaries and the logs) are kept with the code.
+SCRATCH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 ROW = re.compile(
     r"^(pca_all r=\d+|pca_fam r=\d+/fam|levy k=[\d+]+)\s+dNLL=(\S+)\s+"
     r"bytes/cand=\s*(\d+)\s+dalpha\[1e-3\]=(\S+?)\(.*?dk_hit=(\S+?)\(.*?"

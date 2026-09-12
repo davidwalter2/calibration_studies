@@ -5,8 +5,8 @@
 # configuration from the original submission would silently produce a mixed
 # sample -- the outputs look identical and nothing downstream would catch it.
 #
-# See STATE_dy.md for the option-by-option rationale, and STATE.md for the
-# J/psi leg this mirrors.
+# See PRODUCTIONS.md §5 for the option-by-option rationale of both legs; this
+# one mirrors the J/psi leg.
 
 TAG=dymc_8p5M_260905
 OUTBASE=/ceph/submit/data/user/d/david_w/ZMass/cvh/$TAG

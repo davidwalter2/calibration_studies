@@ -2,13 +2,13 @@
 # Z-MOMENTUM single-muon private production, for the single-track PDF test at
 # the momenta the Z mass measurement actually uses.
 #
-# Why this sample exists. Every track-level / candidate-level closure so far
-# runs on B->J/psi+X or a J/psi gun, i.e. muons at p ~ 3-15 GeV. The radiative
-# (brems + pair) mean-vs-mode bias measured on 2026-08-06 is
+# Why this sample exists. The track-level / candidate-level closures otherwise
+# run on B->J/psi+X or a J/psi gun, i.e. muons at p ~ 3-15 GeV. The radiative
+# (brems + pair) mean-vs-mode bias is
 #   8.2e-6 at pT=10, 1.11e-5 at pT=40, 1.37e-5 at pT=100
 # -- i.e. AT the 1e-5 Z-mass target and pT-DEPENDENT, so it does not cancel
-# when a J/psi-derived calibration is extrapolated to Z muons. There is
-# currently no single-track PDF test at those momenta. This makes one.
+# when a J/psi-derived calibration is extrapolated to Z muons. This sample is
+# the single-track PDF test at those momenta.
 #
 # Identical recipe to the rung-E J/psi gun (run_simprod.sh): CMSSW_15_0 so the
 # simulation Geant4 matches the CVH refit propagator, auto:run2_design GT,
@@ -24,13 +24,13 @@ TO=${3:-11}
 NEVT=${4:-4000}
 PTMIN=${5:-20}
 PTMAX=${6:-60}
-# BOTH CHARGES by default (2026-08-07). The original sample was mu- only
-# (ParticleID=13, AddAntiParticle=False), which made q+ = 0 and left the
-# charge parity of any bias UNTESTABLE -- and charge parity is the natural
-# discriminator between a curvature/field-like effect (charge-ODD) and a
-# material/energy-loss-like one (charge-EVEN). This blocked the diagnosis of
-# the +-0.07 pull-unit (dp/p ~ 7e-4) PHI-dependent bias that survives
-# matching the SIM and refit field models.
+# BOTH CHARGES by default. A mu--only sample (ParticleID=13,
+# AddAntiParticle=False) has q+ = 0, which leaves the charge parity of any bias
+# UNTESTABLE -- and charge parity is the natural discriminator between a
+# curvature/field-like effect (charge-ODD) and a material/energy-loss-like one
+# (charge-EVEN). That discriminator is what the +-0.07 pull-unit (dp/p ~ 7e-4)
+# PHI-dependent bias, which survives matching the SIM and refit field models,
+# needs.
 # Listing both IDs makes Pythia8PtGun emit one particle PER ID per event,
 # each with INDEPENDENTLY sampled pt/eta/phi -- preferable to
 # AddAntiParticle=True, which would mirror the momentum (eta -> -eta,

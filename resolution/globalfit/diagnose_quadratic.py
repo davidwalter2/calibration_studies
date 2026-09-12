@@ -14,8 +14,9 @@ a **whitened** basis where every parameter is scaled by its own physical unit:
   coefficient (Tesla), evaluated with ``mfs/harmonic_basis.py`` on the same
   (l, m, cos/sin) assignment as the coefficient dump the production used. So
   ``theta_j * s_j`` is the RMS field change in Tesla that mode contributes.
-* parmtype 15: ``s_j`` = the per-group prior sigma from the materialGroups
-  tier file (column 11), i.e. one "expected" unit of ``d ln(dE/dx)``.
+* parmtype 15: ``s_j`` = the per-group prior sigma ``gprior`` from the
+  materialGroups tier file (column 11), so the whitened value is
+  ``gprior * k`` for a log energy-loss scale ``k``.
 
 In that metric it reports
 
@@ -92,8 +93,9 @@ def show_spectrum(label, Kt, names, top):
 def show_solve(label, K, G, names, scale, priors=None, top=10, field=None):
     """Solve (K + 2P) theta = -G in the WHITENED basis.
 
-    ``theta`` is then directly physical: Tesla of RMS field change for a
-    parmtype-14 mode, prior-sigma units of ``d ln(dE/dx)`` for a group.
+    Each entry of ``theta`` is the raw coefficient times its scale ``s_j``:
+    Tesla of RMS field change for a parmtype-14 mode, ``gprior * k`` for a
+    parmtype-15 group.
     """
     P = np.zeros(len(names)) if priors is None else priors
     Kp = K + np.diag(2.0 * P)
@@ -137,7 +139,7 @@ def show_solve(label, K, G, names, scale, priors=None, top=10, field=None):
         f"    {'parameter':26s} {'value':>13s} {'err':>11s} {'pull':>8s}  unit"
     )
     for i in np.argsort(-np.abs(pull))[:top]:
-        unit = "T (|dB|rms)" if (field is not None and field[i]) else "prior sigma"
+        unit = "T (|dB|rms)" if (field is not None and field[i]) else "k * gprior"
         print(
             f"    {names[i]:26s} {theta[i]:13.5g} {err[i]:11.5g} "
             f"{pull[i]:8.1f}  {unit}"
@@ -230,7 +232,7 @@ def main():
     fld = is14
     show_solve("no priors, all 92", Kt, Gt, names, scale, None, args.top, fld)
 
-    # material priors: 1 whitened sigma each (the groups-file column 11)
+    # material priors: one whitened unit per group
     pri_mat = np.where(is15, 1.0, 0.0)
     show_solve(
         "material priors only (their own prior sigmas)",

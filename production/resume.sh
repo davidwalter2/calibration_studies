@@ -66,9 +66,8 @@ printf '  indices: %s%s\n' "$(printf '%s ' "${MISSING[@]:0:20}")" \
 mkdir -p "$OUTBASE/logs"
 # NOT `GROUPS`: that is a bash BUILT-IN array (the caller's group ids).
 # `declare -A GROUPS` fails with "cannot convert indexed to associative
-# array" and the writes then land in the builtin, so `--array` came out as
-# the user's gids (100999, 169571, 1000000...). Found 2026-09-06 -- this
-# path had never actually been exercised.
+# array" and the writes then land in the builtin, so `--array` comes out as
+# the user's gids (100999, 169571, 1000000...).
 declare -A CHUNKGRP=()
 for i in "${MISSING[@]}"; do
   g=$(( i / 1000 ))

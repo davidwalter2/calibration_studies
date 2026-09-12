@@ -11,11 +11,11 @@ so a change there shows up here instead of the slide going stale.
 
 There is ONE list, not two.  gen_toy_config.py places exactly one material shell
 per entry of RADII and scores at the same radii, so shells and scoring planes
-coincide.  This script previously read the shells from the superseded
-data/gen_toy_layers.py, which still carries the 15-entry list including 26.9's
-stereo partner at 27.1; gen_toy_config.py dropped 27.1 (it sits 0.2 cm away and
-would overlap for any layer thicker than that).  The figure therefore used to
-show a 15th material shell that the geometry does not build.
+coincide.  Do NOT take the shells from data/gen_toy_layers.py: it carries a
+15-entry list including 26.9's stereo partner at 27.1, which gen_toy_config.py
+does not build (it sits 0.2 cm away and would overlap for any layer thicker
+than that), so that list draws a 15th material shell the geometry does not
+have.
 
 usage (from calibration_studies/resolution):
     python cleanprop/make_toygeom_fig.py
@@ -34,7 +34,7 @@ hep.style.use(hep.style.ROOT)
 CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "slides", "assets")
 DATED = os.path.expanduser(
-    f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_toygeom/")
+    f"~/public_html/ZMass/cvh/{datetime.date.today().strftime('%y%m%d')}_toygeom/")
 
 RED, BLUE, GREY = "#A31F34", "#1F4E79", "#8A8B8C"
 

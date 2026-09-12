@@ -116,7 +116,7 @@ from Configuration.AlCa.GlobalTag import GlobalTag
 # Conditions MUST match what the CVH refit uses, because the fit
 # RE-EVALUATES hit positions with its own CPEs: a mismatched
 # SiPixelLorentzAngle / SiPixelTemplate payload shifts local-x per
-# module and fakes a pixel hit-quality bias. Measured 2026-08-07:
+# module and fakes a pixel hit-quality bias. Measured:
 # with auto:run2_design (-> 131X_mcRun2_design_v3, whose pixel
 # templates are SiPixelTemplates38T_2010_2011_mc) against a fit on
 # 106X_mcRun2_asymptotic_v17, 97.5% of BPix L1 modules carried a
@@ -147,10 +147,9 @@ process.RECOSIMoutput_step = cms.EndPath(process.RECOSIMoutput)
 
 # Schedule definition
 # L1 emulation is KEPT: DigiToRaw packs L1 (gtStage2Raw needs
-# simGmtStage2Digis), so dropping L1simulation_step breaks RAW. It was
-# briefly dropped while trying to force a 106X GT through this 15_0
-# simulation; with the release-native 150X GT the L1 records exist and
-# the workaround is unnecessary.
+# simGmtStage2Digis), so dropping L1simulation_step breaks RAW. With the
+# release-native 150X GT the L1 records exist, so there is no reason to drop
+# it.
 process.schedule = cms.Schedule(process.digitisation_step,process.L1simulation_step,process.digi2raw_step,process.raw2digi_step,process.L1Reco_step,process.reconstruction_step,process.endjob_step,process.RECOSIMoutput_step)
 from PhysicsTools.PatAlgos.tools.helpers import associatePatAlgosToolsTask
 associatePatAlgosToolsTask(process)

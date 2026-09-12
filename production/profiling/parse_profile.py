@@ -140,7 +140,6 @@ def summarise(rundir):
         r['nevents'] = len(te)
         r['loop_wall_s'] = float(te[:, 2].sum())
         # drop the first event: it carries the one-off Geant4/geometry init
-        srt = te[np.argsort(-te[:, 2])]
         r['first_event_s'] = float(te[0, 2])
         rest = te[1:, 2] if len(te) > 1 else te[:, 2]
         r['s_per_event'] = float(rest.mean())

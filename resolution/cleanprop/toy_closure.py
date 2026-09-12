@@ -8,16 +8,16 @@ u ~ 1 the core.
 
 What the toy removes relative to the real geometry:
   * ACCEPTANCE. 100 % of rays cross every surface (2000/2000), against 94.4 % at
-    pT=3 in the real tracker where the missing 5.6 % were TAIL-SELECTIVE and
-    turned out to be the single largest error in the whole study.
+    pT=3 in the real tracker, where the missing 5.6 % are TAIL-SELECTIVE and
+    are the single largest error in the study.
   * MATERIAL SAMPLING. Every path through the same z-extent crosses identical
     material, so <dE(path)> = dE(<path>) exactly. Measured at +11 % of the loss
     across wander quintiles in the real geometry.
 
 What it does NOT remove, and what therefore limits it:
-  * The model's ionization peak shape. The wander test showed material sampling
-    explains only ~40 % of the model-vs-Geant4 mode gap; ~60 % is a genuine
-    model difference and survives here.
+  * The model's ionization peak shape. Material sampling explains only ~40 %
+    of the model-vs-Geant4 mode gap (wander_test.py); the remaining ~60 % is a
+    genuine model difference and survives here.
   * The cylinder-vs-tangent-plane offset, <= 7.9 um against mm-scale deviations.
 
 IMPORTANT on interpretation: the toy matches the real tracker's MEAN loss

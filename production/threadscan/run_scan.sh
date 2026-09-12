@@ -6,7 +6,7 @@
 # WHY THE MEASUREMENT IS SHAPED THIS WAY
 #   * `numberOfStreams` FOLLOWS `numberOfThreads` in both drivers, so N is one
 #     knob, and the maker writes ONE OUTPUT FILE PER STREAM
-#     (`<outprefix>_<stream>.root`, ResidualGlobalCorrectionMakerBase.cc:451).
+#     (`<outprefix>_<stream>.root`, ResidualGlobalCorrectionMakerBase.cc).
 #     An N-thread task therefore produces N .root files, which the slurm/condor
 #     wrapper's `*.root` glob already tolerates but which every downstream
 #     reader must expect.
@@ -29,7 +29,7 @@ PROD=/work/submit/david_w/ZMass/calibration_studies/production
 AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
 
-# The re-production switches (PRODUCTION_NEXT.md §2) on top of the running
+# The re-production switches (PRODUCTIONS.md §3) on top of the running
 # production's configuration, with numberOfThreads left OUT -- it is the scan
 # variable and is appended per arm.
 NEWEXPORTS="exportCfGroupExponents=True exportMaterialNoise=True \

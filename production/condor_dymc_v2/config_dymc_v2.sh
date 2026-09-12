@@ -10,7 +10,7 @@
 # WHAT IS DIFFERENT FROM dymc_8p5M_260905 (the slurm production):
 #   1. the CMSSW area is dev2 @ cvh-exports-260906, which carries fab515e
 #      (the `ndof == 0` abort that cost 28 % of the first finished tasks);
-#   2. the four re-production export switches of PRODUCTION_NEXT.md §2;
+#   2. the four re-production export switches of PRODUCTIONS.md §3;
 #   3. HTCondor instead of slurm -- and, because the submit condor pool has no
 #      ceph-mounted execute capacity at all (one 1-CPU local test slot; every
 #      other slot is a glidein at DESY/IIHE/... with no /ceph, no /work), that
@@ -29,7 +29,7 @@ INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18
 CHUNKLIST=${CHUNKLIST:-/work/submit/david_w/ZMass/calibration_studies/production/chunks_dymc_8p5M_260905.txt}
 NAME=dymc_v2
 
-# --- sizing, from the 2026-09-06 thread scan (STATE_dy_v2.md, "Thread scan") -
+# --- sizing, from the thread scan (STATE_dy_v2.md, "Thread scan") ----------
 # 4 threads, on the grid as well as on slurm.
 #   * on a 22 120-event chunk the scan projects 3.94x (the 3.43x it measures on
 #     2000 events is diluted by a 40 s serial head that a real chunk amortises);
@@ -37,11 +37,11 @@ NAME=dymc_v2
 #     preemptible glidein than on a slurm node -- an evicted job loses whatever
 #     it had done;
 #   * memory per core drops from 3.6 GB to 1.25 GB.
-# The BtoJpsiX production's 4 -> 1 change is sometimes read as a matchability
-# result; it is not. Its own note says the reason was that the shipped cfg ran
-# SINGLE-THREADED, so 3 of the 4 cores sat idle, and that what had actually
-# blocked matching was the missing +DESIRED_Sites. Measured here: a 4-core
-# request matched at Caltech about a minute after submission.
+# The BtoJpsiX production runs 1 thread, which is NOT a matchability result:
+# its own note says the shipped cfg ran SINGLE-THREADED so 3 of the 4 cores sat
+# idle, and that what actually blocked matching was the missing +DESIRED_Sites.
+# Measured here: a 4-core request matched at Caltech about a minute after
+# submission.
 NTHREADS=${NTHREADS:-4}
 # 3.56 GB (the worst 1-thread task of the 260905 productions) + 3 x 51 MB per
 # extra stream, x1.3. The scan's own 2.00 GB peak is NOT the sizing number: a
@@ -64,23 +64,23 @@ DESIRED_SITES=${DESIRED_SITES:-"T2_BE_IIHE,T2_BE_UCL,T2_BR_UERJ,T2_CH_CERN,T2_CN
 # the regexp form: `=!=` is the ClassAd IDENTITY operator and is CASE SENSITIVE,
 # while MIT T2 advertises Machine in UPPERCASE, so a lowercase `=!=` fence
 # silently never excludes anything.
-# physik.rwth-aachen.de and jinr.ru: fenced 2026-09-06 from THIS production's
-# own first half hour. 16 of 380 first attempts died with SIGILL (rc 132) --
+# physik.rwth-aachen.de and jinr.ru: fenced from THIS production's own first
+# half hour. 16 of 380 first attempts died with SIGILL (rc 132) --
 # "illegal instruction" inside `XrdCl::PostMaster::Start()` in the CVMFS
 # release's own libXrdCl, on the `stagein` Prepare call while PoolSource is
 # being constructed -- and ALL SIXTEEN were at those two sites, 8 each. It is
 # not our payload (the release loads its scram_x86-64-v2 variants) and it is
 # not the chunk; it is those sites' CPUs against that external. Retries carried
 # them, but a job can only retry onto a bad site so many times.
-# Black-hole nodes fenced 2026-09-06 from the J/psi v2 submission's own
-# first half hour: 34 of 36 SIGILLs were at five ultralight.org machines
+# Black-hole nodes fenced from the J/psi v2 submission's own first half
+# hour: 34 of 36 SIGILLs were at five ultralight.org machines
 # (compute-6-34 alone ate 16) plus t2bat0310, this time crashing in
 # edm::StreamSchedule::fillWorkers rather than in XrdCl -- i.e. the node
 # cannot run the release's binaries at all. The rest of Caltech and MIT T2
 # ran hundreds of jobs fine, so fence the NODES, not the sites.
 REQUIREMENTS=${REQUIREMENTS:-'(regexp("swan.hcc.unl.edu", Machine, "i") =!= true) && (regexp("cmsplt02", Machine, "i") =!= true) && (regexp("node-0011.hepgrid.uerj.br", Machine, "i") =!= true) && (regexp("cism.ucl.ac.be", Machine, "i") =!= true) && (regexp("physik.rwth-aachen.de", Machine, "i") =!= true) && (regexp("jinr.ru", Machine, "i") =!= true) && (regexp("compute-6-34\.ultralight\.org", Machine, "i") =!= true) && (regexp("compute-6-6\.ultralight\.org", Machine, "i") =!= true) && (regexp("compute-22-12\.ultralight\.org", Machine, "i") =!= true) && (regexp("compute-12n-23\.ultralight\.org", Machine, "i") =!= true) && (regexp("compute-21-22\.ultralight\.org", Machine, "i") =!= true) && (regexp("t2bat0310\.cmsaf\.mit\.edu", Machine, "i") =!= true)'}
 
-# The 260905 configuration verbatim, plus the four PRODUCTION_NEXT.md §2
+# The 260905 configuration verbatim, plus the four PRODUCTIONS.md §3
 # switches.  numberOfThreads is NOT here: the wrapper takes it from $NTHREADS
 # so that a resume cannot silently change the stream count (and with it the
 # number of output files a task is checked for).

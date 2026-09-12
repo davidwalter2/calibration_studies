@@ -10,8 +10,10 @@ import numpy as np
 import massnll_np as MN
 import cfbasis as CB
 
-SCRATCH = ("/tmp/claude-125124/-work-submit-david-w-ZMass/"
-           "9cb79a9f-18ea-4214-84d2-2de84e8651c2/scratchpad/cfcompress")
+# The shuffled subsamples are multi-GB, so they live beside the full CF
+# caches under resolution/runs, never in the repository.
+SCRATCH = ("/work/submit/david_w/ZMass/calibration_studies/resolution/"
+           "runs/cfcompress")
 FAMS = ["Sms", "Sio_re", "Sio_im", "Srad_re", "Srad_im"]
 
 

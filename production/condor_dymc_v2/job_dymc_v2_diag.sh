@@ -4,8 +4,8 @@
 #   * a background sampler writes VmRSS / VmHWM / VmSize plus the last
 #     "Begin processing" record to memtrace.txt every 15 s;
 #   * local.log and memtrace.txt are staged out ALWAYS, success or crash --
-#     the production wrapper stages them only on success, which is why the
-#     6 SIGSEGV tasks left no log at all;
+#     the production wrapper stages them only on success, so a task that
+#     crashes leaves no log at all;
 #   * on failure it dumps 400 lines of local.log to stderr instead of 60, so
 #     the WHOLE gdb thread dump survives (the production .err files are
 #     truncated to the last ~58 lines, which cuts off the thread that actually
@@ -18,8 +18,8 @@
 # ------------------------------------------------------------------------
 # The submit HTCondor pool has exactly ONE local execute slot -- 1 CPU on
 # submit06, whose START expression demands `Submit_LocalTest` -- and everything
-# else is glideins flocked to the CMS global pool via t3serv009. Measured
-# 2026-09-06 on real slots:
+# else is glideins flocked to the CMS global pool via t3serv009. Measured on
+# real slots:
 #   * mit_tier3 (t3btch001)      : el7, NO /ceph, NO /work, NO /home, no singularity
 #   * global pool (DESY, IIHE)   : el9 under cms:rhel9-x86_64, NO /ceph, cvmfs OK,
 #                                  xrootd read of the input OK, /srv scratch 3-7 TB
@@ -35,9 +35,9 @@
 #   3. the output      -> xrdcp back to root://submit50.mit.edu/, whose namespace
 #      root is /ceph/submit
 #
-# THE STAGE-OUT IS VERIFIED BY SIZE, NEVER BY EXIT CODE. `xrdcp` has truncated
-# outputs on this cluster before (two condor attempts of the BtoJpsiX
-# production were destroyed that way) and returned 0 while doing it. The
+# THE STAGE-OUT IS VERIFIED BY SIZE, NEVER BY EXIT CODE. `xrdcp` truncates
+# outputs on this cluster and returns 0 while doing it (two condor attempts of
+# the BtoJpsiX production were destroyed that way). The
 # `.complete` sentinel is copied LAST, after every payload file has been read
 # back and its size compared, so a partial stage-out can never look finished.
 #

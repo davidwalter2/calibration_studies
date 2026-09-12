@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Figures for the 2026-08-11 clean-propagation deck.
+"""Figures for the 260811 clean-propagation deck.
 
-Two results, both new since the 2026-08-06 version:
+Two results:
 
-  1. acceptance.png -- the modal-sequence acceptance cut WAS the pT=3
+  1. acceptance.png -- the modal-sequence acceptance cut IS the pT=3
      non-closure. Per-layer closure under the two acceptance modes, at both
      momenta, from the cleanprop_rows npz dumps.
 
@@ -87,7 +87,7 @@ def closure():
 
 
 def species():
-    # measured 2026-08-08, pT=3, per-plane acceptance, inelastic veto applied
+    # pT=3, per-plane acceptance, inelastic veto applied
     sp = ["$\\mu$", "$K^-$", "$\\pi^-$", "$p$"]
     rob = [0.881, 0.886, 0.906, 0.919]
     ratio = [1.18, 2.56, 4.11, 4.47]

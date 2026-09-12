@@ -28,7 +28,7 @@ import numpy as np
 import uproot
 
 # The raw per-step resolution export (exportStepRecords=True). Their only
-# consumer was the offline exponent extractor that the in-maker cfmass_*
+# consumer is the offline exponent extractor, which the in-maker cfmass_*
 # export replaces; ~290 kB/candidate.
 STEP_RECORD = ("ioniurbanidx", "ioniurbanv", "radstepidx", "radstepv",
                "radstepspecv", "msmoliidx", "msmoliv", "reseigv",

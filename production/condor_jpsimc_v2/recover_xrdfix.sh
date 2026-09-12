@@ -79,13 +79,12 @@ while read -r i; do mkdir -p "$OUTBASE/task_$(printf '%04d' "$i")"; done < "$HER
   echo "reason    : XrdAdaptor tracerouteRedirections null deref (SIGSEGV)"; } \
   >> "$OUTBASE/PROVENANCE.txt"
 
-# 2026-09-07: the -append list below used to carry REDIR, which
-# config_jpsimc_v2.sh does not define (only the DY config does), so under
-# `set -u` the recovery aborted here, before condor_submit -- which is why
-# the 1552-1555 recovery never reached the queue.  What the wrapper really
-# needs is INDOORS; without it every recovered job falls back to the single
-# default door instead of the six.  (Do NOT put comments inside the
-# backslash-continued list: a # there truncates the command.)
+# Do NOT put REDIR in the -append list below: config_jpsimc_v2.sh does not
+# define it (only the DY config does), so under `set -u` the recovery aborts
+# here, before condor_submit ever runs.  What the wrapper needs is INDOORS;
+# without it every recovered job falls back to the single default door instead
+# of the six.  (Do NOT put comments inside the backslash-continued list
+# either: a # there truncates the command.)
 condor_submit \
   -append "JOBSH        = $HERE/job_jpsimc_v2_diag.sh" \
   -append "IDXFILE      = $HERE/.recover_idx.txt" \
