@@ -4,10 +4,9 @@ Everything needed to *use* or *re-run* the large CVH refit productions: which
 samples exist, what is in them, where they live on ceph, the exact
 configuration, the cost and resource numbers, and the defects that bite.
 
-(This file replaces `PRODUCTION_NEXT.md`, `STATE.md` and `STATE_dy.md`; a few
-submit-script comments still cite "PRODUCTION_NEXT.md §2", which is §3 here.
-The two condor campaigns keep a short record of their own next to their submit
-scripts: `condor_jpsimc_v2/STATE_jpsi_v2.md`, `condor_dymc_v2/STATE_dy_v2.md`.)
+(The two condor campaigns keep a short record of their own next to their
+submit scripts: `condor_jpsimc_v2/STATE_jpsi_v2.md`,
+`condor_dymc_v2/STATE_dy_v2.md`.)
 
 ---
 

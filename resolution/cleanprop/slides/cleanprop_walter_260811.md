@@ -523,5 +523,5 @@ Conditions are pinned to the CVH refit drivers on both sides
 volumes** in this release — hence the explicit pin.
 
 Full write-up, including the per-layer tables and every caveat:
-`Documents/Resolution/NOTES.md` (entry of 2026-08-04) and
+`Documents/Resolution/archive/NOTES_devlog_until_260911.md` (entry of 2026-08-04) and
 `calibration_studies/resolution/cleanprop/README.md`.

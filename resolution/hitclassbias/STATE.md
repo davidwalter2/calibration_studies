@@ -185,8 +185,9 @@ the 160-task one, from the frozen caches `data/conv_{base,tight,damp}_t160.npz`.
 | `p2_ladder.py` | the BPix-L1 ladder-parity test, head-on | |
 | `t8_figs.py`, `s7_figs.py`, `c3_figs.py` | figures, one file per panel | |
 
-**Retracted, do not use:** `s8_variants.py`, `s9_who_moved.py`, `s10_tail.py`,
-`s11_unconv.py` (see "Defects").
+**Retracted:** the first convergence-variant probes paired on
+`(run, lumi, event)` alone (see "Defects"); they are deleted and `c1_conv.py`,
+`c2_pair.py` and `conv_common.py` replace them.
 
 ### Figures
 
@@ -702,8 +703,9 @@ convergence arm's -5.21 / -4.36 / -1.97 is the same quantity under the
    **Fix:** the pairing key is `(run, lumi, event, charge)` — unique on this gun
    and stable under a dropped candidate — with the within-event `slot` kept as a
    cross-check (`conv_common.Var.key`, `conv_common.pair`).
-   `s8_variants.py`, `s9_who_moved.py`, `s10_tail.py`, `s11_unconv.py` are
-   RETRACTED and carry a banner saying so.
+   The probes built on the wrong key, and every claim above that came out of
+   them, are RETRACTED; they are deleted and `c1_conv.py` / `c2_pair.py` /
+   `conv_common.py` are what to use.
 
 3. **Blocks are not hits in the ladder test.** A first pass counted 460 579
    BPix-L1 "hits" on 226 484 tracks (2.03/track): every pixel hit books a local-x

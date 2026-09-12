@@ -378,16 +378,17 @@ material. Per group (marginal): `bpix_services` 3.461, `tib_support` 2.659,
 ### 6. Vertex vs mass vs joint — who measures what
 
 Quoted sigma at MC truth, CF arm, 8 000 candidates,
-`logs/eff_{vtx,mass,joint}_p2.log`. 1 tier prior = 0.0025 card units for the
-0.05-prior material groups and 1.0 for a hit class.
+`logs/eff_{vtx,mass,joint}_p2.log`. Sigmas are PHYSICAL — `k`, the log material
+amount, for a group and `eps`, the linear variance scale, for a hit class — so
+the prior column is the group's own tier prior.
 
 | parameter | VERTEX | MASS | JOINT | prior |
 |---|---|---|---|---|
-| `material_bpix_support6` | **0.0020** | 0.0024 | **0.0020** | 0.0025 |
-| `material_tib_support` | 0.0024 | 0.0023 | **0.0022** | 0.0025 |
-| `material_tec_structure` | (uninformative) | 0.0022 | **0.0021** | 0.0025 |
-| `material_tob_support` | (uninformative) | 0.0024 | **0.0023** | 0.0025 |
-| `material_bpix_services` | 0.0095 | 0.0096 | 0.0092 | (higher tier) |
+| `material_bpix_support6` | **0.0399** | 0.0485 | **0.0393** | 0.05 |
+| `material_tib_support` | 0.0488 | 0.0453 | **0.0432** | 0.05 |
+| `material_tec_structure` | (uninformative) | 0.0438 | **0.0425** | 0.05 |
+| `material_tob_support` | (uninformative) | 0.0473 | **0.0463** | 0.05 |
+| `material_bpix_services` | 0.0954 | 0.0958 | 0.0918 | 0.1 |
 | **`hitres_pix_y_q1`** | **0.167** | 0.958 | **0.166** | 1.0 |
 | **`hitres_pix_x_q1`** | **0.206** | 0.800 | **0.204** | 1.0 |
 | `hitres_pix_y_q2` | 0.207 | (uninformative, > 0.95) | 0.206 | 1.0 |
@@ -411,14 +412,14 @@ prior penalty).
 
 | fit | NLL(min) | EDM | `material_bpix_support6` | `hitres_pix_y_q1` |
 |---|---|---|---|---|
-| `vtx_cf` | -26 059.934 | **1.3e-12** | +0.00366 +- 0.00196 | **-0.400 +- 0.132** |
-| `vtx_gaussq` | -25 890.002 | 2.5e-08 | +0.00310 +- 0.00188 | -0.538 +- 0.125 |
-| `mass_cf` | -15 896.129 | 6.2e-14 | -0.00044 +- 0.00243 | -0.181 +- 0.958 |
-| `joint_cf` | -41 954.970 | 7.7e-12 | +0.00327 +- 0.00192 | -0.408 +- 0.131 |
-| `inj_vtx_cf` | -26 061.175 | 1.2e-16 | +0.00270 +- 0.00194 | -0.414 +- 0.131 |
-| `inj_vtx_gaussq` | -25 892.592 | 1.4e-08 | +0.00196 +- 0.00187 | -0.544 +- 0.126 |
-| `inj_mass_cf` | -15 895.928 | 3.3e-17 | -0.00059 +- 0.00242 | -0.187 +- 0.958 |
-| `inj_joint_cf` | -41 956.049 | 2.1e-15 | +0.00226 +- 0.00191 | -0.422 +- 0.130 |
+| `vtx_cf` | -26 059.934 | **1.3e-12** | +0.07314 +- 0.03912 | **-0.400 +- 0.132** |
+| `vtx_gaussq` | -25 890.002 | 2.5e-08 | +0.06205 +- 0.03767 | -0.538 +- 0.125 |
+| `mass_cf` | -15 896.129 | 6.2e-14 | -0.00884 +- 0.04853 | -0.181 +- 0.958 |
+| `joint_cf` | -41 954.970 | 7.7e-12 | +0.06535 +- 0.03850 | -0.408 +- 0.131 |
+| `inj_vtx_cf` | -26 061.175 | 1.2e-16 | +0.05392 +- 0.03873 | -0.414 +- 0.131 |
+| `inj_vtx_gaussq` | -25 892.592 | 1.4e-08 | +0.03918 +- 0.03732 | -0.544 +- 0.126 |
+| `inj_mass_cf` | -15 895.928 | 3.3e-17 | -0.01180 +- 0.04839 | -0.187 +- 0.958 |
+| `inj_joint_cf` | -41 956.049 | 2.1e-15 | +0.04519 +- 0.03810 | -0.422 +- 0.130 |
 | `injhit_vtx_cf` | -26 059.921 | 9.2e-18 | | (see the hit injection) |
 | `injhit_vtx_gaussq` | -25 889.984 | 2.5e-08 | | |
 
@@ -438,18 +439,18 @@ sigma, 53x in variance** — i.e. the fit's assumed variance for that class is
 
 `logs/recovery.log`, `logs/recovery_hit.log`.
 
-**`material_bpix_support6` x1.05 material** (truth = ln(1.05) x 0.05 =
-+0.00243951 card units). `f_pri` is the prior-shrinkage factor
+**`material_bpix_support6` x1.05 material** (truth = ln(1.05) = `k` +0.0487902;
+values are PHYSICAL `k`). `f_pri` is the prior-shrinkage factor
 `sigma_post^2 / sigma_lik^2`; `corrected/truth = shift / (f_pri x truth)`:
 
 | channel | baseline | injected | shift | /truth | f_pri | **corrected/truth** | leak rms |
 |---|---|---|---|---|---|---|---|
-| vertex, CF | +0.00366 | +0.00270 | -0.00096 | -0.394 | 0.400 | **0.984** | 0.034 |
-| vertex, fit's Q | +0.00310 | +0.00196 | -0.00114 | -0.467 | 0.443 | **1.055** | 0.118 |
-| MASS, CF | -0.00044 | -0.00059 | -0.00015 | -0.062 | 0.063 | **0.976** | 0.013 |
-| **JOINT, CF** | +0.00327 | +0.00226 | -0.00101 | -0.414 | 0.419 | **0.988** | 0.034 |
+| vertex, CF | +0.07314 | +0.05392 | -0.01922 | -0.394 | 0.400 | **0.985** | 0.034 |
+| vertex, fit's Q | +0.06205 | +0.03918 | -0.02287 | -0.469 | 0.443 | **1.058** | 0.118 |
+| MASS, CF | -0.00884 | -0.01180 | -0.00296 | -0.061 | 0.063 | **0.957** | 0.013 |
+| **JOINT, CF** | +0.06535 | +0.04519 | -0.02016 | -0.413 | 0.419 | **0.986** | 0.034 |
 
-Every channel recovers the 5 % injection to **1.6-5.5 %**. Largest leakage:
+Every channel recovers the 5 % injection to **1.4-5.8 %**. Largest leakage:
 -0.12 sigma onto `hitres_pix_x_q1` (CF) and +0.81 sigma onto `hitres_pix_y_q3`
 (the fit's-Q arm — another sign that arm is worse conditioned).
 

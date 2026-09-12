@@ -709,7 +709,7 @@ only question that decides how much of this programme is needed.
 
 | topic | note |
 |---|---|
-| CGF construction, entirety, log-domain rework, Fisher information, IRLS | `NOTES.md` sections XII–XXI |
+| CGF construction, entirety, log-domain rework, Fisher information, IRLS | `archive/NOTES_devlog_until_260911.md` sections XII–XXI |
 | Fisher normalisation of the closure, step-limit scan, $\theta_{\rm cut}$ robustness | `NOTES_FISHERNORM.md` |
 | Multiple-scattering and radiative channels, saddlepoint failures | `NOTES_XXII_msrad.md` |
 | Fixed-energy truncation, additivity, the two motivations separated | `NOTES_TCUT.md` |

@@ -26,9 +26,11 @@ What this study answers:
    (`F^T R = 0`, measured at 2.14e-9); they share fourth cumulants (0.46
    median), and the joint sandwich prices it.
 5. What does it cost to export, and what should a data fit actually do?
-   **Run the CF term on a few-million-track subsample and the ordinary
-   quadratic term on the disjoint remainder** — everything this term
-   constrains saturates at O(10^2-10^4) tracks.
+   **Run the per-hit CF term on a SMALL subsample for the HIT CLASSES** — they
+   saturate their priors at tens to hundreds of tracks — and leave the MATERIAL
+   to the mass and vertex-constraint terms: measured through the per-hit
+   residuals the material width needs ~6e5 tracks for the median group and
+   1e8 for the worst.
 
 ## The object / model
 
@@ -339,8 +341,8 @@ itself, `--hit-prior 1.0`).
 | `ph_resmass` | 60 | 101 379.7506 | 1.05e-11 | -0.03099 +- 0.03664 | +0.07212 +- 0.01587 |
 | `ph_inj_resmass` | 60 | 101 380.5804 | 1.65e-10 | -0.05404 +- 0.03601 | +0.07198 +- 0.01587 |
 
-**15/15 certified at EDM < 1e-3.**  The injection tables further down are in
-CARD units, where the same CF baseline reads -0.00061 +- 0.00229.
+**15/15 certified at EDM < 1e-3.**  The injection tables further down use the
+same physical units.
 
 **THE NUMBER THAT SHOWS WHAT THE PER-HIT COMPONENTS BUY.**  On
 `hitres_str_N3_lo` the five truth-referenced components give **+-0.0917** and
@@ -475,26 +477,26 @@ on the same parameters are 0.09-0.12.
 
 ### Injection recovery (8000 tracks)
 
-**Material**, `material_tib_support` x1.05 (card value +0.00243951 =
-`k` +0.0487902).  Prior-corrected by `f = 1 - sigma_post^2/sigma_pri^2` with
-the tier prior 0.05 in `k` = **0.0025 in card units**:
+**Material**, `material_tib_support` x1.05 (`k` = +0.0487902, i.e. +5.000 %
+material).  Values are PHYSICAL `k`.  Prior-corrected by
+`f = 1 - sigma_post^2/sigma_pri^2` with the tier prior **0.05 in `k`**:
 
 | channel | baseline | injected | shift | /truth | f_pri | **corrected/truth** | pull | leak rms |
 |---|---|---|---|---|---|---|---|---|
-| per-hit, CF | -0.00061 +- 0.00229 | -0.00102 +- 0.00227 | -0.00041 | -0.170 | 0.176 | **0.964** | -0.02 | 0.016 |
-| per-hit, fit's Q (the chi2) | -0.00098 +- 0.00227 | -0.00142 +- 0.00225 | -0.00044 | -0.181 | 0.187 | **0.965** | -0.02 | 0.015 |
-| truth-referenced (5 comps), CF | +0.00048 +- 0.00193 | -0.00052 +- 0.00191 | -0.00100 | -0.411 | 0.419 | **0.982** | -0.01 | 0.028 |
-| **per-hit + truth-referenced, SAME tracks** | -0.00155 +- 0.00184 | **-0.00269 +- 0.00182** | -0.00114 | -0.465 | 0.472 | **0.985** | -0.01 | 0.028 |
-| J/psi-gun MASS term alone | -0.00119 +- 0.00189 | -0.00225 +- 0.00186 | -0.00106 | -0.436 | 0.446 | **0.978** | -0.02 | 0.052 |
-| **per-hit + MASS, DISJOINT samples** | -0.00155 +- 0.00183 | **-0.00270 +- 0.00180** | -0.00115 | -0.472 | 0.481 | **0.981** | -0.02 | 0.043 |
+| per-hit, CF | -0.01214 +- 0.04574 | -0.02042 +- 0.04538 | -0.00828 | -0.170 | 0.176 | **0.964** | -0.02 | 0.016 |
+| per-hit, fit's Q (the chi2) | -0.01967 +- 0.04543 | -0.02849 +- 0.04508 | -0.00882 | -0.181 | 0.187 | **0.965** | -0.02 | 0.015 |
+| truth-referenced (5 comps), CF | +0.00963 +- 0.03861 | -0.01043 +- 0.03812 | -0.02006 | -0.411 | 0.419 | **0.982** | -0.01 | 0.028 |
+| **per-hit + truth-referenced, SAME tracks** | -0.03106 +- 0.03680 | **-0.05376 +- 0.03632** | -0.02271 | -0.465 | 0.472 | **0.985** | -0.01 | 0.028 |
+| J/psi-gun MASS term alone | -0.02377 +- 0.03787 | -0.04506 +- 0.03722 | -0.02128 | -0.436 | 0.446 | **0.978** | -0.02 | 0.052 |
+| **per-hit + MASS, DISJOINT samples** | -0.03099 +- 0.03664 | **-0.05404 +- 0.03601** | -0.02304 | -0.472 | 0.481 | **0.981** | -0.02 | 0.043 |
 
 Every channel recovers the 5 % injection to **96-99 %** with a pull below
 0.02 sigma.  The two joints are the tightest and the most accurate and they
-agree with each other (0.00184 / 0.00183) — one consistent amount across three
+agree with each other (0.0368 / 0.0366) — one consistent amount across three
 different objectives.  Largest leakage: `material_tob_support` -0.15 to
 -0.27 sigma in the material-sensitive channels, `hitres_str_N3_hi` -0.06 sigma
-in the per-hit ones.  (Prototype, same injection: residual CF 0.00202 / 0.979,
-mass 0.00186 / 0.978, joint 0.00171 / 0.985.)
+in the per-hit ones.  (Prototype, same injection: residual CF 0.0404 / 0.979,
+mass 0.0372 / 0.978, joint 0.0342 / 0.985.)
 
 **Hit class**, `hitres_str_N3_lo` variance x1.10 on the data side.  `hit_mode`
 is LINEAR, so the expected shift is
@@ -537,27 +539,33 @@ the hit classes) is confirmed with no model assumption.
 
 | component set / arm | groups with information | median `N_sat`, MATERIAL | 16-84 % | max | median `N_sat`, HIT CLASSES |
 |---|---|---|---|---|---|
-| `hit`, CF | 26/42 | **679** | 247 - 4.5e3 | **4.1e4** | **14.5** (max 307) |
-| `hit`, chi2 | 27/42 | 1.05e3 | 300 - 8.9e3 | 2.2e6 | 14.2 (max 302) |
-| `ref`, CF | 27/42 | 1.65e3 | 181 - 2.2e4 | **1.6e6** | 7.3 - 39 (the 7 printed) |
+| `hit`, CF | 26/42 | **6.37e5** | 2.9e4 - 4.7e6 | **1.01e8** | **14.5** (max 307) |
+| `hit`, chi2 | 27/42 | 9.53e5 | 3.6e4 - 7.3e6 | 5.56e9 | 14.2 (max 302) |
+| `ref`, CF | 27/42 | 3.74e6 | 2.6e4 - 5.5e7 | **4.1e9** | 7.3 - 39 (the 7 printed) |
 
-**Everything this term constrains saturates at O(10^2 - 10^4) tracks**, the
-worst material group at 4.1e4 (`hit`) / 1.6e6 (`ref`) — 0.1-4 % of a 41 M-track
-sample.  At 41 M the best `hit`-arm material sigmas would be 0.0018-0.0026 of a
-tier prior and the hit classes 0.0002-0.0006, far below any prior and far below
-the systematic floor.
+**The two parameter families are four to five orders of magnitude apart.**  The
+HIT CLASSES saturate almost immediately — median 14.5 tracks, worst 307 — so a
+few thousand tracks already know them better than their prior does.  The
+MATERIAL does not: through the per-hit residuals the median group needs
+**6.4e5** tracks and the worst **1.0e8**, i.e. a large fraction of, or more
+than, the whole 41 M-track sample.
 
-**THE RECOMMENDATION.**  Run the CF residual term on a SUBSAMPLE of a few
-million tracks and the ordinary quadratic term (which handles the
-alignment/field MEANS exactly, through `gradv`/`hesspackedv`) on the DISJOINT
-remainder.  At 2 M tracks every material group is past saturation even in the
-worst case, the two samples are disjoint so `H` and `J` add exactly and nothing
-is double counted, and the export bill falls from **23.2 TB to ~1.1 TB** with
-no new maker work.  The alternative — exporting the per-track mean Jacobian
-`D = W^T J` (13 kB/track, 0.6 TB at 41 M) so the CF term can carry the means
-itself — buys resolution parameters that are already saturated, so it is NOT
-justified by these numbers; it becomes interesting only if the CF term is
-wanted for the alignment/field means themselves.
+**THE RECOMMENDATION.**  Run the per-hit CF term on a SMALL subsample and read
+the HIT CLASSES off it: 10^5 tracks is 300x the worst hit-class saturation
+point and costs 63 GB as produced (7.3 GB in the `cost.py` layout), so that
+term is essentially free, and the ordinary quadratic term (which handles the
+alignment/field MEANS exactly, through `gradv`/`hesspackedv`) runs on the
+DISJOINT remainder, with `H` and `J` adding exactly and nothing double counted.
+**The MATERIAL amounts do not come from this term.**  Their information is in
+the track-parameter and constraint directions — the mass and vertex-constraint
+terms, whose material sandwich efficiency is 1.49-2.7x — or from the per-hit
+term over the FULL sample, and the export bill of a per-hit term large enough
+to matter for the material is the full 23.2 TB, not a subsample.  The
+alternative — exporting the per-track mean Jacobian `D = W^T J` (13 kB/track,
+0.6 TB at 41 M) so the CF term can carry the means itself — buys hit-class
+parameters that are already saturated, so it is NOT justified by these numbers;
+it becomes interesting only if the CF term is wanted for the alignment/field
+means themselves.
 
 ### Cost (one pinned CPU, `taskset -c 40`, `OMP_NUM_THREADS=1`, 2000 tracks, arm `cf`)
 
@@ -719,12 +727,12 @@ identical to the `ph_mass` card's, so it is the same object the fits use.  `H`
    `sqrt(J_pp)/H_pp` (what `efficiency.py` calls `aa`, well defined for every
    parameter and exactly `1/sqrt(N)`-scaling) and reports only parameters with
    `H_pp > 1e-8 max(H_pp)`.
-5. **`recovery.py --prior-sigma` units.**  `run_stage2.sh` passed 1.0, which is
-   right for a HIT CLASS (its card prior IS `--hit-prior = 1`) and wrong for a
-   material group: the card is whitened so the injection 0.00243951 equals
-   `k = 0.0487902`, i.e. the tier prior 0.05 in `k` is **0.0025** in card
-   units.  With 1.0 the shrinkage factor came out `f = 1.000` and the RAW,
-   prior-shrunk shift (-0.17) was quoted as the recovery.
+5. **The prior a recovery is corrected by is the group's own.**  A card is
+   whitened, so the injection 0.00243951 of card value IS `k = 0.0487902` and
+   the tier prior is 0.05 in `k`, not 1.0.  With a prior of 1.0 the shrinkage
+   factor comes out `f = 1.000` and the RAW, prior-shrunk shift (-0.17) is
+   quoted as the recovery.  `recovery.py` now takes the prior from the groups
+   file and reports in physical `k`, with no flag to get wrong.
 6. **`tails.py` grouping on a per-hit file.**  `mean_density` takes ROW
    INDICES; passing a component index straight through broke it.  And a
    truth-referenced component sits at slot `d + j`, so grouping by the raw
@@ -734,16 +742,15 @@ identical to the `ph_mass` card's, so it is the same object the fits use.  `H`
    defects) are FIXED in this maker.  The five truth-referenced pull variances
    are now 0.98 / 1.01 / 0.94 / 1.21 / 1.26 on the smoke and z0 is a usable
    observable for the first time (the prototype had `Var(z_4) = 4.0e6`).
-8. **`efficiency.py --prior-power`** (standing rule, shared with the prototype).
-   `fisher_cmp.py` builds its term through `hitlik_term.build`, which sets
-   `group_units = np.ones(ng)` — the parameter IS the physical `k`, 1 tier
-   prior is `gprior`, and the default `--prior-power 1` is RIGHT; every number
-   in this file uses the default.  Only a pipeline that builds the term in CARD
-   units (`make_*_card.py`'s `group_units = 1/gprior`, where 1 tier prior is
-   `gprior**2`) needs `--prior-power 2`.  Applying 2 to k-unit matrices makes
-   the prior 20x too tight, `(H+P)^-1` collapses onto it, and the
-   informativeness test `sq < 0.98 pv` rejects every material group — an empty
-   material table is the signature.
+8. **One unit convention, no unit flags** (standing rule, shared with the
+   prototype).  Every `H`, `J`, `G`, fitted value and error that LEAVES a term
+   is in physical units — `k`, the log material amount, and `eps`, the linear
+   hit-variance scale — with the factor read off the object that carries it
+   (`matres/groups.py`).  So the prior `efficiency.py` applies is the group's
+   parmtype-15 tier prior itself, and every number in this file uses it.  A
+   prior 20x too tight collapses `(H+P)^-1` onto the prior and the
+   informativeness test `sq < 0.98 pv` then rejects every material group — an
+   empty material table is the signature of a mismatched prior.
 
 ## Open items
 

@@ -232,16 +232,15 @@ export CMSSW_SRC=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src
 cd /work/submit/david_w/ZMass/calibration_studies/resolution
 ./cxx/build_cvhcf.sh                                   # the ctypes shim
 python3 cvhcf_validate.py --file <globalcor.root> --ntracks 40 --compare-branches --bench 20
-python3 cvhcf_size_260905.py <globalcor.root>          # volume
-./cvhcf_e2e_260905.sh refit pairs fit compare          # the end-to-end gate
 ```
 
 Open, and deliberately so: `exportStepRecords` is still `True` by default (flip
 it per campaign, once the model for that campaign is settled — once it is off, a
 model change means re-running the fit); the three-track maker
 (`ResidualGlobalCorrectionMakerNTrackG4e`) has not been given the export;
-ionization regimes 0 and 1 are not exercised by these samples (all regime 2) and
-are covered by `cgf_cxx_validate.py` instead.
+ionization regimes 0 and 1 are not exercised by these samples (all regime 2);
+they were certified against the python reference when `cvhcgf::blockExponent`
+was ported.
 
 Full record: the archived dev log, entry **2026-09-05** ("the per-candidate CF
 exponents move into the maker"); the maker-side contract is

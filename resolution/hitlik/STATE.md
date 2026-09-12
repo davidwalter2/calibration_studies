@@ -144,12 +144,12 @@ R=/work/submit/david_w/ZMass/calibration_studies/resolution/runs/hitlik
 # 5. the tables
 ./run_tf.sh python3 report.py     --fisher $R/fisherHJ20k.npz --quad $R/mugun_quad.npz
 ./run_tf.sh python3 efficiency.py --fisher $R/fisherHJ20k.npz --cset 0123 \
-      --arms cf gauss gaussq --ref cf --prior-power 1 -o $R/efficiency.npz
+      --arms cf gauss gaussq --ref cf -o $R/efficiency.npz
 ./run_tf.sh python3 scaleinfo.py  --npz $R/mugun20kv2.npz
 ./run_tf.sh python3 tails.py      --npz $R/mugun20kv2.npz --max-tracks 20000
 ./run_tf.sh python3 cost.py       --npz $R/mugun20kv2.npz
 ./run_tf.sh python3 recovery.py   --pairs cf=$R/fits/cf:$R/fits/inj_cf ... \
-      --param material_tib_support --prior-sigma 0.0025 --truth 0.00243951
+      --param material_tib_support --truth 0.00243951
 ./run_tf.sh python3 perhit/certify.py --fits $R/fits
 ./run_tf.sh python3 final_table.py --efficiency $R/efficiency.npz --fits $R/fits
 
@@ -225,8 +225,8 @@ scale (the card value itself, `--hit-prior 1.0`).
 | `inj_resmass` | 60 | -13 271.2906 | 2.16e-12 | -0.05407 +- 0.03422 | -0.13107 +- 0.11646 |
 
 13/14 certified at EDM < 1e-3; `cf_c0` is the known failure (below), and
-`quad` was never fitted.  The injection tables further down are in CARD units,
-where the same CF baseline reads -0.00122 +- 0.00204.
+`quad` was never fitted.  The injection tables further down use the same
+physical units.
 
 ### THE HEADLINE — the sandwich: what the chi2's error ACTUALLY is
 
@@ -347,7 +347,7 @@ product form says.  The sandwich is what prices it.
 
 ### Injection recovery (`material_tib_support` x1.05 material)
 
-Injected card value +0.00243951 = `k` +0.0487902 = +5.000 % material.  SIGN:
+Injected `k` = +0.0487902 = +5.000 % material; values are PHYSICAL `k`.  SIGN:
 scaling the card's exponents by `exp(+k)` declares the model at `k = 0` to
 already have that much material, so the MLE moves by `-k`; the test is
 `|shift|` against `|truth|`.  PRIOR SHRINKAGE: the group carries its 0.05 tier
@@ -356,11 +356,11 @@ prior and the injection is about one prior sigma, so the posterior moves by
 
 | channel | baseline | injected | shift | /truth | f_pri | **corrected/truth** | pull | leak rms |
 |---|---|---|---|---|---|---|---|---|
-| residual vector, CF | -0.00122 +- 0.00204 | -0.00205 +- 0.00202 | -0.00083 | -0.341 | 0.348 | **0.979** | -0.01 | 0.026 |
-| residual vector, fit's Q | -0.00114 +- 0.00202 | -0.00197 +- 0.00200 | -0.00083 | -0.341 | 0.362 | **0.943** | -0.04 | 0.027 |
-| residual + quadratic (110 params) | -0.00135 +- 0.00204 | -0.00216 +- 0.00202 | -0.00081 | -0.332 | 0.350 | **0.949** | -0.04 | 0.024 |
-| J/psi-gun MASS term alone | -0.00119 +- 0.00189 | -0.00225 +- 0.00186 | -0.00106 | -0.436 | 0.446 | **0.978** | -0.02 | 0.052 |
-| **residual + mass** | -0.00143 +- 0.00174 | **-0.00270 +- 0.00171** | -0.00128 | -0.524 | 0.532 | **0.985** | -0.02 | 0.044 |
+| residual vector, CF | -0.02439 +- 0.04083 | -0.04100 +- 0.04038 | -0.01662 | -0.341 | 0.348 | **0.979** | -0.01 | 0.026 |
+| residual vector, fit's Q | -0.02277 +- 0.04049 | -0.03943 +- 0.03994 | -0.01666 | -0.341 | 0.362 | **0.943** | -0.04 | 0.027 |
+| residual + quadratic (110 params) | -0.02692 +- 0.04075 | -0.04314 +- 0.04031 | -0.01622 | -0.332 | 0.350 | **0.949** | -0.04 | 0.024 |
+| J/psi-gun MASS term alone | -0.02377 +- 0.03787 | -0.04506 +- 0.03722 | -0.02128 | -0.436 | 0.446 | **0.978** | -0.02 | 0.052 |
+| **residual + mass** | -0.02853 +- 0.03481 | **-0.05407 +- 0.03422** | -0.02554 | -0.524 | 0.532 | **0.985** | -0.02 | 0.044 |
 
 Every channel recovers the 5 % injection to 2-6 % with a sub-0.05-sigma pull;
 the joint is both the tightest and the most accurate, and the two objectives
@@ -502,27 +502,22 @@ hit classes per (track, component) after pruning at 1e-3, rank-16 tau PCA):
 6. **A q/p-only card must freeze the hit classes.**  `cf_c0` does not converge
    (EDM 0.56): with `q/p` alone the 18 hit classes are nearly unconstrained.
 
-### Standing rule — `efficiency.py --prior-power`
+### Standing rule — ONE unit convention, and no unit flags
 
-`efficiency.py` applies the tier prior in whatever units the FISHER MATRICES
-were built in, and the two pipelines differ:
+A card may float a rescaled variable for minimiser conditioning, but every
+object that LEAVES a term — Fisher/Hessian/score matrices, fitted values and
+errors, priors, injected amounts, tables — is in PHYSICAL units: `k`, the log
+material amount of a group, and `eps`, the linear variance scale of a hit
+class.  The conversion factor is read off the object that carries it
+(`matres/groups.py`: `card_group_units`, `term_units`, `card_units`), so no
+tool takes a unit flag and the prior every tool applies is the parmtype-15
+tier prior itself (`gprior` = 0.05 for a material group, 1.0 for a hit class).
 
-* `fisher_cmp.py` builds through `hitlik_term.build`, which sets
-  **`group_units = np.ones(ng)`** — the parameter IS the physical `k`, 1 tier
-  prior is `gprior` (0.05), and `--prior-power 1` (the default) is RIGHT.
-  Every number in this file and in `perhit/STATE.md` uses the default.
-* `make_hitlik_card.py` OVERRIDES `group_units` to the CARD units `1/gprior` —
-  there the parameter is `k/gprior` and 1 tier prior is `gprior**2` (0.0025).
-  That is the convention `recovery.py --prior-sigma 0.0025` uses.
-* A pipeline that builds its term through a `make_*_card.build_term` (e.g.
-  `vtxres/fisher_vtx.py`) is in CARD units and needs `--prior-power 2`.
-
-Applying `--prior-power 2` to k-unit matrices makes the prior 20x too tight,
-`(H+P)^-1` collapses onto it, and the informativeness test `sq < 0.98 pv`
-rejects every material group — an empty material table is the signature of a
-mismatched prior.  Unit check: `material_tib_support`'s CF quoted sigma from
-the cached `H` is **0.0324**, the same scale as the fitted
-`k = -0.0244 +- 0.0408`, not a 20x smaller card-unit number.
+A prior 20x too tight makes `(H+P)^-1` collapse onto the prior and the
+informativeness test `sq < 0.98 pv` then rejects every material group — an
+empty material table is the signature of a mismatched prior.  Unit check:
+`material_tib_support`'s CF quoted sigma from the cached `H` is **0.0324**,
+the same scale as the fitted `k = -0.0244 +- 0.0408`.
 
 ## Open items
 
