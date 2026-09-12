@@ -10,8 +10,8 @@ detectors:
 
 Only truth can choose. Each arm is the SAME 160-file nominal-fit production
 with one number changed, so everything is paired on (task, run, lumi, event,
-genPt, charge) and the common part cancels -- the mistake catalogued in
-NOTES_CGFFIT sections 86-87 was to quote a per-track shift without that.
+genPt, charge) and the common part cancels. Quoting a per-track shift without
+that pairing is the failure mode catalogued in NOTES_CGFFIT sections 86-87.
 
 Reported per arm, all paired and all bootstrapped over TRACKS (each replica
 resamples tracks and recomputes both arms):

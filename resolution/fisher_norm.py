@@ -70,8 +70,8 @@ SCRATCH = ("/tmp/claude-125124/-work-submit-david-w-ZMass/"
 PLANES = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/"
           "Analysis/HitAnalyzer/test/toyPlanes_pt3.py")
 
-# Probe grid for the closure curve. The three headline probes of every earlier
-# table (0.01, 0.1, 1) are members, so the curve can be read against them.
+# Probe grid for the closure curve. The three headline probes (0.01, 0.1, 1)
+# are members, so the curve can be read against them.
 UCURVE = np.array([1e-3, 3e-3, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0])
 UHEAD = (0.01, 0.1, 1.0)
 IHEAD = [int(np.argmin(np.abs(UCURVE - u))) for u in UHEAD]   # UHEAD c UCURVE
@@ -87,9 +87,8 @@ _SCALE_CACHE = {}
 # Every plane's model quantity (1/I, the model CF, the Weierstrass transform)
 # is a function of the LEGS ALONE -- the deterministic reference path -- so the
 # planes do not talk to each other and the loop over them is embarrassingly
-# parallel. It is also the whole cost: profiled 2026-08-15, `geom_closure
-# closure` spends 62 % of 477 s inside `cf_brems_exact.rad_exponent`, called
-# once per (plane, leg).
+# parallel. It is also the whole cost: `geom_closure closure` spends 62 % of
+# 477 s inside `cf_brems_exact.rad_exponent`, called once per (plane, leg).
 #
 # fork + return only the SMALL result. The children inherit `legs`/`sim`
 # copy-on-write, so nothing large is pickled in either direction (a worker
@@ -209,8 +208,8 @@ def closure_tau(umax, n=3000, tlo=1e-4):
 
     The weight is e^{-t^2/(4u)}, so t_max = sqrt(4 u ln(1/eps)) with
     eps = 1e-22 gives sqrt(4*u*50.6) = 14.2 sqrt(u).  A floor of 40 keeps the
-    grid at least as long as the historical TAU, so the reproduction of the
-    published numbers is like-for-like.  MATCH THE GRID TO THE THING BEING
+    grid at least as long as the module-level TAU, so the published numbers
+    are reproduced like-for-like.  MATCH THE GRID TO THE THING BEING
     INTEGRATED -- the rule this study keeps relearning.
     """
     return np.concatenate([[0.0], np.geomspace(tlo, max(40.0,
@@ -236,19 +235,20 @@ def plane_scales(legs, func, floor=1e-8, nt=1 << 17, npad=32, lncut=-60.0,
     ident = scale_identity(legs, func, floor, nt, npad, lncut, channels,
                            nplane)
     # In-process key is the model's CONTENT identity, not the caller's `tag`.
-    # `tag` was free text: two different models handed the same tag would have
-    # silently shared a `1/I`. Nothing in the tree does that today (every caller
-    # passes a per-model tag), so this is a hazard removed, not a number
-    # changed -- and the full-precision comparison confirms it.
+    # `tag` is free text: two different models handed the same tag would
+    # silently share a `1/I`. No caller in the tree does that (every one passes
+    # a per-model tag), so keying on content closes a hazard rather than
+    # changing a number -- the full-precision comparison confirms it.
     key = ident["key"]
     if key in _SCALE_CACHE:
         return _SCALE_CACHE[key]
     out = _scale_cache_load(ident, tag)
     if out is None:
         # PER-PLANE a-vectors. With hbasis.USE_H off this is the single
-        # FUNCTIONALS[func] object repeated, so the legacy path is unchanged
-        # bit for bit; with it on, plane k gets H_k^T e_i so that sigma is the
-        # width of the LOCAL component the sim residual actually reports.
+        # FUNCTIONALS[func] object repeated, so the curvilinear path is
+        # unchanged bit for bit; with it on, plane k gets H_k^T e_i so that
+        # sigma is the width of the LOCAL component the sim residual actually
+        # reports.
         avec = hbasis.avecs(legs, func)
         n = len(legs) if nplane is None else min(nplane, len(legs))
         out = dict(sigma=np.zeros(n), invI=np.zeros(n), sF=np.zeros(n),
@@ -354,13 +354,13 @@ def scale_identity(legs, func, floor, nt, npad, lncut, channels, nplane):
         knobs_nucel=repr(_cnu.physics_state()),
         # USE_H switches the a-vector between the curvilinear FUNCTIONALS
         # vector and H_k^T e_i, i.e. it changes sigma on every plane. Without
-        # it here a legacy-basis s_F would be served to an H-basis call.
+        # it here a curvilinear-basis s_F would be served to an H-basis call.
         knobs_h=repr(hbasis.physics_state()),
         code=_code_fingerprint())
     canon = "\n".join(f"{k}={comp[k]}" for k in sorted(comp))
     comp["_canon"] = canon
     comp["_sha"] = hashlib.sha256(canon.encode()).hexdigest()
-    # In-process key: the content identity when we have provenance, otherwise
+    # In-process key: the content identity when provenance is available, else
     # the object identity, which is unique for as long as the caller holds it.
     comp["key"] = (comp["_sha"] if prov is not None
                    else ("noprov", id(legs), comp["_sha"]))

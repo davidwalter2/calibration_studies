@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Clean propagation test: predict the PDF of the propagated 5D state.
 
-Josh Bendavid's suggestion (2026-08-04): take ONE particle with a FIXED
-initial state, run the full Geant4 simulation many times, and try to predict
+Take ONE particle with a FIXED initial state, run the full Geant4 simulation
+many times, and try to predict
 the distribution of the final helix state on a sensor surface -- with no hits,
 no track fit, no FSR, no selection and no background in the way. It is the
 ground-truth unit test the whole CF resolution programme has been missing:
@@ -75,7 +75,7 @@ logger = logging.child_logger(__name__)
 TAU = np.concatenate([[0.0], np.geomspace(1e-3, 40.0, 1600)])
 
 # linear functionals of the local 5D state (q/p, dx/dz, dy/dz, x, y)
-# !! BASIS MISMATCH -- KNOWN, NOT YET FIXED (found 2026-08-06) !!
+# !! BASIS MISMATCH -- KNOWN, NOT FIXED IN THIS SCRIPT !!
 # The residuals below are LOCAL (DetUnit frame: q/p, dx/dz, dy/dz, x, y) but the
 # exported Q/F/dQMS/dQI are CURVILINEAR (q/p, lambda, phi, yT, zT) and load_model
 # reads them raw. Applying these a-vectors to a curvilinear covariance omits the
@@ -89,9 +89,10 @@ TAU = np.concatenate([[0.0], np.geomspace(1e-3, 40.0, 1600)])
 #          (<=1.08), a factor 2.6 at eta = 1.6.
 # The CVH FIT is not affected -- it applies curv2localJacobianAltelossD at every
 # measurement surface. This is a defect of THIS TEST only.
-# Fix: export H per leg from G4ePropagationExport.cc and use (H^T a) here.
+# Fix: export H per leg from G4ePropagationExport.cc and use (H^T a) here
+# (this is what `hbasis.USE_H` does for fisher_norm / geom_closure).
 KMS_SCALE = 1.0   # set from --kms in main()
-MS_NSUB = 4       # sub-step quadrature of the MS kick; 1 = legacy point-like
+MS_NSUB = 4       # sub-step quadrature of the MS kick; 1 = point-like
 # Radiative (brems + pair) channel of the model CF.  TRUE is the production
 # behaviour and the default; nothing that does not set it explicitly changes.
 # Set False ONLY together with the other two halves of the radiation-off
@@ -114,14 +115,13 @@ def physics_state():
 
 # a-vectors in the CURVILINEAR basis (q/p, lambda, phi, xT, yT), which is what
 # model_phi contracts against. The LOCAL basis is (q/p, dx/dz, dy/dz, x, y) and
-# the two are related by the per-plane Jacobian H (curv2local.py:181):
+# the two are related by the per-plane Jacobian H (curv2local.py):
 #       local dx/dz  <-  curvilinear PHI     (index 2)
 #       local dy/dz  <-  curvilinear LAMBDA  (index 1)
 #
-# BUG FIXED 2026-08-17: "dxdz" was [0,1,0,0,0] = curvilinear LAMBDA, i.e. local
-# dy/dz, and was compared against the SIM's local dx/dz -- two different
-# variables, measured at |corr| <= 0.14 by the directions study. Anything quoted
-# for "dxdz" before this date is really dy/dz.
+# The mapping is NOT the identity: giving "dxdz" the curvilinear LAMBDA slot
+# [0,1,0,0,0] would compare local dy/dz against the SIM's local dx/dz -- two
+# different variables, measured at |corr| <= 0.14 by the directions study.
 FUNCTIONALS = {
     "qop": np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
     "dydz": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
@@ -191,9 +191,9 @@ def parse_args():
                         "(G4ErrorPhysicsListForCVH: ionization + bremsstrahlung "
                         "+ transportation only) does not contain and cannot "
                         "predict. Measured at pT=3: the muon's loss tail is "
-                        "smooth (15% of p0 at the 1e-4 quantile) while pi and p "
-                        "have a DISCRETE population losing ~95% of p0 -- 0.85% "
-                        "of protons, flat across thresholds. Those 0.85% are "
+                        "smooth (15%% of p0 at the 1e-4 quantile) while pi and p "
+                        "have a DISCRETE population losing ~95%% of p0 -- 0.85%% "
+                        "of protons, flat across thresholds. Those 0.85%% are "
                         "what take std(z) from ~1 to 5.05. A cut of 0.2 "
                         "separates the two cleanly. NOTE it does not remove "
                         "nuclear ELASTIC scattering, which costs no momentum "
@@ -258,7 +258,7 @@ def load_sim(path, acceptance="modal", veto_eloss=0.0):
     and the drop fraction is reported -- it is the one selection effect this
     test cannot avoid, so it must be small and it must be quoted.
 
-    THE DROP IS NOT SMALL AT LOW MOMENTUM (measured 2026-08-08):
+    THE DROP IS NOT SMALL AT LOW MOMENTUM:
 
         pT = 40  mu   0.086 %
         pT =  3  mu   5.587 %
@@ -286,7 +286,8 @@ def load_sim(path, acceptance="modal", veto_eloss=0.0):
     are unrecoverable in principle, so even this mode is a slight
     under-estimate of the tail).
 
-    "modal" remains the default so earlier numbers stay reproducible.
+    "modal" is the default, so that a number quoted without the option is
+    always the sequence-matched one.
     """
     files = sorted(__import__("glob").glob(path)) if any(c in path for c in "*?[") else [path]
     keys = ["detid", "qop", "dxdz", "dydz", "locx", "locy", "locz", "pabs", "eloss", "globr", "nhit"]
@@ -369,7 +370,8 @@ def load_sim(path, acceptance="modal", veto_eloss=0.0):
 # --------------------------------------------------------------------------
 
 def _reshape_ms(v):
-    """msmoliv is 8 doubles/step in legacy files, 10 since 2026-08-08."""
+    """msmoliv is 10 doubles/step, or 8 in files without the per-element
+    sums."""
     v = np.asarray(v, dtype=np.float64)
     for w in (10, 8):
         if v.size % w == 0:
@@ -387,9 +389,9 @@ def _nioni_total(stepnioni):
 
 
 def _reshape_ioni(v, nstep=None):
-    """ioniurbanv is 11 doubles/step historically; 13 when the export ran with
+    """ioniurbanv is 11 doubles/step; 13 when the export ran with
     CVH_IONI_EXACTDELTA (regime 2/3), which appends beta2 and etot AFTER cs so
-    that every legacy column index is unchanged.
+    that every earlier column index is unchanged.
 
     The stride is ambiguous from the size alone (a multiple of 143 divides by
     both), so it is resolved by the per-leg step COUNT when the caller has it
@@ -432,7 +434,7 @@ def load_model(path):
             Q=np.asarray(a["Q"][k], dtype=np.float64).reshape(5, 5),
             dQMS=np.asarray(a["dQMS"][k], dtype=np.float64).reshape(5, 5),
             dQI=np.asarray(a["dQI"][k], dtype=np.float64).reshape(5, 5),
-            # stride auto-detect: 8 (legacy) or 10 (with per-element sums)
+            # stride auto-detect: 8, or 10 with the per-element sums
             ms=_reshape_ms(a["msmoliv"][k]),
             ioni=_reshape_ioni(a["ioniurbanv"][k], _nioni_total(a["stepnioni"][k])),
             jacc=np.asarray(a["stepjacc"][k], dtype=np.float64).reshape(-1, 5, 5),
@@ -540,20 +542,15 @@ PHI_CACHE_STATS = {"hit": 0, "miss": 0}
 def _phi_key(legs, k, avec, sigma, tau):
     """Everything that changes `model_phi`'s value.
 
-    HISTORY, because this key has been wrong and it cost time in two studies.
-    It used to list `KMS_SCALE, MS_NSUB, RAD_CHANNEL, IONI_A3_SCALE,
-    IONI_EXC_SCALE, IONI_TMAX_SCALE` by hand and therefore did NOT carry
-    `IONI_KOKOULIN` (nor its TCUT/NBIN), so a phi computed with the Kokoulin
-    correction off was silently returned for a call with it on.  NOTES_RADOFF2
-    and NOTES_HADRONS both had to set `RES_NO_PHI_CACHE=1` and clear the dict
-    by hand to get correct numbers.  The three MS globals of `cf_ms_exact`
-    (`J0M1_GUARD`, `G4_FF_SQUARED`, `G4_SCREEN_F`) were missing too.
+    THE KEY MUST BE COMPLETE.  A hand-written list of knobs silently omits
+    one sooner or later -- drop `IONI_KOKOULIN` (or its TCUT/NBIN, or the
+    `cf_ms_exact` globals `J0M1_GUARD`, `G4_FF_SQUARED`, `G4_SCREEN_F`) and a
+    phi computed with the Kokoulin correction off is returned for a call with
+    it on, with `RES_NO_PHI_CACHE=1` plus a manual dict clear the only way out.
 
-    The hand-written list is now gone: the key is built from each contributing
-    module's own `PHYSICS_GLOBALS` registry, so adding a knob without adding
-    it to the key is no longer possible by omission, and
-    `barkas_probe.py guards` fails if a module grows a knob that is in neither
-    `PHYSICS_GLOBALS` nor `_NOT_PHYSICS`."""
+    So the key is built from each contributing module's own `PHYSICS_GLOBALS`
+    registry instead, and `barkas_probe.py guards` fails if a module grows a
+    knob that is in neither `PHYSICS_GLOBALS` nor `_NOT_PHYSICS`."""
     import cf_track_resolution as _ctr
     import cf_ms_exact as _ms
     return (id(legs), int(k), avec.tobytes(), float(sigma),
@@ -627,7 +624,7 @@ def _model_phi_uncached(legs, k, avec, sigma, tau):
             def _weff(v):
                 return np.sqrt(v[:, 1] ** 2 + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
             weff, weff0 = _weff(wv), _weff(wv0)
-            # SUB-STEP QUADRATURE (2026-08-08). Scattering happens continuously
+            # SUB-STEP QUADRATURE. Scattering happens continuously
             # THROUGH a step, not point-like at its end. Applying the kick at
             # the end gives a step only DD*D^2 of position variance; the exact
             # continuous result is DD*(1/L) int_0^L (D+u)^2 du =
@@ -730,9 +727,9 @@ def ecf(z, tau, nthread=None):
     test compares in transform space through `weier_scalar` on the MODEL CF,
     and `ecf` exists to draw the data curve in the CF panel beside it.
 
-    Chunked and threaded (2026-08-15) because the one-shot form allocated a
-    (len(tau), nevent) complex array -- 5.1 GB at 1601 x 200k -- and spent
-    13.4 s per call on it, which was 22 % of `make_toy_figs`. Chunks of
+    Chunked and threaded because the one-shot form allocates a
+    (len(tau), nevent) complex array -- 5.1 GB at 1601 x 200k -- and spends
+    13.4 s per call on it, 22 % of `make_toy_figs`. Chunks of
     ECF_CHUNK events are accumulated IN ORDER, so the result does not depend on
     thread scheduling and repeated runs are bit-identical to each other; it
     differs from the one-shot form by at most 3.3e-16 absolute (one ulp of a

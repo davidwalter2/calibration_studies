@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Read the IN-MAKER resolution-CF exponents into the existing cache format.
 
-WHAT CHANGED AND WHY. `cf_track_resolution.extract` and
-`cf_mass_likelihood.build_pairs_tt` built the per-candidate CF exponents
+WHY IT EXISTS. `cf_track_resolution.extract` and
+`cf_mass_likelihood.build_pairs_tt` build the per-candidate CF exponents
 OFFLINE, from a raw export of every Geant4 step record -- 430 kB and 2.2 s per
 candidate, i.e. 16 TB and 24k core-hours at the 40M candidates the full
-calibration needs. The CVH makers now compute the same exponents at fit time
+calibration needs. The CVH makers compute the same exponents at fit time
 (TrackPropagation/Geant4e/src/CvhCfExponents.cc, `cvhcf`) and write 6 x 64
 floats per candidate. This module turns those branches into the SAME cache the
-two extractors produced, so every consumer downstream -- `cf_skew_closure.py`,
+two extractors produce, so every consumer downstream -- `cf_skew_closure.py`,
 `cf_track_resolution.py --closure`, `cf_masslik_fit.py` -- runs on it unchanged.
 
 IT IS A READER, NOT A MODEL. Nothing here computes an exponent. The physics
@@ -24,9 +24,9 @@ THE GRID. The maker exports 64 tau, the stride-4 subset of the offline
     `d["tgrid"]`, so it would broadcast a 448-point weight against a 64-point
     cache. `cf_inmaker.py closure ...` runs it with `TG` rebound to the
     cache's own grid -- the reference module is not edited.
-  * `cf_masslik_fit.load_inputs` asserted the grid was exactly the 448-point
-    one. That assert (and only that assert) was relaxed to accept any
-    increasing grid starting at 0; a 448-point cache is unaffected.
+  * `cf_masslik_fit.load_inputs` accepts any increasing grid starting at 0
+    rather than only the 448-point one, so a 64-point cache loads and a
+    448-point cache is unaffected.
 
 usage:
   source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
@@ -97,22 +97,22 @@ def _runtree_grid(f):
 
 
 # --------------------------------------------------------------------------
-# EXTRA PER-CANDIDATE COLUMNS OF THE MASS CACHE (2026-09-06).
+# EXTRA PER-CANDIDATE COLUMNS OF THE MASS CACHE.
 #
-# The reference `pairs` cache holds only what the J/psi alpha fit needed:
-# the standardized residual, sigma, the gen mass and `vgf`. Three later
+# The reference `pairs` cache holds only what the J/psi alpha fit needs:
+# the standardized residual, sigma, the gen mass and `vgf`. Three other
 # consumers need more, and none of it can be recovered after the pass:
 #
 #   * the Z channel is a WEIGHTED sample (MiNNLO `genweight`, 7.7 % negative);
 #   * the Jensen second-order correction (MASSCFTERM_SPEC 4b) needs the two
 #     legs' relative resolutions, their correlation and the angular share --
-#     `Jpsi_covrefmom` is exported from 2026-09-06 and the maker already
-#     reduces it to `Jpsi_sigmarelplus/minus`, `Jpsi_rhomom`, `Jpsi_fang`;
+#     the maker reduces the exported `Jpsi_covrefmom` to
+#     `Jpsi_sigmarelplus/minus`, `Jpsi_rhomom`, `Jpsi_fang`;
 #   * a quality cut needs `chisqval`/`ndof` and the per-leg `maxfracloss`.
 #
 # Every one of these is OPTIONAL: a branch that is not in the file is not
-# read and its column is simply absent from the cache, so a v1 production
-# (no `Jpsi_covrefmom`, no `maxfracloss`) still produces the reference cache
+# read and its column is simply absent from the cache, so a production
+# without `Jpsi_covrefmom` or `maxfracloss` still produces the reference cache
 # and every existing consumer is unaffected.
 #
 #            cache key : branch name
@@ -146,7 +146,7 @@ _MASS_AUX_INT = {"run": "run", "lumi": "lumi", "event": "event"}
 
 
 # --------------------------------------------------------------------------
-# PER-MATERIAL-GROUP EXPONENTS (`--groups`, 2026-09-07).
+# PER-MATERIAL-GROUP EXPONENTS (`--groups`).
 #
 # `exportCfGroupExponents=True` makes the maker write each family's log-CF
 # exponent SPLIT by the parmtype-15 material group of the step that produced
@@ -159,7 +159,7 @@ _MASS_AUX_INT = {"run": "run", "lumi": "lumi", "event": "event"}
 # `rabbit.unbinned.MaterialCFTerm`).  `matres/extract_groups.py` produces the
 # same layout by rebuilding the exponents OFFLINE from the Geant4 step records;
 # that path is unusable on a production with `exportStepRecords=False` (it dies
-# on the missing `ioniurbanidx`), which is every production since 2026-09-06.
+# on the missing `ioniurbanidx`), which is what the slim productions use.
 # This reads the maker's own arrays instead.
 #
 # NAMING.  The per-group arrays cannot be called `Sms`/`Sio_re`/... in this
@@ -366,19 +366,17 @@ def read_files(args, mass):
             # Gen-mass acceptance. The branch names say Jpsi because the
             # two-track maker is resonance-agnostic and names its candidate
             # block after the channel it was written for; the WINDOW is not.
-            # Default (3.0969, 0.35) = the J/psi, i.e. every existing cache is
-            # unchanged; --mass-window is what lets a Z (or Upsilon)
-            # production through. Unmatched candidates carry -99 and are
-            # rejected by any window.
+            # Default (3.0969, 0.35) = the J/psi; --mass-window is what lets
+            # a Z (or Upsilon) production through. Unmatched candidates carry
+            # -99 and are rejected by any window.
             mref, mhw = getattr(args, "mass_window", None) or (3.0969, 0.35)
             keep = ok & np.isfinite(sig) & (sig > 0.) & (np.abs(mg - mref) <= mhw)
             idx = np.where(keep)[0]
             ndrop += int((~keep).sum())
-            # VECTORIZED. The per-candidate `push` loop this replaces cost
-            # ~0.1 ms/candidate, i.e. hours over a 3.9M-candidate production,
-            # for arrays that are already dense and contiguous. The cache
-            # content is unchanged: the columns are the same values in the
-            # same order.
+            # VECTORIZED: a per-candidate `push` loop costs ~0.1 ms/candidate,
+            # i.e. hours over a 3.9M-candidate production, for arrays that are
+            # already dense and contiguous. The columns hold the same values in
+            # the same order a per-candidate loop would give.
             push("z", ((mrec - mg) / sig)[idx])
             push("sigma", sig[idx])
             push("eta", mg[idx])           # `eta` is the gen mass in this cache
@@ -463,26 +461,24 @@ def _grp_block(t, stop, idx, prefix, nt, push, stats, fn):
     # direction -- and a class label alone cannot say WHICH module a hit was
     # on.
     #
-    # The branch names below are the ones CHECKED in a two-track v2 output
-    # (DY v2, 2026-09-09), not guessed: the per-hit arrays are `reshitidx` and
-    # `reshitcls` (UNPREFIXED, they belong to the res block) alongside the
-    # prefixed `{prefix}_hitcls` / `{prefix}_hitv` already read above, plus
-    # `resinfcovhit`. **There is NO detid branch**: `reshitidx` is the hit's
-    # INDEX and the module is reached through the runtree, so `hit_idx` is what
-    # gets exported and the detid mapping is a downstream join, not a column.
+    # The branch names below are the ones a two-track v2 output actually
+    # carries: the per-hit arrays are `reshitidx` and `reshitcls` (UNPREFIXED,
+    # they belong to the res block) alongside the prefixed `{prefix}_hitcls` /
+    # `{prefix}_hitv` already read above, plus `resinfcovhit`. **There is NO
+    # detid branch**: `reshitidx` is the hit's INDEX and the module is reached
+    # through the runtree, so `hit_idx` is what gets exported and the detid
+    # mapping is a downstream join, not a column.
     #
-    # NOTE, and it is a real gap, now CHECKED rather than suspected: the v2
-    # slim trees contain NO signed per-hit weight and no detid. Both legs'
-    # trees (213 and 228 branches) carry exactly `cfmass_hitcls`,
-    # `cfmass_hitv`, `reshitcls`, `reshitidx`, `resinfcovhit` and nothing else
-    # per hit. `resinfv` / `resinfbv` are booked inside
-    # `if (exportStepRecords_)` in `ResidualGlobalCorrectionMakerBase.cc`
-    # (~547-549), which was OFF for the 81 kB/candidate v2 path, and
-    # `hitDetId` only in the fitFromGenParms/validation block. So a signed
-    # mass-projected weight needs either `exportStepRecords=True` (the
-    # 430 kB/candidate path, a re-production) or a small maker change writing
-    # an int8 sign per block. Guessed column names were REMOVED rather than
-    # left to skip silently.
+    # NOTE, and it is a real gap: the v2 slim trees contain NO signed per-hit
+    # weight and no detid. Both legs' trees (213 and 228 branches) carry
+    # exactly `cfmass_hitcls`, `cfmass_hitv`, `reshitcls`, `reshitidx`,
+    # `resinfcovhit` and nothing else per hit. `resinfv` / `resinfbv` are
+    # booked inside `if (exportStepRecords_)` in
+    # `ResidualGlobalCorrectionMakerBase.cc`, which is OFF for the
+    # 81 kB/candidate v2 path, and `hitDetId` only in the
+    # fitFromGenParms/validation block. So a signed mass-projected weight
+    # needs either `exportStepRecords=True` (the 430 kB/candidate path, a
+    # re-production) or a small maker change writing an int8 sign per block.
     _keys = set(t.keys())
     hit_extra = [(k, b) for k, b in
                  (("hit_idx", "reshitidx"),
@@ -563,7 +559,7 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
     out = {}
     for k, v in cols.items():
         # The MASS path appends one array per input FILE (`read_files` is
-        # vectorized there); the single-track path still appends one row per
+        # vectorized there); the single-track path appends one row per
         # track. Only the first needs concatenating, and `mass` -- not a
         # shape guess -- says which it is: a single-track `Sms` row is also a
         # 1-D ndarray.
@@ -600,10 +596,9 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
     # catalog written just above
     if ngroups is not None:
         _finish_groups(out, ngroups, groups_file)
-    # PROVENANCE. `cf_source` and `cf_model` are new and are read by nothing
-    # downstream -- they are there so that a cache says which evaluator and
-    # which switch configuration produced it, which the offline caches could
-    # only say by their date.
+    # PROVENANCE. `cf_source` and `cf_model` are read by nothing downstream --
+    # they are there so that a cache says which evaluator and which switch
+    # configuration produced it.
     out["cf_source"] = np.array("cvhcf-inmaker")
     out["cf_model"] = np.array(tag)
     # `rad_model` IS read (cf_skew_closure, cf_masslik_fit): 1 = the radiative
@@ -615,8 +610,8 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
         # both legs and both charges, hard-wired in the maker.
         out["ioni_sign_fixed"] = np.array(1)
         if not keep_del:
-            # `build_pairs_tt` has no `Sdel`: the discrete delta-ray recoil was
-            # never part of the published mass model. The maker computes it
+            # `build_pairs_tt` has no `Sdel`: the discrete delta-ray recoil is
+            # not part of the published mass model. The maker computes it
             # anyway (it is free), and `--mass-del` keeps it so the two can be
             # compared -- but the default cache is the reference model.
             out.pop("Sdel", None)

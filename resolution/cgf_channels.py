@@ -5,7 +5,7 @@ the combined ionization + MS + radiative block.
 WHY. `cgf_saddlepoint.ioni_cgf_derivs` gives K, K', K'', K''', K'''' of the
 centred ionization CGF of a pooled block, from which the score
 psi = theta + K'''/(2 K''^2), its derivative, the Fisher information
-I = E[psi^2] and the Gaussian surrogate all follow analytically. That covered
+I = E[psi^2] and the Gaussian surrogate all follow analytically. That covers
 ONE of the three noise channels. A physical block is
 
     ionization  +  multiple scattering  +  bremsstrahlung/pair production
@@ -34,9 +34,9 @@ It weights the three channels DIFFERENTLY and the difference is not cosmetic:
               Each step is further split into MS_NSUB sub-kicks with the
               material (xg, hence chi_c^2) divided by MS_NSUB and the weight
               interpolated linearly from the step start to the step end
-              (`cf_propagation_test.MS_NSUB`, the sub-step quadrature of
-              2026-08-08). `collect_ms_steps` reproduces that expansion, so
-              the CGF and the CF see literally the same list of kicks.
+              (`cf_propagation_test.MS_NSUB`, the sub-step quadrature).
+              `collect_ms_steps` reproduces that expansion, so the CGF and
+              the CF see literally the same list of kicks.
 
 MS: THE CGF IS *NOT* ENTIRE UNLESS THE ANGLE IS CUT OFF
 -------------------------------------------------------
@@ -53,7 +53,7 @@ n >= 5. The CGF is the moment series
 (from I0(u) = sum (u/2)^{2n}/(n!)^2), so with the spectrum extended to
 arbitrarily large angle K(theta) = +infinity for EVERY theta != 0. The
 characteristic function does not care -- |J0| <= 1 makes the same integral
-converge -- which is why this never showed up in the CF code.
+converge -- which is why the CF code never sees it.
 
 The fix is physical, not numerical: a single Coulomb scatter cannot deflect by
 more than pi. With a cutoff theta_s <= theta_cut every jump is bounded, every
@@ -392,10 +392,10 @@ def ms_cf_exponent_quad(steps, weights, tau, theta_cut=THETA_CUT,
         # J0(x) - 1 CANCELS CATASTROPHICALLY at small x: it is -x^2/4 while
         # both terms are ~1, so float64 gives at best 1e-16/x^2 relative. Over
         # most of this grid x is 1e-10 or smaller (chi_a ~ 1e-7 rad at
-        # p = 100 GeV), and taking the difference directly made this reference
-        # -- MY reference, not the code under test -- wrong by a factor 3 at
-        # pT = 100. Use the series below |x| = 1e-2, where it is exact to
-        # x^6/2304 < 4e-13 relative.
+        # p = 100 GeV), and taking the difference directly makes this
+        # reference -- the reference, not the code under test -- wrong by a
+        # factor 3 at pT = 100. Use the series below |x| = 1e-2, where it is
+        # exact to x^6/2304 < 4e-13 relative.
         x2 = arg ** 2
         km1 = np.where(np.abs(arg) < 1e-2,
                        -0.25 * x2 * (1.0 - x2 / 16.0 * (1.0 - x2 / 36.0)),
@@ -794,7 +794,7 @@ def block_fisher_spa(blk, n=4000, lo=1e-8):
     """(I, diagnostics) from the saddlepoint density along the theta curve,
     the exact analogue of cgf_fisher.fisher_spa for the full block.
 
-    DO NOT TRUST THIS FOR A MULTI-CHANNEL BLOCK (NOTES 2026-08-13 XXII).
+    DO NOT TRUST THIS FOR A MULTI-CHANNEL BLOCK (PROCESS_NOISE_CGF.md).
     I of these blocks is EDGE dominated -- 86 % of it comes from the last
     ~20 % of the mass, at the delta-ray hard edge -- and the saddlepoint
     reaches that edge only as theta -> infinity, where the MS term takes over
@@ -803,8 +803,8 @@ def block_fisher_spa(blk, n=4000, lo=1e-8):
     1.70 to 1.14 while the EXACT I moves by 0.01 %; and the answer depends on
     the MS series length (nmax = 60 -> 3.68, nmax >= 200 -> 1.14), a knob that
     must be irrelevant. A relative density floor -- the fix for the 57x error
-    of NOTES XV -- does NOT repair it (floors 1e-6 and 1e-8 return the
-    unfloored value).
+    an absolute one gives -- does NOT repair it (floors 1e-6 and 1e-8 return
+    the unfloored value).
 
     Use `fisher_exact` on `invert_cf(..., deriv=True)` instead. This function
     is kept because it is the like-for-like continuation of cgf_fisher's route
@@ -987,7 +987,7 @@ def invert_cf(S, tau, npad=64, nt=1 << 16, deriv=False):
     The uniform t grid is matched to `tau` (dt = tau[-1]/nt) and then ZERO
     PADDED by npad, which refines dz = 2 pi / (npad tau[-1]) without inventing
     any phi beyond where it was computed. Matching the grid to the thing being
-    inverted, and only then refining, is the rule this study keeps relearning.
+    inverted, and only then refining, is the rule.
 
     dp/dz comes from the same transform with phi -> -i t phi, so no numerical
     differencing of a density (or of its log) ever enters.
@@ -1003,12 +1003,12 @@ def invert_cf(S, tau, npad=64, nt=1 << 16, deriv=False):
     c[:nt] = phi * wgt
     p = np.fft.fft(c).real / np.pi
     z = 2 * np.pi * np.fft.fftfreq(nt * npad, d=dt)
-    # ascending-z order. `np.argsort(z)` is what this used to be, and on the
-    # 4.2M-point padded grid it cost more than the FFT itself (5.8 s of the
-    # 496 s `geom_closure closure` run). fftfreq's output is
-    # [0..n/2-1, -n/2..-1], whose ascending permutation is exactly the roll
-    # that `fftshift` applies -- same indices, no comparison sort. Checked
-    # element-by-element against argsort on the grids this code uses.
+    # ascending-z order by fftshift, not by `np.argsort(z)`: on the 4.2M-point
+    # padded grid the sort costs more than the FFT itself (5.8 s of a 496 s
+    # `geom_closure closure` run). fftfreq's output is [0..n/2-1, -n/2..-1],
+    # whose ascending permutation is exactly the roll that `fftshift` applies
+    # -- same indices, no comparison sort. Checked element-by-element against
+    # argsort on the grids this code uses.
     if not deriv:
         return np.fft.fftshift(z), np.fft.fftshift(p)
     c2 = np.zeros_like(c)
@@ -1032,12 +1032,12 @@ def _support(p, floor):
     Same as cgf_fisher._support: a non-contiguous mask makes np.trapezoid
     stitch across gaps that are not in the support.
 
-    The two element-at-a-time walks this replaces are the same slice: the run
-    ends at the nearest index on each side that FAILS `p > thr`, so those
-    indices come straight out of `flatnonzero(~mask)`. NaNs fail the
-    comparison and so still terminate the run, exactly as `p[i] > thr` did.
-    Vectorized because the walk was 4.6 s of the 496 s `geom_closure closure`
-    run -- the padded grid is 4.2M points and the support covers most of it."""
+    Equivalent to an element-at-a-time walk out from the mode: the run ends
+    at the nearest index on each side that FAILS `p > thr`, so those indices
+    come straight out of `flatnonzero(~mask)`. NaNs fail the comparison and so
+    still terminate the run. Vectorized because the walk costs 4.6 s of a
+    496 s `geom_closure closure` run -- the padded grid is 4.2M points and the
+    support covers most of it."""
     i0 = int(np.nanargmax(p))
     thr = floor * np.nanmax(p)
     with np.errstate(invalid="ignore"):
@@ -1050,7 +1050,7 @@ def _support(p, floor):
 
 def fisher_exact(z, p, dp, floor=1e-8):
     """I = int (p')^2/p dz on the contiguous support, normalized by the mass
-    there. RELATIVE floor: an absolute one was a 57x error in this study."""
+    there. RELATIVE floor: an absolute one gives a 57x error."""
     s = _support(p, floor)
     if s.stop - s.start < 10:
         return np.nan, {}

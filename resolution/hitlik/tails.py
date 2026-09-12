@@ -112,8 +112,7 @@ if a.plot:
     hep.style.use(hep.style.ROOT)
     import pubhtml
     from plot_hitlik import ARMCOL, ARMLAB
-    out = a.outpath or os.path.expanduser(
-        f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_hitlik/")
+    out = a.outpath or pubhtml.figdir("hitlik")
     os.makedirs(out, exist_ok=True)
     pubhtml.ensure_index(out)
     ths = np.linspace(0.5, 5.5, 26)

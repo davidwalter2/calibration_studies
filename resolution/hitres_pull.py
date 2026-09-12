@@ -7,10 +7,10 @@ hit errors -- a DISTRIBUTIONAL question, not a scale question. If the pull
 
     (rec - sim) / sigma_CPE
 
-is Gaussian with a width != 1 the fix is a rescaling and the 2022 parmtype-8/9
-attempt would have worked; it did not, which is evidence that the pull is not
-Gaussian. So core width and tail fraction are reported SEPARATELY, never a
-single rms.
+is Gaussian with a width != 1 the fix is a rescaling, and the parmtype-8/9
+variance corrections would close it; they do not, which is evidence that the
+pull is not Gaussian. So core width and tail fraction are reported SEPARATELY,
+never a single rms.
 
 Frames. dxrecsim and dxerr are both written by the maker in the frame the fit
 actually uses: local x for pixels and 1D strips, local PHI (radians) for
@@ -44,9 +44,9 @@ logger = _wums_logging.child_logger(__name__)
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
 
-# Per-hit branches. hitDetId/hitUProj/hitPitch/hitThickness were added for
-# this study (the CPE's uProj cannot be rebuilt offline: it carries the
-# per-module Lorentz drift).
+# Per-hit branches. hitDetId/hitUProj/hitPitch/hitThickness have to come from
+# the maker: the CPE's uProj cannot be rebuilt offline, it carries the
+# per-module Lorentz drift.
 HITBR = ["dxrecsim", "dyrecsim", "dxerr", "dyerr",
          "clusterSize", "clusterSizeX", "clusterSizeY", "clusterCharge",
          "clusterChargeBin", "clusterOnEdge", "clusterProbXY", "clusterSN",

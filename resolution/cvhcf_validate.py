@@ -444,8 +444,8 @@ def run(args):
                 arg = [list(p_) for p_ in pre]
                 for p_ in arg:
                     # indices into the cvhcf_track signature: 15 ridx,
-                    # 16 rv, 17 nrad (14 is nqs -- getting this wrong is an
-                    # immediate ctypes ArgumentError, which is how it was found)
+                    # 16 rv, 17 nrad (14 is nqs -- getting this wrong raises an
+                    # immediate ctypes ArgumentError)
                     p_[15] = empu32
                     p_[16] = empt32
                     p_[17] = 0

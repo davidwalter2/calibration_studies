@@ -39,8 +39,8 @@ run_task() {
   local idx=$1
   local outdir="$OUTROOT/${OUTFAM:-hitres}_${OUTTAG}/task_$(printf "%04d" "$idx")"
   # every stream the task wrote, not `_0` by name: these runs pin
-  # numberOfThreads=1 today, but a leftover from a multithreaded run must
-  # be wiped whole, not down to streams 1..N-1.
+  # numberOfThreads=1, but a leftover from a multithreaded run must be wiped
+  # whole, not down to streams 1..N-1.
   local outglob="$outdir/globalcor_resclosure_*.root"
   # Resume on a COMPLETION SENTINEL, never on the .root: cmsRun creates its
   # output at START, so a killed task leaves a non-empty TRUNCATED file and a

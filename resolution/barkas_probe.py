@@ -14,9 +14,9 @@ NOTES_HADRONS s6 measured, in the layered toy at pT = 3, that
     to 0.00036.
 
 and attributed it to "Geant4's Barkas/Bloch z^3 term
-(G4EmCorrections::HighOrderCorrections)".  That attribution was never
-evaluated: no term of that expansion had been computed at the toy's
-kinematics, and no switch had been thrown.  This module does both.
+(G4EmCorrections::HighOrderCorrections)".  This module evaluates that
+attribution: it computes each term of the expansion at the toy's kinematics
+and throws a switch on it.
 
 WHAT IS ACTUALLY IN THE EXPANSION
 ---------------------------------
@@ -33,8 +33,8 @@ them are odd in the projectile charge:
     Mott    pi * alpha * beta * charge             ODD in z, GROWS with beta
             -- the z^3 Mott term of Ahlen's expansion
 
-The brief's hypothesis names the first.  The measurement in s3 below shows the
-charge-odd effect is the THIRD, by a factor 150.
+The hypothesis under test names the first.  The measurement in s3 below shows
+the charge-odd effect is the THIRD, by a factor 150.
 
 THE SWITCH
 ----------
@@ -71,12 +71,12 @@ CACHES
 ------
 Inherited from hadron_probe, which is imported rather than copied:
 RES_NO_PHI_CACHE is set at ITS import, the in-process and ON-DISK scale caches
-are bypassed inside `_rows`, and `_PHI_CACHE` is cleared between arms.  As of
-2026-08-16 that is a belt over a correct key rather than the only defence:
-`_phi_key` and `fisher_norm.scale_identity` are now built from each module's
-own PHYSICS_GLOBALS registry (so IONI_KOKOULIN, RAD_CHANNEL, G4_FF_SQUARED and
-G4_SCREEN_F are in them), and `cf_track_resolution._kokoulin_exponent` has the
-|PDG| == 13 guard the C++ always had.  `guards` re-tests both.
+are bypassed inside `_rows`, and `_PHI_CACHE` is cleared between arms.  That
+is a belt over a correct key rather than the only defence: `_phi_key` and
+`fisher_norm.scale_identity` are built from each module's own PHYSICS_GLOBALS
+registry (so IONI_KOKOULIN, RAD_CHANNEL, G4_FF_SQUARED and G4_SCREEN_F are in
+them), and `cf_track_resolution._kokoulin_exponent` has the |PDG| == 13 guard
+the C++ enforces.  `guards` re-tests both.
 
 SUBCOMMANDS
     build     the driver + the shim
@@ -231,19 +231,15 @@ def _parse_species(txt):
             dedxR=float(f[10]), dedxU=float(f[11]), pref=float(f[12]),
             hoc=float(f[13]), barkas=float(f[14]), bloch=float(f[15]),
             mott=float(f[16]), Lrest=float(f[17]),
-            # OFF-BY-ONE, FIXED 2026-08-16 (NOTES_CHARGEODD).  The driver
-            # prints TWENTY fields -- it appends `xs`
-            # (CrossSectionPerVolume, driver line 221) BEFORE `extrap`
-            # (G4EnergyLossForExtrapolatorForCVH::ComputeDEDX, line 231) --
-            # and this mapping read `extrap` from index 18, i.e. from `xs`.
-            # `dedx`'s "extrapolator dE/dx" column therefore printed the
-            # knock-on cross section, 7.2952331406579649 for the muon where
-            # the extrapolator gives 1.7375069849772742, and its "vs G4 for
-            # THIS charge" column read 3.2-4.1 (a 320 % difference, which is
-            # the tell).  s2.3 of NOTES_BARKAS quotes the CORRECT extrapolator
-            # values, so the note's numbers stand; it is the printer that
-            # drifted.  The charge-conjugate column read 0.00e+00 either way,
-            # because BOTH quantities are charge-even.
+            # The driver prints TWENTY fields: `xs` (CrossSectionPerVolume)
+            # comes BEFORE `extrap`
+            # (G4EnergyLossForExtrapolatorForCVH::ComputeDEDX), so index 18 is
+            # the knock-on cross section and index 19 the extrapolator dE/dx.
+            # Swapping them is easy to miss because BOTH are charge-even, so
+            # the charge-conjugate column reads 0.00e+00 either way; the tell
+            # is the "vs G4 for THIS charge" column, 3.2-4.1 instead of a few
+            # per mille (for the muon, xs = 7.2952331406579649 against the
+            # extrapolator's 1.7375069849772742).
             xs=float(f[18]), extrap=float(f[19]))
     return out, mat
 
@@ -474,7 +470,7 @@ def cmd_census(args):
 
 
 def cmd_predict(args):
-    """The prediction-versus-measurement table the brief asks for.
+    """Prediction versus measurement, per species.
 
     Prediction: the fractional +/- difference of Geant4's own RESTRICTED
     stopping power at the toy step, from `dedx`.  It has no free parameter.
@@ -535,8 +531,8 @@ def cmd_export(args):
 # =========================================================================
 # 4b. THE TWO GUARDS -- the Kokoulin PDG guard and the cache keys
 #
-# Both were found by NOTES_HADRONS and worked around rather than fixed; both
-# are fixed now and both are re-tested here rather than asserted.
+# Both are re-tested here rather than asserted; the failures they prevent are
+# documented in NOTES_HADRONS.
 # =========================================================================
 
 _KNOB_MODULES = ("cf_propagation_test", "cf_track_resolution", "cf_ms_exact",

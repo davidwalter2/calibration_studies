@@ -31,7 +31,7 @@ as the exact perturbation integral of the corrected stopping power, and makes
 `G4UniversalFluctuationForExtrapolator`'s own `meanLoss = length*dedx` reads
 the same proton table through the SAME `cvhcgf` helper.
 
-Why not a per-species TABLE, which is what `CVH_REF_CHARGEAWARE` did for the
+Why not a per-species TABLE, which is what `CVH_REF_CHARGEAWARE` does for the
 charge:
 
   * the tables live on ONE energy grid, [1 MeV, 100 TeV], which is a grid in
@@ -126,13 +126,13 @@ ARM_ENV = {
     "spd":    {"CVH_REF_SPECIESDEDX": "1"},
     "ca":     {"CVH_REF_CHARGEAWARE": "1"},
     "both":   {"CVH_REF_CHARGEAWARE": "1", "CVH_REF_SPECIESDEDX": "1"},
-    # THE LIBRARY-REBUILD CONTROL.  The `_ca` models were exported on
-    # 2026-08-16 07:38 against the library as it stood BEFORE this change.
-    # Both classes have since grown members, so `_carelib` is the same
-    # configuration re-exported against the new library and must be
-    # BIT-IDENTICAL to `_ca` -- without which no comparison that mixes the two
-    # vintages means anything (the 2026-08-15 barkas driver died with a glibc
-    # malloc assertion against the 2026-08-16 library for exactly this).
+    # THE LIBRARY-REBUILD CONTROL.  `_carelib` is the `ca` configuration
+    # re-exported against the CURRENT library, and must be BIT-IDENTICAL to
+    # `_ca`: without that check, no comparison that mixes models exported
+    # against different builds of the library means anything.  A driver built
+    # against older headers allocates the old object size for classes that have
+    # grown members and dies with a glibc `malloc` assertion -- which presents
+    # as a physics crash, not a build error.
     "carelib": {"CVH_REF_CHARGEAWARE": "1"},
 }
 ARM_SUFFIX = {k: "_" + k for k in ARM_ENV}
@@ -180,11 +180,10 @@ def cmd_table(args):
     `G4(Mu)BetheBlochModel::ComputeDEDXPerVolume` for the same particle at the
     same energy.  `vs G4` is therefore the whole defect, not a model of it.
 
-    REBUILD THE DRIVER FIRST (`barkas_probe.py build`): both classes grew
-    members, so a binary compiled against the old headers allocates the old
-    size.  The 2026-08-15 binary died with a glibc `malloc` assertion against
-    the 2026-08-16 library for exactly this reason -- it presents as a physics
-    crash."""
+    REBUILD THE DRIVER FIRST (`barkas_probe.py build`): a binary compiled
+    against older headers allocates the old object size for classes that have
+    grown members, and dies with a glibc `malloc` assertion -- which presents
+    as a physics crash, not a build error."""
     res = _table_arms(("off" if False else "spdoff", "spd", "ca", "both"))
     print("=" * 128)
     print("THE EXTRAPOLATOR'S dE/dx TABLE, C++ LEVEL, MeV/mm, toy material, "
@@ -331,7 +330,7 @@ BRANCH_DRIVER = os.path.join(SCRATCH, "speciesdedx_g4driver.sh")
 
 def _branch_run(env):
     e = dict(os.environ)
-    # historical switch state as the base, arm overlay wins -- see
+    # the four corrections pinned OFF as the base, arm overlay wins -- see
     # deltaspec._clean_env
     e.update(ctr.SWITCHES_OFF)
     e.update(env)
@@ -500,7 +499,7 @@ def _refE(pdg, arm, k=None):
 def cmd_refdiff(args):
     """Is the C++ shift the SAME number NOTES_PION's offline gauge predicted?
 
-    That note shifted the exported reference OFFLINE by
+    That note's gauge shifts the exported reference OFFLINE by
     `sum_s xi_s ln(Tmax_p(bg)/Tmax_species(bg))`, every factor taken from the
     exported record itself.  The C++ switch instead corrects the lookup and
     re-runs the whole Geant4e propagation -- stepping, half-step rescaling,
@@ -558,8 +557,8 @@ def cmd_refprof(args):
 def _rows_arm(pdg, arm, sim_arm, func="qop"):
     """One closure curve against a given MODEL arm.
 
-    `s_F` is RECOMPUTED from the arm's own model -- the reference moved, so the
-    linearization the scale is built on moved with it -- and printed, so a
+    `s_F` is RECOMPUTED from the arm's own model -- the reference moves, so the
+    linearization the scale is built on moves with it -- and printed, so a
     switch that failed to reach the Fisher inversion would be visible instead
     of silent.  All three caches bypassed exactly as `hadron_probe._rows`."""
     assert os.environ.get("RES_NO_PHI_CACHE"), "phi cache is LIVE"
@@ -642,11 +641,11 @@ def cmd_both(args):
 def cmd_registry(args):
     """The offline cache keys must move when this knob does.
 
-    NOTES_BARKAS s9.2 made `cf_propagation_test._phi_key` and
-    `fisher_norm.scale_identity` registry-driven, and `fisher_norm._MODEL_CACHE`
-    sha256-verified, so that a NEW physics switch could not be silently absent
-    from a cache key.  NOTES_CHARGEODD s10 was the first test of that claim;
-    this is the second, and it is not inherited."""
+    `cf_propagation_test._phi_key` and `fisher_norm.scale_identity` are
+    registry-driven and `fisher_norm._MODEL_CACHE` is sha256-verified, so that a
+    NEW physics switch cannot be silently absent from a cache key
+    (NOTES_BARKAS s9.2).  That property is not inherited: every new switch has
+    to be tested for it separately."""
     import shutil
 
     print("=" * 112)
@@ -746,8 +745,8 @@ CVH_ENV = {
     "meanfloor": {"CVH_ELOSS_CYL_R": "100000", "CVH_ELOSS_CYL_Z": "100000",
                   "CVH_ELOSS_CYL_EPS": "1e-9"},
     # and a GAUGE 1000x above the floor, so LINEARITY is measured rather than
-    # assumed (NOTES_CHARGEODD s7.4 found jacref align and gradv still
-    # floor-dominated at 1000x, and said so).
+    # assumed (NOTES_CHARGEODD s7.4: jacref align and gradv are still
+    # floor-dominated at 1000x).
     "meangauge": {"CVH_ELOSS_CYL_R": "100000", "CVH_ELOSS_CYL_Z": "100000",
                   "CVH_ELOSS_CYL_EPS": "1e-6"},
     "spd":       {"CVH_REF_SPECIESDEDX": "1"},

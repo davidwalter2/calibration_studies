@@ -9,16 +9,16 @@ form a scan. For each momentum bin this measures
 
 and compares ds_req with the CGF-predicted mean-vs-mode shift expressed as a
 fraction of the mean loss (0.210 at p = 3.1, 0.270 at p = 41.8; see
-cgf_saddlepoint / NOTES 2026-08-12). If the mechanism explained the bias, the
-two would agree bin by bin.
+cgf_saddlepoint and Documents/Resolution/REFERENCE_DEDX.md). If the mechanism
+explains the bias, the two agree bin by bin.
 
 Candidates are KEY-matched on (run, lumi, event, gen pt), never index-matched:
-the configurations emit tracks in a different order, and index pairing matches
-~15 % and returns nonsense (NOTES 2026-08-09).
+the configurations emit tracks in a different order, so index pairing matches
+~15 % and returns nonsense (Documents/Resolution/TRANSMISSION.md).
 
 Two observables, because they answer different questions:
   * single-track dp/p vs gen -- directly comparable to the muon-gun a1
-  * dimuon dm/m             -- what the earlier scan quoted
+  * dimuon dm/m             -- the combined-leg observable
 
 usage: python cgf_dedx_scan.py [--nfiles 0] [--obs trk|mass]
 """

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Per-material-group (or nested-cylinder) influence weights of the CVH fit.
 
-Closing measurement for NOTES_TRANSMISSION.md. The 2026-08-13 result was the
-GLOBAL coherent transmission
+Closing measurement for NOTES_TRANSMISSION.md, whose GLOBAL result is the
+coherent transmission
 
     T_sys = d(p_fit at PCA) / d(assumed total energy loss) = 0.6127 +- 0.0003,
 

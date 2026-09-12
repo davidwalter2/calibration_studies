@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Kokoulin in the EXTRAPOLATOR's variance, and the downstream validation of Q.
 
-Two things live here, in the order the task asks for them.
+Two things live here.
 
-TASK 1 -- the wiring.  `CVH_IONI_KOKOULIN` is now read by ONE C++ function,
+PART 1 -- the wiring.  `CVH_IONI_KOKOULIN` is read by ONE C++ function,
 `cvhcgf::ioniKokoulinEnabled()`, which the fluctuation model calls when it
 builds the exact-delta channel's second moment; the offline consumer
 `cf_track_resolution.IONI_KOKOULIN` takes its DEFAULT from the same variable.
@@ -12,8 +12,8 @@ The subcommands here export the three models (`off` / `on` = exact delta /
 `onk` = exact delta + Kokoulin), prove bit-identity when the new switch is off,
 show it is LIVE when on, and re-run the closure.
 
-TASK 2 -- downstream of Q.  Two corrections now move `Q` and `dQI` and nothing
-downstream had been re-validated for either.  `cvh` runs the real-tracker CVH
+PART 2 -- downstream of Q.  Two corrections move `Q` and `dQI`, so everything
+downstream of them has to be re-validated.  `cvh` runs the real-tracker CVH
 refit on real J/psi ALCARECO tracks in the four configurations (nominal /
 exact-delta / exact-delta+Kokoulin / Kokoulin alone) and `cvhcmp` compares the
 fitted momenta, the reported covariances, the material/eloss Jacobians that
@@ -55,7 +55,7 @@ ENVS = {
     "on":      {"CVH_IONI_EXACTDELTA": "1"},
     "onk":     {"CVH_IONI_EXACTDELTA": "1", "CVH_IONI_KOKOULIN": "1"},
     "kokonly": {"CVH_IONI_KOKOULIN": "1"},
-    # THE FOUR CORRECTIONS ONE AT A TIME (2026-08-16), so that "they still
+    # THE FOUR CORRECTIONS ONE AT A TIME, so that "they still
     # compose" is a measurement.  `pt3`/`pt40`/`real` are mu- models, which
     # makes two of these PREDICTED nulls rather than merely small ones:
     #   * `kokonly`  -- the Kokoulin term lives in the regime-2/3 delta channel
@@ -75,10 +75,9 @@ ENVS = {
     # runs with nothing set at all and its export is what a production job with
     # no environment gets.
     #
-    # Since the four are DEFAULT-OFF (the 2026-08-16 flip was reverted) it must
-    # equal `off` and must NOT equal `allon`.  That is the opposite of what it
-    # was written to assert, and cmd_bitid spells the expectation out in the
-    # row label so the polarity cannot silently rot again.
+    # Since the four are DEFAULT-OFF it must equal `off` and must NOT equal
+    # `allon`.  cmd_bitid spells that expectation out in the row label, so the
+    # polarity cannot silently rot if a default is ever flipped.
     "defaults": {k: None for k in ctr.CVH_DEFAULT_ON},
     # the explicit all-four-on arm the unpinned one is compared against
     "allon":   {k: "1" for k in ctr.CVH_DEFAULT_ON},
@@ -149,13 +148,12 @@ def cmd_bitid(args):
         #    against a pinned arm, and it is the only one that can catch a
         #    default that is not what the source says.
         #
-        #    THE POLARITY OF THESE TWO ROWS IS THE TEST. They were written on
-        #    2026-08-16 with the four DEFAULT-ON, i.e. `defaults` == `allon`
-        #    and `defaults` != `off`. The flip was REVERTED (NOTES_CLOSURE_FINAL
-        #    s1), so both expectations invert: an unpinned job is now the
-        #    HISTORICAL state, and it must NOT be the all-four-on one. Getting
-        #    this backwards is exactly the failure mode the rows exist to
-        #    catch, which is why the expectation is spelled out in the label.
+        #    THE POLARITY OF THESE TWO ROWS IS THE TEST. With the four
+        #    DEFAULT-OFF (NOTES_CLOSURE_FINAL s1), an unpinned job must be
+        #    IDENTICAL to `off` and must NOT be the all-four-on one; flipping a
+        #    default inverts both expectations. Getting this backwards is
+        #    exactly the failure mode the rows exist to catch, which is why the
+        #    expectation is spelled out in the label.
         if args.defaults:
             pairs.append((mp(which, "off"), mp(which, "defaults"),
                           f"{which} off vs UNPINNED         (DEFAULT-OFF: must be identical)"))
@@ -507,19 +505,17 @@ def run_cvh(script, inp, workdir, log, env_extra, nev, extra=""):
     set to the work directory."""
     os.makedirs(workdir, exist_ok=True)
     # The CVH switches are ParameterSet parameters, not environment
-    # variables (Geant4e b372e08). This runner bypasses
-    # hadron_probe._run, so it needs the same translation or anything
-    # it "sets" would be exported where nothing reads it.
+    # variables. This runner bypasses hadron_probe._run, so it needs the same
+    # translation or anything it "sets" would be exported where nothing reads
+    # it.
     #
-    # AND THE PIN HAS TO GO THROUGH THE SAME TRANSLATION (fixed 2026-08-20).
-    # `ds._clean_env` adds `ctr.SWITCHES_OFF` as an ENVIRONMENT overlay, which
-    # was the pin's whole point while the switches were getenv-read. Applying
-    # it AFTER this translation exported four names that nothing reads any
-    # more, so every arm here silently ran on the C++ DEFAULT -- and that
-    # default flipped to all-on in e232c20. A `nominal` control arm (`{}`)
-    # was therefore not a control at all. Merging the pin in HERE, with the
-    # arm's own overlay winning, restores the documented meaning: what an arm
-    # does not name is pinned to the historical state, not inherited.
+    # AND THE PIN HAS TO GO THROUGH THE SAME TRANSLATION. `ds._clean_env` adds
+    # `ctr.SWITCHES_OFF` as an ENVIRONMENT overlay; applied AFTER this
+    # translation it would export four names that nothing reads, so every arm
+    # would silently run on the C++ DEFAULT and a `nominal` control arm (`{}`)
+    # would not be a control at all. Merging the pin in HERE, with the arm's
+    # own overlay winning, keeps the documented meaning: what an arm does not
+    # name is pinned OFF, not inherited.
     _swopts, env_extra = ctr.split_switches({**ctr.SWITCHES_OFF, **(env_extra or {})})
     if _swopts:
         extra = f"{extra} {_swopts}"

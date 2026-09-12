@@ -9,13 +9,12 @@ changed. So:
 and, because sigma is unchanged, the width difference reads off the HIT SHARE
 of the q/p variance directly:  var(sim)/var(reco) = 1 - f_hit.
 
-For MUONS this repeats a measurement that already exists (NOTES.md,
-2026-08-08: |shift| < 0.45e-4 at 3 sigma on mugun_lowpt and mugun_ul16) and is
-run here as a control on this production. For HADRONS it is new and it was
-not previously possible: until the species fix to the sim-hit match, `simhit`
-was always null on a hadron gun and `usesimpos = fitSimHitPositions_ && simhit
-!= nullptr` silently fell back to reco positions -- the "sim-position" arm was
-a copy of the nominal one.
+For MUONS this repeats an existing measurement (Documents/Resolution/HIT_RESOLUTION.md:
+|shift| < 0.45e-4 at 3 sigma on mugun_lowpt and mugun_ul16) and is run here as
+a control on this production. For HADRONS it depends on the sim-hit match being
+species-aware: `usesimpos = fitSimHitPositions_ && simhit != nullptr`, so a
+null `simhit` on a hadron gun falls back to reco positions silently and the
+"sim-position" arm is then a copy of the nominal one.
 
 PAIR THE COMPARISON. The two arms select the same tracks but EMIT THEM IN A
 DIFFERENT ORDER, so index pairing matches ~15 % and is meaningless, and

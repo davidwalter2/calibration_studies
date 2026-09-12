@@ -11,11 +11,11 @@
 //     ComputeDMicroscopicCrossSection, tabulated by
 //     Geant4ePropagator::fillRadiativeSpectrum on a 48-point grid over
 //     v in [1e-6, 1] and renormalized to each process's own
-//     ComputeDEDXPerVolume.  It has NEVER been compared against what the
-//     simulation actually draws.  It cannot be, from the CF alone: the
-//     simulation splits the channel into a CONTINUOUS sub-cut part (no
-//     fluctuation at all) and DISCRETE secondaries above the gamma production
-//     cut, and the model has no such split.  `--sample` draws exactly what
+//     ComputeDEDXPerVolume.  It cannot be compared against what the
+//     simulation draws from the CF alone: the simulation splits the channel
+//     into a CONTINUOUS sub-cut part (no fluctuation at all) and DISCRETE
+//     secondaries above the gamma production cut, and the model has no such
+//     split.  `--sample` draws exactly what
 //     G4VEnergyLossProcess draws -- Poisson(sigma(ekin, gcut, tmax) * L)
 //     explicit emissions from SampleSecondaries, plus the restricted mean --
 //     so the two distributions can be compared in units of the MC error.

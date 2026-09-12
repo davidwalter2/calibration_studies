@@ -87,11 +87,11 @@ GEOMS = {
                      label="layered toy T=0.50 (rho=1.8)"),
     "layT2.00": dict(kind="toy", model="mT2.00.root", sim="sT2.00.root",
                      label="layered toy T=2.00 (rho=0.45)"),
-    # 50x statistics (100k events), regenerated 2026-08-14 as MATCHED sim+model
-    # sets by scratchpad/hs_regen.sh.  The 2000-event versions above leave a
-    # +-0.006 correlated error on the plane-mean locx closure at u = 1, which is
-    # larger than the whole layered-toy signal and larger than the NSUB trend
-    # that was previously reported without an error bar.
+    # 50x statistics (100k events), built as MATCHED sim+model sets by
+    # scratchpad/hs_regen.sh.  The 2000-event versions above leave a +-0.006
+    # correlated error on the plane-mean locx closure at u = 1, which is larger
+    # than the whole layered-toy signal and larger than the NSUB trend itself,
+    # so those cannot be quoted without an error bar.
     "H_homo":   dict(kind="toy", model="hmHOMO.root", sim="hsHOMO.root",
                      label="homogeneous toy, 100k events"),
     "H_layK1":  dict(kind="toy", model="hmK1.root", sim="hsK1.root",
@@ -156,9 +156,10 @@ def geom_sim(g, acceptance="perplane"):
     Toy: `toy_loader.load_toy_sim` applies the plane frames here (the watcher
     writes global coordinates on purpose).  Real: `cf_propagation_test.load_sim`
     with PER-PLANE acceptance -- the modal-sequence cut drops 5.6 % of pT=3
-    muons TAIL-FIRST and biases the closure by +0.0022 at u=1 (NOTES 2026-08-08,
-    cleanprop/acceptance_bias.py), which is 5 % of the effect being measured
-    here and would land entirely on the `real` column.
+    muons TAIL-FIRST and biases the closure by +0.0022 at u=1
+    (Documents/Resolution/CLOSURE_STATE.md, cleanprop/acceptance_bias.py),
+    which is 5 % of the effect being measured here and would land entirely on
+    the `real` column.
     """
     key = (g, acceptance)
     if key in _SIMC:
@@ -856,21 +857,18 @@ def cmd_wander(args):
           f"(one-sided test, see code comment); H "
           f"{'ON' if getattr(args, 'useh', False) else 'OFF'}")
     for g in args.geoms:
-        # TOYS ARE NOT SKIPPED ANY MORE, and the reason is the whole point of
-        # running this on one. The guard here used to be `kind != "real": skip`,
-        # on the reasoning that a cylindrically symmetric toy has no material
-        # sampling so its split says nothing. That is exactly backwards. The
-        # limitation this test has always had is that selecting on |locy| also
-        # selects on HOW MUCH THE RAY SCATTERED, and scattering in y correlates
-        # with scattering in x and with path length -- so the real geometry's
-        # low/high split mixes genuine material sampling with a plain
-        # more-scattered-rays selection, and section 9.2 could not separate them.
+        # TOYS ARE RUN HERE ON PURPOSE, and they are the control that makes
+        # the test work.  Selecting on wander also selects on HOW MUCH THE RAY
+        # SCATTERED, and scattering in y correlates with scattering in x and
+        # with path length -- so the real geometry's low/high split on its own
+        # mixes genuine material sampling with a plain more-scattered-rays
+        # selection and cannot separate the two.
         #
-        # A toy with the REAL material sequence (gen_toy_realmat.py) has the same
-        # scattering, the same step structure and MEASURED material sampling of
-        # +1.46 % against the detector's +15.21 %. Its split is therefore the
-        # PURE scattering-selection component, and real-minus-toy is material
-        # sampling with the degeneracy broken.
+        # A toy with the REAL material sequence (gen_toy_realmat.py) has the
+        # same scattering, the same step structure and MEASURED material
+        # sampling of +1.46 % against the detector's +15.21 %. Its split is
+        # therefore the PURE scattering-selection component, and real-minus-toy
+        # is material sampling with the degeneracy broken.
         sim, legs = geom_sim(g, args.acceptance), geom_model(g)
         if getattr(args, "useh", False):
             # H needs the extras (dEdxlast/refglobz/zoff) read off the model
@@ -893,17 +891,16 @@ def cmd_wander(args):
             w = np.abs(sim["locy"][:, kl]
                        - np.nanmedian(sim["locy"][:, kl]))
         elif args.wandervar == "locx":
-            # AIMED AT THE MATERIAL, which locy is not. s12.3 profiled the
-            # outermost leg's energy loss against both coordinates: it swings by
-            # 3.78x across locx and is FLAT to 2 % across locy over eight
-            # deciles. So the |locy| split of s10 was cutting along the
-            # direction the material is uniform in, and must UNDER-state
-            # material sampling.
+            # AIMED AT THE MATERIAL, which locy is not.  Profiling the
+            # outermost leg's energy loss against both coordinates: it swings
+            # by 3.78x across locx and is FLAT to 2 % across locy over eight
+            # deciles.  A |locy| split therefore cuts along the direction the
+            # material is uniform in and UNDER-states material sampling.
             #
-            # The circularity that made |locx| wrong for the LOCX functional
-            # (s9.2: the selection variable was the residual, and the split
-            # returned +0.32/-0.32) does not apply to qop -- locx is not the qop
-            # residual. What remains is that |locx| also selects
+            # The circularity that makes |locx| wrong for the LOCX functional
+            # (the selection variable is then the residual itself, and the
+            # split returns +0.32/-0.32) does not apply to qop -- locx is not
+            # the qop residual.  What remains is that |locx| also selects
             # more-scattered rays, and THAT is what the cylindrical control
             # measures: it has the same scattering and no material structure
             # (profile swing 1.00x), so real-minus-toy is material sampling.

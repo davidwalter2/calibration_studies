@@ -37,8 +37,8 @@ which has no notion of the simulation's production cut.  Every difference
 between tags is therefore a property of the simulation alone.
 
 PAIRING IS CHECKED BY DetId, NOT ASSUMED.  `model_pt10_eta0.30_phi0.20.root`
-famously shares not one module with its supposed sim, so `pairs` compares the
-model's `detid` list against the sim's before any closure number is produced.
+shares not one module with its supposed sim, so `pairs` compares the model's
+`detid` list against the sim's before any closure number is produced.
 """
 
 import argparse
@@ -156,10 +156,9 @@ def _env(extra):
             "X509_USER_PROXY", "KRB5CCNAME")
     e = {k: os.environ[k] for k in keep if k in os.environ}
     e["PATH"] = "/usr/local/bin:/usr/bin:/bin"
-    # The four 2026-08-16 default-on corrections pinned to their
-    # HISTORICAL state (all off); any explicit overlay below still
-    # wins.  Same convention as deltaspec._clean_env -- an archived
-    # model must stay comparable to a fresh export.
+    # The four energy-loss corrections pinned OFF explicitly; any explicit
+    # overlay below still wins.  Same convention as deltaspec._clean_env --
+    # an archived model must stay comparable to a fresh export.
     import cf_track_resolution as _ctr
     e.update(_ctr.SWITCHES_OFF)
     e.update(extra)

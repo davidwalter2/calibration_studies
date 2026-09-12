@@ -4,13 +4,13 @@ channel's pure 1/T^2.
 
 WHAT THIS IS FOR
 ----------------
-NOTES_TAILHUNT located the `qop` clean-propagation non-closure in the hard end
-of the ionization spectrum: the offline model's Urban `a3` channel -- its ENTIRE
-representation of delta rays -- was measured to be short of Geant4's own
-explicit delta production by ~1.4 in RATE and 1.19-1.31 in ENERGY, at two
-momenta and on two materials.  A single `a3` scale removes 97 % of the pT = 40
-non-closure but cannot fit both momenta (the required f runs 1.098 -> 1.261),
-which is the signature of a SHAPE error, not a normalization error.
+The `qop` clean-propagation non-closure sits in the hard end of the ionization
+spectrum (NOTES_TAILHUNT): the offline model's Urban `a3` channel -- its ENTIRE
+representation of delta rays -- is short of Geant4's own explicit delta
+production by ~1.4 in RATE and 1.19-1.31 in ENERGY, at two momenta and on two
+materials.  A single `a3` scale removes 97 % of the pT = 40 non-closure but
+cannot fit both momenta (the required f runs 1.098 -> 1.261), which is the
+signature of a SHAPE error, not a normalization error.
 
 This module derives the correct spectrum, predicts the measured deficit from it
 with NO free parameter, and provides the corrected characteristic function.
@@ -275,10 +275,10 @@ def step_table(model_path, mats=None):
 def extra_crossings(rows, n):
     """The census integrates the primary's loss from the origin out to
     r < 107 cm, which crosses 14 toy layers; the model's legs stop at plane 13
-    (r = 106.8 cm), i.e. 13 layers.  Rather than the 13/14 factor NOTES_TAILHUNT
-    applied to the SIM side, add `n` synthetic copies of the LAST LEG's
-    ToyLayerMat crossing to the MODEL side -- the layers are identical, and this
-    keeps every material's own xi and cut attached to it.
+    (r = 106.8 cm), i.e. 13 layers.  The two paths are matched by adding `n`
+    synthetic copies of the LAST LEG's ToyLayerMat crossing to the MODEL side
+    rather than by scaling the SIM side by 13/14 -- the layers are identical,
+    and this keeps every material's own xi and cut attached to it.
 
     The last leg carries TWO ToyLayerMat steps at pT = 3 (the crossing, 1.843
     MeV, and a 1.4 keV remainder) and one at pT = 40, so the copy is the leg's
@@ -508,35 +508,25 @@ def _clean_env(extra):
     its own interpreter, picks up PYTHONPATH / PYTHONHOME / LD_LIBRARY_PATH and
     dies MUTELY (toy_pt_scan._cmsrun documents the diagnosis).  Allowlist.
 
-    EVERY ARM IS PINNED, IN BOTH DIRECTIONS.  The four corrections
-    `CVH_IONI_EXACTDELTA`, `CVH_IONI_KOKOULIN`, `CVH_REF_CHARGEAWARE` and
-    `CVH_REF_SPECIESDEDX` were DEFAULT-ON for one week (2026-08-16,
-    NOTES_DEFAULTON) and are DEFAULT-OFF again (NOTES_CLOSURE_FINAL s1).
-    Every published control arm in this directory -- `off`, `nominal`,
-    `caoff`, `spdoff` -- is an EMPTY overlay, which under the default-ON state
-    silently meant "all four on", i.e. the control became a second copy of the
-    signal arm and every bit-identity table in NOTES_DELTASPEC / NOTES_QVALID /
-    NOTES_CHARGEODD / NOTES_SPECIESDEDX would have read PASS for the wrong
-    reason.
+    EVERY ARM IS PINNED, IN BOTH DIRECTIONS.  `ctr.SWITCHES_OFF` pins the four
+    corrections `CVH_IONI_EXACTDELTA`, `CVH_IONI_KOKOULIN`,
+    `CVH_REF_CHARGEAWARE` and `CVH_REF_SPECIESDEDX` explicitly OFF as the BASE,
+    and the arm's own overlay wins over it.  The pin is what makes a control
+    arm mean what it says: every control arm in this directory -- `off`,
+    `nominal`, `caoff`, `spdoff` -- is an EMPTY overlay, so without it the
+    control inherits whatever the ambient shell or the C++ default happens to
+    be.  Should a default be ON, an empty overlay silently means "all four on",
+    the control becomes a second copy of the signal arm, and every bit-identity
+    table in NOTES_DELTASPEC / NOTES_QVALID / NOTES_CHARGEODD /
+    NOTES_SPECIESDEDX reads PASS for the wrong reason.  A closure study turns
+    the corrections on through `ctr.SWITCHES_ON`, which is greppable and
+    appears in the run log where a default does not.
 
-    The historical state is therefore applied as the BASE, and the arm's own
-    overlay still wins.  THE PIN IS KEPT NOW THAT THE DEFAULTS ARE OFF AGAIN
-    and it is deliberately not a no-op-by-luck: it makes a control arm
-    independent of the ambient shell (and of any future re-flip), which is
-    what a reproducibility harness owes its published numbers.  A closure
-    study turns the corrections on through `ctr.SWITCHES_ON`, which is
-    greppable and appears in the run log where a default does not.
-
-    Two consequences worth being explicit about:
-
-      * every existing arm dict keeps EXACTLY the meaning it had when its
-        numbers were published, with no per-arm edit and therefore no arm
-        that can be missed;
-      * these drivers no longer track the C++ DEFAULT.  That is deliberate --
-        a reproducibility harness should pin, not inherit -- and it means the
-        default has to be demonstrated somewhere else, on an unpinned job.
-        `python -c` on `ctr.env_flag`, and the cmsRun banner, are that
-        somewhere else -- reachable from here through the `None` escape below.
+    The price is that these drivers do not track the C++ DEFAULT.  That is
+    deliberate -- a reproducibility harness should pin, not inherit -- and it
+    means the default has to be demonstrated somewhere else, on an unpinned
+    job.  `python -c` on `ctr.env_flag`, and the cmsRun banner, are that
+    somewhere else -- reachable from here through the `None` escape below.
 
     A value of `None` in `extra` means LEAVE THE VARIABLE UNSET, i.e. let the
     C++ default decide.  That is the one arm a pinning harness cannot express
@@ -577,8 +567,8 @@ def run_model(which, out, log, env_extra=None):
         # runToyModel.py HARD-IMPORTS toyPlanes_pt3.  Run from the pt40 area it
         # still resolves -- from the release test/ directory, which cmsRun puts
         # on sys.path -- so it runs to rc = 0 with the WRONG planes and the
-        # whole reference trajectory silently changes.  (Caught by the
-        # branch-level bit-identity check: 22 of 27 branches moved with the
+        # whole reference trajectory silently changes.  (The branch-level
+        # bit-identity check catches it: 22 of 27 branches move with the
         # switch OFF.)  Patch it in the area, exactly as toy_pt_scan.cmd_setup
         # does.
         script = os.path.join(td, "runToyModel.py")
@@ -596,8 +586,8 @@ def run_model(which, out, log, env_extra=None):
     # The CVH switches are ParameterSet parameters, not environment variables
     # (Geant4e b372e08).  This runner bypasses hadron_probe._run, so it needs
     # the same translation -- and it has to happen BEFORE `env` is updated, or
-    # the names are exported as well as passed, which is the redundancy the
-    # move off getenv was meant to remove.
+    # the names are exported as environment variables as well as passed as
+    # parameters, where nothing reads them.
     _swopts, env_extra = ctr.split_switches(env_extra)
     if _swopts:
         extra = f"{extra} {_swopts}"
@@ -702,7 +692,7 @@ def _drv(env, **kw):
     cmd += ["--out", pre]
     if kw.get("stock_flag"):
         cmd.append("--stock")
-    # historical switch state as the base, arm overlay wins -- see _clean_env
+    # the four corrections pinned OFF as the base, arm overlay wins; _clean_env
     subprocess.run(cmd, check=True, capture_output=True,
                    env=dict(os.environ, **ctr.SWITCHES_OFF, **env))
     d = {}
@@ -791,11 +781,11 @@ def cmd_stockcmp(args):
 
 HADAREA = os.path.join(CMSSW, "deltaspec_had")
 # SIGNED PDG codes, so the gun and the model reference trajectory are the same
-# particle -- a first pass used +321 for the gun (K+) and -321 for the model
-# (K-) and, worse, told ProcessActivationWatcher to deactivate `kaon--inelastic`
-# for a K+ primary. The watcher's own step census then showed
-# `kaon+Inelastic primary 20149`, i.e. nothing had been switched off. The
-# process names below are the ones the census PRINTS, not guesses.
+# particle.  A sign mismatch between the two is silent: the gun fires a K+ while
+# the model propagates a K-, and ProcessActivationWatcher is then asked to
+# deactivate `kaon--inelastic` for a K+ primary, so nothing is switched off and
+# the watcher's step census still reports `kaon+Inelastic primary`.  The process
+# names below are the ones the census PRINTS, not guesses.
 HAD_PARTS = {-211: ("pi-", 139.57039), -321: ("kaon-", 493.677),
              2212: ("proton", 938.27209), 13: ("mu-", 105.6583745)}
 HAD_INACT = {-211: ["pi-Inelastic", "hadElastic", "Decay", "CoulombScat"],
@@ -873,7 +863,7 @@ def _had_run(td, script, extra, log, env_extra):
     # The CVH switches are ParameterSet parameters, not environment
     # variables (Geant4e b372e08). This runner bypasses
     # hadron_probe._run, so it needs the same translation or anything
-    # it "sets" would be exported where nothing reads it.
+    # it "sets" is exported as an environment variable, where nothing reads it.
     _swopts, env_extra = ctr.split_switches(env_extra)
     if _swopts:
         extra = f"{extra} {_swopts}"

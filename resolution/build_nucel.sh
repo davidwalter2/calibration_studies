@@ -1,6 +1,6 @@
 #!/bin/bash
-# Build nucel_g4driver against the ALREADY-BUILT CMSSW area (pattern copied
-# from build_radharm.sh).  Nothing in CMSSW or Geant4 is written to.
+# Build nucel_g4driver against the ALREADY-BUILT CMSSW area (same pattern as
+# build_radharm.sh).  Nothing in CMSSW or Geant4 is written to.
 set -e
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 cd /work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src

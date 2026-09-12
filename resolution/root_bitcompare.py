@@ -39,8 +39,8 @@ def branch_hashes(fn, trees):
     out = {}
     with uproot.open(fn) as f:
         # recurse into TDirectories: the cleanprop export writes
-        # propExport/legs, and a top-level-only scan would have compared
-        # nothing (it "passed" with 1 branch before this was fixed).
+        # propExport/legs, so a top-level-only scan compares nothing and
+        # "passes" on a single branch.
         keys = [k.split(";")[0] for k in f.keys(recursive=True)]
         for tn in sorted(set(keys)):
             if trees and tn not in trees:

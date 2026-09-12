@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Direct measurement of the SYSTEMATIC (coherent) energy-loss transmission.
 
-CRITIQUE_260813 action 1.2 / NOTES_GATE item 4. `NOTES.md` carries two values
-under the single name "the transmission":
+CRITIQUE_260813 action 1.2 / NOTES_GATE item 4. Two values circulate under the
+single name "the transmission" (TRANSMISSION.md):
 
-  * 2026-08-05  T = 0.413 +- 0.009 -- regression of the fitted q/p residual on
-    the TRUE per-track in-tracker loss (simPabsFirst/Last), i.e. the response
-    to a RANDOM per-track FLUCTUATION;
-  * 2026-08-12 (RETRACTION) T ~ 1 -- asserted, not measured, for the response
-    to a COHERENT shift of the reference.
+  * T = 0.413 +- 0.009 -- regression of the fitted q/p residual on the TRUE
+    per-track in-tracker loss (simPabsFirst/Last), i.e. the response to a
+    RANDOM per-track FLUCTUATION;
+  * T ~ 1 -- asserted, not measured, for the response to a COHERENT shift of
+    the reference.
 
 This measures the second one directly and theory-free. `CVH_DEDX_SCALE` scales
 the reference mean dE/dx table coherently (same sign, every step, every track)
@@ -304,7 +304,7 @@ def main():
     o = np.argsort(rp)
     rp, fmo, fme = rp[o], fmo[o], fme[o]
 
-    # INFLUENCE-WEIGHT CORRECTION (2026-08-14). ds_req is the gap of the fit's
+    # INFLUENCE-WEIGHT CORRECTION. ds_req is the gap of the fit's
     # influence-WEIGHTED loss sum; gate_refs holds the gap of the UNWEIGHTED
     # total. kappa(p) = f_weighted/f_unweighted, measured on Geant4 truth with
     # the nested-cylinder weight profile (weighted_gap.py).

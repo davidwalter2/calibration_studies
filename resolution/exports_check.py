@@ -13,17 +13,17 @@ This script measures the omitted terms on a REAL block.
 THE MODEL PARAMETER USED THROUGHOUT is the material / energy-loss scale, the
 `dxival` of ResidualGlobalCorrectionMakerG4e (which, with doRes off, is also
 `dionival` and `dmsval`, i.e. it scales the noise as well as the mean --
-Geant4ePropagator.cc:1063 `ionifact = exp(dioni)*matStepFact`). For a compound
+Geant4ePropagator.cc `ionifact = exp(dioni)*matStepFact`). For a compound
 Poisson a pure rate scale a gives, EXACTLY,
 
     K(theta; a) = e^a K(theta)        (both centred and uncentred)
     mean loss    m(a) = e^a m
 
 so every shape derivative is available in closed form with no new machinery.
-This is the ONE global parameter with a first-order shape derivative; see the
-notes file for why alignment and B-field have none.
+This is the ONE global parameter with a first-order shape derivative; see
+NOTES_EXPORTS.md for why alignment and B-field have none.
 
-NUMERICS RULES OBSERVED (they cost this study four wrong answers):
+NUMERICS RULES OBSERVED:
  * every expectation is taken against the EXACT FFT-inverted density, never
    against the saddlepoint density (NOTES_XXII: the SPA density is 2-8x low
    below the mode and up to 140x in the deep tail).
@@ -211,8 +211,8 @@ def E(bl, f):
 def spa_scores(steps, r):
     """(theta_hat, psi, phi) from the CLOSED FORM, for the ionization channel.
 
-    psi  = theta + K'''/(2 K''^2)                             (NOTES XIII)
-    phi  = 1/2 - K(theta) - r (psi - theta)                   (derived here)
+    psi  = theta + K'''/(2 K''^2)              (PROCESS_NOISE_CGF.md)
+    phi  = 1/2 - K(theta) - r (psi - theta)    (derived here)
 
     The phi form is d/da of the saddlepoint log-density at fixed r under a rate
     scale, using d_a K = K, d_a K' = K', d_a K'' = K'' and K'(theta)=r:
@@ -294,9 +294,9 @@ def part_A(legs, k, avec, sigma, args):
 
 # ================================================================== part B ====
 def build_multiblock(legs, k, avec, sigma, minsteps=8, nt=1 << 16, npad=16):
-    """Pooled per-leg ionization blocks, >= minsteps steps each (NOTES XXI 5b:
-    the naive per-leg construction is degenerate because 4 legs have 1-2 steps,
-    and the real fit pools per module / per global parameter anyway)."""
+    """Pooled per-leg ionization blocks, >= minsteps steps each: the naive
+    per-leg construction is degenerate because 4 legs have 1-2 steps, and the
+    real fit pools per module / per global parameter anyway."""
     from cf_track_resolution import ioni_step_exponent
     groups, cur = [], []
     for j in range(k + 1):
@@ -348,7 +348,7 @@ def _interp(bl, key, r):
     """Linear interpolation of a tabulated per-block function at r.
 
     The FFT z grid is UNIFORM, so the index is arithmetic -- no search. This
-    matters: the naive np.interp version made the profile scan O(minutes).
+    matters: an np.interp-based lookup makes the profile scan O(minutes).
     """
     z = bl["z"]
     dz = bl["dz"]
@@ -368,14 +368,14 @@ def profile_c(blocks, zs, a, ngrid=4001, nbis=80):
 
     Two stages, deliberately:
       1. a COARSE SCAN of F on the feasible domain to identify the basin. psi
-         has multiple zero crossings (NOTES XXI 4a), so the root cannot be
-         found by inversion; the basin has to be located by the objective.
+         has multiple zero crossings, so the root cannot be found by
+         inversion; the basin has to be located by the objective.
       2. inside the bracket, BISECTION on the stationarity condition
          G(c) = sum_b psi_b(r_b) = 0, using the exactly-tabulated psi.
     Stage 2 is what makes the finite difference in `a` usable: golden-section
     on a piecewise-LINEAR interpolant of ln p only locates chat to O(dz), and
-    dz = 2.8e-3 against a signal of 5e-4 over the FD step -- the scan-only
-    version of this routine gave a 5-16 % noise floor on dchat/da.
+    dz = 2.8e-3 against a signal of 5e-4 over the FD step -- a scan-only
+    version of this routine has a 5-16 % noise floor on dchat/da.
 
     `blocks` may be a list of (block_at_this_a) dicts; the mean channel uses
     each block's m.

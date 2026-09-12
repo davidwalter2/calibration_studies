@@ -3,11 +3,11 @@
 //
 // WHY THIS EXISTS
 // ---------------
-// NOTES_HADRONS s6 measured that Geant4's simulated mean ionization loss is
-// charge-ODD by 0.17-0.36 % while the CVH reference trajectory is charge-EVEN
-// to 1.7e-9, and attributed the former to "the Barkas/Bloch z^3 term".  That
-// attribution was an inference from a code path that was never evaluated.
-// This driver evaluates it.
+// Geant4's simulated mean ionization loss is charge-ODD by 0.17-0.36 % while
+// the CVH reference trajectory is charge-EVEN to 1.7e-9 (NOTES_HADRONS s6).
+// The natural attribution is "the Barkas/Bloch z^3 term", but that is an
+// inference from a code path, not an evaluation of it.  This driver evaluates
+// it.
 //
 // Geant4's projectile-charge expansion lives in G4EmCorrections and enters
 // G4BetheBlochModel::ComputeDEDXPerVolume (hadrons) and
@@ -214,10 +214,10 @@ int main(int argc, char** argv) {
              dedxR / (MeV / mm), dedxU / (MeV / mm), pref / (MeV / mm),
              hoc / (MeV / mm), barkas, bloch, mott, (dedxR - hoc) / pref);
 
-      // The DELTA-RAY side, for contrast.  The brief's premise is that the
-      // knock-on cross section goes as z^2 and so cannot be charge-odd; that
-      // is checked here rather than assumed, by asking the same model for the
-      // number of secondaries above the production cut.
+      // The DELTA-RAY side, for contrast.  The knock-on cross section goes as
+      // z^2 and so cannot be charge-odd; that is checked here rather than
+      // assumed, by asking the same model for the number of secondaries above
+      // the production cut.
       const double xs = mdl->CrossSectionPerVolume(mat, part, k.ekin, tcut, k.tmax);
       printf(" %.17g", xs * mm);
 

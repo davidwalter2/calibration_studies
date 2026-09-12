@@ -5,7 +5,7 @@ saddlepoint density / mode.
 WHY. The track fit subtracts the MEAN energy loss in its reference and gives
 the per-block deviation a Gaussian prior centred on zero. The typical track
 loses the MODE, which is less. That mismatch is the leading candidate for the
-~1 MeV J/psi bias and the +0.2e-3 common offset (NOTES 2026-08-08/10).
+~1 MeV J/psi bias and the +0.2e-3 common offset (PROCESS_NOISE_CGF.md).
 
 To fix it in the fit we need the mode of the exact per-block loss distribution.
 This module gets it WITHOUT any Fourier inversion, by working with the
@@ -177,9 +177,8 @@ def _delta_derivs(b, w):
 
     BOTH SIGNS OF b ARE SUPPORTED. The CGF of this block is entire (the jumps
     are bounded: delta rays live on [e0, tmax]), so there is no divergent
-    half-line -- the old code's _EXP_MAX clip was a floating-point guard that
-    silently returned a WRONG finite value, and that is what made theta look
-    one-sided (NOTES 2026-08-13 XVII/XVIII). Three regimes:
+    half-line, and nothing here clips: a floating-point guard on e^{bw} returns
+    a WRONG finite value and makes theta look one-sided. Three regimes:
 
       |b w| <= _SER_X   Taylor series (exact for b = 0, no cancellation)
       b < 0             direct closed form; e^{bw}, e^b <= 1 so nothing can
@@ -266,8 +265,7 @@ def ioni_cgf_derivs(steps, theta, order=2):
 
     order defaults to 2 so that existing callers keep getting (K, K1, K2).
     order=4 adds the analytic K''' and K'''', which the score
-    psi = theta + K'''/(2 K''^2) and its derivative need; they used to be taken
-    by finite difference of K''.
+    psi = theta + K'''/(2 K''^2) and its derivative need.
     """
     if not 0 <= order <= 4:
         raise ValueError("order must be 0..4")
@@ -348,7 +346,7 @@ def heavy_tail_sign(steps):
 
     IT IS NOT A CONVERGENCE BOUNDARY. The jumps are bounded (delta rays on
     [e0, tmax], excitations at fixed e1, e2), so E[e^{theta X}] is finite for
-    every real theta and the CGF is entire (NOTES 2026-08-13 XVIII). K is
+    every real theta and the CGF is entire (PROCESS_NOISE_CGF.md). K is
     defined, smooth and evaluable on BOTH sides.
     """
     if len(steps) == 0:
@@ -359,15 +357,15 @@ def heavy_tail_sign(steps):
 
 
 def convergent_sign(steps):
-    """DEPRECATED alias of heavy_tail_sign, kept so existing callers are not
-    silently changed.
+    """DEPRECATED alias of heavy_tail_sign, kept so existing callers keep
+    working.
 
-    It was named for the belief that K(theta) diverges on the other half-line.
-    That belief was wrong: the CGF is entire and the "divergence" was e^{bw}
-    overflowing against a clip in _delta_derivs (NOTES 2026-08-13 XVII/XVIII).
-    New code should use heavy_tail_sign (for the direction of the tail) or
-    theta_overflow_limit (for the actual numerical bound), and should sample
-    theta on BOTH sides.
+    The name is a misnomer: it suggests K(theta) diverges on the other
+    half-line, whereas the CGF is entire and an apparent divergence is only
+    e^{bw} overflowing against a clip in _delta_derivs
+    (PROCESS_NOISE_CGF.md). New code should use heavy_tail_sign (for the
+    direction of the tail) or theta_overflow_limit (for the actual numerical
+    bound), and should sample theta on BOTH sides.
     """
     return heavy_tail_sign(steps)
 
@@ -403,7 +401,7 @@ def theta_grid(steps, n=1500, lo=1e-8, two_sided=True):
         already corresponds to r ~ -1e2 and beyond, i.e. hundreds of sigma into
         the power-law tail, so nothing of the distribution is lost.
 
-    two_sided=False reproduces the old one-sided sampling, for A/B tests only.
+    two_sided=False restricts the grid to the safe side, for A/B tests only.
     """
     _, _, k2 = ioni_cgf_derivs(steps, 0.0)
     s = 1.0 / np.sqrt(float(np.atleast_1d(k2)[0]))
@@ -482,10 +480,10 @@ def mode(steps, thmax=1.0e3, n=4001, two_sided=True):
     against a core width ~ 1), so such a grid is off by two orders of magnitude
     and lands entirely in the tail.
 
-    theta is now scanned on BOTH sides (the CGF is entire; see heavy_tail_sign).
-    The mode sits on the bounded side, so this is expected to leave the answer
-    unchanged -- two_sided=False is kept so that can be checked rather than
-    assumed.
+    theta is scanned on BOTH sides (the CGF is entire; see heavy_tail_sign).
+    The mode sits on the bounded side, so the second side is expected to leave
+    the answer unchanged -- two_sided=False is there so that can be checked
+    rather than assumed.
 
     Returns (q_mode, kappa2). kappa2 is returned for diagnostics only -- it is
     NOT a width.

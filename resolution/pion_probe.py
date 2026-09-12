@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Why does the PION fail the clean-propagation closure when mu, K and p pass?
 
-NOTES_HADRONS s9 left the pion open: 3.5x (q=-1) and 15x (q=+1) the muon,
+NOTES_HADRONS s9 leaves the pion open: 3.5x (q=-1) and 15x (q=+1) the muon,
 not radiative (`hBrems`/`hPairProd` off in the sim is a 0.00758 -> 0.00752
-null), and not the mean as that note could measure it (re-centring on the
-data's own per-plane mean removes only 41 %).  NOTES_BARKAS s6 then removed
-the charge-odd term from the reference and the pion kept its excess
+null), and not the mean as that note can measure it (re-centring on the data's
+own per-plane mean removes only 41 %).  Removing the charge-odd term from the
+reference (NOTES_BARKAS s6) leaves the pion with its excess
 (0.00758 -> 0.00571 against pi+ 0.00540), which retires the charge asymmetry
 as well.
 
@@ -23,11 +23,11 @@ does with each:
          dE_defect = xi * ln( Tmax_p(bg) / Tmax_species(bg) )
 
      (an identity: d(dE/dx)/d ln Tmax = xi for Bethe-Bloch, unrestricted).
-     NOTES_BARKAS s2.4 measured the relative size -- +5.2e-3 for the pion,
-     +2.9e-4 for the kaon, -1.1e-5 for the proton, and the muon does not go
-     through this branch at all -- flagged it as "a lead, not a result", and
-     did not test it.  `dedxdef` computes it from the exported record alone
-     and `refshift` puts it into the reference and re-runs the closure.
+     The relative size is +5.2e-3 for the pion, +2.9e-4 for the kaon,
+     -1.1e-5 for the proton, and the muon does not go through this branch at
+     all (NOTES_BARKAS s2.4).  `dedxdef` computes it from the exported record
+     alone and `refshift` puts it into the reference and re-runs the
+     closure.
 
   2. the SPIN branch.  pi and K are regime 3 (spin 0, no T^2/2E^2 term), mu
      and p regime 2.  The kaon closes on the same branch, but at Tmax/E =
@@ -100,29 +100,28 @@ OUT = os.path.join(SCRATCH, "pion")
 os.makedirs(OUT, exist_ok=True)
 
 # ------------------------------------------------------------ THE SEED PIN
-# NOTES_HADRONS' tables are 200 000 events per cell, seeds 101-110.  The
-# NOTES_BARKAS work running concurrently added an eleventh muon `off` seed
-# (s901, 2026-08-15 23:40), so the unrestricted glob now returns 220 000 for
-# the muon and only for the muon -- which silently makes the muon control
-# irreproducible (rms 0.00219 against the published 0.00217, every low-u probe
-# ~1 sigma out) while every hadron still reproduces exactly.  That is a
-# statistics change, not a physics one, but a control that does not reproduce
-# is not a control.  Pin the glob to the archived decade.
+# NOTES_HADRONS' tables are 200 000 events per cell, seeds 101-110.  An
+# eleventh muon `off` seed (s901) also sits on disk, so an unrestricted glob
+# returns 220 000 events for the muon and only for the muon -- which silently
+# makes the muon control irreproducible (rms 0.00219 against the published
+# 0.00217, every low-u probe ~1 sigma out) while every hadron still reproduces
+# exactly.  That is a statistics change, not a physics one, but a control that
+# does not reproduce is not a control.  The glob is pinned to the archived
+# decade.
 #
-# BOTH GLOBS ARE PINNED, and for a while only one was.  `hadron_probe` keeps
-# the simulation and its step census in two parallel file sets
-# (`*_s???_sim.root` and `*_s???_census.bin`), and `census_of` REFUSES to run
-# if the two sets differ -- a deliberate guard, because a census that does not
-# describe the events being scored is worse than none.  Pinning `sim_glob`
-# alone therefore left `hp.sim_glob` returning ten muon `off` files while
-# `hp.census_glob` returned eleven, and every consumer of the census died with
-# "census/sim file sets differ for mum_pt3_off".
+# BOTH GLOBS ARE PINNED.  `hadron_probe` keeps the simulation and its step
+# census in two parallel file sets (`*_s???_sim.root` and `*_s???_census.bin`),
+# and `census_of` REFUSES to run if the two sets differ -- a deliberate guard,
+# because a census that does not describe the events being scored is worse than
+# none.  Pinning `sim_glob` alone leaves `hp.sim_glob` returning ten muon `off`
+# files while `hp.census_glob` returns eleven, and every consumer of the census
+# dies with "census/sim file sets differ for mum_pt3_off".  Only the census
+# consumers (e.g. `radoff_species.py live`) reach that path; the closure itself
+# calls `sim_of` alone.
 #
-# Nothing published hit it because the closure path only ever calls `sim_of`;
-# it surfaced the first time `radoff_species.py live` asked for the step census
-# of the same arm.  The fix is here rather than in the caller because the pin's
-# whole purpose is to make "the archived decade" a single well-defined sample,
-# and a sample whose events and whose census disagree is not one.
+# The pin lives here rather than in the caller because its whole purpose is to
+# make "the archived decade" a single well-defined sample, and a sample whose
+# events and whose census disagree is not one.
 _SIM_GLOB = hp.sim_glob
 _CENSUS_GLOB = hp.census_glob
 hp.sim_glob = lambda pdg, arm: _SIM_GLOB(pdg, arm).replace("_s*", "_s1*")
@@ -778,7 +777,7 @@ def cmd_trunc(args):
 
 
 # =========================================================================
-# 8.  the C++ cross-check: let GEANT4 apply the correction, not me
+# 8.  the C++ cross-check: let GEANT4 apply the correction, not the offline model
 # =========================================================================
 
 CYLENV = dict(CVH_ELOSS_CYL_R="500.0", CVH_ELOSS_CYL_Z="900.0")

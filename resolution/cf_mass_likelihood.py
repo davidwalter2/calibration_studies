@@ -24,23 +24,22 @@ Stages:
   --demo     unbinned scale fit: NLL(alpha) with m_obs -> m_obs(1+alpha)
              on MC, demonstrating the chi2-constraint replacement
 
-THE IONIZATION SKEW IS SIGN-FIXED (since 2026-09-03, see IONI_SGN): for the
-MASS functional an energy loss on either muon can only LOWER the mass, so
-every ionization block enters with weight -1 x |w| and the two legs' skews
-ADD. The old `sign(sum resinfv)` heuristic followed a noise-eigenvector
-convention, came out +1 half the time and cancelled them. There is no longer
-an option for it; caches carry the key `ioni_sign_fixed` as provenance.
+THE IONIZATION SKEW IS SIGN-FIXED (see IONI_SGN): for the MASS functional an
+energy loss on either muon can only LOWER the mass, so every ionization block
+enters with weight -1 x |w| and the two legs' skews ADD.  A `sign(sum
+resinfv)` heuristic instead follows an arbitrary noise-eigenvector convention,
+comes out +1 half the time and cancels them; there is no option for it here,
+and caches carry the key `ioni_sign_fixed` as provenance.
 
-THE RADIATIVE (brems + pair) BLOCK is in the candidate CF since 2026-09-03,
-with the SAME sign and the SAME weight as the ionization block of the leg it
-belongs to (RAD_SGN = IONI_SGN = -1): a radiated photon takes energy off one
-muon, which can only LOWER the pair mass, for both charges.  It rides the
-q/p dof of the parmtype-11 block -- the fit's Q has no radiative variance
-(deliberately; see cf_brems_exact) -- so its weight is that block's weight
-and there is nothing separate to recover.  Caches carry `rad_model` (1 = the
-term was built from the `radstepv` export, 0 = the production predates it and
-the Srad arrays are zero), and `cf_masslik_fit.py` gives it its own scale
-k_rad.
+THE RADIATIVE (brems + pair) BLOCK is in the candidate CF with the SAME sign
+and the SAME weight as the ionization block of the leg it belongs to
+(RAD_SGN = IONI_SGN = -1): a radiated photon takes energy off one muon, which
+can only LOWER the pair mass, for both charges.  It rides the q/p dof of the
+parmtype-11 block -- the fit's Q has no radiative variance (deliberately; see
+cf_brems_exact) -- so its weight is that block's weight and there is nothing
+separate to recover.  Caches carry `rad_model` (1 = the term was built from
+the `radstepv` export, 0 = the input lacks it and the Srad arrays are zero),
+and `cf_masslik_fit.py` gives it its own scale k_rad.
 
 usage: python cf_mass_likelihood.py --kernel [--files GLOB]
 """
@@ -71,16 +70,15 @@ MJPSI = 3.0969
 FBKG = 0.005
 
 # THE SIGN OF AN IONIZATION BLOCK IN THE CANDIDATE MASS CF.
-# Fixed to -1 on 2026-09-03 (Documents/Resolution/NOTES.md "2026-09-02/03 ...
-# s3"); it used to be `sign(sum_j u_bj)` (`sign(sum resinfv)` in the TwoTrack
-# branch), a heuristic that follows an arbitrary noise-eigenvector sign
-# convention, measured +1 on 50.5 % of candidates, and therefore CANCELLED the
-# two legs' skews within a candidate and averaged the sample's ionization skew
-# to zero.  MEASURED 2026-09-02 on the August J/psi-gun pairs cache: Sio_im
-# positive on 50.5 % of candidates, net +1.4e-4 at tau = 1; with the sign
-# fixed, positive on 100 % of candidates, net +0.0166.  The unbinned scale
-# then moved alpha = +0.316 -> +0.216e-3 on the gun and +0.069 -> -0.050e-3 on
-# B->J/psi+X v3.
+# IONI_SGN = -1 (Documents/Resolution/IONISATION_MODEL.md).  The alternative,
+# `sign(sum_j u_bj)` (`sign(sum resinfv)` in the TwoTrack branch), follows an
+# arbitrary noise-eigenvector sign convention: it comes out +1 on 50.5 % of
+# candidates, so it CANCELS the two legs' skews within a candidate and averages
+# the sample's ionization skew to zero.  Measured on the J/psi-gun pairs cache:
+# with the heuristic, Sio_im positive on 50.5 % of candidates, net +1.4e-4 at
+# tau = 1; with the sign fixed, positive on 100 % of candidates, net +0.0166.
+# The unbinned scale moves by alpha = +0.316 -> +0.216e-3 on the gun and
+# +0.069 -> -0.050e-3 on B->J/psi+X v3.
 #
 # DERIVATION.  Per leg the mass Jacobian w.r.t. the leg's curvature is
 #
@@ -188,10 +186,10 @@ def collect_pairs(files, want=("genParms",), vtxtol=None):
             logger.warning(f"skipping {fn}: {type(e).__name__}")
             continue
         vtxb = ("genX", "genY", "genZ") if vtxtol is not None else ()
-        # the applied ionization scale is read when present; files from before
-        # the 2026-09-03 export simply do not have it and get scale 1.0
+        # the applied ionization scale is read when present; a file without
+        # the export gets scale 1.0
         qsb = tuple(b for b in ("ioniqscaleidx", "ioniqscalev") if b in t.keys())
-        # the radiative step export (2026-09-03), likewise auto-detected
+        # the radiative step export, likewise auto-detected
         radb = tuple(b for b in ("radstepidx", "radstepv", "radstepspecv",
                                  "radvgrid") if b in t.keys())
         if len(radb) not in (0, 4):
@@ -267,8 +265,8 @@ def leg_exponents(av, ic, a, pt):
     uvi = np.asarray(a["ioniurbanv"][ic], dtype=np.float64)
     uii = np.asarray(a["ioniurbanidx"][ic])
     uvi = uvi.reshape(-1, len(uvi) // max(len(uii), 1)) if len(uii) else uvi.reshape(0, 11)
-    # Applied ionization-block scale (2026-09-03; see cf_track_resolution.
-    # ioni_sq2). It is 1.0 on every two-track file produced so far -- the
+    # Applied ionization-block scale (see cf_track_resolution.ioni_sq2).
+    # It is 1.0 on every two-track file produced so far -- the
     # driver pins CgfQoPMode=0 -- but the propagator DOES substitute in its
     # uncached branch under mode 1 even without the maker's override hooks,
     # so the code reads the factor rather than assuming it.
@@ -407,14 +405,14 @@ def build_pairs(args, outdir):
                         Srad_im=np.array(Srad_im_l), tgrid=TG,
                         # PROVENANCE FLAG, not a switch. Its presence says
                         # every ionization block in this cache was given the
-                        # physical mass-functional sign IONI_SGN = -1; caches
-                        # built before 2026-09-03 used sign(sum u_b) and
-                        # cancelled the two legs. Never read as a value.
+                        # physical mass-functional sign IONI_SGN = -1; a
+                        # cache without it used sign(sum u_b) and cancelled
+                        # the two legs. Never read as a value.
                         ioni_sign_fixed=np.array(1),
                         # PROVENANCE VALUE (this one IS read): 1 = the
                         # radiative block was built from the `radstepv`
-                        # export, 0 = the production predates it and the
-                        # Srad arrays are identically zero.
+                        # export, 0 = the input lacks it and the Srad arrays
+                        # are identically zero.
                         rad_model=np.array(int(rad_model or 0)))
     logger.info(f"wrote {args.pairs_cache} ({nsel} candidates, "
                 f"{ndropid} dropped by identity guard, "
@@ -453,7 +451,7 @@ def build_pairs_tt(args, outdir):
         # see leg_exponents: read the applied ionization-block scale when the
         # production has it (1.0 on every two-track file so far)
         _b += [b for b in ("ioniqscaleidx", "ioniqscalev") if b in t.keys()]
-        # the radiative step export (2026-09-03); absent on older productions
+        # the radiative step export; absent on productions without it
         _rb = [b for b in ("radstepidx", "radstepv", "radstepspecv",
                            "radvgrid") if b in t.keys()]
         if len(_rb) not in (0, 4):
@@ -566,14 +564,14 @@ def build_pairs_tt(args, outdir):
                         Srad_im=np.array(Srad_im_l), tgrid=TG,
                         # PROVENANCE FLAG, not a switch. Its presence says
                         # every ionization block in this cache was given the
-                        # physical mass-functional sign IONI_SGN = -1; caches
-                        # built before 2026-09-03 used sign(sum u_b) and
-                        # cancelled the two legs. Never read as a value.
+                        # physical mass-functional sign IONI_SGN = -1; a
+                        # cache without it used sign(sum u_b) and cancelled
+                        # the two legs. Never read as a value.
                         ioni_sign_fixed=np.array(1),
                         # PROVENANCE VALUE (this one IS read): 1 = the
                         # radiative block was built from the `radstepv`
-                        # export, 0 = the production predates it and the
-                        # Srad arrays are identically zero.
+                        # export, 0 = the input lacks it and the Srad arrays
+                        # are identically zero.
                         rad_model=np.array(int(rad_model or 0)))
     logger.info(f"wrote {args.pairs_cache} ({nsel} candidates, {ndrop} dropped, "
                 f"rad_model={int(rad_model or 0)})")

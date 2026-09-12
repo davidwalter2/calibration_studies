@@ -7,7 +7,7 @@
 #                               momenta, different particle. THE reference.
 #   mugun_ul16    mu,  pT 20-60  the Z-momentum arm; the hit term dominates
 #                               the curvature error there (hit share of the
-#                               q/p variance 0.28 vs 0.14 at low pT, NOTES.md)
+#                               q/p variance 0.28 vs 0.14 at low pT)
 #                               so this is where a wrong sigma_hit matters most.
 #   piongun_ul16  pi,  pT 2-20   \
 #   kaongun_ul16  K,   pT 2-20    > the two implicit dE/dx dependences of the
@@ -16,11 +16,11 @@
 #                                   error model can know about the species,
 #                                   and they are never given a hypothesis.
 #
-# Sim-position null tests are run on mu and kaon ONLY: for muons it repeats a
-# measurement that already exists (NOTES.md 2026-08-08, |shift| < 0.45e-4 at
-# 3 sigma) as a cross-check of this production, and for kaons it is NEW --
-# before the species fix to the sim-hit match, fitSimHitPositions silently
-# fell back to reco positions on every hadron.
+# Sim-position null tests are run on mu and kaon ONLY: for muons it repeats an
+# existing measurement (HIT_RESOLUTION.md, |shift| < 0.45e-4 at 3 sigma) as a
+# cross-check of this production, and for kaons it relies on the sim-hit match
+# being species-aware -- without that, fitSimHitPositions falls back to reco
+# positions silently on every hadron.
 #
 # usage: ./run_hitres_campaign.sh [nfiles_per_arm] [nparallel_per_arm] [stage]
 #   stage: main | nulltest | all   (default all)

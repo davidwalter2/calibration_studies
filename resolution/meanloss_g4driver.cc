@@ -12,12 +12,12 @@
 //                                                       the Gaussian regime, the
 //                                                       returned loss itself
 //
-// `CVH_REF_CHARGEAWARE` made the FIRST of them select fDedxMuonMinus /
-// fDedxAntiProton for a negative track.  It did not touch the second, whose
-// SetParticleAndCharge selected fDedxMuon / fDedxProton unconditionally.  So
-// with the switch on, the reference's mean and the noise model's mean
-// disagreed by exactly the charge-odd part of Geant4's high-order block --
-// 3.2e-3 -- on every negative track (NOTES_SPECIESDEDX s2.1/s8).
+// `CVH_REF_CHARGEAWARE` makes the FIRST of them select fDedxMuonMinus /
+// fDedxAntiProton for a negative track, and the second has to follow: were its
+// SetParticleAndCharge to select fDedxMuon / fDedxProton unconditionally, the
+// reference's mean and the noise model's mean would disagree by exactly the
+// charge-odd part of Geant4's high-order block -- 3.2e-3 -- on every negative
+// track (NOTES_SPECIESDEDX s2.1/s8).
 //
 // This driver measures both, per species, at the same kinematics, so the
 // statement is a measurement rather than a reading of the source.

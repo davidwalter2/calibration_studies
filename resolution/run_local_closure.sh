@@ -1,17 +1,16 @@
 #!/bin/bash
 # Local (submit82) complement to submit_resolution_closure.sh: runs tasks
-# 50-99 of each alpha variant on the local host while the slurm arrays
-# (5731397/98/99, held to tasks 0-49) drain the queue. Writes into the SAME
-# hash-tagged outdirs and task_<idx> layout as the slurm jobs, so the
-# downstream fit_global_grads.py glob is source-agnostic.
+# 50-99 of each alpha variant on the local host while the slurm arrays, held
+# to tasks 0-49, drain the queue. Writes into the SAME hash-tagged outdirs and
+# task_<idx> layout as the slurm jobs, so the downstream fit_global_grads.py
+# glob is source-agnostic.
 #
 # A task is skipped if its output file already exists and is non-empty
 # (idempotent restarts; also protects against re-running a slurm-completed
 # task if the split is ever changed).
 #
 # usage: ./run_local_closure.sh [nparallel] [task_from] [task_to]
-#        (defaults: 48 50 99; slurm arrays were cancelled 2026-07-23 evening,
-#        so the 0-49 half was run locally too)
+#        (defaults: 48 50 99; pass `48 0 99` to run the whole set locally)
 # env overrides:
 #   VARIANTS  space-separated subset of "alpha999 alpha997 alpha995"
 #   OUTTAG    outdir date tag (default 260723; e.g. 260724_censor for the

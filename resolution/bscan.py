@@ -3,7 +3,7 @@
 
 THE QUESTION
 ------------
-After the basis fix (`hbasis.py`) the pT = 3 toy closes on locx, locy, dxdz and
+In the H basis (`hbasis.py`) the pT = 3 toy closes on locx, locy, dxdz and
 dydz, leaving a +0.004 locx plateau and the qop items.  Is any of that the
 field?
 

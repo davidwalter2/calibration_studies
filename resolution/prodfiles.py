@@ -1,32 +1,32 @@
 #!/usr/bin/env python3
 """Task-aware input listing for CVH productions, single- OR multi-stream.
 
-WHY THIS EXISTS. Up to 2026-09-06 every CVH production ran with
-``numberOfThreads=1`` and a task was one file, ``task_XXXX/globalcor_0.root``.
-The readers all did::
+WHY THIS EXISTS. Both single- and multi-stream CVH productions live on disk.
+Under ``numberOfThreads=1`` a task is ONE file, ``task_XXXX/globalcor_0.root``,
+and the plain reader idiom is::
 
     files = sorted(glob.glob(args.files))[:args.ntasks]
 
-with ``args.files`` naming ``globalcor_0.root`` literally. From 2026-09-06 the
-makers run ``numberOfThreads=4`` and a task is FOUR files,
+with ``args.files`` naming ``globalcor_0.root`` literally. Under
+``numberOfThreads=4`` a task is FOUR files,
 ``globalcor_0.root .. globalcor_3.root``. An event never splits across streams
 and the candidate content is bit-identical to a single-thread run after
 sorting on (run, lumi, event), so the four files simply CONCATENATE -- but a
-reader that still names stream 0 silently takes a quarter of the statistics
-and says nothing.
+reader that names stream 0 silently takes a quarter of the statistics and says
+nothing.
 
 TWO THINGS GO WRONG IF ONLY THE GLOB IS WIDENED, hence this module rather than
 a `sed`:
 
-1. ``--ntasks`` was a cap on the FILE list. Widening the glob without changing
-   the cap makes ``--ntasks 160`` cover forty tasks. Here the cap counts
-   TASKS (directories) and every stream of a kept task is returned.
-2. The incomplete-task cleanups used to delete stream 0 only, which under N
-   threads leaves streams 1..N-1 of a TRUNCATED task on disk for a widened
-   glob to ingest. Completeness is therefore decided per TASK here: a task is
-   usable iff its ``.complete`` sentinel exists, every stream file it wrote is
-   non-empty, and -- when the sentinel says ``streams=N`` -- N of them are
-   present. A task that fails any of these is skipped WHOLE and counted.
+1. ``--ntasks`` in the plain idiom caps the FILE list. Widening the glob
+   without changing the cap makes ``--ntasks 160`` cover forty tasks. Here the
+   cap counts TASKS (directories) and every stream of a kept task is returned.
+2. An incomplete-task cleanup that deletes stream 0 only leaves streams
+   1..N-1 of a TRUNCATED task on disk for a widened glob to ingest.
+   Completeness is therefore decided per TASK here: a task is usable iff its
+   ``.complete`` sentinel exists, every stream file it wrote is non-empty, and
+   -- when the sentinel says ``streams=N`` -- N of them are present. A task
+   that fails any of these is skipped WHOLE and counted.
 
 THE RUNTREE. Every stream file carries a byte-identical copy of the 13 MB
 parameter map (``runtree``). It must be read from ONE file per task and never
@@ -54,7 +54,7 @@ API (all paths absolute, all lists in a stable, reproducible order)::
 * a ``.txt`` file (or ``@file``) holding one input path per line, which is how
   the sharded wrappers hand a worker an explicit subset without a symlink farm.
 
-On a single-stream (pre-2026-09-06) production this returns exactly the old
+On a single-stream production this returns exactly the plain
 `sorted(glob(...))[:ntasks]` list, so existing caches reproduce bit-identically.
 """
 import glob as _glob
@@ -133,7 +133,7 @@ def stream_files(task_dir, stem=None, basename=None):
 def declared_streams(task_dir):
     """`streams=N` from the `.complete` sentinel, or None if it does not say.
 
-    The 2026-09-06 makers write it; older sentinels are empty files. When it is
+    Multi-stream makers write it; older sentinels are empty files. When it is
     there it is the authority on how many stream files the task SHOULD have,
     which catches a task whose sentinel landed before a straggler stream was
     copied.
@@ -328,8 +328,8 @@ def resolve(spec, max_tasks=None, require_complete="auto", logger=None,
 
     `max_tasks` caps TASKS, not files; 0 / None means no cap. See the module
     docstring for what `spec` may be. `widen=False` keeps a pattern that names
-    one stream literally (used by nothing today; it is the escape hatch for a
-    deliberate single-stream read).
+    one stream literally -- no caller passes it; it is the escape hatch for a
+    deliberate single-stream read.
     """
     if isinstance(spec, (list, tuple)):
         out = []

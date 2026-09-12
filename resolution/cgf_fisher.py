@@ -20,11 +20,9 @@ TWO ROUTES ARE COMPUTED AND COMPARED.
 
         I = int psi^2 e^{K - theta K'} sqrt(K''/2 pi) dtheta.
 
-    theta now runs over BOTH signs. It could not before: _delta_derivs clipped
-    e^{bw} and returned a wrong finite number, which made one half-line look
-    divergent (NOTES 2026-08-13 XVII/XVIII). The CGF is entire -- all jumps are
-    bounded -- so there is no divergent side, only an overflow bound, and
-    K''' / K'''' are now analytic rather than finite-differenced.
+    theta runs over BOTH signs: the CGF is entire -- all jumps are bounded --
+    so there is no divergent side, only an overflow bound, and K''' / K''''
+    are analytic rather than finite-differenced.
 
  B. EXACT, by inverting the ionization-only characteristic function. p AND p'
     are both obtained by inversion (p' from the -i t phi transform), so no
@@ -33,7 +31,7 @@ TWO ROUTES ARE COMPUTED AND COMPARED.
     aliasing from |z| > z_max, kept at ~1e-7 of the peak.
 
     I = int (p')^2 / p dz over {p > floor * max p}, floor RELATIVE (an absolute
-    floor was the source of a 57x error, NOTES 2026-08-13 XV).
+    floor is the source of a 57x error, PROCESS_NOISE_CGF.md).
 
 usage:
   python cgf_fisher.py --model M.root [--planes 0,9,18] [--func qop]
@@ -185,7 +183,7 @@ def _support(p, floor):
 
     Contiguity matters: np.trapezoid over a masked, non-contiguous z array
     silently stitches the gaps and integrates over intervals that are not in
-    the support at all (it produced a 7 % outlier at plane 9, floor 1e-6).
+    the support at all (it gives a 7 % outlier at plane 9, floor 1e-6).
     """
     pm = np.nanmax(p)
     i0 = int(np.nanargmax(p))
@@ -203,8 +201,8 @@ def fisher_exact(z, p, dp, floor=1e-8):
     """I = int (p')^2/p dz on the support, normalized by the mass there.
 
     RELATIVE floor and the contiguous support it selects ARE the matched grid:
-    an absolute floor on an oversized grid is what produced the 57x error of
-    NOTES XV.
+    an absolute floor on an oversized grid is what produces the 57x error
+    documented in PROCESS_NOISE_CGF.md.
     """
     s = _support(p, floor)
     if s.stop - s.start < 10:
@@ -218,8 +216,9 @@ def fisher_exact(z, p, dp, floor=1e-8):
 
 
 def fisher_exact_fd(z, p, floor=1e-8):
-    """The NOTES XV/XVII recipe: I from central differences of ln p, kept as a
-    like-for-like cross-check of the reference values."""
+    """The finite-difference recipe of PROCESS_NOISE_CGF.md: I from central
+    differences of ln p, kept as a like-for-like cross-check of the reference
+    values."""
     s = _support(p, floor)
     h = z[1] - z[0]
     lp = np.log(np.maximum(p, 1e-300))
@@ -301,7 +300,7 @@ def main():
     print("=" * 104)
     print("1. TWO-SIDED closed form vs one-sided, against the exact inversion")
     print("=" * 104)
-    # the values quoted as the reference in NOTES 2026-08-13 XVII/XVIII
+    # the values quoted as the reference in PROCESS_NOISE_CGF.md
     NOTES_REF = {0: 0.0628, 9: 0.7696, 18: 1.8731}
     print(f"{'plane':>5} {'kappa2':>9} | {'1/I 1-sided':>11} {'1/I 2-sided':>11} "
           f"{'1/I exact':>10} {'2s/exact':>9} {'1s/exact':>9} | "

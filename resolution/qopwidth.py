@@ -17,10 +17,10 @@ turns it into two statements that can be read directly:
 
 WHY NOT BIN BY ENERGY LOSS.  The obvious selector for "did this ray hit extra
 material" is its total dE -- and for the q/p functional dE IS the residual under
-test, so the split is circular.  That is the trap NOTES_GEOMCLOSURE s9.2 hit with
-`locx` (the |locx| wander split returned +0.32 / -0.32, the cut talking).  The
-non-circular selectors are |locy| wander, which s10 already used, and this,
-which selects nothing at all.
+test, so the split is circular.  That is the trap NOTES_GEOMCLOSURE s9.2
+documents for `locx` (the |locx| wander split returns +0.32 / -0.32, the cut
+talking).  The non-circular selectors are |locy| wander, which
+NOTES_GEOMCLOSURE s10 uses, and this, which selects nothing at all.
 
 usage (from calibration_studies/resolution, after `source ../setup_env.sh`):
     python qopwidth.py --geoms real realmat --func qop
@@ -69,7 +69,7 @@ def cmd_perleg(args):
     ACCUMULATED state, so a defect entering at one leg marks every plane after
     it. This differences them.
 
-    No CF machinery is involved and none is needed: the quantity that diverged
+    No CF machinery is involved and none is needed: the quantity that diverges
     is a LOCATION, and a location decomposes exactly. Per leg,
 
         dE_ref  = the reference's own loss, 1/|refqop[k-1]| - 1/|refqop[k]|

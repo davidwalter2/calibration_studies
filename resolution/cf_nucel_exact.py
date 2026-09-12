@@ -2,10 +2,10 @@
 
 WHY THIS CHANNEL EXISTS
 -----------------------
-`cf_propagation_test.model_phi` carried three channels -- ionization, multiple
-scattering, radiative -- and no nuclear elastic term, while the simulation runs
-`hadElastic` for every hadron.  The elastic/inelastic split (hadron_probe arms
-`elonly`/`inelonly`, 2026-08-17) showed:
+`cf_propagation_test.model_phi`'s other three channels -- ionization, multiple
+scattering, radiative -- do not represent `hadElastic`, which the simulation
+runs for every hadron.  The elastic/inelastic split (hadron_probe arms
+`elonly`/`inelonly`) shows:
 
   * elastic is a PURE SHAPE effect: acceptance in `elonly` is 100.0000 % for
     pi/K/p and 99.9980 % for pbar, so there is no survivor selection to unfold;
@@ -51,8 +51,9 @@ on the species-correct dataset that stock `G4HadronElasticPhysics` registers.
 The kernel is the empirical distribution of the primary's deflection under
 `ApplyYourself`, i.e. what the four models ACTUALLY draw, not a diffractive
 parameterisation of them.  Both come from `nucel_g4driver`.  Nothing here is
-fitted; see NOTES for the parameter-free check (shift/N_pred constant to 4 %
-across four species and four different G4 models).
+fitted; see Documents/Resolution/NUCLEAR_ELASTIC.md for the parameter-free
+check (shift/N_pred constant to 4 % across four species and four different G4
+models).
 
 THE MUON IS THE NULL.  It has no `hadElastic` at all, and the driver refuses to
 run for it, so `species_kernel` refuses too rather than returning a zero that
@@ -70,7 +71,8 @@ from scipy.special import j0
 # --------------------------------------------------------------------------
 # the knob.  Default OFF, like every other correction in this study, pending
 # the global fit.  Registered in PHYSICS_GLOBALS so it reaches both the
-# _PHI_CACHE key and the sha256 scale-cache identity (trap #8).
+# _PHI_CACHE key and the sha256 scale-cache identity -- a physics switch that
+# is not in both is silently ignored on a cache hit.
 # --------------------------------------------------------------------------
 NUCEL_CHANNEL = bool(int(os.environ.get("NUCEL_CHANNEL", "0")))
 
@@ -85,7 +87,7 @@ NUCEL_CHANNEL = bool(int(os.environ.get("NUCEL_CHANNEL", "0")))
 # through transport).  DIAGNOSTIC: it tests whether the recoil explains the
 # proton's qop residual (0.00015 clean-arm -> 0.00070 once elastic is on, which
 # the angle-only channel does not touch).  A correct treatment keeps the
-# theta<->dE correlation; see NOTES.
+# theta<->dE correlation; see Documents/Resolution/NUCLEAR_ELASTIC.md.
 # DEFAULT ON: this is part of the nuclear-elastic physics, not a separate
 # correction.  VERIFIED IN THE SIMULATION, not assumed:
 #   * G4HadronElastic::ApplyYourself sets the primary's energy to
@@ -96,7 +98,8 @@ NUCEL_CHANNEL = bool(int(os.environ.get("NUCEL_CHANNEL", "0")))
 #   * the sim loses energy the REFERENCE does not: ref - <pabs> at the
 #     outermost plane is -0.0067 MeV in arm `off` and +0.0394 MeV in `elonly`,
 #     a difference of 0.0461 MeV against the predicted N*<dE> = 0.043 (7 %).
-# It makes the closure WORSE (see NOTES §11).  It is kept ON anyway: the
+# It makes the closure WORSE (Documents/Resolution/NUCLEAR_ELASTIC.md).  It is
+# kept ON anyway: the
 # physics is measured, and a correction that is right must not be dropped
 # because it exposes a compensating error elsewhere -- that is how a lucky
 # cancellation gets frozen in.  Set NUCEL_RECOIL=0 to A/B it.
@@ -174,10 +177,10 @@ def _run_driver(pdg, Z, A, ekin):
 
     CONCURRENCY.  `fisher_norm.plane_scales` evaluates the CF under a
     multiprocessing pool, so up to `nplane` workers reach this function for the
-    SAME bucket within milliseconds of each other.  The first version wrote the
-    .npz with a plain savez and read it with a plain load, and the run died
-    with `BadZipFile: File is not a zip file` -- a worker had read a file
-    another worker was still writing.  Two fixes, both needed:
+    SAME bucket within milliseconds of each other.  A plain savez plus a plain
+    load kills the run with `BadZipFile: File is not a zip file` -- a worker
+    reading a file another worker is still writing.  Two mechanisms, both
+    needed:
       * an exclusive flock per bucket, so exactly one process runs the driver
         and the rest wait and then read the finished file;
       * an ATOMIC publish (write to a private temp name in the same directory,
@@ -205,8 +208,8 @@ def _run_driver(pdg, Z, A, ekin):
 
 def _build_bucket(pdg, Z, A, ekin, tag, npz):
     prefix = os.path.join(_cachedir(), f"drv_{tag}_{os.getpid()}")
-    # trap #11: repr(np.float64(x)) is "np.float64(x)", which atof() reads as
-    # 0.0.  Every numeric argument goes through float() and "%.17g".
+    # repr(np.float64(x)) is "np.float64(x)", which atof() reads as 0.0, so
+    # every numeric argument goes through float() and "%.17g".
     cmd = [_driver(), "--pdg", "%d" % int(pdg),
            "--Z", "%.17g" % float(Z), "--A", "%.17g" % float(A),
            "--rho", "%.17g" % float(_REF_RHO),
@@ -447,7 +450,7 @@ def nucel_step_exponent(tau, nrate, ugrid, gtab, w):
     # and cancels to ~1e-16 if formed as (g) - (1).  np.interp already returns
     # g to full precision, and the subtraction is exact in IEEE for g near 1,
     # so no expm1-style rewrite is needed -- but the guard on the ARGUMENT
-    # rather than on nrate is deliberate (the delta-ray term's lesson).
+    # rather than on nrate is deliberate, as in the delta-ray term.
     return (nrate * (g - 1.0)).astype(np.complex128)
 
 
@@ -501,15 +504,14 @@ def leg_rates(leg, pdg, mass_gev, nsub=1):
     Returns (nrate[nsteps], kidx[nsteps], kernels) where kernels[kidx[s]] is the
     (ugrid, gtab) pair for step s, or None when the leg has no material.
 
-    THE TARGET VARIES WITHIN A LEG.  The first version read Z, A from ms[0] and
-    applied them to the whole leg.  That is wrong: on the layered toy leg 0
-    contains effZ in {1, 4, 7.37, 8} and even legs that start at Z=8 contain
-    Z=1 steps.  Reading only the first step assigned 8.8 % of the modelled path
-    (legs 0 and 2, whose first step happens to be Z=1) to a HYDROGEN target --
-    and pbar-hydrogen is both the largest per-nucleon elastic cross section of
-    anything here and the one case G4AntiNuclElastic special-cases
-    (theTargetDef == theProton), so it over-injected collisions with the wrong
-    kernel, worst for the antiproton.
+    THE TARGET VARIES WITHIN A LEG, so Z and A are read PER STEP and never
+    from ms[0].  On the layered toy leg 0 contains effZ in {1, 4, 7.37, 8}, and
+    even legs that start at Z=8 contain Z=1 steps.  Reading only the first step
+    assigns 8.8 % of the modelled path (legs 0 and 2, whose first step happens
+    to be Z=1) to a HYDROGEN target -- and pbar-hydrogen is both the largest
+    per-nucleon elastic cross section of anything here and the one case
+    G4AntiNuclElastic special-cases (theTargetDef == theProton), so it
+    over-injects collisions with the wrong kernel, worst for the antiproton.
 
     Z and A are rounded to integers for the bucket because the driver builds a
     real G4Material and the exported effZ can be fractional (7.374 for a

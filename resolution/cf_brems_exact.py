@@ -2,7 +2,7 @@
 
 WHY THIS EXISTS
 ---------------
-The mean and the fluctuation are currently inconsistent. The propagator's
+The mean and the fluctuation are inconsistent. The propagator's
 mean-loss table is built with ionOnly=false, so the reference trajectory DOES
 subtract the radiative mean; the fluctuation tables are built with
 ionOnly=true, so the noise is ionization-only. The typical muon radiates
@@ -42,9 +42,9 @@ ComputeDEDXPerVolume (see step_spectrum), which
   - keeps the total mean exactly equal to what the propagator subtracted, so
     the centring leaves no residual bias;
   - gets the brems/pair MIXTURE right (pair is 58% of the radiative mean at
-    100 GeV but is softer in v). An earlier hand-built brems-only shape,
-    normalized to the combined mean, under-predicted the simulated radiative
-    rate by ~2.5x at 5-15 GeV -- which is why the shapes now come from G4.
+    100 GeV but is softer in v). A hand-built brems-only shape, normalized to
+    the combined mean, under-predicts the simulated radiative rate by ~2.5x at
+    5-15 GeV -- which is why the shapes come from G4.
 
 usage:
     python cf_brems_exact.py --validate --model <model.root>
@@ -77,8 +77,8 @@ def step_spectrum(rec, spec, vg):
 
     Why per process and not on the sum: pair production is 58% of the
     radiative mean here but is SOFTER in v than brems, so normalizing a single
-    combined shape gets the mixture wrong -- that is precisely what the
-    hand-built brems-only shape got wrong by ~2.5x at 5-15 GeV.
+    combined shape gets the mixture wrong -- that is precisely what a
+    hand-built brems-only shape gets wrong by ~2.5x at 5-15 GeV.
 
     Why normalize at all, given the shapes come from Geant4: the absolute
     normalization of ComputeDMicroscopicCrossSection does not match a naive
@@ -121,9 +121,8 @@ def rad_exponent(tau, recs, spec, vg, weights=None):
     # dNdv) into a single vector turns the per-step
     # `np.trapezoid(term*dNdv, v, axis=1)` into one matrix-vector product,
     # which is the same sum of the same products -- but it stops numpy
-    # materializing an (nt, nv) complex temporary per step. Measured 2026-08-15
-    # at 6.0 ms -> 0.03 ms for nt = 8001, nv = 48. (See the note below on why
-    # the summation order change is harmless here.)
+    # materializing an (nt, nv) complex temporary per step: 6.0 ms -> 0.03 ms
+    # for nt = 8001, nv = 48.
     wtrap = np.zeros(len(vg))
     dv = np.diff(np.asarray(vg, dtype=float))
     wtrap[:-1] += 0.5 * dv
@@ -137,13 +136,13 @@ def rad_exponent(tau, recs, spec, vg, weights=None):
         # caller's transport weight. cs = E/p^3 [GeV^-2] and v*E below is in
         # GeV, so d(qop) = cs * dE[GeV] directly -- NO MeV conversion. (The
         # 1e-3 in the UrbanIoniStep convention exists only because those
-        # records store energies in MeV; putting a 1e3 here instead made the
-        # exponent 1e6 too large and collapsed the CF to zero.)
+        # records store energies in MeV; putting a 1e3 here instead would make
+        # the exponent 1e6 too large and collapse the CF to zero.)
         a = tau * rec[R_CS] * w
         x = np.outer(a, v * E)                       # (nt, nv)
         # e^{ix} - 1 - ix, evaluated stably. The series is the accurate branch
-        # only when |x| is small ACROSS THE WHOLE SUPPORT -- the lesson from
-        # the delta-ray term, where guarding on |a| instead of |a|*eps_max was
+        # only when |x| is small ACROSS THE WHOLE SUPPORT -- as in the
+        # delta-ray term, where guarding on |a| instead of |a|*eps_max is
         # wrong by four orders of magnitude. Here x is formed explicitly, so
         # the guard is on x itself and cannot be misapplied.
         #
@@ -226,9 +225,9 @@ def validate_shape(legs, vg, simglob):
 
     # Model: expected number of radiative transfers per track in each eps bin.
     # The per-step grid is only NRADV points over 6 decades, so a bin can
-    # contain 0 or 1 of them -- sampling it directly gives spurious zeros (an
-    # earlier version of this function did exactly that). Interpolate each
-    # step onto a common fine eps grid in log-log and integrate there.
+    # contain 0 or 1 of them -- sampling it directly gives spurious zeros.
+    # Interpolate each step onto a common fine eps grid in log-log and
+    # integrate there.
     fine = np.geomspace(100., 40000., 2000)          # MeV
     dNde = np.zeros_like(fine)
     for recs, spec in legs:

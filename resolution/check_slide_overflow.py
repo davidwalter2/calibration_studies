@@ -2,7 +2,7 @@
 """Flag slides whose content is clipped by the bottom (or right) page edge.
 
 Marp does not error when a slide overflows -- it silently crops. Character
-counts are a poor proxy (a 965-char slide fit while a 923-char one did not,
+counts are a poor proxy (a 965-char slide fits while a 923-char one does not,
 because the two differ in structure, not in length), so this measures the
 rendered pixels instead.
 
@@ -14,14 +14,14 @@ TWO detectors, because each misses what the other catches.
 
   BELOW PAGINATION -- ink from the body that lies below the page number, in a
   bottom-most row wide enough to be a severed table rule or line of text.
-  This exists because the edge band alone gave a FALSE PASS on a real deck:
+  This exists because the edge band alone gives a FALSE PASS on a real deck:
   when Marp pushes a whole table ROW off the canvas, that row's ink is simply
   gone, so the page comes out with a LARGER bottom margin (10 px at DPI 70)
   and an entirely EMPTY edge band, and the band test reports the page clean
   while the last row of the table is missing from the talk.
 
-Both were calibrated on a fixture deck holding the two slides that were
-actually clipped in 260819_cleanprop_walter and five that were not
+Both are calibrated on a fixture deck holding the two slides that are
+actually clipped in 260819_cleanprop_walter and five that are not
 (`cleanprop/slides/overflow_fixture.md` -- keep it building). At DPI 70,
 body = left 90 % of the width, pagination = bottom-right corner box:
 

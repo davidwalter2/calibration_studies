@@ -4,7 +4,7 @@
 # Re-runs the J/psi-gun CVH refit at several values of CVH_DEDX_SCALE, which is
 # a COHERENT multiplicative shift of the reference mean dE/dx applied at
 # table-build time (G4TablesForExtrapolatorForCVH), i.e. the same sign at every
-# step of every track. The build carries a new per-leg branch Mu{plus,minus}_dEref
+# step of every track. The build carries a per-leg branch Mu{plus,minus}_dEref
 # = the total mean energy loss the reference trajectory actually applied, so the
 # response can be normalised per track without any external model:
 #

@@ -21,12 +21,11 @@
 # -- the stream index is widened), a production directory, or an `@list.txt`.
 # MAXTASKS caps TASKS, not files; 0 or unset means all of them.
 #
-# WHY A TASK AND NOT A FILE. From 2026-09-06 the makers run
-# `numberOfThreads=4`, so a task is `globalcor_0.root .. globalcor_3.root`.
-# `ls task_*/globalcor_0.root` takes a quarter of the statistics, and an
-# incomplete-task cleanup that removes stream 0 only leaves streams 1-3 of a
-# TRUNCATED task for the next widened glob to swallow. Both are decided per
-# task here.
+# WHY A TASK AND NOT A FILE. Under `numberOfThreads=4` a task is
+# `globalcor_0.root .. globalcor_3.root`. `ls task_*/globalcor_0.root` then
+# takes a quarter of the statistics, and an incomplete-task cleanup that
+# removes stream 0 only leaves streams 1-3 of a TRUNCATED task for the next
+# widened glob to swallow. Both are decided per task here.
 
 PF_PY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/prodfiles.py"
 PF_PYTHON=${PF_PYTHON:-python3}

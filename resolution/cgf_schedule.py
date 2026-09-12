@@ -21,8 +21,8 @@ fixed point and needs rethinking.
 This module runs that scan and nothing else.  Every arm is the same 25 events
 / 48 tracks of 15_0-native J/psi ALCARECO that the stage-3/5/6 controls used,
 with an explicit iteration cap, and every arm pins the five energy-loss
-corrections EXPLICITLY (they are C++-default-ON since Geant4e e232c20, and a
-harness that inherits a default cannot say what it measured).
+corrections EXPLICITLY (they are C++-default-ON, and a harness that inherits a
+default cannot say what it measured).
 
   python cgf_schedule.py run --tag s34 --cap 60
   python cgf_schedule.py cmp --tag s34 --cap 60
@@ -53,7 +53,7 @@ logger = _wums_logging.child_logger(__name__)
 CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev"
 SRCTEST = os.path.join(CMSSW, "src/Analysis/HitAnalyzer/test")
 # runs/ is gitignored; SCRATCH in fisher_norm points at a session scratchpad
-# that has already eaten one campaign's outputs (NOTES_CGFFIT s0.4).
+# whose contents do not survive (NOTES_CGFFIT s0.4), so outputs land here.
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs", "cgfsched")
 
 INPUT = ("/ceph/submit/data/group/cms/store/data/Run2016F/Charmonium/ALCARECO/"
@@ -67,10 +67,9 @@ FIELD = ("/work/submit/david_w/ZMass/mfs/data/fitresults/"
 # refresh: CVH_CGF_QOP_REFRESH.  0 = freeze the block object after iteration 0;
 # N > 0 = recompute it every N iterations.
 CONFIGS = {
-    # Mode 0 is the LEGACY Gaussian weight, which since the truncation was
-    # deleted means the UNTRUNCATED variance -- a diagnostic limit, not a fit
-    # configuration, and no longer the same object the pre-2026-08-24 `off`
-    # arms measured. It has to be named explicitly now that 1 is the default.
+    # Mode 0 is the LEGACY Gaussian weight, which with no truncation in the
+    # code means the UNTRUNCATED variance -- a diagnostic limit, not a fit
+    # configuration. It has to be named explicitly because 1 is the default.
     "off":    dict(mode=0, refresh=0),
     # The DEFAULT: no CGF options passed at all. It must reproduce `m1_frz`,
     # which names mode 1 and freeze explicitly -- that is the test of the flip.
@@ -91,8 +90,6 @@ CONFIGS = {
     "m1_r5":  dict(mode=1, refresh=5),
     "m1_r2":  dict(mode=1, refresh=2),
     "m1_r1":  dict(mode=1, refresh=1),
-    # The historical (0,0)-only substitution, as the attribution control for
-    # the schedule fix: same two schedules, old asymmetric substitution.
     # The radiative channel of the block CGF (a ParameterSet switch, not an
     # env one), against the same arm without it.
     "m1_rad": dict(mode=1, refresh=0, opts="CgfRadiativeChannel=1"),
@@ -125,11 +122,10 @@ CONFIGS = {
 # slot holds xi (an energy) rather than a delta-ray collision count, and
 # `cvhcgf::blockExponent` has no branch for it -- Geant4ePropagator THROWS
 # rather than answer wrongly.  So the in-fit CGF and the exact-delta
-# correction are today MUTUALLY EXCLUSIVE, even though the C++ default has
-# both on since e232c20.  Lifting that is a port of
-# `cf_track_resolution.exact_delta_exponent` into `cvhcgf`, plus `beta2`/`etot`
-# on `IoniStep`; until then a scan that pinned it on would measure nothing but
-# the throw.
+# correction are MUTUALLY EXCLUSIVE, even though the C++ default has both on.
+# Lifting that is a port of `cf_track_resolution.exact_delta_exponent` into
+# `cvhcgf`, plus `beta2`/`etot` on `IoniStep`; until then a scan that pinned it
+# on would measure nothing but the throw.
 #
 # `IoniKokoulin` follows it: the correction lives entirely inside the
 # exact-delta channel, so with that off it is a measured no-op, and pinning it
@@ -191,11 +187,11 @@ def run_one(tag, lab, cap, nev, edm, force=False, opts_extra=""):
         named = {o.split("=", 1)[0] for o in opts_extra.split() if "=" in o}
         opts = " ".join(o for o in opts.split()
                         if o.split("=", 1)[0] not in named)
-    # The MODE and the REFRESH period are ParameterSet parameters as of
-    # 2026-08-24 -- the CGF weight is the production default now, so the
-    # estimator has to be in the file's provenance, not in a shell. They go
-    # through the same translation as the physics switches. SCALARONLY is a
-    # diagnostic and is still an environment variable.
+    # The MODE and the REFRESH period are ParameterSet parameters -- the CGF
+    # weight is the production default, so the estimator has to be in the
+    # file's provenance, not in a shell. They go through the same translation
+    # as the physics switches. SCALARONLY is a diagnostic and is an
+    # environment variable.
     swopts, env = ctr.split_switches({
         **({"CVH_CGF_QOP": cfg["mode"]} if cfg["mode"] is not None else {}),
         **({"CVH_CGF_QOP_REFRESH": cfg["refresh"]} if cfg["refresh"] is not None else {}),
@@ -368,10 +364,11 @@ def cmd_cmp(args):
 # The schedule question of NOTES_CGFFIT s34 is usually posed as "does freezing
 # the weight change the fixed point", but the quantity that decides it is more
 # basic: how much does the block CGF move when the SAME leg is recomputed on
-# the next iteration's reference trajectory? The design assumed O(1e-4) -- the
-# relative motion of the leg's momentum. It is not, because the Geant4 step
-# subdivision is not stable under that motion, and `1/I` is a property of the
-# pooled STEP RECORD, not of a smooth function of the momentum.
+# the next iteration's reference trajectory? The natural guess is O(1e-4) --
+# the relative motion of the leg's momentum -- and it is larger than that,
+# because the Geant4 step subdivision is not stable under that motion, and
+# `1/I` is a property of the pooled STEP RECORD, not of a smooth function of
+# the momentum.
 #
 # Input: a cmsRun log from a CVH_CGF_QOP=2 (diagnostic) job with
 # CVH_CGF_QOP_REFRESH=1 (so the block is recomputed every iteration). The
@@ -420,14 +417,12 @@ def cmd_drift(args):
     # THE QUANTITY IS THE PHYSICAL WEIGHT, `Qcgf`, NOT `invI_z`.
     #
     # `invI_z` is 1/I in units of the internal standardization sigma^2, so its
-    # drift is a statement about sigma as much as about the block -- and the
-    # convention for sigma changed on 2026-08-20 (truncated variance ->
-    # blockKappa2). Reading `invI_z` cost this study a wrong conclusion once:
-    # NOTES_CGFFIT s44 reported "the block moves by up to 20 % between
-    # iterations" and attributed it to Geant4 re-stepping, when the physical
-    # weight was in fact tracking the LEGACY VARIANCE to 0.996 -- i.e. the leg
-    # itself was changing, exactly as it does for the weight the fit has always
-    # used. `Qnom` is carried alongside for precisely that comparison.
+    # drift is a statement about that sigma convention as much as about the
+    # block. Reading it instead makes the block look like it moves by up to
+    # 20 % between iterations, which invites blaming Geant4 re-stepping, while
+    # the physical weight tracks the LEGACY VARIANCE to 0.996 -- i.e. the leg
+    # itself is changing, exactly as it does for the weight the fit already
+    # uses. `Qnom` is carried alongside for precisely that comparison.
     rows = []
     for (trk, key), byiter in blocks.items():
         if len(byiter) < 2:
@@ -489,14 +484,6 @@ def cmd_drift(args):
             continue
         print(f"{name:28s} {len(v):5d} {np.median(v):10.3e} "
               f"{np.percentile(v, 90):10.3e} {v.max():10.3e}")
-
-
-# The `alphatest` regression LIVED HERE and was deleted with the knob it
-# guarded (2026-08-24). It asserted that the CGF-weighted fit is bit-identical
-# under a change of `IoniTruncationAlpha` while the legacy weight is not.
-# `IoniTruncationAlpha` no longer exists -- there is no truncation in the code
-# to be independent of -- so the test can no longer be written, let alone
-# fail. NOTES_CGFFIT s66 records what it measured while it could.
 
 
 def main():

@@ -52,8 +52,8 @@ def parse_args():
 
 
 def load(pattern, ntasks):
-    # every stream of the first `ntasks` usable tasks (the .complete filter
-    # this used to do by hand is part of prodfiles)
+    # every stream of the first `ntasks` usable tasks; prodfiles applies the
+    # .complete filter
     fs = prodfiles.resolve(pattern, ntasks)
     if not fs:
         return None
@@ -85,7 +85,7 @@ def shell_weight(dp, de, nboot, rng):
 
     The clip is mandatory and RELATIVE: ~0.8 % of legs land in a different
     local minimum under the perturbed reference and reach |dp/de| ~ 1e3, which
-    is enough to move a ratio of sums by 10 % (measured 2026-08-14)."""
+    is enough to move a ratio of sums by 10 %."""
     floor = 0.01 * np.median(de[de > 0]) if np.any(de > 0) else 1e-7
     m = np.isfinite(dp) & np.isfinite(de) & (de > floor)
     if m.sum() < 50:

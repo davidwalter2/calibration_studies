@@ -4,8 +4,8 @@ modelled offline, validated against G4's own sampler, and propagated.
 
 CONTEXT
 -------
-NOTES_MSTERMS s10 named this as "the strongest remaining" candidate for the
-`locx` non-closure and did not test it.  The claim there was:
+NOTES_MSTERMS s10 names this as "the strongest remaining" candidate for the
+`locx` non-closure without testing it.  The claim there is:
 
     G4WentzelVIModel replaces sub-threshold scattering with an EXACT Gaussian
     (`ComputeSecondTransportMoment` returns 0, so the Gamma(2,2) branch never
@@ -34,7 +34,7 @@ moment IS the projected variance, and a compound Poisson's second cumulant IS
 its transport moment.  **So the split preserves the variance exactly and
 changes only the fourth and higher cumulants below theta_min.**  It is a
 kurtosis transfer at fixed variance, not a magnitude change -- and the
-residual it was proposed to explain is a magnitude effect (NOTES_MSTERMS s5).
+residual it is proposed to explain is a magnitude effect (NOTES_MSTERMS s5).
 
 SUBCOMMANDS
     steps     the sim's step structure inside the toy, MEASURED from the
@@ -79,9 +79,9 @@ UCURVE = fn.UCURVE
 UROW = "".join(f"{u:>9g}" for u in UCURVE)
 
 # The seed pin of NOTES_PION s1 must be installed (importing radoff_species is
-# what installs it, via speciesdedx -> pion_probe).  Asserted, not assumed:
-# NOTES_CLOSURE_FINAL s2.1 found this pin was HALF a pin and it moved a
-# published number.
+# what installs it, via speciesdedx -> pion_probe).  Asserted, not assumed: a
+# half-installed pin silently pulls in off-campaign seeds and moves published
+# numbers (NOTES_CLOSURE_FINAL s2.1).
 assert "_s1" in hp.sim_glob(13, "off"), "the seed pin is not installed"
 
 ALPHA = 1.0 / 137.035999084

@@ -13,7 +13,7 @@ WHY THIS REMOVES THE alpha TRUNCATION. A Gaussian block needs kappa2 = K''(0),
 which for ionization is delta-ray dominated (366 in z units against a core of
 ~1). That divergence is the ONLY reason the fit truncates the spectrum at
 alpha = 0.999, and the truncation is applied per step, so it is not additive:
-measured 2026-08-13, it is the entire step-length dependence AND the dominant
+it is measured to be the entire step-length dependence AND the dominant
 qop closure error. This scheme never evaluates K''(0). It evaluates K'' at a
 NONZERO tilt theta_hat, where the exponential tilt suppresses the 1/E^2 tail.
 Finite variance, no cut, and exactly additive because CGFs add under
@@ -31,17 +31,15 @@ The score IS the saddlepoint. Gaussian check: K = mu th + s2 th^2/2 gives
 th = (r-mu)/s2, K'' = s2, hence mu_eff = mu and sigma2_eff = s2 identically --
 ordinary least squares is the exact special case.
 
+THE CGF IS ENTIRE, not one-sided. All jumps are bounded (delta rays on
+[e0, tmax], excitations at fixed e1, e2), so E[e^{th x}] is finite for every
+real theta and theta_hat and psi exist on BOTH sides. What bounds |theta| is
+floating point alone (cgf_saddlepoint.theta_overflow_limit), which in z units
+already sits hundreds of sigma into the power-law tail.
+
 KNOWN LIMITATIONS, all real:
-  * (RETRACTED 2026-08-13 XIX) "The CGF is ONE-SIDED" was wrong. All jumps are
-    bounded (delta rays on [e0, tmax], excitations at fixed e1, e2), so
-    E[e^{th x}] is finite for every real theta and the CGF is ENTIRE. The
-    apparent divergence was e^{bw} hitting a clip in _delta_derivs, which
-    returned a wrong finite number instead of signalling. theta_hat and psi
-    exist on BOTH sides; what remains is a floating-point bound on |theta|
-    (cgf_saddlepoint.theta_overflow_limit), which in z units already sits
-    hundreds of sigma into the power-law tail.
   * The +0.5 K'''/(K'')^2 term in the score is a genuine skewness correction --
-    at small r it DOMINATES theta_hat rather than correcting it. It is now
+    at small r it DOMINATES theta_hat rather than correcting it. It is
     analytic (ioni_cgf_derivs(..., order=4)), not finite-differenced.
   * Real CVH blocks are 5x5, so theta_hat is a 5-vector and sigma2_eff a 5x5
     Hessian. This module is the scalar (q/p) case -- the one that carries the
@@ -116,10 +114,10 @@ def surrogate_curve(steps, thetas):
 
 
 # ---------------------------------------------------------------------------
-# Safeguarded Fisher scoring (2026-08-13 XXI)
+# Safeguarded Fisher scoring
 #
 # The block objective is f(r) = -ln p_SPA(r). Two things about it decide the
-# design, and BOTH were checked before the code was written rather than after:
+# design, and both are measured rather than assumed:
 #
 #  1. THE SADDLEPOINT SOLVE IS THE FRAGILE PART, not the scoring. The damped
 #     Newton in solve_saddlepoint fails badly on the heavy-tail side: at
@@ -203,8 +201,8 @@ def solve_theta(blk, r, hint=None, ftol=1e-11, itmax=200):
     is not cosmetic: K'(theta) is EXPONENTIAL in theta (measured on a 10-step
     block, K' runs from -2 to -8e296 as theta goes from -0.012 to -1.2), so
     Newton on K' - r converges only LINEARLY -- one factor of e per step. It
-    needed ~230 steps to come down from K' = -4.6e99 to K' = -5, blew through
-    itmax = 200, and returned the bracket end: block_eval then reported the
+    takes ~230 steps to come down from K' = -4.6e99 to K' = -5, i.e. more than
+    itmax = 200, and returns the bracket end, whereupon block_eval reports the
     same f = 1.39e12 for every r from -5 to -1e5. In asinh-asinh both axes are
     O(1), the map is nearly linear, and it converges in a handful of steps.
 
@@ -479,7 +477,7 @@ def main():
     cur = curvature_fd(steps, rs)
 
     # the same score and curvature from the ANALYTIC K''' / K'''', evaluated at
-    # the theta_hat solved above: this is the test of the new derivatives
+    # the theta_hat solved above: this is the test of the analytic derivatives
     _, psi_an, dpsi_an, _, _ = surrogate_curve(steps, th)
 
     print(f"{'r':>7} {'theta_hat':>11} {'K2(th)':>10} {'psi_an':>10} "
@@ -506,7 +504,7 @@ def main():
     print("  sig2/kap2 << 1 is the POINT: the tilted variance is far below the")
     print("              tail-dominated kappa2, which is why no truncation is needed.")
 
-    # the OTHER side, which used to return NaN because _delta_derivs clipped
+    # the OTHER side of the distribution
     other = -sgn * np.array([1.0, 3.0, 10.0])
     mub, s2b, thb = effective_gaussian(steps, other)
     print(f"\n  other side r = {other}")

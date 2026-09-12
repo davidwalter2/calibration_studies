@@ -11,7 +11,7 @@
 #   ./run_all.sh efficiency   the sandwich table
 #   ./run_all.sh xcum         the cross-cumulant tables (mass vs hit terms)
 #   ./run_all.sh cost         time + export bill
-#   ./run_all.sh plots        figures into ~/public_html/cvh/<YYMMDD>_perhit
+#   ./run_all.sh plots        figures into ~/public_html/ZMass/cvh/<YYMMDD>_perhit
 #   ./run_all.sh subfits      8 disjoint subsample fits per arm
 set -uo pipefail
 HERE=/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/perhit

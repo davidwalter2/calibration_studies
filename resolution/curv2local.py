@@ -3,14 +3,12 @@
 
 WHY THIS EXISTS
 ---------------
-`cf_propagation_test.py` carries a standing warning at the top of the file:
+`cf_propagation_test.py` carries a standing BASIS MISMATCH warning at the top
+of the file: the residuals there are LOCAL (DetUnit frame: q/p, dx/dz, dy/dz,
+x, y) but the exported Q/F/dQMS/dQI are CURVILINEAR (q/p, lambda, phi, xT, yT)
+and `load_model` reads them raw.
 
-    !! BASIS MISMATCH -- KNOWN, NOT YET FIXED (found 2026-08-06) !!
-    The residuals are LOCAL (DetUnit frame: q/p, dx/dz, dy/dz, x, y) but the
-    exported Q/F/dQMS/dQI are CURVILINEAR (q/p, lambda, phi, xT, yT) and
-    load_model reads them raw.
-
-For the two functionals tested so far the mismatch happens to be harmless:
+For the two axis functionals that test carries the mismatch is harmless:
 
   * `qop`  is the same variable in both frames (up to a tiny path-length term);
   * `locx` maps onto the curvilinear xT direction times a PURE SCALE
@@ -25,7 +23,7 @@ extra directions cannot be tested without H.
 
 WHAT IS REBUILT, AND FROM WHAT
 ------------------------------
-`H = curv2localJacobianAltelossD` (ResidualGlobalCorrectionMakerBase.cc:2831)
+`H = curv2localJacobianAltelossD` (ResidualGlobalCorrectionMakerBase.cc)
 is transcribed here verbatim -- same SymPy-generated expressions, same
 symbols -- so this is a port, not a re-derivation.  It needs, per plane:
 

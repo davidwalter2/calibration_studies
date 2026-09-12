@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Figures for the residual-vector CF likelihood study.
 
-One file per panel, into ``~/public_html/cvh/<YYMMDD>_hitlik/``.
+One file per panel, into ``~/public_html/ZMass/cvh/<YYMMDD>_hitlik/``.
 
 ``--densities``
     per whitened component: the data pull histogram against the AVERAGE
@@ -375,8 +375,7 @@ def main():
     p.add_argument("--min-rows", type=int, default=200)
     args = p.parse_args()
     logging.setup_logger(__file__, 3, False)
-    outdir = args.outpath or os.path.expanduser(
-        f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_hitlik/")
+    outdir = args.outpath or pubhtml.figdir("hitlik")
     os.makedirs(outdir, exist_ok=True)
     pubhtml.ensure_index(outdir, logger=logger)
     if args.densities:

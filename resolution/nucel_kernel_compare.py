@@ -5,10 +5,9 @@ SIMULATION actually applies.
 THE POINT
 ---------
 `cf_nucel_exact` builds its angular kernel from `nucel_g4driver`, which calls
-the G4 elastic model's `ApplyYourself()` standalone.  Every check on that so far
-has constrained the driver's INPUTS -- cross-section class, model class,
-dispatch, energy ranges, XS factors -- and all of them match the physics list.
-Yet the antiproton over-corrects ~10x in locx and four hypotheses have died.
+the G4 elastic model's `ApplyYourself()` standalone.  Checks on the driver's
+INPUTS -- cross-section class, model class, dispatch, energy ranges, XS factors
+-- only establish that it is configured like the physics list.
 
 Only a direct comparison of OUTPUTS can catch a discrepancy in how
 `ApplyYourself` behaves when driven standalone versus inside
@@ -118,7 +117,9 @@ def main():
                 print(f"    ratio sim/drv    "
                       + "".join(f"{qtab(th_s,qs)[i]/qtab(th_d,qs)[i]:>10.3f}" for i in range(len(qs))))
 
-        # ---- the far tail, which is where pbar's driver kernel is anomalous
+        # ---- the far tail, the most sensitive place for a kernel-width
+        # discrepancy (a mis-bucketed target element shows up here first:
+        # Documents/Resolution/archive/NOTES_NUCELASTIC.md)
         for thr in (0.1, 0.2, 0.5, 1.0):
             fs = float((th_s > thr).mean()) if len(th_s) else 0.0
             line = f"    frac(theta > {thr:4.1f} rad)   SIM {fs:.3e}"

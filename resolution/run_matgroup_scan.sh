@@ -9,7 +9,7 @@
 #     w_g = d(p_fit at PCA) / d(applied loss in group g)
 # i.e. the fit's influence weight for that group. MEAN-ONLY matters: the
 # group k also scales the step's MS and ionisation VARIANCE in the production
-# path (Geant4ePropagator.cc:1011), and moving Q would move the fit weights
+# path (Geant4ePropagator.cc), and moving Q would move the fit weights
 # themselves, so the measured response would no longer be at fixed weights.
 #
 # usage: ./run_matgroup_scan.sh [nparallel] [ntasks] [nevents]

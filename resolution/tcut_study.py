@@ -10,7 +10,7 @@ handful of other per-step regularizations: the alfa/namean Gaussian split, the
 Gaussian/Glandz regime switch). Every one of those is a per-STEP construction,
 so the resulting variance is NOT proportional to path length and NOT invariant
 under subdividing a step. That non-additivity is what makes the fit's answer
-depend on `StepLengthLimit` (NOTES 2026-08-13 X / XI).
+depend on `StepLengthLimit` (Documents/Resolution/CLOSURE_STATE.md).
 
 A fixed-ENERGY restriction of the same spectrum does not have that problem. The
 untruncated Urban model of one step is a compound Poisson with rates
@@ -37,8 +37,10 @@ Subcommands
   additivity  Task 1: subdivision invariance, model-level and against a real
               10x re-stepping of the same trajectory
   cost        Task 2: retained variance / mode shift / tail removed vs T_cut
-  closure     Task 3: the NOTES (XI) three-way comparison at FIXED
-              standardization
+  anchor      what T_cut production should use: the cut that reproduces the
+              current alpha-truncated variance, the Fisher-optimal cut and the
+              block's one-collision energy, whole-track and per leg
+  closure     Task 3: the three-way comparison at FIXED standardization
   motivations Task 4: how much of the closure error is step-dependence and how
               much is the estimator
 
@@ -647,8 +649,10 @@ def _one_collision_energy(steps):
 
 def _fisher_var(steps_z, v_scale):
     """1/I of the block density, returned in the units of v_scale (the
-    variance the records were standardized with). RELATIVE floor, per the
-    NOTES (XV) lesson."""
+    variance the records were standardized with). The floor is RELATIVE: a
+    1/I quoted in z units is not a physical number, so an absolute floor makes
+    the answer depend on the standardization
+    (Documents/Resolution/PROCESS_NOISE_CGF.md)."""
     from cgf_fisher import exact_density_fft, fisher_exact
     z, p, dp, _ = exact_density_fft(steps_z, 2000.0, 1 << 19)
     I, _ = fisher_exact(z, p, dp, floor=1e-8)
@@ -896,7 +900,7 @@ def cmd_motivations(args):
     print("    This is a property of the Q matrix alone: no data needed.\n")
     print(f"    {'geometry':<22s} {'convention':<18s} {'sigma(10mm)':>13s} "
           f"{'sigma(1mm)':>13s} {'ratio':>9s}")
-    # the per-leg-equivalent alphas actually used for the NOTES (XI) files
+    # the per-leg-equivalent alphas of the three-way-comparison files
     APL = {"mod_sl10.0.root": _fit_alpha(raw_steps(_load("perleg_sl10.0.root"))),
            "mod_sl1.0.root": _fit_alpha(raw_steps(_load("perleg_sl1.0.root")))}
     for lab, fa, fb in (("homogeneous toy", "mod_sl10.0.root", "mod_sl1.0.root"),

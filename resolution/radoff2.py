@@ -4,28 +4,28 @@ of the 2x2.
 
 WHY THIS EXISTS
 ---------------
-NOTES_RADOFF concluded "radiation is not the cause": with brems + pair
+NOTES_RADOFF concludes "radiation is not the cause": with brems + pair
 production switched off consistently in the SIM, in the REFERENCE and in the
-model CF, the pT = 40 `qop` non-closure was not removed anywhere and was
-14-43 % LARGER at u >= 0.03.  That test predates NOTES_DELTASPEC's exact
+model CF, the pT = 40 `qop` non-closure is not removed anywhere and is
+14-43 % LARGER at u >= 0.03.  That test is made without NOTES_DELTASPEC's exact
 delta-ray spectrum, which removes 74 % (pT = 3) / 79 % (pT = 40) of the same
-non-closure.  Radiation was therefore being tested against a residual dominated
-by a DIFFERENT, larger error -- and the fact that the residual GREW with
-radiation off says the two were partially cancelling.  With 73-79 % of the
-ionization error gone the balance is unknown, so the radiation-off test has to
-be redone on the corrected model.
+non-closure.  Radiation is therefore tested there against a residual dominated
+by a DIFFERENT, larger error -- and the fact that the residual GROWS with
+radiation off says the two partially cancel.  With 73-79 % of the ionization
+error gone the balance is unknown, so the radiation-off test is redone here on
+the corrected model.
 
 THE 2x2 (`qop` rms of the nine-probe Fisher-normalized closure curve)
 
                      correction OFF        correction ON
-    radiation ON     published             published
-    radiation OFF    published (grew)      *** this note ***
+    radiation ON     NOTES_DELTASPEC       NOTES_DELTASPEC
+    radiation OFF    NOTES_RADOFF (grew)   *** measured here ***
 
 FOUR SWITCHES, AND ALL OF THEM MUST BE SHOWN LIVE
 -------------------------------------------------
   RADIATION (three half-switches that must move TOGETHER; NOTES_RADOFF s1
-  established at real cost that any one alone gives a large spurious answer --
-  the CF half alone moved the pT = 40 closure by 68 % of the whole non-closure):
+  establishes that any one alone gives a large spurious answer -- the CF half
+  alone moves the pT = 40 closure by 68 % of the whole non-closure):
     (R1) SIM        `ProcessActivationWatcher` INSIDE the Simulation biglib.
                     `process.g4SimHits.G4Commands` is a silent no-op and a
                     watcher outside the biglib talks to a second, uninitialised
@@ -101,8 +101,8 @@ SIMS = {
     "pt40_cut1e4":    dict(area="pt40", cut=1e-4, rad=True,  where=TH),
     "pt40_cut1e4_ro": dict(area="pt40", cut=1e-4, rad=False, where=OUT),
     # NOTES_RADOFF's own 400k DEFAULT-CUT pair, reused byte-identically.  It is
-    # the configuration whose published numbers this note has to reproduce as a
-    # control before its new numbers mean anything -- and, because the default
+    # the configuration whose published numbers have to be reproduced as a
+    # control before any new number means anything -- and, because the default
     # cut supplies a partial cancellation (NOTES_TAILHUNT s3), it is NOT the
     # configuration the 2x2 is measured in.
     "pt3_base":     dict(area="pt3",  cut=1.0, rad=True,  where=TPD,
@@ -140,7 +140,7 @@ MODEL_ENV = {"radon_off": {},
 #            exported `gsig2` and to the variance the fit consumes as Q(0,0).
 #            Needs a RE-EXPORT.
 #   offline  `cf_track_resolution.IONI_KOKOULIN` puts the term in the CF the
-#            closure compares against.  Its DEFAULT is now derived from the same
+#            closure compares against.  Its default is derived from the same
 #            environment variable, so a job cannot end up half-corrected.
 # Both are exercised here; the offline-only arm is kept as the control that
 # reproduces NOTES_SAMPLERGAP's published rows.
@@ -631,8 +631,8 @@ def cmd_pairs(args):
             inas.add(m.group(1) if m else "?")
         cen = census_of_tag(tag)
         radsteps = sum(cen.get(p, (0, 0))[0] for p in RADPROCS)
-        # The archived NOTES_TOY_PT40 rad-ON sims predate the watcher, so they
-        # carry NO census at all.  An empty census is the correct reading there
+        # The archived NOTES_TOY_PT40 rad-ON sims were produced without the
+        # watcher and carry NO census at all.  An empty census is correct there
         # and only a rad-OFF sim with non-zero radiative steps is a failure.
         nocensus = not cen
         rad_ok = (radsteps > 0 or nocensus) if rad else (radsteps == 0
@@ -887,9 +887,9 @@ def cmd_kok(args):
 def cmd_kokid(args):
     """Two identities the Kokoulin arm rests on, both measured.
 
-    (1) the NEW library reproduces the OLD models bit for bit with
-        CVH_IONI_KOKOULIN unset -- i.e. this note's already-published 2x2 is
-        unaffected by the rebuild that landed between the two runs;
+    (1) a library rebuild reproduces the archived models bit for bit with
+        CVH_IONI_KOKOULIN unset -- i.e. the published 2x2 is unaffected by the
+        rebuild;
     (2) with the exact-delta correction OFF the record is regime 1 and the
         Kokoulin switch cannot reach it, so `*_off_kok` must equal `*_off`.
     """
@@ -959,9 +959,9 @@ def cmd_half(args):
     rad-ON reference.  This is not a physical configuration; it measures how
     much of the closure functional the radiative channel carries, i.e. the size
     of the error a WRONG radiative channel could produce.  NOTES_RADOFF s4
-    measured it on the uncorrected model (-0.0626 at u = 0.03, pT = 40, 68 % of
-    the whole non-closure).  Repeating it on the CORRECTED model bounds how
-    much room is left for a radiative error now.
+    quotes it on the uncorrected model (-0.0626 at u = 0.03, pT = 40, 68 % of
+    the whole non-closure); repeating it on the CORRECTED model bounds how much
+    room is left for a radiative error.
 
     The consistent switch is 4-20x smaller than this, which is the statement
     that the analytic brems CF and Geant4's sampled radiation agree far better

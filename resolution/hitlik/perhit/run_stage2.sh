@@ -8,7 +8,7 @@ HL=/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik
 R=/work/submit/david_w/ZMass/calibration_studies/resolution/runs/perhit
 NPZ=$R/perhit.npz
 QNPZ=${QNPZ:-$R/perhit_quad.npz}   # not built: every card here is --no-quadratic
-FIG=$HOME/public_html/cvh/260910_perhit
+FIG=$HOME/public_html/ZMass/cvh/$(date +%y%m%d)_perhit
 NTRKF=${NTRKF:-10000}     # tracks for the Fisher/sandwich step
 NTRKC=${NTRKC:-8000}      # tracks for the card ladder (as hitlik's NTRK=6000)
 mkdir -p $R/cards $R/fits $HERE/logs $FIG

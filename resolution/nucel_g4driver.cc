@@ -6,11 +6,11 @@
 // The clean-propagation model (cf_propagation_test.model_phi) carries three
 // noise channels -- ionization, multiple scattering, radiative -- and has NO
 // nuclear elastic channel at all, while the simulation runs `hadElastic` for
-// every hadron.  NOTES: the elastic/inelastic split (hadron_probe arms
-// `elonly` / `inelonly`, 2026-08-17) showed the elastic half is essentially
-// the WHOLE nuclear effect and is a pure SHAPE effect -- acceptance in
-// `elonly` is 100.0000% for pi/K/p -- and that in `locx` it runs to 38-107
-// sigma, roughly 10x the residual the all-corrections closure is left with.
+// every hadron.  The elastic/inelastic split (hadron_probe arms `elonly` /
+// `inelonly`, NOTES_NUCELASTIC) shows the elastic half is essentially the
+// WHOLE nuclear effect and is a pure SHAPE effect -- acceptance in `elonly`
+// is 100.0000% for pi/K/p -- and that in `locx` it runs to 38-107 sigma,
+// roughly 10x the residual the all-corrections closure is left with.
 // So this is the dominant missing channel for hadrons, and it has to be built
 // from what Geant4 actually does rather than from a textbook elastic form.
 //
@@ -191,8 +191,7 @@ int main(int argc, char** argv) {
   }
 
   // ---------------------------------------------------------------- geometry
-  // Two separate reasons this block exists, both of which cost time when
-  // omitted:
+  // Two separate reasons this block exists:
   //  (a) EM/hadronic model initialisation reaches G4SafetyHelper and aborts
   //      with GeomNav0003 / "NULL world" unless a world volume is set on the
   //      tracking navigator.  A 1 m box that is never tracked through is
@@ -279,10 +278,9 @@ int main(int argc, char** argv) {
   } else if (pdg == -2212) {
     // The physics list registers BOTH, split at 100 MeV.  Pick the one that
     // actually owns this energy rather than assuming the high-energy branch.
-    // `--forcelhep` overrides that choice so the LOW-energy model can be driven
-    // at high energy: the sim shows a 16x excess of sub-2-mrad pbar scatters
-    // that G4AntiNuclElastic does not produce, and the obvious suspect is the
-    // process picking the other registered model.
+    // `--forcelhep` overrides that choice so the LOW-energy model can be
+    // driven at high energy, which is how the two registered models are
+    // compared against each other at one energy (NOTES_NUCELASTIC).
     const bool forcelhep = argf(argc, argv, "--forcelhep");
     if (ekin >= elimitAntiNuc && !forcelhep) {
       auto* an = new G4AntiNuclElastic();
@@ -304,8 +302,8 @@ int main(int argc, char** argv) {
     // SHAPE -- from it.  The physics list constructs the model first and then
     // takes the SAME component back out of the registry via
     // G4HadProcesses::ElasticXS("AntiAGlauber"), so model and cross section share
-    // one initialised instance.  Building a second instance here gave the model
-    // one component and the rate another.
+    // one initialised instance.  Building a second instance here would give
+    // the model one component and the rate another.
     xs = G4HadProcesses::ElasticXS("AntiAGlauber");
     xsName = "G4CrossSectionElastic(G4ComponentAntiNuclNuclearXS)";
   } else {
@@ -345,7 +343,7 @@ int main(int argc, char** argv) {
   // G4AntiNuclElastic is the ONLY one of the four elastic models that samples
   // Coulomb scattering inside SampleInvariantT: it draws Rutherford with
   // probability XsCoulomb/(XsCoulomb + XsElastHadronic) and the nuclear form
-  // otherwise (G4AntiNuclElastic.cc:163-171).  That matters here because the
+  // otherwise (G4AntiNuclElastic.cc).  That matters here because the
   // SIMULATION already carries single EM scattering off the nucleus as a
   // SEPARATE process, `CoulombScat`, which NOTES_HADRONS s0.4 leaves ON in
   // every arm -- including the `off` arm the model is judged against.  So the

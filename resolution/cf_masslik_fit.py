@@ -23,7 +23,7 @@ with ``eta_i`` the candidate's gen mass.  phi_K is the empirical CF of the
 FSR kernel samples ``dm``, tabulated on 8192 absolute-t points and linearly
 interpolated (np.interp) onto tgi.
 
-The scan used ONE resolution scale r multiplying the whole exponent,
+The scan uses ONE resolution scale r multiplying the whole exponent,
 
     S_i(t) = r [ -1/2 vgf_i t^2 + Sms_i(t) + Sio_re_i(t) + i Sio_im_i(t) ] ,
 
@@ -35,17 +35,17 @@ is SPLIT INTO THE THREE FAMILIES that produced the three terms:
                                     + k_ioni (Sio_re_i(t) + i Sio_im_i(t))
                                     + k_rad  (Srad_re_i(t) + i Srad_im_i(t)) .
 
-k_hit = k_ms = k_ioni = k_rad = r recovers the scan exactly (and the scan
-itself had no radiative term at all, i.e. it is the k_rad = 0 model).
+k_hit = k_ms = k_ioni = k_rad = r recovers the scan exactly (the scan carries
+no radiative term, i.e. it is the k_rad = 0 model).
 
-THE RADIATIVE FAMILY (bremsstrahlung + pair production) entered the pairs
-caches on 2026-09-03 (`cf_mass_likelihood`, key `rad_model`).  It is the
-second channel of the SAME parmtype-11 block as the ionization term -- same
-transport weight, same sign (a radiated photon can only take energy off a
-muon, so it can only LOWER the pair mass) -- and it is one-sided, so it is
-the natural candidate for the 1-3 sigma mass asymmetry the ionization-only
-model under-predicts.  It is FIXED AT 1 by default (`--krad`, so `--krad 0`
-is the pre-2026-09-03 model exactly) and floated with `--float-krad`.
+THE RADIATIVE FAMILY (bremsstrahlung + pair production) is carried in the
+pairs caches (`cf_mass_likelihood`, key `rad_model`).  It is the second
+channel of the SAME parmtype-11 block as the ionization term -- same transport
+weight, same sign (a radiated photon can only take energy off a muon, so it
+can only LOWER the pair mass) -- and it is one-sided, so it is the natural
+candidate for the 1-3 sigma mass asymmetry the ionization-only model
+under-predicts.  It is FIXED AT 1 by default (`--krad 0` switches it off) and
+floated with `--float-krad`.
 
 The extended likelihood adds the uniform combinatoric floor over the 0.7 GeV
 mass window,
@@ -194,7 +194,8 @@ def parse_args():
     )
     p.add_argument("--out", default=None, help="output npz with the full result")
     p.add_argument(
-        "--outpath", default=None, help="plot/table dir (default ~/public_html/cvh/<YYMMDD>_masslikfit)"
+        "--outpath", default=None,
+        help="plot/table dir (default ~/public_html/ZMass/cvh/<YYMMDD>_masslikfit)"
     )
     p.add_argument("--tag", default="", help="tag appended to figure/table names")
     p.add_argument(
@@ -278,15 +279,14 @@ def load_inputs(pairs_cache, kernel_cache, dtype_scan=False, maxn=0, log=print,
     k = np.load(kernel_cache)
     dm = k["dm"]
     TG = np.asarray(d["tgrid"], dtype=np.float64)
-    # THE GRID GUARD, widened 2026-09-05.  It used to require the offline
-    # 448-point `linspace(0, 14, 448)` exactly.  The in-maker exponents
-    # (`cf_inmaker.py`, cvhcf) are exported on the 64-point stride-4 subset of
-    # that grid -- measured in `cfcompress/gridtest.py` to move alpha by
-    # -1.6e-8, 1/1000 of the full-sample statistical error -- and everything
-    # below already works on an arbitrary grid (the quadrature weights are
-    # `np.diff(TG)`).  Only the guard did not.  It now checks the PROPERTIES
-    # the code relies on, so a 448-point cache behaves exactly as before and a
-    # decimated one is accepted rather than rejected on its length.
+    # THE GRID GUARD checks the PROPERTIES the code relies on, not the grid's
+    # length.  Everything below works on an arbitrary grid (the quadrature
+    # weights are `np.diff(TG)`), and the in-maker exponents (`cf_inmaker.py`,
+    # cvhcf) are exported on the 64-point stride-4 subset of the offline
+    # 448-point `linspace(0, 14, 448)` -- measured in `cfcompress/gridtest.py`
+    # to move alpha by -1.6e-8, 1/1000 of the full-sample statistical error --
+    # so a decimated cache must be accepted rather than rejected on its
+    # length.
     assert TG.ndim == 1 and len(TG) >= 8, "t grid must be a 1-D array"
     assert TG[0] == 0.0 and np.all(np.diff(TG) > 0.), \
         "t grid must start at 0 and increase"
@@ -299,16 +299,16 @@ def load_inputs(pairs_cache, kernel_cache, dtype_scan=False, maxn=0, log=print,
     eta = d["eta"].astype(np.float64)
     vgf = d["vgf"].astype(np.float64)
     Sms, Sio_re, Sio_im = d["Sms"], d["Sio_re"], d["Sio_im"]
-    # the radiative family (2026-09-03). `rad_model` is the provenance value:
-    # 1 = built from the `radstepv` export, 0 = the production predates it and
-    # the arrays are identically zero, so the family is dropped rather than
-    # given a parameter that cannot move the likelihood.
+    # the radiative family. `rad_model` is the provenance value: 1 = built from
+    # the `radstepv` export, 0 = the input lacks it and the arrays are
+    # identically zero, so the family is dropped rather than given a parameter
+    # that cannot move the likelihood.
     rad_model = int(d["rad_model"]) if "rad_model" in d.files else 0
     has_rad = ("Srad_re" in d.files) and rad_model == 1
     Srad_re = d["Srad_re"] if has_rad else None
     Srad_im = d["Srad_im"] if has_rad else None
     n = len(z)
-    # CANDIDATE SUBSET (2026-09-04): a boolean mask aligned with the cache,
+    # CANDIDATE SUBSET: a boolean mask aligned with the cache,
     # written by `censoring_aux.py` (which proves the alignment by matching z
     # bit-for-bit against the tree).  Used to fit with a class of candidates
     # REMOVED -- e.g. the ones exposed to the 2 GeV momentum-floor clamp of the
@@ -385,9 +385,9 @@ def load_inputs(pairs_cache, kernel_cache, dtype_scan=False, maxn=0, log=print,
         Sms_out, Sio_re_out, Sio_im_out = Sms, Sio_re, Sio_im
         folded = False
     if dtype_scan and has_rad:
-        # --dtype-scan exists to bit-reproduce a scan that had no radiative
-        # term. Keeping the family would compare two different models and
-        # call the difference a rounding study.
+        # --dtype-scan bit-reproduces a scan, and the scan carries no
+        # radiative term. Keeping the family would compare two different
+        # models and call the difference a rounding study.
         log("--dtype-scan: DROPPING the radiative family (the scan it "
             "reproduces predates it)")
         has_rad = False
@@ -434,9 +434,8 @@ class MassNLL:
         self.tf = tf
         self.model = model
         # SELECTION WINDOW (absolute dimuon mass, GeV) over which the model
-        # density is renormalised; None = the untruncated likelihood, which is
-        # what every fit before 2026-09-04 used.  Stored in mobs space
-        # (m - m_Jpsi), i.e. the same frame as `self.mobs`.
+        # density is renormalised; None = the untruncated likelihood.  Stored
+        # in mobs space (m - m_Jpsi), i.e. the same frame as `self.mobs`.
         self.win = (None if window is None
                     else (float(window[0]) - MJPSI, float(window[1]) - MJPSI))
         # the uniform combinatoric floor is normalised over the SAME window
@@ -468,12 +467,11 @@ class MassNLL:
             return np.concatenate([a, np.zeros((npad, a.shape[1]), a.dtype)])
 
         rdt = self.npdt
-        # THE NUMBER OF t POINTS, from the cache rather than from a literal.
-        # `_raw_li` sliced its per-candidate blocks with a hard-coded 448,
-        # which made a decimated grid impossible even though every formula
-        # below is grid-agnostic (the quadrature weights are `np.diff(TG)`).
-        # It is 448 for every cache written before 2026-09-05 and 64 for the
-        # in-maker `cfmass_*` export.
+        # THE NUMBER OF t POINTS, from the cache rather than from a literal:
+        # every formula below is grid-agnostic (the quadrature weights are
+        # `np.diff(TG)`), so a hard-coded 448 in `_raw_li`'s per-candidate
+        # slicing would rule out a decimated grid.  It is 448 for the offline
+        # caches and 64 for the in-maker `cfmass_*` export.
         self.nt = int(len(inp["TG"]))
         self.TG = tf.constant(inp["TG"], self.rdt)
         # trapezoid weights: d = diff(TG); trapz = sum(d*(y[1:]+y[:-1])/2)
@@ -920,7 +918,7 @@ def main():
 
     today = datetime.date.today().strftime("%y%m%d")
     outdir = args.outpath or os.path.expanduser(
-        f"~/public_html/cvh/{today}_masslikfit/"
+        f"~/public_html/ZMass/cvh/{today}_masslikfit/"
     )
     os.makedirs(outdir, exist_ok=True)
     try:

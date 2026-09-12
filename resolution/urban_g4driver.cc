@@ -7,9 +7,9 @@
 // analytic compound-Poisson characteristic function out of the per-step Urban
 // record `ioniurbanv` = (regime, gsig2, a1, e1, a2, e2, a3, e0, tmax, scaling,
 // cs) exported by G4UniversalFluctuationForExtrapolator::SampleFluctuations.
-// That CF has only ever been checked NUMERICALLY (1e-14 against mpmath on the
-// defining integral) -- i.e. the mathematics of the model was validated, never
-// the claim that the model is what Geant4 draws from.
+// That CF is checked NUMERICALLY (1e-14 against mpmath on the defining
+// integral) -- i.e. the mathematics of the model is validated, but not the
+// claim that the model is what Geant4 draws from.
 //
 // This program closes that gap the only way that is not circular: it calls
 // the REAL C++ samplers.
@@ -28,7 +28,7 @@
 //     `--stock` mode drives the straggling at tcut = Tmax, a configuration the
 //     simulation never runs; this one reproduces the decomposition
 //     G4VEnergyLossProcess uses.  Default off; when off not one line of the
-//     pre-existing code path executes.
+//     composite path executes.
 //
 // Nothing in the CMSSW source area is modified; this links against the
 // already-built libTrackPropagationGeant4e.so and the Geant4 externals.

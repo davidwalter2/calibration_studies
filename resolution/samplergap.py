@@ -187,7 +187,7 @@ def record_split(rec, tcut):
 
 def block_exponents(steps, tcuts, ipots, wstd, tau, scalmode="tcut",
                     kokoulin=True, nbin=96):
-    """Every exponent this note needs, for one pooled ionization block, in
+    """Every exponent this module needs, for one pooled ionization block, in
     standardized-z units.  Conventions identical to
     `cf_track_resolution.ioni_step_exponent`, so they can be differenced.
 
@@ -296,8 +296,8 @@ def composite_exponent(steps, tcuts, ipots, wstd, tau, scalmode="tcut",
 # correction above T = 100 keV (for muons above 1 GeV).  It is DELIBERATELY not
 # in the offline model (NOTES_DELTASPEC section 1.5: no closed-form CF, a few
 # percent of a channel that is itself a 28 % correction) and its size is quoted
-# there as a known residual.  It has never been PROPAGATED, and it is part of
-# "what stock Geant4 actually samples", so it is carried here.
+# there as a known residual.  It is not propagated anywhere else, and it is
+# part of "what stock Geant4 actually samples", so it is carried here.
 #
 # The correction factor kappa(T) = f_K(T) - 1 is smooth and slowly varying in
 # ln T; the oscillatory part e^{i a T} is not, and at a T ~ 2e4 no practical
@@ -535,8 +535,8 @@ def _exact_k2(lo, hi, tmax, beta2, etot, spinhalf=True):
     NOTE the beta^2 suppression's denominator is Tmax -- the KINEMATIC limit --
     not the upper integration limit.  Writing `hi` there is wrong by a factor
     Tmax/hi = 7e4 on the suppression term when the range is cut at a 9.5 keV
-    production threshold, which is exactly how this was caught: it turned a
-    4.7e-3 integrand into a 9.5e-3 one.
+    production threshold (enough to turn a 4.7e-3 integrand into a 9.5e-3
+    one).
     """
     v = (hi - lo) - beta2 * (hi ** 2 - lo ** 2) / (2.0 * tmax)
     if spinhalf:
@@ -908,11 +908,11 @@ def cmd_closure(args):
 # =========================================================================
 #
 # The propagation above is a linearization: it multiplies the published model
-# CF by exp(dS) and holds s_F fixed.  That technique has only ever been used
-# in this study to produce small numbers that were then dismissed; producing a
-# LARGE number with it demands that it be checked end to end.  `real` does the
-# check by running `deltaspec._closure_rows` -- the same function that produced
-# every published closure table -- against the SAME simulation files, with the
+# CF by exp(dS) and holds s_F fixed.  That technique is trustworthy only for
+# the small shifts it is normally used to dismiss; producing a LARGE number
+# with it demands that it be checked end to end.  `real` does the check by
+# running `deltaspec._closure_rows` -- the same function that produces every
+# published closure table -- against the SAME simulation files, with the
 # model's own CF carrying the Kokoulin term.  s_F is recomputed, so the data z
 # move too, and nothing is linearized.
 #

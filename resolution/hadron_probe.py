@@ -6,12 +6,11 @@ WHY THIS EXISTS
 ---------------
 Two of the B-field-calibration channels this study exists to serve are hadronic:
 `B+- -> J/psi K+-` fits the KAON track, and the V0 tests fit `KS -> pi pi` and
-`Lambda -> p pi`.  Everything validated so far -- the exact delta-ray spectrum
-(NOTES_DELTASPEC), the Kokoulin radiative correction (NOTES_SAMPLERGAP), the
-radiation-off 2x2 (NOTES_RADOFF2) -- was measured on a MUON.  NOTES_DELTASPEC
-section 9 took one step towards a hadron: it showed the parameter-free
-delta-ray RATE prediction holds to 0.03 % for K- and pi-.  It explicitly did
-NOT do the closure, and it did not touch the proton.
+`Lambda -> p pi`.  The exact delta-ray spectrum (NOTES_DELTASPEC), the Kokoulin
+radiative correction (NOTES_SAMPLERGAP) and the radiation-off 2x2
+(NOTES_RADOFF2) are all validated on a MUON; NOTES_DELTASPEC additionally shows
+the parameter-free delta-ray RATE prediction holds to 0.03 % for K- and pi-,
+but it is not a closure and it does not cover the proton.
 
 The closure is the harder test, and it is the one the calibration needs.
 
@@ -28,9 +27,8 @@ Three Geant4 channels the model does not represent AT ALL:
     fraction decays in flight.  A decay in flight is a KINK: a discrete change
     of the track state that the ionization + MS + radiative model does not
     model, landing exactly where the tail non-closure is measured.  It also
-    TERMINATES the track, and acceptance loss has already been the single
-    largest error in this study once (NOTES_STEPCORR: 5.6 % at pT = 3,
-    tail-selective).
+    TERMINATES the track, and acceptance loss is the single largest error this
+    study is exposed to (NOTES_STEPCORR: 5.6 % at pT = 3, tail-selective).
 
 Measuring the model against a sample that contains them measures the union of
 "the model is wrong" and "the model was never asked".  So they go off first,
@@ -43,9 +41,10 @@ EVERY SWITCH IS A MEASUREMENT
 biglib is inert (and segfaults) -- see ProcessActivationWatcher.cc.  The switch
 is `ProcessActivationWatcher` INSIDE the biglib, and the evidence is its own
 EndOfRun step census: a deactivated process must define EXACTLY ZERO steps.
-NOTES_DELTASPEC records the trap this catches: a first pass fired a K+ while
-deactivating `kaon--inelastic` for a K-, and the census reported
-`kaon+Inelastic primary 20149`.  Here the process names are asserted against
+NOTES_DELTASPEC records the trap this catches: a species/process mismatch --
+firing a K+ while deactivating `kaon--inelastic` for a K- -- leaves the
+deactivation inert, and the census then shows `kaon+Inelastic primary 20149`
+where it should show zero.  Here the process names are asserted against
 the census's own output per species, and the ACCEPTANCE (fraction of primaries
 reaching the outermost scoring surface) is reported alongside as the direct
 observable.
@@ -60,21 +59,18 @@ the correct model configuration is species-dependent:
     muon    exact-delta ON  + Kokoulin ON
     pi/K/p  exact-delta ON  + Kokoulin OFF
 
-The C++ half already knows this
-(`G4UniversalFluctuationForExtrapolator.cc`: `kokoulinOn && ekin > kKokMuMin &&
-std::abs(particle->GetPDGEncoding()) == 13`).  **The OFFLINE half did not**
-(FIXED 2026-08-16, NOTES_BARKAS s9.1: `_kokoulin_exponent` now recovers the
-mass from the record as `m = E sqrt(1-beta^2)` and guards on it; a hadron
-record is bit-identical with the switch on).  The description below is the
-state this note was measured in, and the driving-it-explicitly is kept
-because it is still the right thing to do.
-`cf_track_resolution._kokoulin_exponent` guards only on
-`etot - m_mu > _KOK_MUMIN`, and the exported record carries no PDG code, so
-`CVH_IONI_KOKOULIN=1` in a hadron job silently applies a muon-shaped Kokoulin
-factor (a3 = ln(4E(E-T)/m_mu^2)) to a kaon.  This module therefore drives
-`cf_track_resolution.IONI_KOKOULIN` explicitly per species rather than through
-the environment default, and measures the size of the wrong configuration so
-the trap is documented rather than merely avoided.
+Both halves guard on the species.  The C++ half is
+`G4UniversalFluctuationForExtrapolator.cc`: `kokoulinOn && ekin > kKokMuMin &&
+std::abs(particle->GetPDGEncoding()) == 13`.  The offline half,
+`cf_track_resolution._kokoulin_exponent`, has no PDG code in the exported
+record, so it recovers the mass from the record as `m = E sqrt(1-beta^2)` and
+guards on that (NOTES_BARKAS s9.1); a hadron record is bit-identical with the
+switch on.  Without the mass guard `CVH_IONI_KOKOULIN=1` in a hadron job would
+silently apply a muon-shaped Kokoulin factor (a3 = ln(4E(E-T)/m_mu^2)) to a
+kaon.  This module therefore drives `cf_track_resolution.IONI_KOKOULIN`
+explicitly per species rather than through the environment default, and
+measures the size of the wrong configuration so the trap stays documented
+rather than merely avoided.
 
 CACHES
 ------
@@ -167,11 +163,10 @@ SPECIES = {
     2212: dict(name="proton", g4="proton", mass=938.27209, q=+1, geom="qp",
                inel="protonInelastic",
                nuc=["protonInelastic", "hadElastic"], label="p"),
-    # The CHARGE-CONJUGATE set, on the mirrored geometry.  Added after the
-    # first pass found the mean-loss bias to be charge-ODD (-0.042 to -0.065
-    # MeV for every q = -1 species, -0.004 MeV for the proton); running the
-    # positive partner of each species is the way to test that rather than
-    # infer it.
+    # The CHARGE-CONJUGATE set, on the mirrored geometry.  The mean-loss bias
+    # is charge-ODD (-0.042 to -0.065 MeV for every q = -1 species, -0.004 MeV
+    # for the proton); running the positive partner of each species measures
+    # that rather than inferring it.
     -13: dict(name="mu+", g4="mu+", mass=105.6583745, q=+1, geom="qp",
               inel=None, nuc=["muonNuclear"], label="mu+"),
     211: dict(name="pi+", g4="pi+", mass=139.57039, q=+1, geom="qp",
@@ -191,15 +186,15 @@ ARMS = {
     "dec": "nuclear OFF, Decay ON",
     "on":  "stock physics: nuclear and Decay ON",
     "norad": "nuclear, Decay AND bremsstrahlung + pair production OFF",
-    # `elonly` and `inelonly` SPLIT the `off` arm's nuclear set, which until now
-    # only ever went off as a unit.  The 0.00035-0.00141 rms figure quoted for
-    # "nuclear" is elastic AND inelastic together; after the MS harmonisation
-    # the locx residual is 0.8-2.9 sigma, so that combined figure is comparable
-    # to what is left and the two halves have to be told apart before a nuclear
-    # elastic channel is designed.  Each arm turns exactly ONE half back on
-    # relative to `off`, so (elonly - off) is the elastic-alone effect and
-    # (inelonly - off) the inelastic-alone one, in the same base-and-difference
-    # form cmd_nuc already uses for (dec - off).
+    # `elonly` and `inelonly` SPLIT the `off` arm's nuclear set, which
+    # otherwise goes off as a unit.  The 0.00035-0.00141 rms figure quoted for
+    # "nuclear" is elastic AND inelastic together; the locx residual is
+    # 0.8-2.9 sigma, so that combined figure is comparable to what is left and
+    # the two halves have to be told apart before a nuclear elastic channel is
+    # designed.  Each arm turns exactly ONE half back on relative to `off`, so
+    # (elonly - off) is the elastic-alone effect and (inelonly - off) the
+    # inelastic-alone one, in the same base-and-difference form cmd_nuc already
+    # uses for (dec - off).
     "elonly": "inelastic and Decay OFF, hadElastic ON -- elastic alone",
     "inelonly": "hadElastic and Decay OFF, inelastic ON -- inelastic alone",
 }
@@ -411,12 +406,13 @@ def _run(g, script, extra, log, env_extra):
     """cmsRun, with the CVH switches passed as OPTIONS rather than exported.
 
     This is the single cmsRun funnel, so it is the one place that has to know
-    the switches moved from the environment onto Geant4ePropagator's
-    ParameterSet (2026-08-18).  Callers keep building `CVH_*` dicts -- those
-    names are the greppable record in ten modules and every NOTES entry -- and
-    `ctr.split_switches` turns the migrated ones into `Name=value` on the
-    command line.  Nothing that has a PSet parameter is exported any more, so a
-    job's physics is recoverable from its provenance instead of from a shell.
+    which switches live on Geant4ePropagator's ParameterSet rather than in the
+    environment.  Callers keep building `CVH_*` dicts -- those names are the
+    greppable record in ten modules and every NOTES entry -- and
+    `ctr.split_switches` turns the ones with a PSet parameter into
+    `Name=value` on the command line.  Nothing that has a PSet parameter is
+    exported, so a job's physics is recoverable from its provenance instead of
+    from a shell.
     """
     td = geomdir(g)
     swopts, env_extra = ctr.split_switches(env_extra)
@@ -440,24 +436,18 @@ def sim_path(pdg, arm, seed):
 
 # THE SEED PIN, INSTALLED AT THE DEFINITION.
 #
-# NOTES_BARKAS s3.4 ran a 20 000-event seed-901 mu- job on arm `off` to show
-# the LD_PRELOAD shim is inert inside cmsRun; it wrote `mum_pt3_off_s901_*`
-# into this same directory.  An unpinned `_s*` therefore returns ELEVEN files
-# for the muon `off` arm -- 220 000 events against 200 000 for every other
-# species -- and the muon control stops reproducing the published digits.
+# NOTES_BARKAS s3.4's 20 000-event seed-901 mu- job on arm `off` (run to show
+# the LD_PRELOAD shim is inert inside cmsRun) wrote `mum_pt3_off_s901_*` into
+# this same directory.  An unpinned `_s*` therefore returns ELEVEN files for
+# the muon `off` arm -- 220 000 events against 200 000 for every other species
+# -- and the muon control stops reproducing the published digits.
 #
-# The pin already existed, but only as an IMPORT SIDE-EFFECT in two downstream
-# modules: chargeodd.py:154 (sim only, not census) and pion_probe.py:128-129
-# (both).  allcorr.py:114-115 asserts it is installed and gets it because it
-# imports pion_probe.  Bare `python hadron_probe.py ...` -- which is the form
-# NOTES_HADRONS s8 documents -- imported neither, so the arm that the whole
-# study takes its differences against was silently running on 11 files.  That
-# is trap #9 (half-pinned globs) in its own home file.
-#
-# Pinning here makes the definition the source of truth.  Both downstream
-# patches stay correct and become no-ops: pion_probe's `.replace("_s*","_s1*")`
-# finds no `_s*` and returns this string unchanged, chargeodd's override
-# produces the identical pattern, and allcorr's `"_s1" in ...` assert passes.
+# Pinning at the definition makes it the source of truth, so a bare
+# `python hadron_probe.py ...` is safe without importing a downstream module.
+# The downstream patches remain correct no-ops: pion_probe's
+# `.replace("_s*","_s1*")` finds no `_s*` and returns this string unchanged,
+# chargeodd's override produces the identical pattern, and allcorr's
+# `"_s1" in ...` assert passes.
 # `_s1??` (not `_s1*`) so it matches exactly the three-digit 1xx campaign
 # seeds and cannot pick up a future `_s1_` or `_s1000_`.
 def sim_glob(pdg, arm):
@@ -482,11 +472,11 @@ def _complete(log, nev):
     """A job counts as done ONLY if PrimaryLossCensusWatcher printed that it
     wrote the full record count at EndOfRun.
 
-    Not a nicety: a first attempt at this campaign left 460-byte ROOT files
-    behind (cmsRun's TFileService creates the file at BeginJob, long before it
-    holds any data), so a size-based cache check treats a job that was killed
-    at event 1 as finished.  The census line is written after the last event
-    and carries the count, so it cannot be faked by a truncated run."""
+    Not a nicety: cmsRun's TFileService creates the output file at BeginJob,
+    long before it holds any data, so a job killed at event 1 leaves a
+    460-byte ROOT file behind and a size-based cache check calls it finished.
+    The census line is written after the last event and carries the count, so
+    it cannot be faked by a truncated run."""
     if not os.path.exists(log):
         return False
     m = re.search(r"\[plcensus\] wrote (\d+) records", open(log, errors="ignore").read())
@@ -513,10 +503,10 @@ _FORCE = False
 
 
 def cmd_sim(args):
-    """EXCLUSIVE.  Two concurrent invocations write the SAME output paths --
-    which happened once here (a `nohup ... &` that outlived the shell plus a
-    second launch) and makes every file in the campaign untrustworthy.  A
-    second `sim` therefore refuses to start rather than racing."""
+    """EXCLUSIVE.  Two concurrent invocations write the SAME output paths,
+    which makes every file in the campaign untrustworthy (the usual way in is a
+    `nohup ... &` that outlives its shell plus a second launch).  A second
+    `sim` therefore refuses to start rather than racing."""
     import fcntl
     global _FORCE
     _FORCE = args.force
@@ -640,9 +630,9 @@ def cmd_live(args):
             # The OTHER direction, asserted rather than eyeballed.  Whatever
             # this arm RESTORES relative to `off` must actually have fired --
             # otherwise the arm is inert and its closure difference is a null
-            # for a plumbing reason, not a physical one.  Four inert controls
-            # have already been mistaken for nulls in this study, so the
-            # positive direction gets a hard check too, not just a printout.
+            # for a plumbing reason, not a physical one.  An inert control is
+            # easy to mistake for a null, so the positive direction gets a hard
+            # check too, not just a printout.
             # `restored` is empty for the muon `elonly`/`inelonly` arms (it has
             # neither hadElastic nor an inelastic process), which is the
             # degenerate-by-construction null and correctly asserts nothing.
@@ -651,10 +641,10 @@ def cmd_live(args):
             # is broken plumbing and a hard failure.  A process that fires on
             # secondaries but not on the primary (primary == 0, all > 0) is
             # reactivated and simply does not apply to this species: `Decay`
-            # for the stable antiproton is exactly that, and NOTES_HADRONS s8
-            # already reports pbar `dec` acceptance as 100.0000, identical to
-            # `off`.  That is a real physical null, so it is reported loudly
-            # and not failed -- failing it would have rejected a correct arm.
+            # for the stable antiproton is exactly that, and NOTES_HADRONS
+            # reports pbar `dec` acceptance as 100.0000, identical to `off`.
+            # That is a real physical null, so it is reported loudly and not
+            # failed -- failing it would reject a correct arm.
             restored = [p for p in inact_of(pdg, "off")
                         if p not in set(want)]
             for nm in restored:
@@ -889,10 +879,10 @@ def cmd_rate(args):
         legs, rows = _record(pdg, "on")
         # EVERY material contributes, not just the toy layer: the beam pipe
         # (Beryllium) and the Air gaps carry their own xi and their own cut,
-        # and leaving them out cost 18.6 % in the first version of this.  Plus
-        # `--extra 1`, i.e. one synthetic copy of the LAST LEG's ToyLayerMat
-        # crossing, because the census integrates through 14 layers while the
-        # model's legs stop at plane 13 (ds.extra_crossings documents this).
+        # and leaving them out costs 18.6 %.  Plus `--extra 1`, i.e. one
+        # synthetic copy of the LAST LEG's ToyLayerMat crossing, because the
+        # census integrates through 14 layers while the model's legs stop at
+        # plane 13 (ds.extra_crossings documents this).
         tl = [r for r in rows if r["mat"] == "ToyLayerMat"]
         if not tl:
             raise SystemExit(f"no ToyLayerMat steps for {sp['label']}")
@@ -971,11 +961,9 @@ def _rows(pdg, arm, corr="on", kok=None, func="qop", tcut=0.0):
     """One closure curve.
 
     `kok` is set EXPLICITLY (None = the species-correct value), never left to
-    the environment default.  (When this was written
-    `cf_track_resolution._kokoulin_exponent` guarded only on
-    `etot - m_mu > 1 GeV` and the record carries no PDG code; the species
-    guard was added 2026-08-16, NOTES_BARKAS s9.1, and driving it explicitly
-    is now belt-and-braces rather than the only defence.)
+    the environment default.  `cf_track_resolution._kokoulin_exponent` carries
+    its own mass guard, so this is belt-and-braces rather than the only
+    defence, but it keeps each arm's configuration visible at the call site.
 
     THREE CACHES, none of which keys on IONI_KOKOULIN or on the particle:
       * `fisher_norm._SCALE_CACHE`            (in-process s_F)
@@ -1216,9 +1204,8 @@ def cmd_bias(args):
 
 
 def cmd_radgap(args):
-    """A SECOND unmodelled channel, found while setting this up and not
-    anticipated by the brief: for a hadron the exported model has NO radiative
-    block at all.
+    """A SECOND unmodelled channel: for a hadron the exported model has NO
+    radiative block at all.
 
     `G4ePropagationExport`'s `radv` record carries the propagator's own
     `dedxrad / dedxbrem / dedxpair`, and for pi-, K-, p and pbar every one of
@@ -1277,10 +1264,9 @@ def cmd_nuc(args):
                 c, acc = _acc(pdg, arm)
             except FileNotFoundError:
                 continue
-            # BOTH statistics, every time.  The ladder alone is what this
-            # driver used to print, and it is the one that improves while the
-            # outermost plane degrades -- quoting it on its own is how the MS
-            # commit came to mis-state its own effect (NOTES_CLOSURE_ALLCORR).
+            # BOTH statistics, every time.  The ladder mean can improve while
+            # the outermost plane degrades, so quoting the ladder on its own
+            # mis-states the effect (NOTES_CLOSURE_ALLCORR).
             for stat, (m, e) in (("lad", (r["m"], r["err"])),
                                  ("out", (r["out"], r["outerr"]))):
                 head = f"  {sp['label']:<8}{arm:<6}" if stat == "lad" \

@@ -28,12 +28,12 @@ WHAT IS ADDED
 THE BASIS FIX THIS NEEDED
 -------------------------
 The sim residuals are LOCAL, the exported Q/F/jacc are CURVILINEAR, and
-`cf_propagation_test.py` has carried that mismatch as a known defect since
-2026-08-06.  `curv2local.py` rebuilds the production Jacobian
+`cf_propagation_test.py` carries that mismatch as a known defect.
+`curv2local.py` rebuilds the production Jacobian
 `H = curv2localJacobianAltelossD` offline, so a direction is specified in the
-local basis and pushed to the curvilinear one as `H^T a`.  `--no-h` restores
-the legacy raw a-vectors and reproduces every published number exactly; that
-is the control.
+local basis and pushed to the curvilinear one as `H^T a`.  `--no-h` selects
+the raw curvilinear a-vectors instead and reproduces every published number
+exactly; that is the control.
 
 The mismatch is NOT a harmless overall scale.  The data side is a fixed
 physical residual; only the MODEL's predicted width moves, so the ratio
@@ -42,7 +42,8 @@ physical residual; only the MODEL's predicted width moves, so the ratio
     qop   1.000 - 1.029 (real), 1.000 - 1.142 (dense layered toy)
     locx  sec(alpha)      = 1.000 - 1.029
     locy  sec(lambda)     = 1.045
-    dxdz, dydz            the legacy a-vector is not even the same VARIABLE
+    dxdz, dydz            the raw curvilinear a-vector is not even the same
+                          VARIABLE
                           (|corr| <= 0.14): local dx/dz is essentially the
                           curvilinear PHI and local dy/dz the curvilinear
                           LAMBDA, because local x is the r-phi direction in a

@@ -46,10 +46,10 @@ BR = ["reshitidx", "reseigidx", "resinfvarv", "refCov", "nValidHits",
 
 
 def class_of(subdet, N, uproj, qbin, isy):
-    """The class labels, chosen from what the pull study found to move:
-    strips split on the cluster width and on uProj (the CPE's own variable,
-    across which the core runs +12 % to -13 %); pixels split on the template
-    charge bin (core 0.52 -> 1.17 across qbin 0-3)."""
+    """The class labels, split on the variables the pull study shows the pull
+    moving across: strips on the cluster width and on uProj (the CPE's own
+    variable, across which the core runs +12 % to -13 %); pixels on the
+    template charge bin (core 0.52 -> 1.17 across qbin 0-3)."""
     if subdet <= 2:
         return f"pix_{'y' if isy else 'x'}_q{min(int(qbin), 3)}"
     n = min(int(N), 5)

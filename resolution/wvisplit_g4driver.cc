@@ -3,7 +3,7 @@
 // INTERNAL Gaussian/single-scattering split can be modelled offline and
 // validated against the sampler rather than transcribed from the manual.
 //
-// WHAT THE SPLIT IS  (G4WentzelVIModel.cc, 11.2.p02, lines 397-700)
+// WHAT THE SPLIT IS  (G4WentzelVIModel.cc, 11.2.p02)
 // -----------------------------------------------------------------
 // ComputeTrueStepLength:
 //     cosThetaMin  = 1 - ssFactor * tPathLength / lambda_transport    (ssFactor = 1.25)

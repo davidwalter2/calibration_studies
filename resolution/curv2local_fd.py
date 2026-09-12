@@ -47,9 +47,9 @@ HOW TO READ THE OUTPUT
 ----------------------
 The whole 5x5 is compared, not just the alteloss column.  Agreement on the
 geometric entries is what VALIDATES the finite difference; a disagreement
-confined to one column then localizes the defect.  A sign convention I guessed
-wrong would show as a clean sign flip on a whole column or row, which is
-diagnostic rather than ambiguous.
+confined to one column then localizes the defect.  A wrong sign convention
+shows as a clean sign flip on a whole column or row, which is diagnostic
+rather than ambiguous.
 
 usage:
     python curv2local_fd.py --pdg 13 --planes 0 6 13

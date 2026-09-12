@@ -25,6 +25,15 @@ Stages:
   --inject   linear injection of a known delta_theta into m0, then both
              fits: recovered-vs-injected pulls and the bias comparison
 
+SIGN OF `--inject`.  Here the injection puts the TRUTH at `+delta_theta`: the
+data are moved to `m0 + D.dtheta`, which is what the model predicts at that
+theta, so a correct fit returns `+delta_theta` and the pull is
+`(theta_hat - dtheta)/err`.  The CARD builders use the opposite sign on
+purpose -- `make_material_card.py` writes `mobs += (-D).dtheta` and scales the
+group exponents by `exp(+k)` -- because there the injection declares the model
+AT theta = 0 to already contain the extra material, so the MLE moves by
+`-dtheta`.  Both are self-consistent; only the reported sign differs.
+
 usage:
   python cf_global_masslik.py --collect [--files GLOB] [--parmtypes 14]
   python cf_global_masslik.py --fit [--ridge 1e2]
@@ -128,7 +137,7 @@ def collect(args):
             Sms = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
             # the radiative (brems + pair) channel of the parmtype-11 blocks,
-            # returned by leg_exponents as family 12 since 2026-09-03
+            # returned by leg_exponents as family 12
             Srad = np.zeros(len(TG), dtype=np.complex128)
             vg = 0.
             for vgauss, groups, _, rvg in legs:
@@ -163,10 +172,11 @@ def collect(args):
                         Srad_re=np.array(Srad_re_l),
                         Srad_im=np.array(Srad_im_l), D=np.array(D_l),
                         regidx=sel_reg, tgrid=TG,
-                        # provenance: the ionization blocks came out of
+                        # provenance: the ionization blocks come out of
                         # cf_mass_likelihood.leg_exponents, whose sign is
-                        # IONI_SGN = -1 since 2026-09-03 (was sign(sum u_b),
-                        # which cancelled the two legs)
+                        # IONI_SGN = -1.  A cache without this flag was
+                        # written with the sign(sum u_b) convention, which
+                        # cancelled the two legs.
                         ioni_sign_fixed=np.array(1))
     logger.info(f"wrote {args.cache} ({nsel} candidates, {npar} params)")
 
@@ -248,6 +258,7 @@ def run_fit(args, inject=None):
     mgrid, lnL = candidate_splines(d, k)
     dm0 = d["m0"] - MJPSI
     if inject is not None:
+        # truth at +inject (see the SIGN note in the module docstring)
         dm0 = dm0 + D @ inject
         logger.info(f"injected |dtheta| = {np.abs(inject).max():g} on "
                     f"{int((inject != 0).sum())} modes")

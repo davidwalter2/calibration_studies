@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The mean-median gap of the fit's INFLUENCE-WEIGHTED energy loss.
 
-Closes the last open item of NOTES_TRANSMISSION.md. Established there:
+NOTES_TRANSMISSION.md defines
 
     ds_req = 1 - median(W)/mean(W),   W = sum_i w_i delta_i
 

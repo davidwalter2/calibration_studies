@@ -11,9 +11,9 @@ three things open, all of them statistics- or momentum-limited:
   * `qop` on the layered toy is +0.0008 to +0.0016 at u = 1 with a +-0.00034
     correlated error -- 2.4 to 4.6 sigma, i.e. suggestive and not settled;
   * the apparent NSUB trend in both channels is ~1.6 sigma (`qop`) and ~0.9
-    sigma (`locx`), and an earlier NSUB "trend" at 2000 events turned out to be
-    0.5-sigma noise that REVERSED at 100k;
-  * everything was measured at pT = 3, where the radiative channel carries 2-3 %
+    sigma (`locx`), and a NSUB "trend" seen at 2000 events is 0.5-sigma noise
+    that REVERSES at 100k;
+  * those numbers are all at pT = 3, where the radiative channel carries 2-3 %
     of the ionization kappa2.  At pT = 40 it carries a large fraction, so pT = 40
     tests a channel that is essentially absent at pT = 3 and dominant at Z
     momenta.
@@ -53,9 +53,8 @@ TWO THINGS THAT SILENTLY CORRUPT THIS TEST, AND HOW THEY ARE AVOIDED
     terminates.  An area under /tmp therefore hangs cmsRun in a tight
     `fstatat64` loop before the first line of output, and the eventual
     exception deadlocks in `pybind11::error_already_set::what()` on the GIL, so
-    the failure is completely mute.  Diagnosed here the hard way; putting the
-    area under CMSSW_BASE makes the walk terminate on its second step with
-    `location_ = Local`.
+    the failure is completely mute.  Putting the area under CMSSW_BASE makes
+    the walk terminate on its second step with `location_ = Local`.
 
     `gen_toy_config.py` locates its outputs as `dirname(__file__)` and
     `dirname(dirname(__file__))/data`, so a COPY placed in the private area
@@ -229,22 +228,22 @@ def _cmsrun(tag, script, extra, log):
     `pybind11::error_already_set` is converted to an EDM exception by
     `edm::convertException::stdToEDM`, whose `what()` blocks forever trying to
     re-acquire a GIL nobody holds.  Zero bytes of output, one thread, no CPU.
-    Diagnosed here the hard way; hence the allowlist rather than
-    `dict(os.environ)`.
+    Hence the allowlist rather than `dict(os.environ)`.
     """
     td = testdir(tag)
     keep = ("HOME", "USER", "LOGNAME", "SHELL", "TERM", "HOSTNAME", "TMPDIR",
             "X509_USER_PROXY", "KRB5CCNAME")
     env = {k: os.environ[k] for k in keep if k in os.environ}
     env["PATH"] = "/usr/local/bin:/usr/bin:/bin"
-    # The four 2026-08-16 default-on corrections pinned to their
-    # HISTORICAL state (all off); any explicit overlay below still
-    # wins.  Same convention as deltaspec._clean_env -- an archived
-    # model must stay comparable to a fresh export.
+    # The four optional corrections are pinned explicitly OFF; any explicit
+    # overlay below still wins.  Same convention as deltaspec._clean_env -- an
+    # archived model must stay comparable to a fresh export, which it only does
+    # if neither inherits an ambient default.
     import cf_track_resolution as _ctr
-    # The switches are ParameterSet parameters now (Geant4e b372e08), so the
-    # historical pin has to travel as cmsRun OPTIONS; putting it in `env` would
-    # export names nothing reads and silently give the archive the new defaults.
+    # The switches are ParameterSet parameters, not environment variables
+    # (Geant4e b372e08), so the pin has to travel as cmsRun OPTIONS; putting it
+    # in `env` exports names nothing reads and silently leaves the export at
+    # whatever the C++ defaults are.
     _swopts, _ = _ctr.split_switches(dict(_ctr.SWITCHES_OFF))
     extra = f"{extra} {_swopts}"
     env["TOY_PLANES_MOD"] = planes_name(CONFIGS[tag]["pt"])[:-3]
@@ -482,8 +481,9 @@ def cmd_knobs(args):
     NOTES_FISHERNORM validated this at pT = 3 only.  At pT = 40 the radiative
     channel is a large share of the variance and its density is far more
     skewed, so the grid/floor convergence has to be re-established rather than
-    inherited.  RELATIVE floor throughout (the absolute-floor trap of
-    NOTES (XV)), and the grid is matched per block by `cgf_channels`.
+    inherited.  RELATIVE floor throughout (the absolute-floor trap, see
+    Documents/Resolution/CLOSURE_STATE.md), and the grid is matched per block
+    by `cgf_channels`.
     """
     print("=" * 78)
     print("1/I CONVERGENCE (relative floor, per-block matched grid)")

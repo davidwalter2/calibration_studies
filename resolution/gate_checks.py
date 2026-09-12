@@ -3,7 +3,7 @@
 
 Three items, three subcommands:
 
-  median   The mode-vs-median CAVEAT (NOTES 2026-08-12 III).  The MEDIAN of the
+  median   The mode-vs-median CAVEAT.  The MEDIAN of the
            per-block loss-deviation density, per plane and per momentum, by
            EXACT FFT inversion of the block CF -- NOT from the saddlepoint,
            whose density is 2-8x wrong below the mode and up to 140x wrong in
@@ -13,7 +13,7 @@ Three items, three subcommands:
            Geant4 (cleanprop sim) so the prediction never has to be corrected
            by a model/G4 mode ratio taken at one momentum and assumed flat.
 
-  dedx     The ds_req comparison of NOTES 2026-08-12 (III), redone against BOTH
+  dedx     The ds_req comparison, against BOTH
            references (mode and median), with a bootstrap that carries the
            error on the response R as well as on the bias, and with the
            reference measured at four momenta instead of interpolated between
@@ -446,10 +446,9 @@ def scan_observable(m, mode="pair"):
     """(value, momentum, eta, extra) per ENTRY, where an entry is a candidate
     (mode='pair') or a single leg (mode='leg').
 
-    The pair observable is the one the earlier scan used; the leg observable
-    exists because the pair one bins on the HARMONIC momentum of two legs,
-    which is not the momentum either leg has, and which mixes (pT, eta) in a
-    way that can manufacture structure in a p bin.
+    The leg observable exists because the pair one bins on the HARMONIC
+    momentum of two legs, which is not the momentum either leg has, and which
+    mixes (pT, eta) in a way that can manufacture structure in a p bin.
     """
     pp = m["Muplus_pt"] * np.cosh(m["Muplus_eta"])
     pm = m["Muminus_pt"] * np.cosh(m["Muminus_eta"])
@@ -473,9 +472,9 @@ def scan_observable(m, mode="pair"):
 def ds_req_bins(vals, scales, mom, sel, edges, nboot=400, seed=11, group=None):
     """(pmed, n, bias1, R, ds_req, err) per bin, with a PAIRED bootstrap.
 
-    The earlier version propagated only the error on bias(s=1) and treated R
-    as exact.  R is measured on the SAME candidates, so the two are correlated;
-    resampling the candidate index once per replica and recomputing both is
+    Propagating only the error on bias(s=1) and treating R as exact is wrong:
+    R is measured on the SAME candidates, so the two are correlated.
+    Resampling the candidate index once per replica and recomputing both is
     the only way to get the error on their ratio right.
 
     `group` (one id per entry) makes the bootstrap resample GROUPS rather than

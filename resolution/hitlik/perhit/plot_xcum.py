@@ -13,7 +13,8 @@ Two statements, two panels each, one file per panel:
   PRODUCT-of-marginals (composite) likelihood over the two terms drops, and it
   is why the same-track joint must be checked with a sandwich.
 
-usage: plot_xcum.py --npz runs/perhit/perhit20k.npz --outpath ~/public_html/...
+usage: plot_xcum.py --npz runs/perhit/perhit20k.npz \\
+           --outpath ~/public_html/ZMass/cvh/<YYMMDD>_perhit
 """
 
 import argparse

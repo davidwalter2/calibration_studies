@@ -32,7 +32,7 @@ SAME `ComputeMuonDEDX` / `ComputeProtonDEDX`, passing `G4MuonMinus` and
 between them on the sign of the track's own `G4ParticleDefinition` charge.
 
 Nothing is transcribed by hand.  The alternative -- keep one table and add
-`pref*(2*Barkas + Mott)` with the sign of q -- was rejected: it hard-codes
+`pref*(2*Barkas + Mott)` with the sign of q -- is not used: it hard-codes
 which terms of Geant4's expansion are odd (so it silently goes wrong if Geant4
 adds one), it has to be right at every beta by itself (Barkas and Mott exchange
 dominance below beta*gamma ~ 1, i.e. exactly in the V0 regime), and it is more
@@ -43,16 +43,16 @@ ALL THREE of ComputeDEDX / ComputeRange / ComputeEnergy switch together:
 step)` on `linLossLimit`, so a partial fix makes the two branches disagree by
 exactly this term.
 
-WHY THIS IS A DIFFERENT ANIMAL FROM THE PREVIOUS TWO SWITCHES
--------------------------------------------------------------
+WHY THIS IS A DIFFERENT ANIMAL FROM THE OTHER TWO SWITCHES
+----------------------------------------------------------
 `CVH_IONI_EXACTDELTA` and `CVH_IONI_KOKOULIN` change the FLUCTUATION and
 preserve the mean by construction (NOTES_DELTASPEC 3.2 pins the block's mean to
 the dE/dx table value).  This one changes the MEAN -- the reference trajectory
 itself, i.e. the closure's origin and the linearization point of every
-transport Jacobian.  NOTES_QVALID found that a *fluctuation* change already
+transport Jacobian.  NOTES_QVALID shows that a *fluctuation* change already
 moves the exported Jacobians coherently at 1e-5..5e-5 and invalidates existing
 grads productions; a mean change is at least as consequential, so the same
-measurement is repeated here against the same floor-and-determinism controls.
+measurement is made here against the same floor-and-determinism controls.
 
 THE FREE REGRESSION TEST
 ------------------------
@@ -134,20 +134,19 @@ hp._env = _env
 # THE PUBLISHED `off` SAMPLE IS SEEDS 101-110, AND ONE SPECIES HAS AN ELEVENTH
 # FILE IN THE SAME GLOB.
 #
-# NOTES_BARKAS s3.4 ran a 20 000-event, seed-901 mu- job four times to show the
-# LD_PRELOAD shim is inert inside `cmsRun` (the md5-identical census files).
-# Those jobs used arm `off` and therefore wrote
-# `mum_pt3_off_s901_sim.root` into the same directory the closure globs, so
-# `hadron_probe.sim_glob(13, "off")` now returns ELEVEN files -- 220 000 events
-# for mu- against 200 000 for every other species.  It is the same physics and
-# the same arm, so nothing is wrong with including it; but it is a DIFFERENT
-# SAMPLE from the one NOTES_HADRONS s4 and NOTES_BARKAS s9.3 published, and a
-# control that does not reproduce the published digits is not a control.
+# The seed-901 mu- jobs of NOTES_BARKAS s3.4 (20 000 events, run four times to
+# show the LD_PRELOAD shim is inert inside `cmsRun`) used arm `off` and so wrote
+# `mum_pt3_off_s901_sim.root` into the same directory the closure globs:
+# `hadron_probe.sim_glob(13, "off")` returns ELEVEN files -- 220 000 events for
+# mu- against 200 000 for every other species.  It is the same physics and the
+# same arm, so nothing is wrong with including it; but it is a DIFFERENT SAMPLE
+# from the one NOTES_HADRONS s4 and NOTES_BARKAS s9.3 published, and a control
+# that does not reproduce the published digits is not a control.
 #
-# Restricting the glob to the three-digit 1xx seeds restores the published
-# sample exactly.  Verified below: with this in place every `nominal` row
-# reproduces NOTES_BARKAS s9.3 digit for digit at all nine probes, including
-# both s_F values.
+# Restricting the glob to the three-digit 1xx seeds gives back the published
+# sample exactly: with this in place every `nominal` row reproduces
+# NOTES_BARKAS s9.3 digit for digit at all nine probes, including both s_F
+# values.
 _orig_sim_glob = hp.sim_glob
 
 
@@ -187,9 +186,9 @@ def _mp(pdg, arm=None):
 
 def _cmp(a, b):
     """branch digests of two model files.  `deltaspec._branch_digests` is the
-    comparator every switch in this study family has been proved with: sha256
-    over every branch of every TTree, recursively, hard failure if no TTree is
-    found.  Both guards are kept because both caught real bugs."""
+    comparator used for every switch in this family: sha256 over every branch
+    of every TTree, recursively, hard failure if no TTree is found.  Both
+    guards are kept because each catches a real failure mode."""
     da, db = ds._branch_digests(a), ds._branch_digests(b)
     keys = sorted(set(da) | set(db))
     diff = [k for k in keys if da.get(k) != db.get(k)]
@@ -320,8 +319,8 @@ MEANLOSS_DRIVER = os.path.join(SCRATCH, "meanloss_g4driver.sh")
 def _meanloss_run(env):
     """One meanloss_g4driver run -> {label: (dedxRef, dedxFluct)}, MeV/mm.
 
-    Same env convention as everything else here: the four default-on
-    corrections are pinned to their HISTORICAL state and `env` wins."""
+    Same env convention as everything else here: the four energy-loss
+    corrections are pinned OFF explicitly and `env` wins."""
     e = dict(os.environ)
     e.update(ctr.SWITCHES_OFF)
     e.update(env)
@@ -343,21 +342,22 @@ def _meanloss_run(env):
 def cmd_meanloss(args):
     """DOES THE NOISE MODEL'S MEAN AGREE WITH THE REFERENCE'S MEAN?
 
-    NOTES_SPECIESDEDX s2.1/s8 recorded, out of its own scope, that
-    `CVH_REF_CHARGEAWARE` moved the REFERENCE trajectory's dE/dx and NOT
-    `G4UniversalFluctuationForExtrapolator`'s `meanLoss`, because
-    `SetParticleAndCharge` selected `fDedxMuon` / `fDedxProton` with no
-    `isNegative` dispatch.  With the switch on, the two therefore disagreed by
-    exactly the charge-odd part of Geant4's high-order block on every negative
-    track.  Closed 2026-08-16 (NOTES_DEFAULTON s1); this is the measurement.
+    `CVH_REF_CHARGEAWARE` has to move the REFERENCE trajectory's dE/dx and
+    `G4UniversalFluctuationForExtrapolator`'s `meanLoss` together: a noise
+    model centred on a different mean than the trajectory it is the noise of is
+    an inconsistency of exactly the charge-odd part of Geant4's high-order
+    block on every negative track.  The dispatch on `isNegative` in
+    `SetParticleAndCharge` is what keeps `fDedxMuon` / `fDedxProton` in step
+    with the extrapolator's tables (NOTES_SPECIESDEDX s2.1/s8, NOTES_DEFAULTON
+    s1); this is the measurement.
 
     WHAT IS AND IS NOT EXPECTED TO MATCH.  The two classes hold SEPARATE table
     objects on different grids -- the extrapolator's (nbins, 1 MeV, 100 TeV)
     carries the radiative mean, the fluctuation's (70, 1 MeV, 10 TeV) is always
-    ionization-only -- so their ABSOLUTE values differ by ~1e-3 for a muon and
-    always have.  That column is printed so it can be seen to be UNCHANGED by
-    the fix.  What must match is the CHARGE-ODD PART, `dedx(+) - dedx(-)`,
-    which is a property of the tables' physics and not of their grids.
+    ionization-only -- so their ABSOLUTE values differ by ~1e-3 for a muon.
+    That column is printed so it can be seen to be unaffected by the switch.
+    What must match is the CHARGE-ODD PART, `dedx(+) - dedx(-)`, which is a
+    property of the tables' physics and not of their grids.
     """
     print("=" * 122)
     print("THE REFERENCE'S MEAN vs THE NOISE MODEL'S `meanLoss`, C++ level, "
@@ -405,14 +405,16 @@ def cmd_table(args):
     `G4EnergyLossForExtrapolatorForCVH::ComputeDEDX` for all eight particles in
     the toy material, alongside Geant4's OWN
     `G4(Mu)BetheBlochModel::ComputeDEDXPerVolume` for the same particle.  This
-    is NOTES_BARKAS s2.3's table re-measured on the patched library: there the
-    charge conjugates agreed to 0.00e+00 and the common value sat at the
-    POSITIVE particle's, 2.2-2.4e-3 away from the negative one's.
+    is NOTES_BARKAS s2.3's table, measured on the library that carries the
+    switch: with the switch off the charge conjugates agree to 0.00e+00 and the
+    common value sits at the POSITIVE particle's, 2.2-2.4e-3 away from the
+    negative one's.
 
-    The driver must be REBUILT first (`barkas_probe.py build`): the class grew
-    a member, so a binary compiled against the old header would allocate the
-    old size.  Rebuilding changes its md5 against the NOTES_BARKAS fingerprint;
-    the SOURCE is untouched, only the library it links has moved."""
+    The driver must be REBUILT first (`barkas_probe.py build`): the class
+    carries an extra member, so a binary compiled against an older header
+    allocates the wrong size.  The rebuilt binary's md5 therefore differs from
+    the NOTES_BARKAS fingerprint; the SOURCE is unchanged, only the library it
+    links."""
     print("=" * 122)
     print("THE EXTRAPOLATOR'S dE/dx TABLE, C++ LEVEL, WITH AND WITHOUT THE "
           "SWITCH")
@@ -562,14 +564,14 @@ def cmd_closure(args):
 # =========================================================================
 
 def cmd_registry(args):
-    """NOTES_BARKAS s9.2 made `cf_propagation_test._phi_key` and
-    `fisher_norm.scale_identity` registry-driven so that a NEW physics switch
-    cannot be silently absent from a cache key, and `fisher_norm._MODEL_CACHE`
-    sha256-keyed so that a model re-exported under the same name inside one
-    session cannot serve the previous export's legs.
+    """`cf_propagation_test._phi_key` and `fisher_norm.scale_identity` are
+    registry-driven so that a NEW physics switch cannot be silently absent from
+    a cache key, and `fisher_norm._MODEL_CACHE` is sha256-keyed so that a model
+    re-exported under the same name inside one session cannot serve the
+    previous export's legs (NOTES_BARKAS s9.2).
 
     Both claims are tested here against THIS knob, which is exactly the case
-    they were built for: `chargeodd export` rewrites model files in place under
+    they are built for: `chargeodd export` rewrites model files in place under
     `--force`, and the charge-aware reference is a new physics state."""
     import importlib
     import fisher_norm as fn
@@ -816,8 +818,7 @@ def _block(A, B, i, j, rtA, title, gen=False):
                 # dp/p, NOT d(q/p)/|q/p|.  The latter changes SIGN with the
                 # charge for one and the same physical momentum bias, so on a
                 # charge-split table it manufactures an asymmetry that is not
-                # there -- exactly the kind of statistic-vs-quantity mismatch
-                # this study keeps walking into.  p = 1/|q/p|.
+                # there.  p = 1/|q/p|.
                 res = (np.abs(ga[ok]) / np.abs(qq[ok])) - 1.0
                 pl = (qq - ga)[ok] / np.sqrt(cc[ok])
                 lo, hi = np.percentile(pl, [15.865, 84.135])

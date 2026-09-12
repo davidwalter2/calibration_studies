@@ -14,15 +14,14 @@ place: `model_phi` builds
 
     S(t) = S_hit(t) + e^{k_ms} S_ms(t) + e^{k_ioni} (S_ioni^re + i S_ioni^im)
 
-and S_hit (gauss) and S_ms are REAL.  SINCE 2026-09-03 there is a SECOND odd
-channel: the radiative (brems + pair) block, S = ... + k_rad (Srad^re + i
-Srad^im), one-sided in the same direction (a radiated photon can only take
-energy AWAY).  `--krad 0` removes it and reproduces every number this script
-produced before it existed; `--krad 1` (the default) is the physics model.
-`k_skew` still multiplies Im S_ioni ALONE -- it is the ionization lever arm,
-and keeping it that way is what makes the two channels separable in the table:
-the radiative term is a FIXED prediction and k_skew measures what the
-ionization block would have to do on top of it.
+and S_hit (gauss) and S_ms are REAL.  There is a SECOND odd channel: the
+radiative (brems + pair) block, S = ... + k_rad (Srad^re + i Srad^im),
+one-sided in the same direction (a radiated photon can only take energy AWAY).
+`--krad 0` removes it; `--krad 1` (the default) is the physics model.
+`k_skew` multiplies Im S_ioni ALONE -- it is the ionization lever arm, and
+that is what makes the two channels separable in the table: the radiative
+term is a FIXED prediction and k_skew measures what the ionization block would
+have to do on top of it.
 
 THE STATISTIC.  <z e^{-u z^2}>.  It is bounded, |z e^{-uz^2}| <= 1/sqrt(2 e u),
 so its sample mean has a finite variance even against a Landau tail -- unlike
@@ -72,17 +71,17 @@ symmetric sample the two cancel in <z>, in <z e^{-uz^2}> and in the mode.
 
 THE CHARGE FACTOR IS AUTOMATIC (see `load`).  The exported cs = E/p^3 is
 positive for every track, so the offline CF has to supply the q of
-d(q/p) = q cs dE itself.  `cf_track_resolution.extract` does this since
-2026-09-03 and marks such caches with the key `ioni_charge_signed`; caches
-written before it carry the mu+ skew for BOTH charges while the data cancels,
-and `load` repairs them by Sio_im -> q Sio_im, which is exact at cache level
-because Re S is even and Im S odd in the block weight.  Either cache gives the
-same tables; there is no flag to get wrong.
+d(q/p) = q cs dE itself.  `cf_track_resolution.extract` does this and marks
+such caches with the key `ioni_charge_signed`; a cache without the key carries
+the mu+ skew for BOTH charges while the data cancels, and `load` repairs it by
+Sio_im -> q Sio_im, which is exact at cache level because Re S is even and
+Im S odd in the block weight.  Either cache gives the same tables; there is no
+flag to get wrong.
 
 usage:
   python cf_skew_closure.py --validate
   python cf_skew_closure.py --cache runs/cf_trackres_mugun_ul16_fix.npz \\
-      --label "mu pT 20-60 [Aug-8 model+fit]" --tag mugun_ul16_fix
+      --label "mu pT 20-60" --tag mugun_ul16_fix
 """
 import argparse
 import datetime
@@ -114,14 +113,14 @@ PROBES = (0.05, 0.2, 0.5, 1.0, 2.0)
 
 
 class A:
-    """The argument object `model_phi` reads.  `hitmode="gauss"` is the
-    historical treatment (one Gaussian of the summed block variance) and is
-    what every published closure number was produced with."""
+    """The argument object `model_phi` reads.  `hitmode="gauss"` is one
+    Gaussian of the summed block variance, the treatment every published
+    closure number was produced with."""
     khit = 0.0
     kms = 0.0
     kioni = 0.0
     # LINEAR scale on the radiative block (cf_track_resolution.model_phi), so
-    # that 0 is expressible: krad = 0 is the pre-2026-09-03 model exactly.
+    # that 0 is expressible: krad = 0 switches the radiative channel off.
     krad = 1.0
     kdel = None
     hitmode = "gauss"
@@ -387,10 +386,10 @@ def load(cache, ptfrom=None, max_tracks=0, seed=1234,
     # provenance, carried through so the caller can report which arm it is on
     out["_rad_model"] = int(d["rad_model"]) if "rad_model" in keys else 0
     for k in ("genpt", "trackpt", "Sdel",
-              # SELECTION COLUMNS (2026-09-04 censoring test).  Present on the
+              # SELECTION COLUMNS for the censoring test.  Present on the
               # single-track caches; carried untouched so that an acceptance
               # eps(z) can be measured from the same rows the model is built
-              # from.  Nothing here changes any pre-existing number.
+              # from.
               "normchi2", "nvalidhits", "chisqval", "ndof"):
         if k in keys:
             out[k] = d[k]
@@ -406,23 +405,22 @@ def load(cache, ptfrom=None, max_tracks=0, seed=1234,
     # THE IONIZATION MAP CARRIES THE CHARGE, AND THE EXPORT DOES NOT.
     # `ioniurbanv` column 10 is `us.cs = E/p^3`
     # (ResidualGlobalCorrectionMakerG4e.cc, "ioniurbanv.push_back(us.cs)"),
-    # which Geant4ePropagator.cc:2360 sets to `etotGeV/(pGeV*pGeV*pGeV)` --
+    # which Geant4ePropagator.cc sets to `etotGeV/(pGeV*pGeV*pGeV)` --
     # POSITIVE for every track.  It maps dE -> d(q/p) for a POSITIVE charge
     # only: physically d(q/p) = q cs dE, so for q = -1 the map flips and with
     # it the sign of the ionization skew.  The in-fit CGF block applies it
     # (`const double qsign = (charge >= 0. ? 1. : -1.); s.gs = qsign * wtr *
-    # cs * 1e-3;`, Geant4ePropagator.cc ~1524, with the comment that the
+    # cs * 1e-3;` in Geant4ePropagator.cc, with the comment that the
     # factor "is not cosmetic ... it cancels in 1/I ... omitting it would be
     # invisible in the WEIGHT").
     #
-    # `cf_track_resolution.extract` did not, until 2026-09-03: the pooled
-    # block weight `wstd = np.sqrt(vpool/sq2)/sig` was an unsigned square
-    # root, so the cached exponent was the mu+ exponent for EVERY track.  It
-    # now passes `chg * wstd` and marks the cache with the key
-    # `ioni_charge_signed`.  THAT KEY IS THE SWITCH HERE: no flag, no
-    # decision by the caller, one behaviour per cache.
+    # `cf_track_resolution.extract` passes `chg * wstd` and marks such a cache
+    # with the key `ioni_charge_signed`.  A cache WITHOUT the key was built
+    # from the unsigned square root `wstd = np.sqrt(vpool/sq2)/sig`, so its
+    # exponent is the mu+ exponent for EVERY track.  THAT KEY IS THE SWITCH
+    # HERE: no flag, no decision by the caller, one behaviour per cache.
     #
-    # Repairing a pre-fix cache is exact and needs no re-extraction.  The step
+    # Repairing an unsigned cache is exact and needs no re-extraction.  The step
     # exponent depends on the weight only through gs = wstd * g, and every
     # channel enters as a(e^{i gs E t} - 1 - i gs E t) or an integral of the
     # same form, so flipping the sign of gs is t -> -t and phi(-t) = phi(t)*:
@@ -459,18 +457,17 @@ def load(cache, ptfrom=None, max_tracks=0, seed=1234,
     # THE ONE PLACE THE CHARGE FACTOR IS DECIDED.  Im S is odd in the block
     # weight, so
     #   phi_zhat(t) = phi_z(q t)  =>  Im S_zhat = q Im S_z,
-    # and a pre-fix cache needs one q to become Im S_z at all.  The model for
-    # the z actually stored in out["z"] therefore wants
+    # and an unsigned cache needs one q to become Im S_z at all.  The model
+    # for the z actually stored in out["z"] therefore wants
     #
     #   q^(cache unsigned) * q^(--fold-charge)
     #
     # i.e. exactly one q when precisely one of the two holds, and none when
-    # both or neither do.  (The old CLI expressed the same arithmetic as
-    # "--charge-sign, and never together with --fold-charge"; making it a
-    # property of the cache removes the chance of getting it wrong, and makes
+    # both or neither do.  Making this a property of the CACHE rather than a
+    # CLI switch removes the chance of getting it wrong, and it is what makes
     # the folded arm right on a signed cache -- there it DOES need the factor,
     # which is the one case a literal "signed cache -> never multiply" rule
-    # would have broken.)
+    # breaks.
     #
     # CANDIDATE (MASS) CACHES ARE EXEMPT.  cf_mass_likelihood's caches have no
     # `charge` column because a candidate has none: an energy loss on EITHER
@@ -496,8 +493,8 @@ def load(cache, ptfrom=None, max_tracks=0, seed=1234,
             # The RADIATIVE block rides the same q/p dof with the same charge
             # map (d(q/p) = q cs dE whatever took the energy), so its odd part
             # is odd in q for exactly the same reason and takes the same
-            # factor. It exists only on caches written after 2026-09-03, which
-            # are always q-signed, so in practice this fires only under
+            # factor. The radiative arrays only exist on caches that are
+            # already q-signed, so in practice this fires only under
             # --fold-charge -- but leaving it out would make the folded arm's
             # radiative skew cancel instead of add.
             if "Srad_im" in out:
@@ -820,7 +817,8 @@ def accept_block(d, args, zg, phi_incl, L, log):
 
     Read it as a bound, not as a correction: the cut whose eps(z) is measured
     here IS NOT APPLIED anywhere in the production chain (the makers have no
-    chi2 or hit-count cut; see NOTES.md 2026-09-04), so the nominal sample's
+    chi2 or hit-count cut; see Documents/Resolution/CLOSURE_STATE.md), so the
+    nominal sample's
     eps is identically 1 and the corrected model is the model.  What the table
     measures is how much a hypothetical selection of this shape WOULD move the
     closure -- i.e. how large a hidden cut would have to be to matter."""
@@ -913,7 +911,7 @@ def analyse(args, outdir):
     # A charge-SPLIT closure on the raw pull measures the pull-normalisation
     # artefact, not the physics: <q z> = -a exactly. Auto-on whenever the
     # charges are separated, and available by hand otherwise; --raw-pull is the
-    # escape hatch that reproduces every number produced before this existed.
+    # escape hatch that reports the raw pull instead.
     want_tr = args.truth_ref or (args.charge != 0 and not args.raw_pull)
     if want_tr and not args.raw_pull:
         d = dict(d)
@@ -1212,7 +1210,7 @@ def analyse(args, outdir):
                  f"{st['mode_data']-st['mean_data']:>+12.4f}")
     L.append("")
 
-    # ---- 6. selection acceptance eps(z)  (2026-09-04 censoring test)
+    # ---- 6. selection acceptance eps(z)  (censoring test)
     accept_block(d, args, zg, phi_incl, L, logger.info)
 
     # ---------------------------------------------------------------- FIGURES
@@ -1333,7 +1331,7 @@ def parse_args():
                         "charges, because there the raw pull carries the "
                         "pull-normalisation artefact <q z> = -a and nothing "
                         "else. Charge-averaged it changes the even part by "
-                        "under 1 % (measured), so the default is off and every "
+                        "under 1 %% (measured), so the default is off and every "
                         "number produced before this existed still reproduces.")
     p.add_argument("--raw-pull", action="store_true",
                    help="never transform, even under --charge. Reproduces the "
@@ -1383,7 +1381,7 @@ def parse_args():
     p.add_argument("--kmax", type=float, default=6.0)
     p.add_argument("--nk", type=int, default=81)
     p.add_argument("--hbw", type=float, nargs="+", default=[0.10, 0.20, 0.30])
-    # ---- selection-acceptance diagnostic (2026-09-04 censoring test) ----
+    # ---- selection-acceptance diagnostic (censoring test) ----
     p.add_argument("--accept-var", default="none",
                    choices=["none", "normchi2", "nvalidhits"],
                    help="measure eps(z) for a cut on this cached column and "

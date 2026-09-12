@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Does the per-hit pull EXPLAIN the track-level hit-share excess?
 
-Two independent measurements of the same thing exist now, at different levels:
+Two independent measurements of the same thing exist, at different levels:
 
   TRACK level (the sim-position ablation): substituting truth positions leaves
     sigma untouched, so var(sim)/var(reco) = 1 - f_hit reads the hit share of

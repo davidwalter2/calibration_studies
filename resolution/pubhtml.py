@@ -8,11 +8,11 @@ directory in the web browser.
     the `.pdf`/`.txt`/`.log` twins off the PNG's caption, so a directory
     that holds nothing but PDFs renders EMPTY.  Every `.pdf` therefore
     needs a `.png` next to it.  `savefig` does both in one call (and
-    always with `bbox_inches="tight"`, per the user's standing rule), so
-    no script can leave a PDF-only directory behind.
+    always with `bbox_inches="tight"`, so axis labels are never clipped),
+    so no script can leave a PDF-only directory behind.
 
 `ensure_index(outdir)` -- drop an `index.php` into a new directory.
-    The current browser is installed once, globally, as
+    The browser is installed once, globally, as
     ~/public_html/_index.php and wired up by the ~/public_html/.htaccess
     line
 
@@ -30,7 +30,8 @@ directory in the web browser.
 
 `TEMPLATE` is resolved at import rather than hard-coded, so moving the
 browser does not break this module: the shared ~/public_html/_index.php if it
-is there, else the newest plot-browser `index.php` under ~/public_html/cvh/*/.
+is there, else the newest plot-browser `index.php` under
+~/public_html/ZMass/cvh/*/.
 """
 
 import glob
@@ -43,7 +44,23 @@ _PUBHTML = os.path.realpath(os.path.expanduser("~/public_html"))
 _PRIMARY = os.path.expanduser("~/public_html/_index.php")
 
 #: where to look for a copy if the shared browser is not at _PRIMARY
-_FALLBACK_GLOB = os.path.expanduser("~/public_html/cvh/*/index.php")
+_FALLBACK_GLOB = os.path.expanduser("~/public_html/ZMass/cvh/*/index.php")
+
+#: the root every figure directory of this analysis lives under.  The
+#: `~/public_html/cvh/` entries are symlinks INTO this tree, so a script that
+#: writes there creates a directory the symlink farm does not cover.
+FIGROOT = os.path.expanduser("~/public_html/ZMass/cvh")
+
+
+def figdir(tag, date=None):
+    """The canonical figure directory of a study: ``FIGROOT/<YYMMDD>_<tag>``.
+
+    One place decides both the root and the date prefix, so every plot script
+    lands in the same tree and a new run of any of them is found by date.
+    """
+    import datetime
+    d = date or datetime.date.today().strftime("%y%m%d")
+    return os.path.join(FIGROOT, f"{d}_{tag}")
 
 
 def _is_browser(path):

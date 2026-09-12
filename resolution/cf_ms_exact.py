@@ -74,22 +74,23 @@ def parse_args():
 
 
 # Switchable so the two G4-matching corrections can be A/B tested against
-# the clean-propagation ground truth (see Documents/Resolution/NOTES.md).
+# the clean-propagation ground truth (Documents/Resolution/MULTIPLE_SCATTERING.md).
 # Coefficient f in chi_a^2 *= (1 + f*exp(-Z^2/1000)).
-#   f = 0 -> the original (pre-2026-08-07) screening
-#   f = 1 -> Geant4's G4WentzelOKandVIxSection.cc:154 exactly
+#   f = 0 -> no screening factor
+#   f = 1 -> Geant4's G4WentzelOKandVIxSection.cc value exactly
 # Scannable so the clean-propagation ground truth can say whether the
 # residual is a MAGNITUDE problem (some f closes all probes) or a
 # SHAPE problem (no single f does).
-G4_SCREEN_F = 1.0   # G4's value. NOT tuned -- see NOTES: the 0.7 the data wants is UNEXPLAINED.
+G4_SCREEN_F = 1.0   # G4's value. NOT tuned -- the 0.7 the data wants is UNEXPLAINED
+                    # (Documents/Resolution/MULTIPLE_SCATTERING.md).
 # G4 carries the nuclear form factor SQUARED in the cross section:
-#   G4WentzelOKandVIxSection.cc:356-357  fm = 1/(1+formf*z1)^2   <- this is F(q^2)
-#   :373                                 grej = (...)*fm*fm      <- |F|^2
-# so the weight is (1+q^2 R^2/12)^-4 and ours was (1+..)^-2, i.e. |F|.
+#   G4WentzelOKandVIxSection.cc  fm = 1/(1+formf*z1)^2   <- this is F(q^2)
+#                                grej = (...)*fm*fm      <- |F|^2
+# so the weight is (1+q^2 R^2/12)^-4, NOT (1+..)^-2 = |F|.
 # The SCALE is right: thff2 = 2/formfactA holds to 1.0049 for every
 # material and momentum (C/Al/Si/Cu at 3 and 40 GeV), the 0.5% being
-# R = 1.27 A^0.27 fm vs G4's constn = 6.937e-6. An earlier note here
-# claimed a scale error to justify leaving this off -- that was WRONG.
+# R = 1.27 A^0.27 fm vs G4's constn = 6.937e-6 -- there is no scale error
+# here that would justify leaving the term off.
 # Enabled because it is the correct equation; it moves the closure the
 # right way on its own, and that it adds to the screening overshoot is
 # a statement about the UNEXPLAINED residual, not about this term.
@@ -130,18 +131,18 @@ def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
     [rad^2] for one step (WentzelVI-consistent single-scattering inputs).
 
     chi_0 = m_e alpha / 0.885 * Z^(1/3) / p  (Thomas-Fermi screening;
-    4.214e-6 GeV -- NOTE: an earlier version used 2.007e-5, conflating the
-    Lynch-Dahl chi_a^2 constant with a linear chi_0 formula: chi_a^2 was
-    ~23x too large, N_scat ~23x too small. Fixed 2026-07-24.)
+    4.214e-6 GeV.  NOT the Lynch-Dahl chi_a^2 constant 2.007e-5 -- conflating
+    the two with a linear chi_0 formula makes chi_a^2 ~23x too large and
+    N_scat ~23x too small.)
     theta_FF = hbar c / (p R_N), R_N = 1.27 A^0.27 fm: dipole/nuclear
     form-factor scale that terminates the single-Rutherford tail (G4
     WentzelVI's FF); implemented as a hard cutoff of the y^2 integral.
     Mott (McKinley-Feshbach) factor not yet included (few-% tail shape).
     """
-    # PER-ELEMENT sums when the exporter provides them (msmoliv stride 10,
-    # 2026-08-08). Both Moliere parameters are non-linear in Z and Geant4
-    # evaluates them per element, so using the mass-averaged effZ/effA is
-    # wrong for compounds -- it was what forced the empirical G4_SCREEN_F=0.7.
+    # PER-ELEMENT sums when the exporter provides them (msmoliv stride 10).
+    # Both Moliere parameters are non-linear in Z and Geant4 evaluates them
+    # per element, so using the mass-averaged effZ/effA is wrong for
+    # compounds -- that is what forces the empirical G4_SCREEN_F = 0.7.
     #   zzp1OverA = sum_i massfrac_i Z_i(Z_i+1)/A_i
     #   lnScreenW = scattering-power-weighted mean of
     #               ln[Z^(2/3)(1.13+3.76(alpha Z/beta)^2)(1+exp(-Z^2/1000))]
@@ -154,10 +155,10 @@ def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
     az = ALPHA_EM * effZ / beta
     _chi0c = _CHI0_G4 if MS_CHI0_G4 else _CHI0_OURS
     chi0 = _chi0c * effZ ** (1. / 3.) / pGeV
-    # G4 SCREENING FACTOR (2026-08-07). G4WentzelOKandVIxSection.cc:154
+    # G4 SCREENING FACTOR. G4WentzelOKandVIxSection.cc
     #   ScreenRSquare[j]     = afact*(1 + G4Exp(-j*j*0.001))*Z^(2/3)   <- NUCLEUS
     #   ScreenRSquareElec[j] = afact*Z^(2/3)                           <- electrons
-    # and for muons (:217) screenZ = (1.13 + 3.76 Z^2 alpha^2/beta^2)
+    # and for muons screenZ = (1.13 + 3.76 Z^2 alpha^2/beta^2)
     # * ScreenRSquare[Z]/p^2.  G4's Wentzel form is 1/(1-cos+screenZ)^2 in
     # d(1-cos), which maps to chi_a^2 = 2*screenZ; and 2*afact = 1.776e-11
     # = chi0^2 to 0.1%.  So G4's screening angle is OURS times
@@ -168,15 +169,16 @@ def moliere_params(effZ, effA, xg, pGeV, beta, zzp1OverA=None, lnScreenW=None):
         # exact: chi_a^2 = (4.214e-6/p)^2 * exp(<ln screening>_weighted)
         chia2 = (_chi0c / pGeV) ** 2 * np.exp(lnScreenW)
     else:
-        # legacy fallback for stride-8 files: apply the G4 factor at effZ with
-        # the empirically calibrated coefficient (mix-dependent, see NOTES).
+        # fallback for stride-8 files, which carry no per-element sums: apply
+        # the G4 factor at effZ with the empirically calibrated coefficient
+        # (mix-dependent, Documents/Resolution/MULTIPLE_SCATTERING.md).
         g4screen = 1. + G4_SCREEN_F * np.exp(-effZ * effZ * 1.0e-3)
         chia2 = chi0 ** 2 * (1.13 + 3.76 * az ** 2) * g4screen
     rn_fm = 1.27 * max(effA, 1.) ** 0.27
     # dipole form-factor characteristic angle^2 (G4WentzelOKandVIxSection
     # convention: FF = 1/(1 + q^2 R^2/12)^2, i.e. theta_c^2 = 12 (hbarc/pR)^2
-    # -- the earlier hard cutoff at (hbarc/pR)^2 was 12x too tight and the
-    # wrong shape)
+    # -- a hard cutoff at (hbarc/pR)^2 would be 12x too tight and the wrong
+    # shape)
     if MS_FF_G4:
         # G4's own: formfactA = constn * A^0.54 * p^2 (p in MeV), thff2 = 2/formfactA
         _pmev = pGeV * 1.0e3
@@ -201,24 +203,24 @@ _GTAU = np.logspace(-8, 4, 1600)
 _YMAXG = np.logspace(1, 7, 13)
 
 # --------------------------------------------------------------------------
-# j0(x) - 1 CANCELLATION GUARD  (bug found in NOTES_XXII 8.4, fixed 2026-08-14)
+# j0(x) - 1 CANCELLATION GUARD  (NOTES_XXII 8.4)
 #
-# The table was built as `j0(outer(_GTAU, sqrt(_Y2))) - 1`, unguarded. Both
-# terms are ~1 and the difference is -x^2/4, so below |x| ~ 1e-8 every digit is
-# lost and the entry collapses to 0. `_GTAU` starts at 1e-8 and `_Y2` at 1e-4,
-# so the SMALLEST-TAU ROWS -- exactly the ones `gshape` uses directly and
-# through its row[0]*(tau/_GTAU[0])^2 extrapolation -- were corrupted, measured
-# 1.3-1.7 % LOW.  Negligible for q/p (MS is <= 5e-5 of that variance);
-# ~0.7 % on the predicted width wherever MS dominates (position, angle).
+# Built naively as `j0(outer(_GTAU, sqrt(_Y2))) - 1`, the table loses every
+# digit below |x| ~ 1e-8: both terms are ~1 and the difference is -x^2/4.
+# `_GTAU` starts at 1e-8 and `_Y2` at 1e-4, so the SMALLEST-TAU ROWS -- exactly
+# the ones `gshape` uses directly and through its row[0]*(tau/_GTAU[0])^2
+# extrapolation -- come out 1.3-1.7 % LOW.  Negligible for q/p (MS is <= 5e-5
+# of that variance); ~0.7 % on the predicted width wherever MS dominates
+# (position, angle).
 #
-# `set_j0_guard(False)` restores the exact legacy table so any number recorded
-# before this date can be reproduced bit-for-bit.
+# `set_j0_guard(False)` selects the unguarded table, so a number produced
+# without the guard can be reproduced bit-for-bit.
 # --------------------------------------------------------------------------
 J0M1_GUARD = True
 
-# The knob registry (see cf_track_resolution.PHYSICS_GLOBALS).  All three of
-# these change the Moliere kernel, and only J0M1_GUARD was in any cache key
-# before 2026-08-16.  `_NOT_PHYSICS` are fixed constants / array shapes.
+# The knob registry (see cf_track_resolution.PHYSICS_GLOBALS).  Every name
+# here changes the Moliere kernel and so must enter a cache key.
+# `_NOT_PHYSICS` are fixed constants / array shapes.
 PHYSICS_GLOBALS = ("J0M1_GUARD", "G4_FF_SQUARED", "G4_SCREEN_F", "MS_CHI0_G4", "MS_FF_G4")
 _NOT_PHYSICS = ("NPARS", "ALPHA_EM")
 
@@ -257,9 +259,9 @@ def _build_tables(guard=True):
         # smooth dipole form factor 1/(1+y^2/ymax^2)^2 (G4 convention), not a
         # hard cutoff
         # G4 applies the exponential nuclear form factor SQUARED:
-        # G4WentzelOKandVIxSection.cc:355 fm = 1/(1+formfactA*z1)^2 and the
-        # cross section carries fm*fm (:373), i.e. |F|^2 = (1+q^2R^2/12)^-4.
-        # Ours had the square root of that.
+        # G4WentzelOKandVIxSection.cc: fm = 1/(1+formfactA*z1)^2 and the
+        # cross section carries fm*fm, i.e. |F|^2 = (1+q^2R^2/12)^-4 -- NOT
+        # the square root of that.
         ffpow = 4 if G4_FF_SQUARED else 2
         w = _DY2 / (1. + _Y2) ** 2 / (1. + _Y2 / ym ** 2) ** ffpow
         g2d[iy] = k0 @ w
@@ -295,7 +297,7 @@ def gshape(tau, ymax=None):
 
 
 # =========================================================================
-# THE ATOMIC-ELECTRON KERNELS  (2026-08-17, NOTES_MOLIEREWRONG)
+# THE ATOMIC-ELECTRON KERNELS  (NOTES_MOLIEREWRONG)
 #
 # Moliere's `chi_c^2 ~ Z(Z+1)` gives the atomic electrons the NUCLEUS's angular
 # law and the NUCLEUS's angular range.  Both are wrong, and the second one is

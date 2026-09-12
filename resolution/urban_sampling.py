@@ -16,10 +16,11 @@ Poisson
     Poisson(a1) jumps of size e1  +  Poisson(a2) jumps of size e2
     +  Poisson(a3) jumps drawn from 1/E^2 on [e0, tmax],   all x scaling.
 
-That CF has been validated NUMERICALLY to 1e-14 against mpmath (NOTES 2026-08-13
-XIII-XXI).  That tests the mathematics of the model.  It does not test whether
-the model is what Geant4 draws from -- and Geant4's sampler
-(`SampleFluctuations2`, the same class, the same parameter block) is NOT that
+That CF is validated NUMERICALLY to 1e-14 against mpmath (see
+Documents/Resolution/IONISATION_MODEL.md).  That tests the mathematics of the
+model.  It does not test whether the model is what Geant4 draws from -- and
+Geant4's sampler (`SampleFluctuations2`, the same class, the same parameter
+block) is NOT that
 compound Poisson.  Reading the C++ it differs in four places:
 
   1. an excitation channel with a <= nmaxCont = 8 is sampled as
@@ -65,13 +66,16 @@ guard, the delta branch because p3 = 8 a3/(8 + a3) < 8 identically), an exact
 SUBCOMMANDS
     records   the per-step parameter space of the layered toy, and its weights
     g4check   the validation chain against the real C++ sampler
+    stock     the stock Geant4 11.2.2 (Urban 2021) sampler -- what the full
+              SIM draws from -- against the extrapolator's model, at the same
+              mean loss and the same tcut
     perstep   analytic vs sampler cumulants and CF, per real step
     closure   propagate to the layered-toy closure: d<e^{-u z^2}> per probe
     scan      where in (a1, a3, regime) parameter space the two diverge
 
-Nothing in cf_propagation_test.py / cf_track_resolution.py / cgf_*.py is
-modified; they are imported.  No file in the CMSSW source area is written to
-(the C++ driver links against the already-built library).
+cf_propagation_test.py / cf_track_resolution.py / cgf_*.py are imported, not
+modified.  No file in the CMSSW source area is written to (the C++ driver links
+against the already-built library).
 """
 
 import argparse
@@ -465,7 +469,7 @@ def weighted_steps(legs, k, avec, sigma):
 #
 # The full CMSSW SIM -- the "data" side of the clean-propagation closure -- runs
 # the stock class.  So the analytic model is compared with the extrapolator's
-# sampler in `g4check` (the tasked question) and with the SIM's sampler here.
+# sampler in `g4check`, and with the SIM's sampler here.
 
 def material_from_record(rec):
     """(ipot, e1F, e2F, f1, f2, Zeff) [MeV] recovered from one record.
@@ -594,8 +598,8 @@ def run_driver(Z, A, rho, ekin, length, tmax, n, seed, out, pdg=13,
     """Run the C++ driver; return (record dict, samples [MeV], stock samples)."""
     def f(x):
         # "%.17g", never repr(): numpy 2 renders a float64 as
-        # "np.float64(1.045)", which atof() silently reads as 0.0 -- that
-        # turned a step length into zero and a matched a1 into infinity.
+        # "np.float64(1.045)", which atof() silently reads as 0.0, turning a
+        # step length into zero and a matched a1 into infinity.
         return "%.17g" % float(x)
 
     cmd = [DRIVER, "--Z", f(Z), "--A", f(A), "--rho", f(rho),
@@ -619,8 +623,8 @@ def run_driver(Z, A, rho, ekin, length, tmax, n, seed, out, pdg=13,
             # column 10 is `cs`, the qop-per-MeV map, in units of 1e-3.
             # Setting it to 1e3 makes gs = cs*1e-3 = 1, i.e. the exponent
             # functions work directly in MeV^-1 conjugate units -- which is
-            # what a single-step comparison wants. (Leaving it at 0, as an
-            # earlier version did, silently returned CF == 1 everywhere.)
+            # what a single-step comparison wants. (Leaving it at 0 silently
+            # returns CF == 1 everywhere.)
             rec["rec"] = np.array([float(x) for x in p[1:]] + [1e3])
         elif p[0] == "input":
             rec["input"] = [float(x) for x in p[1:9]]
@@ -1121,8 +1125,8 @@ def cmd_closure(args):
                     for m, o in zip(rows.mean(axis=0), obs)))
 
 
-# published layered-toy closure, NOTES_TOY_PT40 section 1, K1, mean over planes,
-# on fn.UCURVE = [1e-3, 3e-3, 0.01, 0.03, 0.1, 0.3, 1, 3, 10]
+# published layered-toy closure (Documents/Resolution/archive/NOTES_TOY_PT40.md),
+# K1, mean over planes, on fn.UCURVE = [1e-3, 3e-3, 0.01, 0.03, 0.1, 0.3, 1, 3, 10]
 OBSERVED = {
     ("pt3_K1", "qop"): np.array([-0.00432, -0.00756, -0.01326, -0.01854,
                                  -0.01167, -0.00042, +0.00142, np.nan, np.nan]),

@@ -11,9 +11,10 @@ a-vector per functional:
 The closure's numerator is the SIM's residual, which is LOCAL (DetUnit frame),
 while sigma comes from that curvilinear a-vector.  The two frames differ by
 `H = curv2localJacobianAltelossD`, so sigma is the width of the wrong
-variable.  `curv2local.py` already rebuilds H offline and `dir_closure.py`
-already uses it (`useH=True`); `fisher_norm` / `geom_closure` -- i.e. every
-number `allcorr`, `radoff_species` and `geom_closure` print -- never did.
+variable.  `curv2local.py` rebuilds H offline and `dir_closure.py` uses it
+(`useH=True`); `fisher_norm` / `geom_closure` -- i.e. every number `allcorr`,
+`radoff_species` and `geom_closure` print -- use it only when this module's
+switch is on.
 
 This module is the one place that decides which basis those two use.
 
@@ -42,9 +43,9 @@ against the measured seven-correction rows (HANDOFF_BENDING_PLANE s1):
     locx   mu-  -0.0001 -> -0.0039   p  +0.0039 -> -0.0069
 
 so `dydz` is entirely frame (offset AND slope, both species, all planes), and
-about half of the `dxdz` radial slope is too.  The handoff's premise that
-"dydz and locy are flat, so the flat-vs-arch comparison survives them" does
-not hold: the sec(alpha) factor is the same geometry that moves dxdz.
+about half of the `dxdz` radial slope is too.  HANDOFF_BENDING_PLANE's premise
+that "dydz and locy are flat, so the flat-vs-arch comparison survives them"
+does not hold: the sec(alpha) factor is the same geometry that moves dxdz.
 
 PRE-REGISTERED VALIDATION
 -------------------------
@@ -82,8 +83,8 @@ from cf_propagation_test import FUNCTIONALS                     # noqa: E402
 # H's row order.  Local state is (q/p, dx/dz, dy/dz, x, y) and curvilinear is
 # (q/p, lambda, phi, xT, yT) -- see curv2local.curv2local's docstring.  Note
 # dx/dz pairs with PHI and dy/dz with LAMBDA, not the other way round: local x
-# is the r-phi direction in a barrel.  Getting this backwards is the swap
-# commit e636024 fixed in FUNCTIONALS.
+# is the r-phi direction in a barrel.  Getting this backwards swaps the two
+# functionals.
 LOCAL = ("qop", "dxdz", "dydz", "locx", "locy")
 
 # THE KNOB.  Default OFF: turning it on changes every closure number in the
@@ -116,10 +117,10 @@ def _canonical():
     `__main__` while those modules `import hbasis`, so there are TWO module
     objects with INDEPENDENT `USE_H`.  Setting it on the wrong one is silent in
     the worst way: the banner says H while `avecs` hands back the legacy
-    vector.  (It first showed up as a KeyError on locy, which was luck --
-    every other functional would have quietly printed legacy numbers under an
-    "H" heading.)  Everything that flips the switch goes through `set_use_h`,
-    and every reader goes through `_canonical`, so the two views cannot drift.
+    vector, so every functional except locy (which has no legacy vector at all
+    and raises) prints legacy numbers under an "H" heading.  Everything that
+    flips the switch goes through `set_use_h`, and every reader goes through
+    `_canonical`, so the two views cannot drift.
     """
     import hbasis
     return hbasis
@@ -326,8 +327,8 @@ def cmd_geom(args):
 
     This is where the REAL tracker lives.  Its published radial growth is
     +0.0004 -> +0.0676 over 19 planes (HANDOFF_BENDING_PLANE s8, filed there as
-    a separate open item) -- an order of magnitude larger than the toy arch
-    that turned out to be basis, and never measured in the H basis.
+    a separate open item) -- an order of magnitude larger than the toy arch,
+    which is a basis effect.  This command measures it in both bases.
     `curv2local`'s own header already records locx sec(alpha) = 1.000-1.029 and
     qop = 1.000-1.029 on this geometry.
     """

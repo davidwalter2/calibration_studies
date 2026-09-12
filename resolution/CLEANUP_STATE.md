@@ -371,8 +371,83 @@ files now split by purpose -- multi-GB shuffled subsamples to
   historical remarks.
 * A final `--help` sweep over every surviving script once that lands.
 
+## The 119 SURVIVING top-level `resolution/` scripts — comments
+
+99 of the 119 modified, 20 already clean; ~423 comment/docstring blocks
+rewritten and 10 deleted outright (a tombstone changelog, an orphan sentence
+describing a deleted arm, and eight narrative paragraphs).  The heaviest were
+`cf_track_resolution.py` (41 blocks plus its whole module docstring),
+`cf_skew_closure.py` (14), `cf_propagation_test.py` (14), `cf_ms_exact.py`
+(12).  Verified comment-only: the AST of every one of the 84 top-level `.py`,
+with docstrings blanked, is IDENTICAL to `HEAD` -- the only two files whose
+executable code moved are `pubhtml.py` and `cf_masslik_fit.py`, which are this
+cleanup's own figure-path migration.
+
+Bare `NOTES.md` citations repointed at the topical note that carries the
+material: CLOSURE_STATE x3, PROCESS_NOISE_CGF x5, IONISATION_MODEL x3,
+NUCLEAR_ELASTIC x2, TRANSMISSION x2, HIT_RESOLUTION x2, REFERENCE_DEDX,
+MULTIPLE_SCATTERING, RESOLUTION.  `NOTES_*.md` / `CRITIQUE_260813` /
+`HANDOFF_*.md` citations were checked to exist under
+`Documents/Resolution/archive/` and kept.
+
+Dated remarks that SURVIVE are all `print()` literals or `argparse help=`
+strings, i.e. program output, which the brief put off limits: `--krad`,
+`--ioni-norm`, `--hitmode`, `--window-norm`, `--acceptance` help texts, the
+`cf_skew_closure.load` provenance banners, and printed `NOTES XV/XVII/XVIII`
+pointers in `cgf_fisher.py` etc.  Those printed pointers now disagree with
+the comments beside them, which were repointed -- a pass allowed to touch
+printed strings should reconcile them.
+
+## OPEN ITEMS FOUND BUT NOT ACTED ON
+
+These need a decision, not a cleanup:
+
+1. **`cf_track_resolution.py`'s `IONI_KOKOULIN` default.**  The comment
+   asserted "DEFAULT OFF, mirroring `cvhcgf::ioniKokoulinEnabled()`", but the
+   code is `env_flag("CVH_IONI_KOKOULIN", True)`, i.e. default ON.  The claim
+   was removed rather than resolved either way.
+2. **`deltaspec._clean_env` / `_drv` pin the four CVH switches through the
+   ENVIRONMENT**, which no longer has a reader (`cvhcgf::switches()` throws
+   without `configure(pset)`; `urban_g4driver.cc` has no `getenv`).  The
+   sibling harnesses `toy_pt_scan._cmsrun` and `toy_radoff._cmsrun` do it
+   correctly through `split_switches`.  Looks like a real attribution hole.
+3. **`geom_closure.cmd_acceptance`** splits its docstring on a string
+   (`"So an acceptance"`) that is not in it, so the split is a no-op and the
+   whole remainder prints.
+4. **`t2_predict.py` vs `c9_phipred.py`** propagate the influence with
+   OPPOSITE signs (see above).
+5. **Never-passed flags selecting an abandoned method**, left in place because
+   each is a deliberate probe of a hypothesis that is now closed:
+   `nucel_g4driver --forcelhep`, `deltaspec export --u2021`,
+   `cgf_saddlepoint.convergent_sign`, `speciesdedx`'s `carelib` arm,
+   `hitres_scurve`'s `gmodel`/`fit_scurve`/`--nharm`.  Flags that can never
+   take their documented value: `qopwidth --useh` and `geom_closure pairs
+   --logs` (`store_true` with `default=True`), `radoff2 kok --dump` (prints
+   "no dump implemented").
+6. **Unread names**: `cgf_irls.{fisher_scoring,objective,block_eval,c_domain,
+   block_mode,block_curve}`, `curv2local.all_H`, `cf_inmaker._GRP_FLAT*`,
+   `speciesdedx.py:187`'s unreachable `"off" if False else` ternary (whose
+   revived branch would `KeyError`), `chargeodd.py:150`'s `_orig_sim_glob`,
+   `allcorr.py:1408`'s `TWOPI_MC2_RCL2`, `cf_brems_exact.SQRT_E`.
+7. **Hard-coded `/tmp/claude-*` scratchpads in executable code**:
+   `fisher_norm.py` and `tcut_study.py`'s `SCRATCH`, and the `DEST` defaults
+   of `build_{msterms,meanloss,wvisplit,gridharm,radharm}.sh`.  They will not
+   resolve on a fresh machine.
+8. **Stale STATE references left by the deletions**, for the documentation
+   pass: `hitclassbias/STATE.md` still names `s8_variants.py`,
+   `s9_who_moved.py`, `s10_tail.py`, `s11_unconv.py` as "retracted, do not
+   use" and describes their banner; all four are gone.  `PRODUCTIONS.md:7-8`
+   still says some submit scripts cite `PRODUCTION_NEXT.md §2`; they no
+   longer do.
+
 ## VERIFICATION
 
+* THREE `--help` strings could never be printed: argparse `%`-interpolates
+  `help=`, and `cf_track_resolution.py --ioni-norm` ("one-sided ~10% low"),
+  `cf_propagation_test.py --veto-eloss` ("15% of p0", "~95% of p0 -- 0.85%")
+  and `cf_skew_closure.py --truth-ref` ("under 1 % (measured)") each left a
+  bare `%` that parses as a conversion, so `--help` raised `TypeError: %o
+  format...`.  Pre-existing (identical text at HEAD), now escaped as `%%`.
 * `--help` / import sweep in the rabbit container over every surviving `.py`
   under `hitlik`, `hitlik/perhit`, `vtxres`, `matres`, `fullscale`,
   `production`, `globalfit`, `cfcompress`, `cleanprop`, `simprod`: clean.  The

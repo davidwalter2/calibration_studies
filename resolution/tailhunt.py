@@ -77,7 +77,7 @@ def _cum(z, p, u):
     Bin values are DIFFERENCES of this, interpolated at the edges, rather than
     a trapezoid over the points inside each bin.  The naive form drops one grid
     spacing at every bin boundary -- with 28 boundaries and dz = 0.0025 that
-    lost 0.5 % of the model's mass, i.e. as much as the closure number being
+    loses 0.5 % of the model's mass, i.e. as much as the closure number being
     decomposed.  Differencing a cumulative integral sums to the total exactly
     by construction.
     """

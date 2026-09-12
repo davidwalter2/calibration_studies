@@ -1,8 +1,8 @@
 #!/bin/bash
 # THE EXPORT-CHANGE SMOKE.  Three cmsRun jobs that between them touch every
-# code path the 2026-09-06 export work changes, run against ONE CMSSW area and
-# written into ONE output directory, so two areas can be compared branch by
-# branch with `root_bitcompare.py`.
+# code path the export changes reach, run against ONE CMSSW area and written
+# into ONE output directory, so two areas can be compared branch by branch
+# with `root_bitcompare.py`.
 #
 #   usage: smoke_exports_260906.sh <CMSSW_AREA> <OUTROOT> [gun_tt|gun_st|data_tt ...]
 #
@@ -25,8 +25,8 @@
 #
 # INPUTS ARE READ FROM /work, NOT /ceph.  The login node's CephFS client is
 # evicted often enough that a smoke reading /ceph can SILENTLY produce a valid
-# empty output (NOTES 2026-09-05, refit.sbatch's header).  `--stage` copies the
-# three inputs once; after that the smoke has no ceph dependence at all.
+# empty output (see refit.sbatch's header).  `--stage` copies the three inputs
+# once; after that the smoke has no ceph dependence at all.
 set -uo pipefail
 
 AREA=${1:?usage: smoke_exports_260906.sh <CMSSW_AREA> <OUTROOT> [which...]}
@@ -45,10 +45,9 @@ TESTDIR=$AREA/src/Analysis/HitAnalyzer/test
 # `doGen` and `requireGen` are hard-coded True in the MC drivers -- it is a
 # gen-closure driver -- so the data smoke runs off a COPY with those two lines
 # flipped.  WITHOUT the `requireGen` flip the maker rejects every candidate and
-# writes a VALID, EMPTY tree, which a bit-comparison then passes vacuously; that
-# happened on the first attempt and is the reason the entry count is asserted
-# below.  The copy is made from the area under test, so a driver change is
-# exercised too.
+# writes a VALID, EMPTY tree, which a bit-comparison then passes vacuously --
+# which is why the entry count is asserted below.  The copy is made from the
+# area under test, so a driver change is exercised too.
 mk_data_cfg() {
   local dst=$1
   sed -e 's/^    doGen=cms.bool(True),$/    doGen=cms.bool(False),/' \

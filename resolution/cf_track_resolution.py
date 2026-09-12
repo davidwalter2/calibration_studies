@@ -4,8 +4,8 @@ The linearized CVH fit maps the noise vector n to the momentum error via
 delta(q/p) = w^T n with w = (C e_qop)^T F^T V^{-1}. The refit exports, per
 resolution entry b (aligned with reseigidx), the variance contribution
 v_b = w_b^T V_b w_b (resinfvarv) and their total resinfcov, which equals
-refCov(0,0) EXACTLY (validated: ratio 1.0000 on every smoke track) -- every
-noise dof feeding q/p carries an entry.
+refCov(0,0) EXACTLY (ratio 1.0000 on every smoke track) -- every noise dof
+feeding q/p carries an entry.
 
 Independence of the blocks then gives the full non-Gaussian CF of the
 standardized momentum error z = (qop_reco - qop_gen)/sigma, sigma^2 =
@@ -24,13 +24,12 @@ any linear functional of the two projected angles is again projected-
 Moliere with |weight|), and sigma_Q^2 is the fit-assumed block variance
 (sum thp2 for MS, sum gsig2 g^2 for ionization).
 
-THE RADIATIVE BLOCK (bremsstrahlung + pair production), added 2026-09-03.
-The offline CF had no radiative term at all while the in-fit CGF has had one
-since 2026-08 (`CgfRadiativeChannel`, `cvhcgf::makeRadSpectrum`), and the
-mismatch is one-sided: the reference trajectory SUBTRACTS the radiative mean
-(`ComputeMuonDEDX` is built with ionOnly = false) while the fluctuation model
-carried none, so the typical non-radiating muon had a mean removed that it
-never lost.  The term is the compound Poisson of the two processes,
+THE RADIATIVE BLOCK (bremsstrahlung + pair production). The reference
+trajectory SUBTRACTS the radiative mean (`ComputeMuonDEDX` is built with
+ionOnly = false), so the fluctuation model has to carry the matching term --
+without it the typical non-radiating muon has a mean removed that it never
+lost, and the mismatch is one-sided. The term is the compound Poisson of the
+two processes,
 
     S_rad(t) = sum_steps sum_{proc in brems,pair}
                  INT dv (dN/dv)_proc (e^{i a v E} - 1 - i a v E),
@@ -39,63 +38,60 @@ never lost.  The term is the compound Poisson of the two processes,
 with (dN/dv)_proc the propagator's own tabulated Geant4 shape RENORMALIZED to
 that process's own mean loss dedx_proc * step (so the mixture is right and the
 centring subtracts exactly what the reference subtracted -- S'(0) = 0 by
-construction).  The step records are the `radstepv`/`radstepspecv` export
-(2026-09-03), one row per Geant4 step, tagged with the leg's PARMTYPE-11
-global index -- the same index the ionization block is pooled by, because the
-radiative loss enters the same q/p dof through the same transport.  So the
-weight is the ionization block's weight, charge included: the fit's Q has no
-radiative variance (deliberately -- for dsigma/dv ~ 1/v the second moment is
-the catastrophic radiator, not the block), so there is nothing to recover a
+construction).  The step records are the `radstepv`/`radstepspecv` export,
+one row per Geant4 step, tagged with the leg's PARMTYPE-11 global index --
+the same index the ionization block is pooled by, because the radiative loss
+enters the same q/p dof through the same transport.  So the weight is the
+ionization block's weight, charge included: the fit's Q has no radiative
+variance (deliberately -- for dsigma/dv ~ 1/v the second moment is the
+catastrophic radiator, not the block), so there is nothing to recover a
 radiative weight FROM, and nothing to recover: it is the same dof.
 
 `--krad` scales it.  It is a LINEAR scale with default 1, unlike the log
-scales `--khit/--kms/--kioni`, precisely so that `--krad 0` expresses "the
-model as it was before this term existed" -- which is the control arm of
-every closure below.  `--no-rad` is the EXTRACTION-side switch (for the
-`nomsrad` sample, whose simulation has no brems/pair at all): it writes zero
-arrays and the provenance key `rad_model = 0`.
+scales `--khit/--kms/--kioni`, precisely so that `--krad 0` switches the term
+off cleanly -- that is the control arm of every closure below.  `--no-rad` is
+the EXTRACTION-side switch (for the `nomsrad` sample, whose simulation has no
+brems/pair at all): it writes zero arrays and the provenance key
+`rad_model = 0`.
 
-THE IONIZATION WEIGHT CARRIES THE TRACK CHARGE q (fixed 2026-09-03,
-Documents/Resolution/NOTES.md "2026-09-02/03 ... s3"). The exported
-per-step factor `ioniurbanv[:,10] = us.cs = E/p^3` is POSITIVE for every
-track; the physical map is delta(q/p) = q cs delta(E), and the in-fit CGF
-block applies the `qsign` accordingly. This module did not until
-2026-09-03, so every cached exponent was the mu+ exponent and the model
-carried the mu+ skew for BOTH charges while a charge-symmetric sample
-cancels it in the data. Only the ODD part is affected: Re S is even and
-Im S odd in the weight (exactly -- see the comment at the call site), so
-Sio_re and the whole even closure are unchanged and pre-fix caches differ
-only by the sign of Sio_im on their mu- half. Caches written with the fix
-carry the key `ioni_charge_signed`; consumers use its presence to decide
-whether they still have to apply q themselves. VERIFIED 2026-09-02/03:
-on a 50/50 mu+/mu- gun the DATA's odd moment cancels between the charges
-while the unsigned MODEL's does not, which is what the earlier "model
-over-predicts the skew 10x at low pT / zero mode shift" readings were.
+THE IONIZATION WEIGHT CARRIES THE TRACK CHARGE q
+(Documents/Resolution/IONISATION_MODEL.md). The exported per-step factor
+`ioniurbanv[:,10] = us.cs = E/p^3` is POSITIVE for every track; the physical
+map is delta(q/p) = q cs delta(E), and the in-fit CGF block applies the
+`qsign` accordingly, so this module must too. Only the ODD part of the
+exponent depends on it: Re S is even and Im S odd in the weight (exactly --
+see the comment at the call site), so Sio_re and the whole even closure are
+insensitive, and an unsigned exponent differs only by the sign of Sio_im on
+its mu- half. Caches that apply q carry the key `ioni_charge_signed`;
+consumers use its presence to decide whether they still have to apply q
+themselves. The signature of an unsigned model is visible on a 50/50
+mu+/mu- gun: the DATA's odd moment cancels between the charges while the
+unsigned MODEL's does not, which shows up as an over-predicted skew (10x at
+low pT) and a spurious mode shift.
 
-THAT IONIZATION NORMALISATION USED TO BE AN IDENTITY ONLY FOR CgfQoPMode=0,
-where the record's gsig2 IS the variance the fit put into dV_b. Under
-CgfQoPMode>=1 (the cfi default since 2026-08-24) the fit substitutes the
-block's Fisher weight while the record carries the untruncated second
-cumulant, and the recovered weight came out ~20x too small (~400x in the
-exponent). FIXED 2026-09-03 by exporting the substitution factor itself:
-`ioniqscalev` carries, per leg, [sc, nstep] with
+THE IONIZATION NORMALISATION IS AN IDENTITY ONLY FOR CgfQoPMode=0, where the
+record's gsig2 IS the variance the fit put into dV_b. Under CgfQoPMode>=1
+(the cfi default) the fit substitutes the block's Fisher weight while the
+record carries the untruncated second cumulant, so a weight recovered from
+the record alone comes out ~20x too small (~400x in the exponent). The
+substitution factor is therefore exported directly: `ioniqscalev` carries,
+per leg, [sc, nstep] with
 
     sc = Q_ioni_applied(0,0) / dQ2_record(0,0)
 
 (Geant4ePropagator::cgfQScale), and `ioni_sq2` multiplies each leg's step
 sum by its own sc, which makes sqrt(v_b / sq2) exact for BOTH estimators.
 sc is exactly 1.0 for CgfQoPMode=0 and for every two-track fit, and the
-branch is auto-detected, so files written before the export -- and every
-cache made from them -- are unchanged bit-for-bit.
+branch is auto-detected, so files without the export -- and every cache made
+from them -- read back bit-for-bit unchanged.
 
-`--ioni-norm raw` remains available and takes the ionization weight straight
-from the exported per-dof influence weights, w_std = |w_b[0]| / sigma
-(resinfv), which references neither gsig2 nor dV_b; it is independent of the
-estimator but neglects the intra-leg transport (a one-sided ~2%/long-leg
-deficit against `var`, measured 2026-09-02). Blocks are pooled by
-global parameter index (steps are matched the same way as in cf_ms_exact /
-cf_ioni_exact); pooling merges same-family crossings with a shared w --
-exact for the common one-crossing case.
+`--ioni-norm raw` takes the ionization weight straight from the exported
+per-dof influence weights, w_std = |w_b[0]| / sigma (resinfv), which
+references neither gsig2 nor dV_b; it is independent of the estimator but
+neglects the intra-leg transport (a one-sided ~2%/long-leg deficit against
+`var`). Blocks are pooled by global parameter index (steps are matched the
+same way as in cf_ms_exact / cf_ioni_exact); pooling merges same-family
+crossings with a shared w -- exact for the common one-crossing case.
 
 Closure ("--closure"): on gen-matched MC with the NOMINAL fit
 (fitFromGenParms=False), compare per track
@@ -153,10 +149,10 @@ COVTOL = 5e-3                     # |resinfcov/refCov00 - 1| guard
 #     "0"/"false"/"off"/"no"/"" (any case) -> False
 #     anything else                        -> True
 #
-# It exists because on 2026-08-16 four corrections went DEFAULT-ON, and a
-# presence-only reader (`os.environ.get(name)`) cannot express "off" once the
-# default is on.  Attribution needs both directions: the whole point of the
-# gated global-fit exercise is to run all four off against all four on.
+# A presence-only reader (`os.environ.get(name)`) cannot express "off" once a
+# default is on, and attribution needs both directions: the whole point of the
+# gated global-fit exercise is to run all four corrections off against all
+# four on.
 #
 # This lives in the DEEPEST module of the offline stack (nothing local is
 # imported here), so every driver can reach it without a cycle.
@@ -167,42 +163,40 @@ def env_flag(name, dflt):
     return v.strip().lower() not in ("", "0", "false", "off", "no")
 
 
-# The four energy-loss corrections.  They were flipped default-ON on
-# 2026-08-16 (Documents/Resolution/NOTES_DEFAULTON.md) and REVERTED the same
-# week (NOTES_CLOSURE_FINAL.md s1): the attribution gate is unchanged -- the
-# global fit that consumes the exported Jacobians has not been run, and
-# CVH_REF_CHARGEAWARE is charge-odd, i.e. degenerate with the calibration's
-# `M`.  They are DEFAULT-OFF and closure studies enable them EXPLICITLY.
+# The four energy-loss corrections.  They are DEFAULT-OFF and closure studies
+# enable them EXPLICITLY: the attribution gate is shut, because the global fit
+# that consumes the exported Jacobians has not been run and CVH_REF_CHARGEAWARE
+# is charge-odd, i.e. degenerate with the calibration's `M`
+# (Documents/Resolution/NOTES_DEFAULTON.md, NOTES_CLOSURE_FINAL.md).
 #
-# The name is kept (rather than renamed to CVH_FOUR) because it is the list
-# that matters, not the direction: every consumer wants "the four", and both
-# overlays below are derived from it.
+# The name reads as a direction but it is the LIST that matters: every consumer
+# wants "the four", and both overlays below are derived from it.
 CVH_DEFAULT_ON = ("CVH_IONI_EXACTDELTA", "CVH_IONI_KOKOULIN",
                   "CVH_REF_CHARGEAWARE", "CVH_REF_SPECIESDEDX")
 CVH_FOUR = CVH_DEFAULT_ON            # the direction-neutral alias
 
-# The environment overlay that pins the historical state explicitly.  With the
-# defaults back OFF this is a no-op on an otherwise-clean environment -- but it
-# is KEPT and still applied in every cmsRun funnel, because it is what makes a
-# control arm independent of the default: an arm that reads `{}` is at the
-# mercy of whatever the ambient shell exports, and the whole point of these
-# arms is that they reproduce published numbers.
+# The overlay that pins all four OFF explicitly.  With the defaults OFF this is
+# a no-op on an otherwise-clean environment, but it is still applied in every
+# cmsRun funnel because it is what makes a control arm independent of the
+# default: an arm that reads `{}` is at the mercy of whatever the ambient shell
+# exports, and the whole point of these arms is that they reproduce published
+# numbers.
 SWITCHES_OFF = {n: "0" for n in CVH_DEFAULT_ON}
 
-# The overlay a closure study uses to turn all four ON explicitly.  This is now
-# the ONLY way they come on, which is deliberate: `SWITCHES_ON` in an arm dict
-# is greppable and appears in the run log, where a default does not.
+# The overlay a closure study uses to turn all four ON explicitly.  This is the
+# ONLY way they come on, which is deliberate: `SWITCHES_ON` in an arm dict is
+# greppable and appears in the run log, where a default does not.
 SWITCHES_ON = {n: "1" for n in CVH_DEFAULT_ON}
 
 
 # ---------------------------------------------------------------------------
-# env name -> cmsRun option.  THE SWITCHES ARE NO LONGER ENVIRONMENT VARIABLES:
-# they are ParameterSet parameters on Geant4ePropagator (TrackPropagation/
-# Geant4e/python/cvhSwitches.py), so that what ran is recoverable from the
-# output file's provenance instead of from a shell that is gone.
+# env name -> cmsRun option.  THE SWITCHES ARE NOT ENVIRONMENT VARIABLES: they
+# are ParameterSet parameters on Geant4ePropagator (TrackPropagation/Geant4e/
+# python/cvhSwitches.py), so that what ran is recoverable from the output
+# file's provenance instead of from a shell that is gone.
 #
-# The dict vocabulary above is KEPT because ten modules build arms out of it
-# and the names are the greppable record in every NOTES entry.  `hadron_probe.
+# The dict vocabulary above is retained because many modules build arms out of
+# it and the names are the greppable record in the notes.  `hadron_probe.
 # _run` is the single cmsRun funnel and translates these into `Name=value`
 # command-line options there; nothing is exported.  A CVH_* name that is NOT in
 # this table and NOT in `CVH_ENV_ONLY` is an error rather than being quietly
@@ -227,12 +221,12 @@ CVH_OPTION = {
     "CVH_DUMP_EMPARAMS": "DumpEmParameters",
 }
 
-# CVH_DUMP_HADMODELS is gone entirely: it is now
+# Hadronic-model dumping is not routed through here at all: it is
 # ProcessActivationWatcher's own `dumpHadronicModels` untracked parameter, set
-# on the watcher PSet in the sim driver, not routed through here at all.
+# on the watcher PSet in the sim driver.
 #
-# Still environment, because their C++ readers have NOT been migrated yet:
-# the LD_PRELOAD shim (CVH_SHIM_*, which is not a CMSSW module at all), and the
+# These stay environment variables, because their C++ readers take no
+# ParameterSet parameter: the LD_PRELOAD shim (CVH_SHIM_*, which is not a CMSSW module at all), and the
 # knobs in G4TablesForExtrapolatorForCVH / G4ErrorPhysicsListForCVH /
 # ProcessActivationWatcher / MaterialGroupModel / G4ErrorEnergyLossForCVH.
 CVH_ENV_ONLY = (
@@ -241,10 +235,10 @@ CVH_ENV_ONLY = (
     "CVH_MATGROUP_PROBE", "CVH_MATGROUP_MEANONLY", "CVH_MATGROUP_EPS",
     "CVH_MS_SCALE", "CVH_MS_DISP_SCALE",
     "CVH_DEDX_DEBUG", "CVH_LOCAL_UPDATE",
-    # CVH_CGF_QOP and CVH_CGF_QOP_REFRESH are NO LONGER environment variables:
-    # the CGF weight is the production default now, so which estimator produced
-    # a file has to be in its provenance. They are CgfQoPMode / CgfQoPRefresh
-    # in CVH_OPTION above. What remains here is diagnostics only.
+    # CVH_CGF_QOP and CVH_CGF_QOP_REFRESH are NOT environment variables: the
+    # CGF weight is the production default, so which estimator produced a file
+    # has to be in its provenance. They are CgfQoPMode / CgfQoPRefresh in
+    # CVH_OPTION above. What remains here is diagnostics only.
     "CVH_CGF_QOP_DEBUG", "CVH_CGF_QOP_GAUSSPSI",
     "CVH_CGF_QOP_LNCUT", "CVH_CGF_QOP_NPAD", "CVH_CGF_QOP_NT",
     "CVH_CGF_QOP_SIGSCALE", "CVH_CGF_QOP_SCALARONLY",
@@ -312,7 +306,7 @@ def parse_args():
                         "mode 0, as before). 'raw' = |w_b[0]|/sigma from the "
                         "exported per-dof influence weights (resinfv), "
                         "independent of gsig2 and of the scale of dV_b but "
-                        "neglecting the intra-leg transport (one-sided ~10% "
+                        "neglecting the intra-leg transport (one-sided ~10%% "
                         "low in the exponent, growing with leg length)")
     p.add_argument("--hitmode", choices=["gauss", "class"], default="gauss",
                    help="hit term: one Gaussian of the summed block variance "
@@ -340,8 +334,8 @@ def _ein_neg(s, out=None):
     s = 0 (unlike E1, which is what makes it the right object here).
 
     Series for |s| <= _DT_SER; Ein(-s) = gamma + Log(-s) + E1(-s) beyond, where
-    E1 comes from scipy (accurate to 1e-16 on the imaginary axis -- measured,
-    2026-08-13 XX, so it is NOT the weak link).
+    E1 comes from scipy (accurate to 1e-16 on the imaginary axis, so it is NOT
+    the weak link).
     """
     s = np.asarray(s, dtype=np.complex128)
     res = np.empty(s.shape, dtype=np.complex128) if out is None else out
@@ -382,24 +376,24 @@ def _delta_term_2d(a, w):
     requires a*E << 1 over the WHOLE support, and the support reaches E = w.
     For muons w = tmax/e0 ~ 1e8-1e10 (keV-scale e0 against a multi-GeV
     kinematic tmax), so a guard on |a| alone selects the series in a regime
-    where it is wrong by orders of magnitude: at w = 1e9, a = 1e-6 the old
-    |a|-guard gave Im = -8.3e-2 against the true -6.5e-6, and that spurious
-    phase, stacked over ~350 steps, turned the model CF into a pure
-    oscillation at small t. That guard is KEPT -- the switch below is on
-    |a| * w.
+    where it is wrong by orders of magnitude: at w = 1e9, a = 1e-6 an |a|-only
+    guard gives Im = -8.3e-2 against the true -6.5e-6, and that spurious
+    phase, stacked over ~350 steps, turns the model CF into a pure oscillation
+    at small t. The switch below is therefore on |a| * w.
 
-    WHAT CHANGED 2026-08-13 (XX). Both branches were rewritten; neither was
-    giving wrong VALUES (the argument is imaginary, |e^{iaw}| = 1, so nothing
-    ever overflowed) but both lost precision, worst AT the old crossover:
-      * the series kept only k = 2, 3, so it was truncated at (a w)^2/36
-        -- 2.8e-6 at a w = 1e-2, 2.5e-5 at 3e-2. It now runs to convergence.
-      * the closed form grouped e^{ia} - (1 - 1/w). fl(1 - 1/w) carries a
-        rounding error of eps/2 ~ 5.5e-17 while the result is only O(a^2 w)
-        = O(x^2/w), so the RELATIVE error grew linearly in w: 3e-13 at
-        w = 20, 2.4e-10 at w = 1e4, 7.0e-5 at w = 1e9, 7.3e-4 at w = 1e10.
-        expm1(y) - expm1(x)/w cancels the 1/w analytically instead.
-    Measured worst error against mpmath at 60 dps is now 6e-15 over
-    w = 20..1e10 and a w = 1e-6..1e2.
+    BOTH BRANCHES ARE WRITTEN FOR PRECISION, not for range: the argument is
+    imaginary, |e^{iaw}| = 1, so nothing overflows, but the obvious forms lose
+    digits, worst of all AT the crossover.
+      * the series runs to convergence. Keeping only k = 2, 3 truncates at
+        (a w)^2/36 -- 2.8e-6 at a w = 1e-2, 2.5e-5 at 3e-2.
+      * the closed form must NOT be grouped as e^{ia} - (1 - 1/w): fl(1 - 1/w)
+        carries a rounding error of eps/2 ~ 5.5e-17 while the result is only
+        O(a^2 w) = O(x^2/w), so the RELATIVE error of that grouping grows
+        linearly in w -- 3e-13 at w = 20, 2.4e-10 at w = 1e4, 7.0e-5 at
+        w = 1e9, 7.3e-4 at w = 1e10. expm1(y) - expm1(x)/w cancels the 1/w
+        analytically instead.
+    Worst error against mpmath at 60 dps is 6e-15 over w = 20..1e10 and
+    a w = 1e-6..1e2.
     """
     a = np.asarray(a, dtype=np.complex128)
     wb = np.broadcast_to(np.asarray(w, dtype=np.float64)[:, None], a.shape)
@@ -544,7 +538,7 @@ def gamma_from_tmax(tmax):
 
 
 # ---------------------------------------------------------------- A3 GAUGE
-# DIAGNOSTIC KNOB, default-inert (1.0), in exactly the style of the pre-existing
+# DIAGNOSTIC KNOB, default-inert (1.0), in exactly the style of the
 # KMS_SCALE / MS_NSUB module globals.
 #
 # The exported Urban record describes the block's ionization as two Poisson
@@ -611,15 +605,16 @@ def ioni_sq2(steps, qsc=None):
     and `qsc` the matching `ioniqscalev` rows RESHAPED TO (-1, 2), i.e. one
     [sc, nstep] pair per leg sharing that index, in drain order.
 
-    WHY THE SCALE IS NEEDED (2026-09-03). `--ioni-norm var` recovers the
-    block's scalar weight as sqrt(v_b / sq2), which is an identity only while
-    the record's gsig2 IS the variance that went into dV_b. Under
-    CgfQoPMode >= 1 the propagator substitutes the block's Fisher weight,
-    dV_b -> sc * dV_b, while the record keeps the untruncated second cumulant
-    (Geant4ePropagator::cgfQScale documents both sides), so `var` came out
-    ~20x small in the weight and ~400x in the exponent. `sc` is exactly 1.0
-    on every CgfQoPMode=0 file and on every two-track fit, so old caches and
-    the legacy arm are unchanged bit-for-bit.
+    WHY THE SCALE IS NEEDED. `--ioni-norm var` recovers the block's scalar
+    weight as sqrt(v_b / sq2), which is an identity only while the record's
+    gsig2 IS the variance that went into dV_b. Under CgfQoPMode >= 1 the
+    propagator substitutes the block's Fisher weight, dV_b -> sc * dV_b, while
+    the record keeps the untruncated second cumulant
+    (Geant4ePropagator::cgfQScale documents both sides), so without `sc` the
+    `var` weight comes out ~20x small and ~400x small in the exponent. `sc` is
+    exactly 1.0 on every CgfQoPMode=0 file and on every two-track fit, so
+    caches without the export and the unscaled arm are unchanged
+    bit-for-bit.
 
     WHY PER LEG AND NOT PER BLOCK. Several legs can share one global index
     (a track crossing the same module twice, ~1/3 of blocks) and each carries
@@ -629,9 +624,9 @@ def ioni_sq2(steps, qsc=None):
     build) this falls back to the mean sc and warns once, rather than
     silently mixing the two conventions.
     """
-    # `steps[:,1] * gq * gq`, left to right, is the expression this replaced;
-    # float multiplication is not associative, so keeping the order makes the
-    # no-scale path BIT-identical to the pre-2026-09-03 caches.
+    # float multiplication is not associative, so the left-to-right order of
+    # `steps[:,1] * gq * gq` is kept deliberately: it makes the no-scale path
+    # BIT-identical to caches written without the scale.
     gq = steps[:, 10] * 1e-3
     w2 = steps[:, 1] * gq * gq
     if qsc is None or not len(qsc):
@@ -744,7 +739,7 @@ def ioni_step_exponent(steps, wstd, tau):
 # Urban straggling below the cut has no radiative correction -- so the
 # correction must start at max(tcut, 100 keV) and not at e0.
 #
-# THE SWITCH IS SHARED WITH THE C++ SIDE (2026-08-15, NOTES_QVALID).
+# THE SWITCH IS SHARED WITH THE C++ SIDE (NOTES_QVALID).
 # `CVH_IONI_KOKOULIN` is read by `cvhcgf::ioniKokoulinEnabled()` in
 # TrackPropagation/Geant4e, which is the SINGLE C++ reader and is what puts the
 # correction into the variance the track fit consumes (Q(0,0), and `gsig2` in
@@ -754,16 +749,15 @@ def ioni_step_exponent(steps, wstd, tau):
 # then analyses in the same environment cannot end up half-corrected because
 # somebody forgot a convention.
 #
-# Setting the module global directly still works and still wins (that is how
+# Setting the module global directly wins (that is how
 # `samplergap.py real --kok 0 1` runs both arms in one process); the
 # environment only supplies the DEFAULT.
 #
-# DEFAULT OFF, mirroring `cvhcgf::ioniKokoulinEnabled()`.  It was ON for one
-# week (2026-08-16, NOTES_DEFAULTON.md) and reverted; the SHARED-SWITCH
-# property is what matters here and is unchanged.  `env_flag` is the SAME
-# tri-state convention the C++ reader uses -- unset means the default, `=0`
-# means off, `=1` means on -- so the two halves of the shared switch cannot
-# disagree in either direction, at either default.
+# The default MIRRORS `cvhcgf::ioniKokoulinEnabled()`: the SHARED-SWITCH
+# property is what matters.  `env_flag` is the SAME tri-state convention the
+# C++ reader uses -- unset means the default, `=0` means off, `=1` means on --
+# so the two halves of the shared switch cannot disagree in either direction,
+# at either default.
 IONI_KOKOULIN = 1.0 if env_flag("CVH_IONI_KOKOULIN", True) else 0.0
 IONI_KOKOULIN_TCUT = 0.0
 IONI_KOKOULIN_NBIN = 96
@@ -771,11 +765,11 @@ IONI_KOKOULIN_NBIN = 96
 # ------------------------------------------------------- the knob REGISTRY
 # Every module-level global that changes what this module COMPUTES, in one
 # place, so that a cache key can be built from the registry instead of from
-# somebody's memory of the list.  That is not bookkeeping: `_PHI_CACHE`'s key
-# carried IONI_A3_SCALE, IONI_EXC_SCALE and IONI_TMAX_SCALE but not
-# IONI_KOKOULIN, which is why NOTES_RADOFF2 and NOTES_HADRONS both had to
-# disable the cache by hand and why a switched-ON cell could silently reuse
-# switched-OFF numbers.
+# somebody's memory of the list.  That is not bookkeeping: a `_PHI_CACHE` key
+# that omits one knob -- IONI_KOKOULIN, say, while carrying the IONI_A3_SCALE /
+# IONI_EXC_SCALE / IONI_TMAX_SCALE trio -- lets a switched-ON cell silently
+# reuse switched-OFF numbers, and the only way round it is to disable the cache
+# by hand (as NOTES_RADOFF2 and NOTES_HADRONS both had to).
 #
 # `_NOT_PHYSICS` is the explicit counterpart: names that look like knobs and
 # are NOT, so the completeness audit (`barkas_probe.py guards`) can tell the
@@ -842,8 +836,8 @@ MS_ELEC_EDGE = 1.0
 #
 # `cf_ms_exact.gshape`'s table is built on `_Y2 = logspace(-4, 13, 360)` with
 # `_DY2 = np.gradient(_Y2)` -- 21 nodes per decade, i.e. h = 0.109 in ln(y^2).
-# NOTES_XXII s8.4 measured the resulting bias at **+2.03e-3 in |S|** and left it
-# unfixed ("a resolution choice").  It has never been sized in closure units.
+# NOTES_XXII s8.4 sizes the resulting bias at **+2.03e-3 in |S|** -- a
+# resolution choice, never sized in closure units.
 #
 # Setting this to 1.0 evaluates the SAME dipole kernel on the 4.4x-finer grid
 # built for the electron term (`cf_ms_exact._build_elec_tables`), which is
@@ -914,8 +908,8 @@ MS_SNAP_YMAX = 0.0
 # 10.28 for the proton, i.e. 1/beta^2 as it must be.
 # DEFAULT OFF, and NOT for the reason the other six are on.
 #
-# The 2026-08-18 flip put all seven harmonisations default-ON so that the model
-# models the simulation.  This one cannot honour that: `wvi_split_exponent`
+# The other six harmonisations are default-ON so that the model models the
+# simulation.  This one cannot honour that: `wvi_split_exponent`
 # represents dS by a J0 series truncated at _WVI_KMAX = 28, trusted only to
 # q^2 U/4 = _WVI_ARGMAX = 60, and beyond that dS is CLAMPED TO ZERO -- legitimate
 # only where the CF has already died, which `ms_step_exponent` asserts via
@@ -933,9 +927,9 @@ MS_SNAP_YMAX = 0.0
 # being measured.  Raising _WVI_ARGMAX/_WVI_KMAX cannot fix this: the terms go
 # as q^{2k} and q2**kmax already overflows double at q2 ~ 5e10.
 #
-# This is a THIN-TARGET construction.  It was developed and gauged on the toy,
-# whose dense 1 mm shells give small q^2 U; the real tracker's long air gaps and
-# thin silicon are a different regime.  Making it universal needs a different
+# This is a THIN-TARGET construction, gauged on the toy, whose dense 1 mm
+# shells give small q^2 U; the real tracker's long air gaps and thin silicon
+# are a different regime.  Making it universal needs a different
 # representation of dS at large q^2 U (an asymptotic form, or direct quadrature
 # of the J0 integral), not a bigger ceiling.
 #
@@ -1050,14 +1044,13 @@ def wvi_split_exponent(q, U, kmax=None):
     # assumed: (i) `ms_step_exponent` asserts that the MODEL's own MS exponent
     # is already below `_WVI_SMIN` everywhere the clamp fires, so |phi| there is
     # < e^{_WVI_SMIN}; (ii) moving `_WVI_ARGMAX` by a factor 2 must not move the
-    # closure (`wvisplit.py gauge --argmax`).
+    # closure (`wvisplit.py gauge --cells _WVI_ARGMAX=...`).
     #
-    # A closed-form asymptote was tried first and is WRONG: dropping the J0
-    # integral as "oscillating away" gives -q^2/4 M_1(U) + M_0(U), which is
-    # POSITIVE at the switch (the J0 integral is NOT small there -- it is
-    # dominated by u < 1/q^2, where J0 ~ 1) and overflows exp().  dS is
-    # negative-definite, so a positive value is a detectable error, and it was
-    # detected this way.
+    # A closed-form asymptote is NOT an option here: dropping the J0 integral
+    # as "oscillating away" gives -q^2/4 M_1(U) + M_0(U), which is POSITIVE at
+    # the switch (the J0 integral is NOT small there -- it is dominated by
+    # u < 1/q^2, where J0 ~ 1) and overflows exp().  dS is negative-definite,
+    # so a positive value there is a detectable error.
     out = np.where(ok, tot, 0.0)
     assert np.all(np.isfinite(out)), (
         "wvi_split_exponent: non-finite dS -- the series overflowed inside the "
@@ -1093,17 +1086,16 @@ _KOK_MUMIN = 1000.0      # G4MuBetheBlochModel::lowestKinEnergy = 1 GeV
 # the direction that looks like success.
 #
 # The mass is RECOVERABLE from the record, exactly, and does not need a new
-# column: the regime-2/3 record carries `beta^2` and `E` (added by
-# NOTES_DELTASPEC s9.2 precisely so that a kaon's Tmax is not inverted as a
-# muon's), and
+# column: the regime-2/3 record carries `beta^2` and `E` (NOTES_DELTASPEC s9.2,
+# precisely so that a kaon's Tmax is not inverted as a muon's), and
 #
 #       E * sqrt(1 - beta^2) = (gamma m) * (1/gamma) = m
 #
 # is an identity, not an approximation.  Measured on the exported records it
 # returns the PDG masses to 1e-9 relative (`_mass_from_record` self-test in
 # barkas_probe.py `guards`).  So the guard is applied HERE, on every existing
-# file, rather than waiting for a record-layout change and a re-export of
-# every model in the study.
+# file, rather than through a record-layout change that would need every model
+# in the study re-exported.
 #
 # The tolerance is loose (1 MeV) on purpose: it has to separate the muon from
 # the pion, its nearest neighbour, and 105.66 vs 139.57 MeV is a 34 MeV gap.
@@ -1210,9 +1202,8 @@ def ms_step_exponent(steps, wstd, tau):
     ok = steps[:, 5] > 0.
     if not ok.any():
         return np.zeros(len(tau))
-    # stride 10 (2026-08-08) carries the per-element sums in cols 8,9;
-    # stride 8 files fall back to the effZ approximation inside
-    # moliere_params.
+    # stride-10 records carry the per-element sums in cols 8,9; stride-8 files
+    # fall back to the effZ approximation inside moliere_params.
     _st = steps[ok]
     if _st.shape[1] >= 10:
         prm = np.array([moliere_params(*s[:5], s[7], s[8]) for s in _st])
@@ -1348,10 +1339,9 @@ def extract(args):
     # ragged per-block store: class index, v_b/refCov00, and the count per track
     hcls, hamp, hcnt = [], [], []
     # Track-quality and kinematics, stored so the closure can be scanned
-    # AGAINST THE SELECTION rather than reported at one arbitrary cut. The
-    # historical trimming-dependence (MS +0.007 at chi2/hit < 10 against
-    # -0.073 at < 3) was never separable from model error without these
-    # (2026-08-08).
+    # AGAINST THE SELECTION rather than reported at one arbitrary cut: the
+    # trimming dependence (MS +0.007 at chi2/hit < 10 against -0.073 at < 3)
+    # is not separable from model error without these.
     chi2n, nvhit, ptrk, ptgen, chisq, ndofs = [], [], [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l, Sdel_l = [], [], [], []
     Srad_re_l, Srad_im_l = [], []
@@ -1391,10 +1381,10 @@ def extract(args):
                     f"--ioni-norm raw needs the per-dof influence weights, and "
                     f"{fn} has no `resinfv` branch")
             _need = _need + ["resinfv"]
-        # The applied ionization-block scale (2026-09-03). AUTO-DETECTED:
-        # productions from before the export simply have no such branch and
-        # get scale 1.0, which is what they ran with (CgfQoPMode=0) or, for a
-        # pre-export mode-1 file, all `--ioni-norm var` could ever do.
+        # The applied ionization-block scale. AUTO-DETECTED: a file without
+        # the branch gets scale 1.0, which is exactly what it ran with if it
+        # ran at CgfQoPMode=0, and is all `--ioni-norm var` can do for a mode-1
+        # file that lacks the export.
         want_qscale = ("ioniqscalev" in t.keys() and "ioniqscaleidx" in t.keys())
         if want_qscale:
             _need = _need + ["ioniqscaleidx", "ioniqscalev"]
@@ -1402,10 +1392,10 @@ def extract(args):
             logger.warning("input has no `ioniqscalev`; the `var` ionization "
                            "normalisation assumes CgfQoPMode=0 (scale 1.0)")
             _warned_noqscale[0] = True
-        # The RADIATIVE step export (2026-09-03). Absent on every production
-        # made before it; `--no-rad` switches it off explicitly (the `nomsrad`
-        # sample, whose simulation has no brems/pair, so a model term for it
-        # would be a model of physics that is not in the data).
+        # The RADIATIVE step export, auto-detected the same way. `--no-rad`
+        # switches it off explicitly (the `nomsrad` sample, whose simulation
+        # has no brems/pair, so a model term for it would be a model of
+        # physics that is not in the data).
         want_rad = (not args.no_rad) and all(b in t.keys() for b in _RADB)
         if want_rad:
             _need = _need + list(_RADB)
@@ -1565,8 +1555,8 @@ def extract(args):
                             # plain rms of the entries' |w_b[0]| -- the exact
                             # step-noise-weighted rms with an equal-share prior
                             # (a v_b-share weighting instead moves the pooled
-                            # blocks by +0.2% in the median, +0.9% at 84%,
-                            # measured on 3137 pooled blocks).
+                            # blocks by +0.2% in the median, +0.9% at 84%, over
+                            # 3137 pooled blocks).
                             #
                             # NEGLECTED: the intra-leg transport mixing. The
                             # exact per-step weight is w_b^T A_s e_0 with A_s
@@ -1577,11 +1567,12 @@ def extract(args):
                             # not suppressed by small weights -- the block's
                             # other dofs carry median 2x the q/p weight -- only
                             # by the smallness of A_s(k,0), so it grows with the
-                            # leg length. Measured against `var` on the legacy
-                            # arm, where `var` IS the exact step-weighted rms:
+                            # leg length. Measured against `var` on a
+                            # CgfQoPMode=0 file, where `var` IS the exact
+                            # step-weighted rms:
                             # raw/var = 0.98 for legs of <=10 steps, 0.90 in the
                             # median over all blocks (16-84%: 0.55-0.99), 0.84
-                            # for 31-45-step legs (2026-09-02). It is a
+                            # for 31-45-step legs. It is a
                             # one-sided DEFICIT, so k_ioni absorbs the median
                             # and only the spread is left.
                             #
@@ -1598,27 +1589,27 @@ def extract(args):
                             # sq2 must be the variance the FIT used, i.e. the
                             # record sum TIMES the scale the CGF substitution
                             # applied to the block (1.0 on mode-0 files and on
-                            # every file written before the export). See
-                            # ioni_sq2 for why it is per leg, not per block.
+                            # any file that lacks the export). See ioni_sq2 for
+                            # why it is per leg, not per block.
                             sq2 = ioni_sq2(
                                 steps,
                                 qsv[qsi == g] if qsv is not None else None)
                             if sq2 <= 0.:
                                 continue
                             wstd = np.sqrt(vpool / sq2) / sig
-                        # THE CHARGE FACTOR (2026-09-02/03, NOTES.md s3).
+                        # THE CHARGE FACTOR (IONISATION_MODEL.md).
                         # `ioniurbanv` column 10 is `us.cs = E/p^3`
-                        # (Geant4ePropagator.cc:2360, "q/p per MeV"), POSITIVE
+                        # (Geant4ePropagator.cc, "q/p per MeV"), POSITIVE
                         # for every track; the physical map is
                         #     delta(q/p) = q * cs * delta(E),
                         # so the exponent's step weight carries the charge.
                         # The in-fit CGF block applies it (`const double qsign
                         # = (charge >= 0. ? 1. : -1.); s.gs = qsign * wtr * cs
-                        # * 1e-3;`, Geant4ePropagator.cc ~1524, "The CHARGE
-                        # factor is not cosmetic"); the offline CF did not, so
-                        # every cached exponent was the mu+ one and the model
-                        # carried the mu+ skew for BOTH charges while a
-                        # charge-symmetric sample cancels it in the data.
+                        # * 1e-3;` in Geant4ePropagator.cc, "The CHARGE factor
+                        # is not cosmetic"), so this side must too: an unsigned
+                        # exponent is the mu+ one for BOTH charges, i.e. the
+                        # mu+ skew applied to a sample in which the data
+                        # cancels it.
                         #
                         # Applied to the WEIGHT rather than to Im S because the
                         # weight is where the physics is. It is the same thing
@@ -1629,8 +1620,8 @@ def extract(args):
                         # verified at 0.000e+00 in Urban regimes 0/1/2 with and
                         # without the Kokoulin term.  Hence Sio_re, and with it
                         # the EVEN closure (k_ms, k_hit, <e^{-u z^2}>), is
-                        # bit-identical to the pre-fix caches and only Sio_im
-                        # flips on the mu- half of the sample.
+                        # insensitive to the charge factor; only Sio_im flips
+                        # on the mu- half of the sample.
                         Sio += ioni_step_exponent(steps, chg * wstd, TG)
                         # THE RADIATIVE TERM, same block, same weight, same
                         # charge. `rad_exponent` takes cs from the record and
@@ -1655,12 +1646,12 @@ def extract(args):
             # phi is stored so a SIM-vs-refit field mismatch can be TESTED
             # rather than assumed: the OAE tracker parametrization is
             # phi-symmetric, so any residual phi structure in <z> is the
-            # sharpest handle on a field-model difference (2026-08-07).
+            # sharpest handle on a field-model difference.
             phis.append(a["refParms"][ic][2])
             # charge from sign(gen q/p): the discriminator between a
             # curvature-like (charge-ODD) and a material/eloss-like
             # (charge-EVEN) bias. Useless on the mu- only gun sample,
-            # essential on the both-charge one (2026-08-07). It is ALSO the
+            # essential on the both-charge one. It is ALSO the
             # sign applied to the ionization step weight above, so `charge`
             # and `Sio_im` are guaranteed consistent by construction.
             chgs.append(chg)
@@ -1670,9 +1661,9 @@ def extract(args):
             nvhit.append(float(a["nValidHits"][ic]))
             ptrk.append(float(a["trackPt"][ic]))
             ptgen.append(float(a["genPt"][ic]))
-            # chisqval/nValidHits is the HISTORICAL trim variable (the
-            # --max-chi2-per-hit of fit_global_grads). Stored raw so the exact
-            # historical cut can be reproduced rather than approximated by
+            # chisqval/nValidHits is the trim variable of fit_global_grads
+            # (`--max-chi2-per-hit`). Stored raw so that exact cut can be
+            # reproduced rather than approximated by
             # normalizedChi2 = chisqval/ndof.
             chisq.append(float(a["chisqval"][ic]))
             ndofs.append(float(a["ndof"][ic]))
@@ -1683,11 +1674,12 @@ def extract(args):
             Srad_re_l.append(Srad.real.astype(np.float32))
             Srad_im_l.append(Srad.imag.astype(np.float32))
             nsel += 1
-            # --max-tracks used to break only at a FILE boundary, so with one
-            # file per shard (extract_parallel) it did nothing at all and every
-            # shard ground through its whole file. The per-track cost here is
-            # ~2.4 s, dominated by the exact-delta ionization exponent, so that
-            # is 2-3 h per shard rather than the intended cap.
+            # --max-tracks breaks per TRACK, not at a file boundary: with one
+            # file per shard (extract_parallel) a file-boundary check would
+            # never fire and every shard would grind through its whole file.
+            # The per-track cost here is ~2.4 s, dominated by the exact-delta
+            # ionization exponent, i.e. 2-3 h per shard against the intended
+            # cap.
             if nsel >= args.max_tracks:
                 break
         logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} tracks "
@@ -1712,15 +1704,15 @@ def extract(args):
                         # PROVENANCE FLAG, not a switch. Its presence says the
                         # cached `Sio_im` already carries the charge of the
                         # ionization q/p map (see the `chg * wstd` above);
-                        # caches written before 2026-09-03 do not have it and
-                        # consumers (cf_skew_closure.load) apply the factor
-                        # themselves. Never read as a value, only as a key.
+                        # a cache without it does not, and consumers
+                        # (cf_skew_closure.load) apply the factor themselves.
+                        # Never read as a value, only as a key.
                         ioni_charge_signed=np.array(1),
                         # PROVENANCE VALUE (unlike the flag above, this one IS
                         # read): 1 = the radiative block was built from the
                         # `radstepv` export; 0 = it was not, either because
-                        # the production predates the export or because
-                        # --no-rad was given (the `nomsrad` sample). The
+                        # the input lacks the export or because --no-rad was
+                        # given (the `nomsrad` sample). The
                         # Srad_* arrays are zero in the second case, so a
                         # consumer that ignores this key still gets the right
                         # model -- but a closure that does not KNOW which arm
@@ -1793,10 +1785,10 @@ def model_phi(d, args, bank=None):
     S = (Shit
          + np.exp(args.kms) * d["Sms"]
          + np.exp(args.kioni) * (d["Sio_re"] + 1j * d["Sio_im"]))
-    # The radiative block. LINEAR scale, default 1; `krad = 0` is the model
-    # exactly as it was before the term existed, which is the control arm of
-    # every closure. Absent from pre-2026-09-03 caches (and zero in a
-    # `--no-rad` one), so `getattr`/key guard both matter.
+    # The radiative block. LINEAR scale, default 1; `krad = 0` switches the
+    # term off, which is the control arm of every closure. The arrays are
+    # absent from a cache built without the export (and zero in a `--no-rad`
+    # one), so the `getattr`/key guard both matter.
     kr = getattr(args, "krad", 1.0)
     if kr:
         keys0 = d.files if hasattr(d, "files") else d

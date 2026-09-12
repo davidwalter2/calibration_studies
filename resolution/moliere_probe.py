@@ -3,17 +3,16 @@
 
 CONTEXT
 -------
-NOTES_MSTERMS and NOTES_WVISPLIT enumerated the differences between the
-offline transform and `G4WentzelVIModel` and retired all but one: the model's
+NOTES_MSTERMS and NOTES_WVISPLIT enumerate the differences between the offline
+transform and `G4WentzelVIModel` and retire all but one: the model's
 `chi_c^2 ~ Z(Z+1)` gives the atomic electrons the NUCLEUS's angular range.
 That candidate OVER-corrects (1.37-3.59x with the `ymax` snap), and its
-implementation used a smooth dipole where the physics has a kinematic edge.
-NOTES_MSTERMS s8.3 corrected for that analytically with a factor 1.27-1.68.
+implementation uses a smooth dipole where the physics has a kinematic edge.
 
-**That analytic correction is wrong**, and this module is what replaces it
-with a measurement.  It compared the dipole against a SHARP CUT on the pure
-Wentzel law.  The exact two-body kinematics of a heavy projectile on a free
-electron give
+**The analytic correction for that, a factor 1.27-1.68 (NOTES_MSTERMS s8.3),
+is wrong**: it compares the dipole against a SHARP CUT on the pure Wentzel
+law.  This module measures the electron kernel instead.  The exact two-body
+kinematics of a heavy projectile on a free electron give
 
     theta^2(T) = (2 m_e T / p^2) (1 - T/Tmax)
 
@@ -62,7 +61,7 @@ UCURVE = fn.UCURVE
 UROW = "".join(f"{u:>9g}" for u in UCURVE)
 ORDER8 = [13, -13, -211, 211, -321, 321, -2212, 2212]
 
-# the new knob, registered in wvisplit's dispatcher so cells can combine it
+# the knobs, registered in wvisplit's dispatcher so cells can combine them
 wv._KNOBS["MS_ELEC_EDGE"] = (ctr, float)
 wv._KNOBS["MS_FINE_G"] = (ctr, float)
 

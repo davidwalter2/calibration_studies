@@ -233,17 +233,16 @@ def _cmsrun(a, script, extra, log, env_extra=None):
             "X509_USER_PROXY", "KRB5CCNAME")
     env = {k: os.environ[k] for k in keep if k in os.environ}
     env["PATH"] = "/usr/local/bin:/usr/bin:/bin"
-    # The four 2026-08-16 default-on corrections pinned to their
-    # HISTORICAL state (all off); any explicit overlay below still
-    # wins.  Same convention as deltaspec._clean_env -- an archived
-    # model must stay comparable to a fresh export.
+    # The four optional corrections are pinned explicitly OFF; any explicit
+    # overlay below still wins.  Same convention as deltaspec._clean_env -- an
+    # archived model must stay comparable to a fresh export.
     import cf_track_resolution as _ctr
-    # The switches are ParameterSet parameters now (Geant4e b372e08), so BOTH
-    # the historical all-off pin and any explicit overlay have to travel as
-    # cmsRun OPTIONS.  Exporting them would leave the job on the new default-ON
-    # corrections while this arm's bookkeeping said "off" -- silently, and in
-    # the one place that must not happen, since an archived model is only
-    # comparable to a fresh export if the switches really match.
+    # The switches are ParameterSet parameters, not environment variables
+    # (Geant4e b372e08), so BOTH the all-off pin and any explicit overlay have
+    # to travel as cmsRun OPTIONS.  Exporting them instead leaves the job on
+    # whatever the C++ defaults are while this arm's bookkeeping says "off" --
+    # silently, and in the one place that must not happen, since an archived
+    # model is only comparable to a fresh export if the switches really match.
     _sw = dict(_ctr.SWITCHES_OFF)
     _sw.update(env_extra or {})          # an explicit overlay still wins
     _swopts, env_extra = _ctr.split_switches(_sw)
@@ -342,8 +341,8 @@ def legs_meta(tag, fields=("refglobr", "refp", "refpt", "refqop", "detid")):
 
 def set_rad(on):
     """The model-CF switch.  `RAD_CHANNEL` is a module global of
-    cf_propagation_test in exactly the same style as the pre-existing MS_NSUB /
-    KMS_SCALE knobs, and defaults to True (production behaviour)."""
+    cf_propagation_test in exactly the same style as the MS_NSUB / KMS_SCALE
+    knobs, and defaults to True (production behaviour)."""
     cpt.RAD_CHANNEL = bool(on)
 
 
@@ -519,9 +518,9 @@ def cmd_pairs(args):
         print(f"        sim events {sim['ntot']}, complete-sequence {nfull} "
               f"({100.*nfull/sim['ntot']:.3f} %)")
         print(f"    (7) stepper {st}   sim rad switch {rq}")
-        # the rad-ON sims are the PUBLISHED NOTES_TOY_PT40 files, produced
-        # before the switch existed, so their logs carry no marker: "UNKNOWN"
-        # is the correct reading there and only "RADOFF" would be a failure.
+        # the rad-ON sims are the PUBLISHED NOTES_TOY_PT40 files, whose logs
+        # carry no activation marker at all: "UNKNOWN" is the correct reading
+        # there and only "RADOFF" would be a failure.
         rq_ok = (rq in ("RADON", "UNKNOWN", "N/A") if cfg["rad"]
                  else rq == "RADOFF")
         good = (n_ok and seq_ok and dr < 1e-3 and offx_sf.max() < 5.0

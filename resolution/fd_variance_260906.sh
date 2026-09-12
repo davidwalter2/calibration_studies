@@ -1,6 +1,6 @@
 #!/bin/bash
 # FINITE-DIFFERENCE DRIVER for the two-track maker's VARIANCE (log-det)
-# gradient (`exportVarianceGrads`, 2026-09-06).
+# gradient (`exportVarianceGrads`).
 #
 #   usage: fd_variance_260906.sh <CMSSW_AREA> <OUTROOT> [nev]
 #

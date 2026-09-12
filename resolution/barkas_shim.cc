@@ -7,8 +7,8 @@
 // Geant4's stopping power beyond z^2, and there is no UI command, no
 // G4EmParameters flag and no physics-list hook that turns any of them off.
 // The decisive test for NOTES_HADRONS s6's charge-odd energy loss is to
-// deactivate them in the SIMULATION and watch the charge-oddness vanish, so a
-// switch had to be made.
+// deactivate them in the SIMULATION and watch the charge-oddness vanish, so
+// this shim supplies the missing switch.
 //
 // It is made at the dynamic linker.  The calls from
 // G4EmCorrections::HighOrderCorrections into the three term functions go

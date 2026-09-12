@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
 """Radiation OFF, with all four energy-loss corrections ON, for all eight species.
 
-THE CELL THAT HAS NEVER BEEN MEASURED.  NOTES_RADOFF2 filled the 2x2
-(radiation x exact-delta) and its addendum re-filled it with Kokoulin, but both
-were run on ONE species (mu-) and with the two REFERENCE corrections OFF --
-`CVH_REF_CHARGEAWARE` and `CVH_REF_SPECIESDEDX` did not exist when the first was
-written and were not enabled in the second.  NOTES_HADRONS and
-NOTES_SPECIESDEDX then measured all eight species, but only with radiation ON.
-Nobody has run radiation OFF together with the reference corrections, and that
-is the configuration the calibration would actually ship.
+THE CONFIGURATION THE CALIBRATION SHIPS: radiation OFF together with the two
+REFERENCE corrections.  NOTES_RADOFF2 fills the 2x2 (radiation x exact-delta)
+and its addendum re-fills it with Kokoulin, but on ONE species (mu-) and with
+`CVH_REF_CHARGEAWARE` / `CVH_REF_SPECIESDEDX` OFF; NOTES_HADRONS and
+NOTES_SPECIESDEDX cover all eight species, but only with radiation ON.  Neither
+covers the cell measured here.
 
 So the matrix here is
 
       8 species  x  {radiation ON, radiation OFF}  x  {qop, locx}
 
 with ALL FOUR corrections set EXPLICITLY to 1 in every cell (they are
-default-OFF again since the 2026-08-16 flip was reverted, so "explicitly" is
-now the only way they come on), Fisher normalization, the full nine-probe u
-curve, 200k events per cell, and nothing fitted.
+default-OFF, so "explicitly" is the only way they come on), Fisher
+normalization, the full nine-probe u curve, 200k events per cell, and nothing
+fitted.
 
 --------------------------------------------------------------------------
 THE THREE-SWITCH DISCIPLINE, and the one place it does not apply
 --------------------------------------------------------------------------
 
-NOTES_RADOFF s1 established at real cost that two of the three obvious ways to
+NOTES_RADOFF s1 establishes that two of the three obvious ways to
 switch radiation off in CMSSW are silent no-ops (`G4Commands` is inert; only
 `ProcessActivationWatcher` compiled INTO the Simulation biglib works), and that
 each half of the switch alone is enormous.  Radiation off therefore means three
@@ -68,8 +66,8 @@ so a ray that scattered early is displaced at every later plane and the
 per-plane statistics are strongly positively correlated.  The estimator used is
 the error of the per-EVENT plane average, validated against a 400-resample
 bootstrap.  Significances are quoted per probe as well as on the rms, because
-the rms hides sign changes and the u-shape has repeatedly been the
-discriminator that excluded a candidate.
+the rms hides sign changes and the u-shape is the discriminator that excludes a
+candidate explanation.
 
 --------------------------------------------------------------------------
 KOKOULIN, and why "all four ON" is species-correct by construction
@@ -78,9 +76,9 @@ KOKOULIN, and why "all four ON" is species-correct by construction
 Geant4 puts the Kokoulin factor in `G4MuBetheBlochModel` and NOWHERE else;
 hadrons are ionized by `G4hIonisation` / `G4BetheBlochModel`, which has no such
 factor (measured against Geant4's own `CrossSectionPerVolume` in
-NOTES_HADRONS s3.1).  BOTH halves of the switch now carry a `|PDG| == 13`
+NOTES_HADRONS s3.1).  BOTH halves of the switch carry a `|PDG| == 13`
 guard -- the C++ in `G4UniversalFluctuationForExtrapolator.cc` and the offline
-`cf_track_resolution._kokoulin_exponent` since NOTES_BARKAS s9.1 -- so setting
+`cf_track_resolution._kokoulin_exponent` (NOTES_BARKAS s9.1) -- so setting
 `CVH_IONI_KOKOULIN=1` for all eight species is species-correct rather than
 wrong for six of them.  `radid` measures the C++ guard (a hadron export with
 the switch on must be BIT-IDENTICAL) and `_rows` drives the offline half
@@ -118,11 +116,11 @@ OUT = hp.OUT                       # shares NOTES_HADRONS' model/sim directory
 LOGD = os.path.join(hp.SCRATCH, "rs")
 os.makedirs(LOGD, exist_ok=True)
 
-# THE SEED PIN, asserted rather than assumed.  NOTES_PION s1: the NOTES_BARKAS
-# work added an eleventh mu- `off` seed (`mum_pt3_off_s901`), so the
-# unrestricted glob returns 220 000 events for the muon against 200 000 for
-# every hadron and the muon control comes back 0.00219 against the published
-# 0.00217.  A control that does not reproduce is not a control.
+# THE SEED PIN, asserted rather than assumed.  NOTES_PION s1: an eleventh mu-
+# `off` seed (`mum_pt3_off_s901`) exists on disk, so the unrestricted glob
+# returns 220 000 events for the muon against 200 000 for every hadron and the
+# muon control comes back 0.00219 against the published 0.00217.  A control
+# that does not reproduce is not a control.
 assert "_s1" in hp.sim_glob(13, "off"), "the seed pin is not installed"
 
 ORDER8 = bp.ORDER8                 # [13, -13, -211, 211, -321, 321, -2212, 2212]
@@ -173,8 +171,8 @@ def cmd_export(args):
     """Export the 16 models.
 
     Everything goes through `hadron_probe.cmd_export`, whose `_run` funnel
-    already pins the four corrections to their historical state as a BASE and
-    lets the arm's overlay win (`deltaspec._clean_env`).  Passing all four as
+    pins the four corrections explicitly OFF as a BASE and lets the arm's
+    overlay win (`deltaspec._clean_env`).  Passing all four as
     "1" therefore turns them on explicitly and visibly, in the one place a run
     log will show them."""
     for rad in args.rad:
@@ -207,13 +205,13 @@ def _export_one(pdg, suffix, env, force=False):
 def cmd_sim(args):
     """The `norad` arm for whichever species do not have it.
 
-    NOTES_HADRONS ran `norad` for its default `ORDER` only -- mu-, pi-, K-,
+    NOTES_HADRONS covers `norad` for its default `ORDER` only -- mu-, pi-, K-,
     pbar, p -- so the three POSITIVE partners (mu+, pi+, K+) have no rad-off
     sample.  They are what this produces.  `hadron_probe.cmd_sim` takes an
-    exclusive flock (a `nohup` that outlived its shell once wrote the same
-    paths twice) and counts a job as cached only if the census watcher printed
-    the FULL record count, because cmsRun's TFileService creates the output at
-    BeginJob and a job killed at event 1 leaves a 460-byte "valid" ROOT file."""
+    exclusive flock (two overlapping runs would otherwise write the same paths)
+    and counts a job as cached only if the census watcher printed the FULL
+    record count, because cmsRun's TFileService creates the output at BeginJob
+    and a job killed at event 1 leaves a 460-byte "valid" ROOT file."""
     have, want = [], []
     for pdg in args.pdg:
         n = len(glob.glob(hp.sim_glob(pdg, "norad")))
@@ -615,14 +613,14 @@ def cmd_control(args):
     the new arm changes relative to them.
 
     NOTES_SPECIESDEDX s6's `both` column is the closest published configuration
-    to this note's: all EIGHT species, both reference corrections on, radiation
-    ON.  It differs from the arm here in that its models were exported WITHOUT
-    `CVH_IONI_EXACTDELTA` / `CVH_IONI_KOKOULIN` in the C++ -- which, by the
+    to the one here: all EIGHT species, both reference corrections on,
+    radiation ON.  It differs from the arm here in that its models are exported
+    WITHOUT `CVH_IONI_EXACTDELTA` / `CVH_IONI_KOKOULIN` in the C++ -- which, by the
     exact s_F invariance (NOTES_FISHERNORM s1), cannot move the closure at all,
     because the C++ half of Kokoulin changes only sigma and s_F = sigma
     sqrt(1/I) is invariant under a rescaling of sigma.  So the published `both`
-    column IS the prediction for this note's rad-ON column, and reproducing it
-    is a real test of the whole chain rather than a tautology."""
+    column IS the prediction for the rad-ON column here, and reproducing it is
+    a real test of the whole chain rather than a tautology."""
     print("=" * 140)
     print("CONTROL: the published NOTES_SPECIESDEDX s6 `both` column against "
           "this note's radiation-ON cells")

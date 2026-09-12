@@ -17,11 +17,10 @@ EXTRA_ARGS=${EXTRA_ARGS:-}
 # per core, so NSHARD=160 on a 192-core box asks for ~21 600 threads from ONE
 # python3 process group -- and two samples extracting at once put this user at
 # 32 373 threads against a `ulimit -u` of 32 768. At that point NOTHING can
-# create a thread any more: every cmsRun launched afterwards died with an
+# create a thread any more: every cmsRun launched afterwards dies with an
 # immediate segmentation violation before its first log line, including a
-# trivial EmptySource job, while the machine still had 1.2 TB of free memory.
-# (Measured 2026-08-30: it killed 40 CGF refit tasks and 69 more in the next
-# sample, and looked exactly like a physics crash.)
+# trivial EmptySource job, while the machine still has 1.2 TB of free memory --
+# which looks exactly like a physics crash.
 #
 # The shard work is per-track and serial; the threads buy nothing here.
 export OMP_NUM_THREADS=1
@@ -50,9 +49,9 @@ run_shard() {
   local j=$i
   while [ "$j" -lt "$N" ]; do echo "${FILES[$j]}" >> "$list"; j=$((j + NSHARD)); done
   [ -s "$list" ] || return 0
-  # One shard = one explicit file list, handed to --files directly (the old
-  # symlink farm staged each input as task_NNNN/globalcor_resclosure_0.root,
-  # which carries no `.complete` and cannot hold four streams of one task).
+  # One shard = one explicit file list, handed to --files directly: a symlink
+  # farm staging each input as task_NNNN/globalcor_resclosure_0.root would
+  # carry no `.complete` and could not hold four streams of one task.
   # EXTRA_ARGS is how a run caps the work per shard. Wall time here is set by
   # ONE file -- each shard gets one -- and the per-track cost is dominated by
   # the exact-delta ionization exponent (_kokoulin_exponent), measured at over
@@ -89,9 +88,9 @@ if not fs:
 parts = [np.load(f) for f in fs]
 keys = list(parts[0].files)
 # A shard set with different key sets can only come from mixing code versions
-# in one run (the `ioni_charge_signed` provenance flag is the case that
-# introduced this), and silently merging it would produce a cache whose sign
-# convention differs between its halves. Fail instead.
+# in one run (the `ioni_charge_signed` provenance flag is such a key), and
+# silently merging it would produce a cache whose sign convention differs
+# between its halves. Fail instead.
 for f, p in zip(fs[1:], parts[1:]):
     assert set(p.files) == set(keys), (
         f"{f} has key set {sorted(set(p.files) ^ set(keys))} different from "

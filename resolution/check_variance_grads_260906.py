@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validation of the two-track maker's VARIANCE (log-det) gradient/Hessian.
 
-The C++ claim (`exportVarianceGrads`, 2026-09-06) is that the exported
+The C++ claim (`exportVarianceGrads`) is that the exported
 per-candidate ``gradv`` / ``hesspackedv`` are the derivatives of the MARGINAL
 objective
 
@@ -32,6 +32,9 @@ gates here are the ones that can fail:
                             muon fitted alone and fitted as half of a pair.
   E  POSITIVE SEMI-DEFINITE the exported Hessian, per candidate and pooled,
                             on the ``make_global_term.py`` reconstruction path.
+  F  FACTORED STORAGE       hess == B^T B + scatter(hessvarpackedv on
+                            hessvaridxv), against the packed dense Hessian,
+                            and the bytes per candidate the switch costs.
 
     python3 check_variance_grads_260906.py [--only B,C] [--fdroot ...]
 """

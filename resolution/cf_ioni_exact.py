@@ -1,6 +1,6 @@
 """A3: exact compound-Poisson CF fit of the ionization straggling scale,
-using the Urban-model export (ioniurbanidx / ioniurbanv branches, 2026-07-24)
-and the direct nu storage (gradllv).
+using the Urban-model export (ioniurbanidx / ioniurbanv branches) and the
+direct nu storage (gradllv).
 
 Model per ionization block b (parmtype 11), standardized exactly as the
 track fit standardized it (sigma_ref^2 = sum_s gsig2_s * (cs_s*1e-3)^2, the
@@ -109,11 +109,12 @@ def delta_term(a):
     # guard on |a| alone picks the series where it is wrong by orders of
     # magnitude (w = 1e9, a = 1e-6: series Im = -8.3e-2 vs true -6.5e-6).
     # Below a*w ~ 1e-2 the closed form is cancellation-limited and the series
-    # is the accurate branch. Same fix as cf_track_resolution._delta_term_2d.
+    # is the accurate branch. Same branch condition as
+    # cf_track_resolution._delta_term_2d.
     small = np.abs(a) * w < 5e-2
     if small.any():
         # raw quadratic + CUBIC IMAGINARY term (the transmitted skew --
-        # <E^3>_raw = (w^2-1)/2 for the 1/E^2 spectrum; dropping it zeroed
+        # <E^3>_raw = (w^2-1)/2 for the 1/E^2 spectrum; dropping it zeroes
         # the muon ionization skew)
         ar = a[small].real
         out[small] = (-0.5 * ar ** 2 * (w - 1.)

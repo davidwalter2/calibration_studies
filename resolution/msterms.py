@@ -10,7 +10,8 @@ kappa2.  This module is the MS-channel analogue of NOTES_DELTASPEC /
 NOTES_SAMPLERGAP: name what the simulation's scattering model contains that
 the model's transform does not, and size each term.
 
-WHAT THE SIMULATION ACTUALLY RUNS  (established, not inferred -- see NOTES)
+WHAT THE SIMULATION ACTUALLY RUNS  (established, not inferred -- see
+Documents/Resolution/MULTIPLE_SCATTERING.md)
 --------------------------------------------------------------------------
 FTFP_BERT_EMM -> CMSEmStandardPhysics -> G4EmBuilder::ConstructCharged(..,
 isWVI = true).  For mu+-, pi+-, K+-, p, pbar:
@@ -67,7 +68,7 @@ os.makedirs(LOGD, exist_ok=True)
 UCURVE = fn.UCURVE
 UROW = "".join(f"{u:>9g}" for u in UCURVE)
 
-# ---------------------------------------------------------------- the new arm
+# --------------------------------------------------------------- the nocs arm
 #
 # `nocs` = the published `off` arm (nuclear + Decay off, radiation ON) PLUS
 # CoulombScat off.  It is deliberately a ONE-SIDED switch: the model has no
@@ -143,7 +144,7 @@ def cmd_live(args):
 
 
 # =========================================================================
-# 2.  the closure of the new arm against the published one
+# 2.  the closure of the `nocs` arm against the published `off` arm
 # =========================================================================
 
 def _rows(pdg, arm, func, model_rad=True):

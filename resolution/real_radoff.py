@@ -15,13 +15,12 @@ The three switches are identical and are described there:
 
 WHY BOTH SIDES ARE RE-RUN, INCLUDING RADIATION ON
 -------------------------------------------------
-The published real-geometry sample (sim_260808tight_pt3_eta0.30_phi0.70) was
-produced with NO watcher at all.  Adding a watcher flips CMSSW's `hasWatchers`,
-which changes whether the stepping action emits its signal.  That should not
-change physics -- but "should not" is exactly what this study keeps having to
-check, so the radiation-ON side is regenerated through the SAME driver with an
-EMPTY inactivate list, and the published profile is used only as a target to
-reproduce.
+The published real-geometry sample (sim_260808tight_pt3_eta0.30_phi0.70)
+carries NO watcher at all.  Adding a watcher flips CMSSW's `hasWatchers`, which
+changes whether the stepping action emits its signal.  That should not change
+physics -- but "should not" is not "does not", so the radiation-ON side is
+regenerated through the SAME driver with an EMPTY inactivate list, and the
+published profile is used only as a target to reproduce.
 
 The real geometry is CHEAP here: 100 tasks x 2000 events is ~10 s per task.
 
@@ -118,10 +117,9 @@ def _env(extra=None):
             "X509_USER_PROXY", "KRB5CCNAME")
     e = {k: os.environ[k] for k in keep if k in os.environ}
     e["PATH"] = "/usr/local/bin:/usr/bin:/bin"
-    # The four 2026-08-16 default-on corrections pinned to their
-    # HISTORICAL state (all off); any explicit overlay below still
-    # wins.  Same convention as deltaspec._clean_env -- an archived
-    # model must stay comparable to a fresh export.
+    # The four energy-loss corrections pinned OFF explicitly; any explicit
+    # overlay below still wins.  Same convention as deltaspec._clean_env --
+    # an archived model must stay comparable to a fresh export.
     import cf_track_resolution as _ctr
     e.update(_ctr.SWITCHES_OFF)
     e.update(extra or {})
@@ -160,7 +158,7 @@ def cmd_model(args):
     rad = args.rad == "on"
     out = modelpath(rad)
     log = out[:-5] + ".log"
-    # ReferenceIonizationOnly is a cmsRun OPTION now, not an exported name
+    # ReferenceIonizationOnly is a cmsRun OPTION, not an exported name
     import cf_track_resolution as _ctr
     _swopts, _env_rest = _ctr.split_switches({} if rad else {"CVH_IONONLY": "1"})
     cmd = (f"source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "

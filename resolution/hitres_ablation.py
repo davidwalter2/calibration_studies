@@ -10,7 +10,7 @@
     ONLY thing deflecting the muon is delta emission. simlocaldxdz -
     simlocaldxdzprop is the true track's accumulated deflection from the
     gen-propagated helix, so A2/nominal of that IS delta/MS.
-    PRE-REGISTERED (before the refit landed, from real msmoliv records):
+    PRE-REGISTERED, from real msmoliv records:
        variance ratio 0.0575  (uncapped -- the sim has no 50 MeV cap)
        rob68 ratio    0.118   (the delta core is narrow; its variance is in
                                rare hard kicks, so the two differ by ~2x)

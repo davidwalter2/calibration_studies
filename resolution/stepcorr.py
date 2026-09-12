@@ -16,7 +16,7 @@ trajectory.  In Geant4 the energy lost in step i lowers the momentum entering
 step i+1, so the straggling of the later steps depends on what already
 happened.  An additive exponent cannot represent that.
 
-What the model already gets right, and what this note must not re-discover:
+What the model already gets right:
 
   * the MEAN degradation along the track -- every step's record is written at
     that step's own reference momentum, so d(dE/dx)/ds is in the record;
@@ -52,7 +52,7 @@ sub-block CF as marginal.
 That gives three tests, in increasing strength:
 
   `corr`    Cov(D_i, D_j), i != j.  Zero under the model.  Model-free.
-  `cond`    the task's primary test: bin events by the realised accumulated
+  `cond`    the primary test: bin events by the realised accumulated
             loss at an intermediate plane k, then measure the closure of the
             REMAINING increment over planes k+1..N in each bin.  Under
             independence every bin closes identically; the model half of the
@@ -112,8 +112,8 @@ PLOTDIR = os.path.expanduser(f"~/public_html/ZMass/resolution/{TODAY}_stepcorr")
 # samples
 #
 # Every one of these is ARCHIVED and is reused byte-identically; nothing here
-# runs a simulation.  `pt3`/`pt40` are the 400k NOTES_TOY_PT40 NSUB=1 samples
-# the task names; `pt3_cut1e4` / `pt40_cut001` are the 200k physically faithful
+# runs a simulation.  `pt3`/`pt40` are the 400k NOTES_TOY_PT40 NSUB=1 samples;
+# `pt3_cut1e4` / `pt40_cut001` are the 200k physically faithful
 # (small production cut) configurations from NOTES_TAILHUNT, kept because the
 # default-cut toy hands 12-26 % of the primary's loss to explicit secondaries
 # and the delta-ray feedback is exactly what this note is about; `real` is the
@@ -276,9 +276,9 @@ def sub_scale(legs, jmin, K, func):
 
     Same pipeline as `fisher_norm.plane_scales`: sigma from the propagator's
     own Q, 1/I from the exact FFT inversion of the block CF on a grid matched
-    to THAT block.  Matching the grid to the thing being inverted is the rule
-    this study keeps relearning, and a sub-block's CF decays at a different t
-    from the full block's, so `auto_tau` is re-run rather than reused.
+    to THAT block.  The grid must match the thing being inverted, and a
+    sub-block's CF decays at a different t from the full block's, so `auto_tau`
+    is re-run rather than reused.
     """
     key = (id(legs), int(jmin), int(K), func)
     if key not in _SUBSCALE:
@@ -304,8 +304,8 @@ def sub_model_probe(legs, jmin, K, func, s, probes=UCURVE):
 # errors
 #
 # The plane mean's error is NOT err_plane/sqrt(nplane): every plane is
-# evaluated on the same events (NOTES_GEOMCLOSURE, "The error bar, and why the
-# old one was wrong" -- the naive form is 2.8x too small).  The estimator is
+# evaluated on the same events (the naive form is 2.8x too small,
+# NOTES_GEOMCLOSURE).  The estimator is
 # the error of the per-EVENT plane average, which carries the full covariance.
 # ==========================================================================
 
@@ -592,7 +592,7 @@ def _qbins(c, edges):
 # and hence on Tmax and on 1/I *of the truth*, which is the effect; it cannot
 # move the model, so the SPAN across bins is a pure data statement.  (Had each
 # bin instead been standardized by its own empirical width, the effect would
-# have been divided out -- that is the naive version the task warns about.)
+# have been divided out; that is the naive version, and it must be avoided.)
 # ==========================================================================
 
 _COND_CTX = None

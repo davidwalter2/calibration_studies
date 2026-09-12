@@ -4,7 +4,7 @@ clean-propagation residual, and does the DELTA-RAY PRODUCTION CUT matter?
 
 THE TWO QUESTIONS
 -----------------
-1. PROCESS CENSUS.  `PrimaryLossCensusWatcher` (new, inside the Simulation
+1. PROCESS CENSUS.  `PrimaryLossCensusWatcher` (inside the Simulation
    biglib) writes one fixed-length float32 record per event giving the primary's
    energy loss split by the process that defined the step and by whether the
    energy went into an explicit SECONDARY or into the continuous straggling
@@ -29,8 +29,8 @@ THE TWO QUESTIONS
 
 VERIFY BEFORE INTERPRETING
 --------------------------
-Three separate controls in this project were provably inert, so every switch
-here is checked from the log and from the data:
+A switch that is silently inert would invalidate every number here, so every
+switch is checked from the log and from the data:
   * `TOY_CUT`  -> the watcher DUMPS G4ProductionCutsTable, so the cut energy in
                   the toy material is a printed measurement, not an assumption;
                   and `census` shows the secondary counts moving with it.
@@ -44,6 +44,11 @@ SUBCOMMANDS
     setup <area>        build the isolated area (geometry, planes, patched driver)
     sim <tag>           run the sim, optionally split over seeds
     census <tag>        read the binary census, tail vs bulk
+    hardrate <tag>      the model's Urban a3 channel against Geant4's own
+                        explicit delta rays, above a set of thresholds
+    gauge <tag>         scale the model's a3 channel at fixed block mean loss
+                        and read off the closure response
+    realgauge           the same gauge on the real-tracker sample
     closure             closure of each tag against the UNCHANGED archived model
 """
 
@@ -255,16 +260,15 @@ def _cmsrun(a, script, extra, log, env_extra=None):
             "X509_USER_PROXY", "KRB5CCNAME")
     env = {k: os.environ[k] for k in keep if k in os.environ}
     env["PATH"] = "/usr/local/bin:/usr/bin:/bin"
-    # The four 2026-08-16 default-on corrections pinned to their
-    # HISTORICAL state (all off); any explicit overlay below still
-    # wins.  Same convention as deltaspec._clean_env -- an archived
-    # model must stay comparable to a fresh export.
+    # The four energy-loss corrections pinned OFF explicitly; any explicit
+    # overlay below still wins.  Same convention as deltaspec._clean_env --
+    # an archived model must stay comparable to a fresh export.
     import cf_track_resolution as _ctr
-    # The switches are ParameterSet parameters now (Geant4e b372e08), so BOTH
-    # the historical all-off pin and any explicit overlay have to travel as
-    # cmsRun OPTIONS.  Exporting them would leave the job on the new default-ON
-    # corrections while this arm's bookkeeping said "off" -- silently, and in
-    # the one place that must not happen, since an archived model is only
+    # The switches are ParameterSet parameters, so BOTH the all-off pin and any
+    # explicit overlay have to travel as cmsRun OPTIONS.  Exporting them as
+    # environment variables would leave the job on the propagator's own
+    # defaults while this arm's bookkeeping said "off" -- silently, and in the
+    # one place that must not happen, since an archived model is only
     # comparable to a fresh export if the switches really match.
     _sw = dict(_ctr.SWITCHES_OFF)
     _sw.update(env_extra or {})          # an explicit overlay still wins
@@ -728,8 +732,8 @@ def _exc_scale(legs, f):
 
 
 def cmd_realgauge(args):
-    """The same gauge on the REAL tracker geometry, using the 400k pT = 3
-    radiation-ON sample NOTES_RADOFF produced.  Offline only."""
+    """The same gauge on the REAL tracker geometry, on the 400k pT = 3
+    radiation-ON sample of NOTES_RADOFF.  Offline only."""
     import cf_track_resolution as ctr
     import real_radoff as rr
     print("=" * 100)

@@ -3,11 +3,12 @@
 
 WHAT THIS IS
 ------------
-NOTES_CLOSURE_FINAL measured the eight-species x radiation x {qop,locx} matrix
-with the FOUR ionization corrections on.  NOTES_MOLIEREWRONG then added three
-MS harmonisations and reported them as a per-cell SHIFT against that matrix's
-base curve.  Nothing has ever been run with all seven set at once and reported
-as an absolute closure with its own error bars.  That is what `closure` does.
+The absolute closure of the layered toy with all seven corrections set at once
+-- the four ionization ones and the three MS harmonisations -- reported with
+its own error bars.  That is what `closure` does.  For reference,
+NOTES_CLOSURE_FINAL holds the eight-species x radiation x {qop,locx} matrix
+with the FOUR ionization corrections on, and NOTES_MOLIEREWRONG reports the
+three MS harmonisations as a per-cell SHIFT against that matrix's base curve.
 
 THE SEVEN, and how each one comes on
 ------------------------------------
@@ -52,20 +53,18 @@ would mean adding a delta to a published curve.  What `moliere_probe gauge`
 actually does is call `wvisplit._rows` TWICE -- once with the knobs at their
 defaults and once with them set -- and print the difference; each call
 re-evaluates the model CF, re-runs the Fisher inversion and re-scores against
-the simulation.  So NOTES_MOLIEREWRONG s5's `left` column is already a
-measurement.  What it is NOT is a closure reported against its own error: the
-note printed only the rms of the resulting curve, took the errors from the BASE
-cell, and never reported the outermost plane.  This module reports the absolute
-curve, its per-probe error, its significance, and BOTH the ladder mean and the
-outermost (fully accumulated) plane.
+the simulation, so NOTES_MOLIEREWRONG s5's `left` column is already a
+measurement.  What it is NOT is a closure reported against its own error.
+This module reports the absolute curve, its per-probe error, its significance,
+and BOTH the ladder mean and the outermost (fully accumulated) plane.
 
 THE OUTERMOST PLANE
 -------------------
 Every closure row is cumulative over legs 0..k, so plane 13 is the whole-track
 number -- the one the global fit integrates over.  `closure_rows` returns the
-per-plane rows; the ladder statistic is their mean and is what every note in
-this family has quoted.  Both are printed here.  The outermost plane's error is
-the ordinary per-plane one (`errs[-1]`): the 2.8x plane-correlation inflation
+per-plane rows; the ladder statistic is their mean, which is the statistic the
+notes in this family quote.  Both are printed here.  The outermost plane's
+error is the ordinary per-plane one (`errs[-1]`): the 2.8x plane-correlation inflation
 of NOTES_GEOMCLOSURE s1 applies to the MEAN over planes and to nothing else.
 
 SUBCOMMANDS
@@ -135,7 +134,7 @@ MS_OFF = {"MS_ELEC_TMAX": 0.0, "MS_ELEC_EDGE": 0.0,
 
 # The harmonisation knobs that live on cf_ms_exact rather than
 # cf_track_resolution. Kept in the SAME place as MS_SEVEN deliberately: the
-# switches are now spread over three modules (ctr, cf_ms_exact, and the C++
+# switches are spread over three modules (ctr, cf_ms_exact, and the C++
 # CVH_* env flags), and a closure run that silently omits one compares a
 # partly-harmonised model against the simulation and reports it as physics.
 # Anything added to the harmonisation list must be added here too.
@@ -181,7 +180,7 @@ def cell(pdg, rad, func, ms=True, sim_arm=None, model_rad=None, useh=None):
     available rather than inferred.
 
     `useh` picks the a-vector BASIS (default: `hbasis.USE_H`, which is False,
-    i.e. every published number is reproduced).  With it True the
+    the basis every published number is quoted in).  With it True the
     model's sigma is the width of the LOCAL component the sim residual reports
     rather than of its curvilinear partner -- see `hbasis`.  It is restored on
     the way out like every other switch here, and it is in both scale-cache
@@ -509,8 +508,8 @@ PUB = {
 def cmd_control(args):
     """With the MS three at their defaults this must reproduce
     NOTES_CLOSURE_FINAL s3.1 / s3.2 digit for digit.  A control that does not
-    reproduce is not a control, and the muon `off` glob is the one that has
-    silently failed before (the stray seed-901 sample)."""
+    reproduce is not a control, and the muon `off` glob is the one that fails
+    silently when the seed pin lets the stray seed-901 sample in."""
     print("=" * 152)
     print("CONTROL: the MS three at their DEFAULTS must reproduce "
           "NOTES_CLOSURE_FINAL s3.1 / s3.2")
@@ -664,18 +663,16 @@ def _pm40(g):
 def _tag40(pdg, arm, pt=None):
     """`hadron_probe.tag_of` with the pT read at CALL time.
 
-    THE LANDMINE, and it is exactly the class of defect this study keeps
-    finding.  The original is
+    THE LANDMINE.  `hadron_probe.tag_of` is declared
 
         def tag_of(pdg, arm, pt=PT):
 
-    and a Python default argument is bound at DEF time, so `tag_of` returns
-    `pt3` forever no matter what `hadron_probe.PT` is set to.  `_env` (which
-    sets TOY_PT) and `_sim_one` (which passes `pt=`) both read the module
-    global at call time, so the first pT = 40 smoke run produced files whose
-    PHYSICS was pT = 40 (median first-plane |p| = 41.8133 GeV against 3.1358)
-    and whose NAMES said `pt3`.  Nothing would have crashed; the pT = 40 rows
-    would simply have been globbed under the pT = 3 tag.  Overridden here, and
+    and a Python default argument is bound at DEF time, so it returns `pt3`
+    forever no matter what `hadron_probe.PT` is set to.  `_env` (which sets
+    TOY_PT) and `_sim_one` (which passes `pt=`) both read the module global at
+    call time, so a pT = 40 run through the unpatched `tag_of` writes files
+    whose PHYSICS is pT = 40 and whose NAMES say `pt3`: nothing crashes, the
+    pT = 40 rows are simply globbed under the pT = 3 tag.  Overridden here, and
     `sim40` asserts on the tag before it writes anything."""
     return (f"{hp.SPECIES[pdg]['label'].replace('-','m').replace('+','p')}"
             f"_pt{(hp.PT if pt is None else pt):g}_{arm}")
@@ -811,14 +808,14 @@ def cmd_sp40(args):
     the muon is already ultra-relativistic at pT = 3 so this barely moves) and
     `MS_WVI_LG` is G4's own transport log per unit chi_c^2, which contains
     ln(theta_max^2/chi_a^2) and therefore moves as ln p.  Carrying the pT = 3
-    numbers over would be exactly the kind of silently-wrong constant this
-    study keeps finding, so both are re-measured."""
+    numbers over would be a silently-wrong constant, so both are
+    re-measured."""
     import json
     # `float(...)`, NOT `repr(np.float64(...))`.  numpy 2 reprs a scalar as
     # `np.float64(41813.5)`, the driver parses its arguments with `atof`, and
-    # `atof("np.float64(...")` is 0.0 -- so the driver ran at p = 0 and returned
-    # L_g = nan, silently, into a JSON the closure then reads.  Another member
-    # of the s4.1 family: a wrong CONSTANT that does not raise.
+    # `atof("np.float64(...")` is 0.0 -- the driver would run at p = 0 and
+    # return L_g = nan, silently, into a JSON the closure then reads: a wrong
+    # CONSTANT that does not raise.
     p_mev = float(1e3 * 40.0 * np.cosh(hp.ETA))
     log = os.path.join(LOGD, "wvi_pt40.log")
     if args.run or not os.path.exists(log):

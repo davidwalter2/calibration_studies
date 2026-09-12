@@ -13,8 +13,11 @@ K=${K:-8}
 NSUB=${NSUB:-2500}
 COMPS=${COMPS:-0123}
 GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt
+# Logs follow $R, so a study that points $R at its own run tree (the per-hit
+# one does) does not overwrite this one's.
+LOGS=${LOGS:-$R/logs}
 cd $HERE
-mkdir -p $R/cards $R/fits logs
+mkdir -p $R/cards $R/fits $LOGS
 for arm in ${ARMS:-cf gaussq}; do
   for k in $(seq 0 $((K-1))); do
     nm=sub_${arm}_$k
@@ -24,10 +27,10 @@ for arm in ${ARMS:-cf gaussq}; do
       ./run_tf.sh python3 -u make_hitlik_card.py --npz $NPZ --quad-npz $QNPZ \
         --max-tracks $NSUB --track-offset $off --whiten --prune-frac 0.001 \
         --poi material --hit-prior 1.0 --arm $arm --comps $COMPS \
-        --no-quadratic -o $R/cards/$nm.hdf5 > logs/card_$nm.log 2>&1
-      ./run_fit.sh $nm --minimizerMethod tf-trust-krylov > logs/fit_$nm.log 2>&1 \
+        --no-quadratic -o $R/cards/$nm.hdf5 > $LOGS/card_$nm.log 2>&1
+      ./run_fit.sh $nm --minimizerMethod tf-trust-krylov > $LOGS/fit_$nm.log 2>&1 \
         || echo "FIT $nm FAILED"
-      grep -a edmval logs/fit_$nm.log | tail -1
+      grep -a edmval $LOGS/fit_$nm.log | tail -1
     fi
   done
 done

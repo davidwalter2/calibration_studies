@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """The strip hit-residual density, built from the S-curve rather than fitted blind.
 
-Section 10 fitted [uniform(w) (x) Gauss(s)] + tail and got chi2/ndf ~ 1 in the
-quantization regime and 5-12 in the interpolating one. The missing ingredient
-is the eta / S-curve: `StripCPEfromTrackAngle` returns the cluster BARYCENTRE
-plus a rigid shift, and the barycentre is not linear in the impact point, so
-the residual depends on where inside the strip the track went.
+A blind [uniform(w) (x) Gauss(s)] + tail fit reaches chi2/ndf ~ 1 in the
+quantization regime and 5-12 in the interpolating one (see
+Documents/Resolution/HIT_RESOLUTION.md). The missing ingredient is the eta /
+S-curve: `StripCPEfromTrackAngle` returns the cluster BARYCENTRE plus a rigid
+shift, and the barycentre is not linear in the impact point, so the residual
+depends on where inside the strip the track went.
 
 Measured directly here (hitres_scurve.py, `scurve_mugun_lowpt.png`): with the
 true position referred to the CLUSTER's own lattice, psi = hitStripSim -
@@ -27,7 +28,7 @@ A is the ramp amplitude: A -> pitch is a completely uninformative estimator
 (pure quantization) and A -> 0 a perfectly linear one. c1, c2 are the
 NON-linearity -- exactly what an eta correction would remove -- and they are
 what makes the density depart from a box. Setting c1 = c2 = 0 reproduces
-box (x) Gaussian identically, so this is a strict superset of the old family
+box (x) Gaussian identically, so this family is a strict superset of that one
 and the comparison is nested.
 
 usage:
@@ -65,9 +66,9 @@ def swidth(t, s, s1):
     For a two-strip cluster the estimator is the charge RATIO eta, and the
     position error is sigma_eta / |d eta/dt| -- it blows up wherever the
     response flattens, i.e. near the ends of the period where one strip
-    carries almost everything. A single width cannot represent that, and it
-    is why the constant-s fit stayed at chi2/ndf ~ 8 for N = 2 while it
-    already described N = 1 and N = 3.
+    carries almost everything. A single width cannot represent that, and a
+    constant s sits at chi2/ndf ~ 8 for N = 2 while already describing N = 1
+    and N = 3.
     """
     return s * (1.0 + s1 * np.cos(2 * np.pi * t))
 
@@ -79,8 +80,8 @@ def tdensity(t, r):
     selects crossings near a boundary, because that is what splits the charge.
     So t is uniform only before the class cut, and rho(t) = 1 + r cos(2 pi t)
     (r > 0 centre-peaked, r < 0 boundary-peaked) is the leading correction.
-    Leaving it out is what kept N = 2 at chi2/ndf ~ 8 while every other class
-    was already described.
+    Leaving it out keeps N = 2 at chi2/ndf ~ 8 while every other class is
+    already described.
     """
     w = 1.0 + r * np.cos(2 * np.pi * t)
     return np.maximum(w, 1e-6) / np.sum(np.maximum(w, 1e-6))

@@ -7,9 +7,9 @@ barycentre is not a linear function of the true impact point -- diffusion,
 capacitive coupling and the readout threshold make the charge sharing an
 error-function of the distance rather than a straight line -- so the residual
 depends on where inside the cluster the track went. That dependence is the
-S-curve, and it is the ingredient the box (x) Gaussian family was missing:
-section 10 fitted it at chi2/ndf 1.0 in the quantization regime and 5-12 in
-the interpolating one.
+S-curve, and it is the ingredient the box (x) Gaussian family lacks
+(HIT_RESOLUTION.md): fitted, it gives chi2/ndf 1.0 in the quantization regime
+and 5-12 in the interpolating one.
 
 The variable has to be the true position in the CLUSTER's own lattice frame,
 
@@ -30,8 +30,8 @@ p(u) is the pushforward of the uniform through g, convolved with the noise:
     p(u) = sum_{roots psi_i of g(psi)=u} 1/|g'(psi_i)|   (x)   N(0, s)  + tail
 
 so the flat tops and the caustic peaks come out of g' and are not fitted
-separately. g linear reproduces the box (x) Gaussian exactly, which is why the
-old family worked wherever the estimator was quantization-dominated.
+separately. g linear reproduces the box (x) Gaussian exactly, which is why that
+family works wherever the estimator is quantization-dominated.
 
 usage:
   python hitres_scurve.py [--tag mugun_lowpt] [--subdir hitres3]
@@ -131,7 +131,7 @@ def main():
     strip = ((d["subdet"] == 3) | (d["subdet"] == 5)) & (d["hitStripSim"] > -98)
     u = d["hitStripRec"] - d["hitStripSim"]
     psi = d["hitStripSim"] - d["hitFirstStrip"]
-    # closure of the new export against the one that already existed
+    # closure of the strip-lattice export against dxrecsim
     ok = strip & (d["dxerr"] > 0)
     ratio = (u[ok] * d["hitPitch"][ok]) / d["dxrecsim"][ok]
     logger.info(f"{nf} files, {int(strip.sum())} strip hits with truth")

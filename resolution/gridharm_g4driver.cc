@@ -1,18 +1,19 @@
 // Does harmonising the extrapolator's energy grid change what the tables
 // return at the energies the CVH fit uses?
 //
-// The fluctuation model used to build its own G4TablesForExtrapolatorForCVH on
-// (70 bins, 1 MeV - 10 TeV) while the reference trajectory built
-// (80 bins, 1 MeV - 100 TeV).  Both are now the long grid.  The two are
-// ALIGNED -- (Emax/Emin)^(1/bins) = 10^0.1 for both -- so every node of the
-// short grid is a node of the long one and the only thing that can move is the
-// SPLINE, whose second derivatives come from a solve over all nodes.
+// The fluctuation model and the reference trajectory each build a
+// G4TablesForExtrapolatorForCVH.  The two candidate grids are (70 bins,
+// 1 MeV - 10 TeV) and (80 bins, 1 MeV - 100 TeV), and both tables are built on
+// the long one.  The grids are ALIGNED -- (Emax/Emin)^(1/bins) = 10^0.1 for
+// both -- so every node of the short grid is a node of the long one and the
+// only thing that can move is the SPLINE, whose second derivatives come from a
+// solve over all nodes.
 //
 // This driver isolates exactly that.  It fills the two G4PhysicsLogVectors
 // with the SAME analytic function, calls Geant4's own FillSecondDerivatives on
 // both, and compares Value(E) against each other and against the function.  No
 // materials, no models, no run manager: the only Geant4 code exercised is the
-// interpolation that changed.
+// interpolation itself.
 //
 // build:  ./build_gridharm.sh
 // run:    $SCRATCH/gridharm_g4driver.sh
@@ -40,8 +41,8 @@ namespace {
 }  // namespace
 
 int main() {
-  // exactly the two constructions that were in the tree, spline flag on
-  G4PhysicsLogVector shortv(1.0, 1.0e7, 70, true);   // 1 MeV - 10 TeV, old fluctuation
+  // exactly the two constructions, spline flag on
+  G4PhysicsLogVector shortv(1.0, 1.0e7, 70, true);   // 1 MeV - 10 TeV, short grid
   G4PhysicsLogVector longv(1.0, 1.0e8, 80, true);    // 1 MeV - 100 TeV, reference
 
   for (std::size_t j = 0; j <= 70; ++j)

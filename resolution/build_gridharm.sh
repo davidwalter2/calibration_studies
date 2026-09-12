@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build gridharm_g4driver against the ALREADY-BUILT CMSSW
 # area.  Nothing in the CMSSW or Geant4 source trees is written to; only the
-# two binaries are produced, into the scratchpad.  (Pattern copied from
+# two binaries are produced, into the scratchpad.  (Same pattern as
 # build_urban_g4driver.sh, including the wrapper that freezes the CMSSW
 # LD_LIBRARY_PATH -- RUNPATH is not transitive and the CMSSW library pulls in
 # dependencies the executable's own RUNPATH cannot resolve.)

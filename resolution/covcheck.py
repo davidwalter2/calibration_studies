@@ -4,7 +4,7 @@
 WHY NOT THE CLOSURE
 -------------------
 `<e^{-u z^2}>` is a scalar per direction: it says the model is wrong, not WHERE.
-Two residuals survive the basis fix -- a +0.005 locx plateau on both geometries,
+Two residuals remain in the H basis -- a +0.005 locx plateau on both geometries,
 and the qop degradation H exposes -- and both are statements about a particular
 element of the covariance.  The sim gives all five local residuals per event, so
 the covariance can be compared directly.
@@ -20,7 +20,7 @@ truncated sigma grows ~3x between alpha = 0.99 and 0.999, i.e. the variance is
 convention-dependent.  A raw sample covariance from the sim is not truncated at
 all and is dominated by the Landau tail, especially in qop.  Comparing those two
 numbers directly compares conventions as much as physics -- the same trap
-NOTES.md flagged for the per-leg truncation study.
+Documents/Resolution/RESOLUTION.md flags for the per-leg truncation study.
 
 CORRELATIONS largely divide that out: a common scale error on a component
 cancels in rho = C_ij/sqrt(C_ii C_jj).  So rho is the headline and the variance
@@ -31,9 +31,9 @@ rather than believed.
 
 WHAT TO LOOK FOR
 ----------------
-  rho(qop, locx)   the term H's qop row adds, and the only thing that changed
-                   when qop broke under H.  If the model and sim disagree here
-                   the qop story is closed.
+  rho(qop, locx)   the term H's qop row adds, and the only thing that moves
+                   when qop is taken in the H basis, where it does not close.
+                   If the model and sim disagree here the qop story is closed.
   rho(locx, dxdz)  the model predicts ~-0.9 (dir_closure); a position/angle
                    correlation error is the natural home for a locx plateau
                    that is flat in radius.

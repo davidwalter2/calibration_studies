@@ -4,22 +4,22 @@
 #
 # The project bar (HANDOFF_NUCLEAR_ELASTIC.md s4) is bit-identity when the
 # switch is off, demonstrated by actually reverting and re-running -- "the code
-# path is guarded" has been wrong before.
+# path is guarded" is an argument, not a measurement.
 #
-# WHY A COPY AND NOT `git stash`.  The first version of this script stashed the
-# four CF files in place.  That mutates the LIVE tree for the duration of the
-# run, and when the reference leg died the EXIT trap did not restore them --
-# the working copy was left holding the reverted files with the real work
-# sitting in a stash entry.  Anything else running out of that directory at the
-# time silently switched physics underneath itself.  Reverting into a COPY
-# leaves the live tree untouched no matter how this script exits.
+# WHY A COPY AND NOT `git stash`.  Stashing the four CF files in place mutates
+# the LIVE tree for the duration of the run, and an EXIT trap is not enough to
+# undo it: if the reference leg dies, the working copy is left holding the
+# reverted files with the real work sitting in a stash entry, and anything else
+# running out of that directory silently switches physics underneath itself.
+# Reverting into a COPY leaves the live tree untouched no matter how this
+# script exits.
 #
-# SCOPE.  Only the four CF files are reverted.  hadron_probe.py's changes in
-# this branch (the `elonly`/`inelonly` arms, the `_s1??` seed pin, the
-# outermost row, the cmd_live restore assertion) are intentional behaviour
-# changes, not the channel -- the pin in particular restores the muon `off`
-# sample from 11 files to the published 10, so a whole-tree revert would
-# "fail" bit-identity for a reason with nothing to do with this channel.
+# SCOPE.  Only the four CF files are reverted.  hadron_probe.py's `elonly` /
+# `inelonly` arms, its `_s1??` seed pin, the outermost row and the cmd_live
+# restore assertion are deliberate behaviour, not part of this channel -- the
+# pin in particular holds the muon `off` sample at the published 10 files
+# rather than 11, so a whole-tree revert would "fail" bit-identity for a reason
+# with nothing to do with this channel.
 #
 # Usage:  ./nucel_bitident.sh
 set -euo pipefail

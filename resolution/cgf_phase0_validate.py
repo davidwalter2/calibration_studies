@@ -4,18 +4,18 @@ Geant4, and how big is the mean-vs-mode shift the fit is currently missing?
 
 Three things are compared per sensor plane, for the q/p residual:
 
-  1. the saddlepoint density from cgf_saddlepoint  (new, no Fourier inversion)
-  2. the exact Fourier inversion of the same CF     (existing, validated code)
+  1. the saddlepoint density from cgf_saddlepoint  (no Fourier inversion)
+  2. the exact Fourier inversion of the same CF     (independently validated)
   3. Geant4 itself                                  (ground truth)
 
 If 1 == 2 the continuation to real argument is right. If 2 == 3 the physics
-model is right (already shown in the 2026-08-11 deck). If both hold, the
-mode-minus-mean shift printed here is the bias the fit is currently taking,
-and Phase 1 is simply to subtract it in the reference.
+model is right. If both hold, the mode-minus-mean shift printed here is the
+bias the fit is taking, and Phase 1 is simply to subtract it in the reference.
 
 Uses the pT=3 muon ladder -- the SAME matched sim/model pair as the closure
-results. The pair is asserted, not assumed: regen_models.sh mis-targeted the
-pt10 model on 2026-08-08 and produced a plausible-looking fake disagreement.
+results. The pair is asserted, not assumed: a mis-targeted model export (the
+pt10 model scored against the pt3 sim, say) produces a plausible-looking fake
+disagreement rather than an error.
 
 usage: python cgf_phase0_validate.py [--pt 3] [--planes 4,9,14,18]
 """

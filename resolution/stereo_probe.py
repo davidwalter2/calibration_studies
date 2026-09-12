@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Two probes of what is left of the real-geometry q/p closure (+0.0676).
 
-By 2026-08-19 the candidate list had been cut to: stereo modules, phi
-segmentation / module edges, and the real-geometry export itself.  Acceptance
+The candidates left are: stereo modules, phi segmentation / module edges, and
+the real-geometry export itself.  Acceptance
 (<= 0.3 %), step structure (the real-material toy has it and closes), material
 sampling (40 %, measured) and misalignment (the study runs useIdealGeometry) are
 all excluded -- NOTES_GEOMCLOSURE s9-s10.

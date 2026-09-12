@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Figures for the vertex-constraint-residual CF term.
 
-One file per panel, into ``~/public_html/cvh/<YYMMDD>_vtxres/``.
+One file per panel, into ``~/public_html/ZMass/cvh/<YYMMDD>_vtxres/``.
 
 --densities    z_v against the three arms' average predicted density, with a
                data/model ratio panel (linear and log), and the tails table.
@@ -265,7 +265,7 @@ def main():
         a.densities = a.composition = a.sigma = True
     logging.setup_logger(__file__, 3, False)
     day = datetime.date.today().strftime("%y%m%d")
-    outdir = a.outpath or os.path.expanduser(f"~/public_html/cvh/{day}_vtxres")
+    outdir = a.outpath or pubhtml.figdir("vtxres", day)
     os.makedirs(outdir, exist_ok=True)
     pubhtml.ensure_index(outdir, logger=logger)
     tags = a.tags or [os.path.basename(x).replace(".npz", "") for x in a.npz]

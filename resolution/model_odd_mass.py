@@ -4,8 +4,8 @@
 At track level the model's `<z e^{-u z^2}>` is ~0 (measured 5e-5), so a raw
 data odd moment is `data - model` there. At MASS level it is not: the model
 carries the Jensen mean shift AND the ionisation and radiative skews of the
-CF. Only the first was subtracted in sec. 0f.41; this adds the rest, so that a
-mass-level odd moment becomes an ATTRIBUTION rather than a correlation.
+CF. This evaluates all three, so that a mass-level odd moment becomes an
+ATTRIBUTION rather than a correlation.
 
 THE ASSEMBLY, read off `unbinned.MassCFTerm._family_parts`. `tgrid` is the
 STANDARDIZED argument (the Gaussian family enters as `-0.5 vgf t^2`, which is
