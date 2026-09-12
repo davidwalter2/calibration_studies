@@ -9,8 +9,9 @@
 #                                 need for a MaterialCF card
 #   exportStepRecords=False       the in-maker exponents make the 430 kB/cand
 #                                 raw step records unnecessary
-# doVtxConstraint stays FALSE -- index 6 free, so the fit reports the DCA,
-# which is what every production does.
+# doVtxConstraint is left at the maker default (ON).  With it on, `Jpsi_d` is
+# identically zero and `Jpsi_vtxres` is the DCA the unconstrained fit would
+# have reported, so the residual this study measures is exported either way.
 #
 # usage: ./run_prod.sh <nparallel> <task_from> <task_to>
 set -uo pipefail

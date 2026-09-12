@@ -48,7 +48,7 @@ case "$CHANNEL" in
  doTrigger=False applyHltFilter=False \
  massMin=60 massMax=120 \
  useIdealGeometry=False useDefaultField=True globalTag=106X_mcRun2_asymptotic_v17 \
- doVtxConstraint=False doMassConstraint=False \
+ doMassConstraint=False \
  CgfQoPMode=0 tightG4eStepper=True \
  propagationPtotLimit=0.2 maxMomentumStepFactor=2.0 stepBacktracking=True \
  scalarPot3DInitFile=$INIT" ;;
@@ -62,7 +62,7 @@ case "$CHANNEL" in
  trackSrc=ALCARECOTkAlJpsiMuMu useLegacyPairLoop=True \
  doTrigger=True applyHltFilter=False doSimHits=False \
  useIdealGeometry=False useDefaultField=True globalTag=106X_mcRun2_asymptotic_v17 \
- doVtxConstraint=False doMassConstraint=False \
+ doMassConstraint=False \
  CgfQoPMode=0 \
  propagationPtotLimit=0.2 maxMomentumStepFactor=2.0 stepBacktracking=True \
  scalarPot3DInitFile=$INIT" ;;
