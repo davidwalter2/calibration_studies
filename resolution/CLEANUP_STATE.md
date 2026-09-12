@@ -325,8 +325,95 @@ reproduce the wrong sign, so the four files were DELETED from the figure
 directory and `t2_predict.py` now states its convention explicitly.  Making
 the two agree is a physics decision, not a cleanup one, and is left open.
 
+## `production/` + `cleanprop/` + `cfcompress/` + `simprod/` + `globalfit/`
+
+111 comment blocks across those five trees.  Several headers described the
+WRONG job (`job_jpsimc_v2.sh` described the DY job, `resume_jpsimc_v2.sh`
+named the DY output tag, `status_jpsimc_v2.sh` said "DY re-production",
+`simprod/run_simprod_jpsigun.sh` described the muon gun and carried a
+copy-pasted BOTH-CHARGES block naming a variable it does not have) -- those
+are now right.  Kept, because the trap is still live: the `xrdcp`
+returns-0-on-truncation warning, the corrupt split-99 repacked-input door
+rules, the bash `GROUPS`-builtin trap, `skipBadFiles` silent empty output, the
+`.complete`-sentinel rule, and the Geant4 stepper-precision block.
+
+`make_global_term.param_scales`' docstring said "``theta_j * s_j`` is
+physical".  It is the other way round: the code does `theta_card = theta_raw *
+s`, so the physical value is `theta_card / s`, the card unit of a parmtype-15
+material parameter is `1/gprior`, and one tier prior is `gprior**2` of card
+value.  Corrected there, in `diagnose_quadratic.py` (docstring and the printed
+unit label, which said "prior sigma") and in `solve_reference.py`'s log line.
+
+15 scripts deleted from `production/`: the completed one-off input repair
+(`repack_fix_260907/` minus the two `PRODUCTIONS.md` names as reusable,
+`scan_pset_nulls.py` and `scan_fitfail.sh`), `check_table_race.py` (the
+shared-Geant4-table race it diagnoses is fixed at `ca6058d96fc`) and
+`watch_dy_recover.sh` (a watchdog for a slurm leg that was cancelled; its
+three pid/stop/count `.gitignore` lines went with it).
+
+Dead code removed: `globalfit/compare_fit.py --select` (parsed, compiled into
+an index list, then never used), `cfcompress/gridtest.py`'s `if ...: pass`,
+and a full sort computed and discarded in `production/profiling/parse_profile.py`.
+
+Paths: the dead `/tmp/.../scratchpad/cfcompress` defaults in nine cfcompress
+files now split by purpose -- multi-GB shuffled subsamples to
+`resolution/runs/cfcompress`, the small committed artifacts to the in-repo
+`cfcompress/results/` where they already live.  `PRODUCTION_NEXT.md §2` ->
+`PRODUCTIONS.md §3` in five scripts, and three references to the deleted
+`STATE.md`/`STATE_dy.md` -> `PRODUCTIONS.md §5`.  Every remaining
+`~/public_html/cvh/` and `~/public_html/calibration_studies/` figure root in
+`cleanprop/` repointed at `~/public_html/ZMass/cvh/`.
+
 ## Still to do
 
-* `production/`, `cleanprop/`, `cfcompress/`, `simprod/`, `globalfit/` --
-  delegated, report pending (includes the `PRODUCTION_NEXT.md` ->
-  `PRODUCTIONS.md` citations and the dead cfcompress scratchpad defaults).
+* Comment cleanup of the 119 SURVIVING top-level `resolution/` scripts --
+  delegated, running.  `cf_track_resolution.py` alone carries ~45 dated or
+  historical remarks.
+* A final `--help` sweep over every surviving script once that lands.
+
+## VERIFICATION
+
+* `--help` / import sweep in the rabbit container over every surviving `.py`
+  under `hitlik`, `hitlik/perhit`, `vtxres`, `matres`, `fullscale`,
+  `production`, `globalfit`, `cfcompress`, `cleanprop`, `simprod`: clean.  The
+  only four that do not answer `--help` are cmsRun CONFIGURATION files
+  (`production/profiling/{runCvhProfile,repack_n}.py`,
+  `simprod/step{1,2}_*.py`) -- they `import FWCore`, which exists only inside
+  CMSSW.  `bash -n` clean on every `.sh`.
+* END TO END, on the real production inputs, run from `submit50` because
+  submit82 has no readable ceph:
+  - `vtxres/make_vtx_card.py` on `runs/vtxres/vtx.npz`, 200 candidates:
+    3232 group rows, NLL(0) = -632.094190, card written.
+  - `hitlik/make_hitlik_card.py` on `runs/perhit/perhit.npz`, 150 tracks,
+    `--comps hit`: 1984 rows, NLL(0) = 2698.468821, card written.
+  - locally: `matres/make_material_card.py` on
+    `runs/matres/gun_groups_probe.npz`; `efficiency.py` on four cached H/J
+    files; `recovery.py` and `perhit/certify.py` on the stored rabbit fits.
+
+## KEPT THOUGH THEY LOOK OBSOLETE
+
+* `check_slide_overflow.py` -- no caller anywhere, but the brief names it.
+* `extract_parallel.sh`, the `*_260906` export-gate trio,
+  `run_transmission_scan.sh` -- see the marginal-call note above.
+* `fullscale/{fit,fit_joint,chunkfit,devobj,shardobj,minimize_driver}.py` --
+  they drive `scipy.optimize.minimize` directly rather than `Fitter.minimize`,
+  but `fullscale/STATE.md` retains them as the reference implementation the
+  rabbit path is checked against and as the only source of the sandwich
+  covariance.  `gate_nanstep.py` calls scipy deliberately, to see the abort
+  rabbit's Fitter swallows.
+* `oddmoment/masslik_np.py` -- `fit_alpha` is a hand-rolled grid + parabolic
+  minimiser, but the module is the executable spec of `MaterialCFTerm`
+  (`MASSCFTERM_SPEC.md` names it, `fullscale/patches/unbinned_jensen.py` cites
+  it) and the three `oddmoment/run_*fits.sh` drivers produce published numbers
+  through it.
+* `cfcompress/massnll_np.py` -- runs its own scipy BFGS, but over a numpy
+  re-implementation, not a rabbit likelihood, because the TF stack is
+  unreachable from the mfs venv; validated against the published numbers by
+  `nll_impact.py --validate`.
+* `production/{config,submit}_dymc8p5M.sh`, `resume_dy*.sh`, `status_dy.sh` --
+  they drive a cancelled cross-check leg, but `PRODUCTIONS.md §7` is their
+  re-run recipe.
+* `cleanprop/make_slide_figs_260811.py` -- a dated one-off, but it produces
+  `acceptance.png` / `closure.png` / `species.png`, which are checked-in slide
+  assets.  It still reads a `/tmp/claude-*` scratchpad that happens to exist;
+  that input path needs a durable home.

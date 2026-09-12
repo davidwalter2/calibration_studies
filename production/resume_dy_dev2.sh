@@ -59,9 +59,9 @@ EXTRA="$EXTRA exportHitResBlocks=False"
 # backfills into a full cluster (submit_dymc8p5M.sh's header).
 WALLTIME=4:00:00
 DRY=0; LISTONLY=0
-# Indices to leave alone, whitespace-separated. watch_dy_recover.sh uses it to
-# stop re-driving a chunk that has failed the same way N times -- an unattended
-# loop that resubmits a genuinely bad input forever is worse than a gap.
+# Indices to leave alone, whitespace-separated: a chunk that has failed the
+# same way N times stays out, because an unattended loop that resubmits a
+# genuinely bad input forever is worse than a gap.
 EXCLUDE=""
 
 while [[ $# -gt 0 ]]; do
