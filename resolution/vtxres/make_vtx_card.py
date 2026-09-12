@@ -80,7 +80,7 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     # pull is beyond 40 sigma.  The UNCUT tails are reported separately
     # (`plot_vtx.py --densities`), so nothing about the tail is hidden by it.
     if args.max_abs_z > 0 and idx_in is None:
-        mref0 = 0.0 if name == "vtx" else MJPSI
+        mref0 = MJPSI if name == "mass" else 0.0
         zz = np.abs(d["m0"] - mref0) / np.maximum(d["sigma"], 1e-300)
         bad = zz[idx] > args.max_abs_z
         if bad.any():
@@ -196,7 +196,10 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
         share = (nhptr, hcls.astype(np.int64), hv, vother)
         hit_params = list(hparams)
 
-    isvtx = name == "vtx"
+    # Every channel EXCEPT the mass is a CONSTRAINT residual: reference value
+    # zero, no kernel, no self-consistent-sigma correction.  That is the
+    # vertex DCA and the two transverse BEAM-LINE residuals.
+    isvtx = name != "mass"
     mref = 0.0 if isvtx else MJPSI
     mobs = d["m0"][idx].astype(np.float64) - mref
     data = {"sigma": sigma, "mobs": mobs, "tgrid": tg, "grp_ptr": nptr,
@@ -249,6 +252,16 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     return term, data, idx
 
 
+def CHANNELS(args):
+    """The channels this card may carry, in the order they are declared.
+
+    `--same-candidates` intersects over exactly these, so adding a channel
+    here is all that is needed for it to join the pairing.
+    """
+    return (("vtx", args.vtx_npz), ("bsx", args.bsx_npz),
+            ("bsy", args.bsy_npz), ("mass", args.mass_npz))
+
+
 def common_index(npz_list, args):
     """The candidate set BOTH functionals keep, in order.
 
@@ -263,7 +276,7 @@ def common_index(npz_list, args):
         if args.max_chi2_ndof > 0:
             k &= d["chi2ndof"] < args.max_chi2_ndof
         if args.max_abs_z > 0:
-            mref0 = 0.0 if name == "vtx" else MJPSI
+            mref0 = MJPSI if name == "mass" else 0.0
             k &= np.abs(d["m0"] - mref0) / np.maximum(d["sigma"], 1e-300) <= args.max_abs_z
         keep = k if keep is None else (keep & k)
     idx = np.flatnonzero(keep)
@@ -288,6 +301,11 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--vtx-npz", default=None)
     p.add_argument("--mass-npz", default=None)
+    # the two TRANSVERSE BEAM-LINE residuals, extracted with
+    # `extract_vtx.py --functional bsx|bsy`.  They are constraint residuals of
+    # the vertex kind, so they take the same delta-kernel path.
+    p.add_argument("--bsx-npz", default=None)
+    p.add_argument("--bsy-npz", default=None)
     p.add_argument("--groups", required=True)
     p.add_argument("-o", "--output", required=True)
     p.add_argument("--arm", choices=["cf", "gauss", "gaussq"], default="cf")
@@ -351,11 +369,11 @@ def main():
     declared, idx = [], None
     _KEY = [None]
     if args.same_candidates:
-        idx = common_index([(nm, npz) for nm, npz in
-                            (("vtx", args.vtx_npz), ("mass", args.mass_npz))
-                            if npz], args)
+        idx = common_index([(nm, npz) for nm, npz in CHANNELS(args) if npz], args)
         log(f"--same-candidates: {len(idx)} candidates kept by BOTH functionals")
     for nm, npz, arm in (("vtx", args.vtx_npz, args.arm),
+                         ("bsx", args.bsx_npz, args.arm),
+                         ("bsy", args.bsy_npz, args.arm),
                          ("mass", args.mass_npz, args.mass_arm)):
         if not npz:
             continue

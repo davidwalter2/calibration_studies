@@ -59,15 +59,29 @@ def _init(a):
     _ARGS = a
 
 
+# The BEAM-LINE functionals are a THIRD and FOURTH channel of exactly the
+# vertex kind -- a constraint residual whose reference value is zero -- but
+# they come in a PAIR, so the maker writes their exponents COMPONENT MAJOR
+# with a component key (`cfbs_grpcomp`, `cfbs_hitcomp`) alongside the group /
+# class key.  `bsx` / `bsy` select one component and then everything
+# downstream (the npz layout, `vtxterm`, `make_vtx_card`) is unchanged.
+BSCOMP = {"bsx": 0, "bsy": 1}
+
+
 def process_file(fn):
     a = _ARGS
-    pre = "cfvtx" if a.functional == "vtx" else "cfmass"
+    pre = {"vtx": "cfvtx", "mass": "cfmass"}.get(a.functional, "cfbs")
+    bscomp = BSCOMP.get(a.functional)
     scal = {
         "vtx": dict(sigma="Jpsi_vtxsig", m0="Jpsi_vtxres", vgf="Jpsi_vtxvgf",
                     ok="Jpsi_vtxok", vhit="Jpsi_vtxvhit", vms="Jpsi_vtxvms",
                     vioni="Jpsi_vtxvioni", z="Jpsi_vtxz"),
         "mass": dict(sigma="Jpsi_sigmamass", m0="Jpsi_mass", vgf="cfmass_vgf",
                      ok="cfmass_ok", vms="Jpsi_massvms", vioni="Jpsi_massvioni"),
+        "bsx": dict(ok="Jpsi_bsok", vhit="Jpsi_bsvhit", vms="Jpsi_bsvms",
+                    vioni="Jpsi_bsvioni"),
+        "bsy": dict(ok="Jpsi_bsok", vhit="Jpsi_bsvhit", vms="Jpsi_bsvms",
+                    vioni="Jpsi_bsvioni"),
     }[a.functional]
     want = list(dict.fromkeys(list(scal.values()) + ["Jpsi_vtxok", "cfmass_ok"])) + [
         f"{pre}_grp", f"{pre}_grp_vqms", f"{pre}_grp_vqio",
@@ -99,7 +113,16 @@ def process_file(fn):
         "Muplus_nvalid", "Muminus_nvalid",
         "Muplus_nvalidpixel", "Muminus_nvalidpixel",
         "Muplus_nhits", "Muminus_nhits",
-    ] + [f"{pre}_grp_{SUF[f]}" for f in FAMS]
+        # the BEAM-LINE block (rows-ON productions only; every use is guarded)
+        "Jpsi_bsres", "Jpsi_bscov", "Jpsi_bsz", "Jpsi_bschi2", "Jpsi_bschi2fit",
+        "Jpsi_bsok", "Jpsi_bsvchk", "Jpsi_bsvbs", "Jpsi_bsvhit", "Jpsi_bsvms",
+        "Jpsi_bsvioni", "Jpsi_bsvtx", "Jpsi_bsspot", "Jpsi_bswidth",
+        "Jpsi_bsslope", "Jpsi_bsmeanmass", "Jpsi_bsmeanvtx", "Jpsi_bsmeanbs",
+        "Jpsi_massvbs", "Jpsi_vtxvbs", "Jpsi_covvtx",
+        "Jpsi_x", "Jpsi_y", "Jpsi_z", "Jpsigen_x", "Jpsigen_y", "Jpsigen_z",
+        "Muplus_phi", "Muminus_phi", "Muplus_eta", "Muminus_eta",
+    ] + ([f"{pre}_grp_{SUF[f]}" for f in FAMS]
+         + ([f"{pre}_grpcomp", f"{pre}_hitcomp"] if bscomp is not None else []))
     try:
         fh = uproot.open(fn)
     except Exception as e:
@@ -111,6 +134,25 @@ def process_file(fn):
         keys = set(k.split(";")[0] for k in t.keys())
         got = [b for b in want if b in keys]
         d = t.arrays(got, library="np")
+    if bscomp is not None:
+        if "Jpsi_bscov" not in d:
+            print(f"# skip {fn}: no beam-line export", file=sys.stderr)
+            return None
+        # Cov(r_bs) is packed (xx, xy, yy): the component's own sigma is the
+        # square root of its diagonal entry, and the residual is the
+        # component of `Jpsi_bsres`.
+        _bcov = np.asarray(d["Jpsi_bscov"], np.float64).reshape(-1, 3)
+        _bres = np.asarray(d["Jpsi_bsres"], np.float64).reshape(-1, 2)
+        d = dict(d)
+        d["_bssigma"] = np.sqrt(np.maximum(_bcov[:, 0 if bscomp == 0 else 2], 0.))
+        d["_bsm0"] = _bres[:, bscomp]
+        for nm in ("Jpsi_bsvhit", "Jpsi_bsvms", "Jpsi_bsvioni", "Jpsi_bsvbs"):
+            if nm in d:
+                d[nm] = np.asarray(d[nm], np.float64).reshape(-1, 2)[:, bscomp]
+        # the GAUSSIAN share: everything that is not the two material
+        # families, i.e. the hits PLUS the luminous region itself.
+        d["_bsvgf"] = 1.0 - d["Jpsi_bsvms"] - d["Jpsi_bsvioni"]
+        scal = dict(scal, sigma="_bssigma", m0="_bsm0", vgf="_bsvgf")
     n0 = len(d[scal["sigma"]])
     sig = np.asarray(d[scal["sigma"]], np.float64)
     ndof = np.asarray(d["ndof"], np.float64)
@@ -119,6 +161,8 @@ def process_file(fn):
     # (vertex + mass) card pairs the two npz ROW BY ROW, so a candidate kept
     # by one and dropped by the other would silently pair the wrong events.
     keep = np.isfinite(sig) & (sig > 0)
+    if bscomp is not None:
+        keep &= np.asarray(d["Jpsi_bsok"], bool)
     keep &= np.asarray(d["Jpsi_vtxok"], bool) if "Jpsi_vtxok" in d else True
     keep &= np.asarray(d["cfmass_ok"], bool) if "cfmass_ok" in d else True
     keep &= np.asarray(d["Jpsi_vtxsig"], np.float64) > 0
@@ -139,25 +183,35 @@ def process_file(fn):
     fam_l = {f: [] for f in FAMS}
     vqms_l, vqio_l = [], []
     grp = d[f"{pre}_grp"]
+    gcomp = d.get(f"{pre}_grpcomp")
     fams_raw = {f: d[f"{pre}_grp_{SUF[f]}"] for f in FAMS}
     vqm, vqi = d.get(f"{pre}_grp_vqms"), d.get(f"{pre}_grp_vqio")
     for k, i in enumerate(idx):
         g = np.asarray(grp[i], np.int64)
+        # the beam channels store BOTH components back to back under one
+        # component key; take this component's rows and nothing else
+        sel = (np.asarray(gcomp[i], np.int64) == bscomp
+               if bscomp is not None else np.ones(g.size, bool))
+        g = g[sel]
         ptr[k + 1] = ptr[k] + g.size
         gid_l.append(g)
         for f in FAMS:
-            fam_l[f].append(np.asarray(fams_raw[f][i], np.float32).reshape(-1, nt))
+            fam_l[f].append(np.asarray(fams_raw[f][i], np.float32).reshape(-1, nt)[sel])
         if vqm is not None:
-            vqms_l.append(np.asarray(vqm[i], np.float32))
-            vqio_l.append(np.asarray(vqi[i], np.float32))
+            vqms_l.append(np.asarray(vqm[i], np.float32)[sel])
+            vqio_l.append(np.asarray(vqi[i], np.float32)[sel])
     hptr = np.zeros(n + 1, np.int64)
     hc_l, hv_l = [], []
     hc, hv = d[f"{pre}_hitcls"], d[f"{pre}_hitv"]
+    hcomp = d.get(f"{pre}_hitcomp")
     for k, i in enumerate(idx):
         c = np.asarray(hc[i], np.int16)
+        sel = (np.asarray(hcomp[i], np.int64) == bscomp
+               if bscomp is not None else np.ones(c.size, bool))
+        c = c[sel]
         hptr[k + 1] = hptr[k] + c.size
         hc_l.append(c)
-        hv_l.append(np.asarray(hv[i], np.float32))
+        hv_l.append(np.asarray(hv[i], np.float32)[sel])
 
     res = {"tgrid": tg, "grp_ptr": ptr, "hit_ptr": hptr,
            "grp_id": (np.concatenate(gid_l) if gid_l else np.zeros(0, np.int64)),
@@ -176,6 +230,22 @@ def process_file(fn):
     for nm in ("vhit", "vms", "vioni"):
         if nm in scal and scal[nm] in d:
             res[nm] = np.asarray(d[scal[nm]], np.float64)[idx]
+    if bscomp is not None:
+        res["vbs"] = np.asarray(d["Jpsi_bsvbs"], np.float64)[idx]
+        res["bsz"] = (np.asarray(d["Jpsi_bsz"], np.float64)
+                      .reshape(-1, 2)[idx, bscomp])
+        for nm, br, ncol in (("bscov", "Jpsi_bscov", 3),
+                             ("bsres", "Jpsi_bsres", 2),
+                             ("bsvtx", "Jpsi_bsvtx", 3),
+                             ("bsspot", "Jpsi_bsspot", 3),
+                             ("bswidth", "Jpsi_bswidth", 3),
+                             ("bsslope", "Jpsi_bsslope", 2),
+                             ("bsmeanmass", "Jpsi_bsmeanmass", 3),
+                             ("bsmeanvtx", "Jpsi_bsmeanvtx", 3),
+                             ("bsmeanbs", "Jpsi_bsmeanbs", 6),
+                             ("covvtx", "Jpsi_covvtx", 6)):
+            if br in d:
+                res[nm] = np.asarray(d[br], np.float64).reshape(-1, ncol)[idx]
     res["mgen"] = (np.asarray(d["Jpsigen_mass"], np.float64)[idx]
                    if "Jpsigen_mass" in d else np.zeros(n))
     for nm in ("run", "lumi", "event"):
@@ -190,7 +260,16 @@ def process_file(fn):
                    ("mass_unc", "Jpsi_mass_unc"), ("covmassvtx", "Jpsi_covmassvtx"),
                    ("vtxd", "Jpsi_d"),
                    ("gendr_plus", "Muplusgen_dr"), ("gendr_minus", "Muminusgen_dr"),
-                   ("mgenpre", "Jpsigenpre_mass")):
+                   ("mgenpre", "Jpsigenpre_mass"),
+                   ("phi_plus", "Muplus_phi"), ("phi_minus", "Muminus_phi"),
+                   ("eta_plus", "Muplus_eta"), ("eta_minus", "Muminus_eta"),
+                   ("bschi2", "Jpsi_bschi2"), ("bschi2fit", "Jpsi_bschi2fit"),
+                   ("bsvchk", "Jpsi_bsvchk"), ("massvbs", "Jpsi_massvbs"),
+                   ("vtxvbs", "Jpsi_vtxvbs"),
+                   ("genvtx_x", "Jpsigen_x"), ("genvtx_y", "Jpsigen_y"),
+                   ("genvtx_z", "Jpsigen_z"),
+                   ("fitvtx_x", "Jpsi_x"), ("fitvtx_y", "Jpsi_y"),
+                   ("fitvtx_z", "Jpsi_z")):
         if br in d:
             res[nm] = np.asarray(d[br], np.float64)[idx]
     # integer / boolean provenance and hit counts, kept as int so that an
@@ -218,7 +297,8 @@ def process_file(fn):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--files", required=True)
-    ap.add_argument("--functional", choices=["vtx", "mass"], default="vtx")
+    ap.add_argument("--functional", choices=["vtx", "mass", "bsx", "bsy"],
+                    default="vtx")
     ap.add_argument("--groups", required=True)
     ap.add_argument("-j", "--jobs", type=int, default=16)
     ap.add_argument("--max-chi2-ndof", type=float, default=3.0)

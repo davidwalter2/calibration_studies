@@ -53,6 +53,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--vtx-npz", default=None)
     p.add_argument("--mass-npz", default=None)
+    p.add_argument("--bsx-npz", default=None)
+    p.add_argument("--bsy-npz", default=None)
     p.add_argument("--groups", required=True)
     p.add_argument("--channels", nargs="+", default=["vtx", "mass", "joint"])
     p.add_argument("--arms", nargs="+", default=["cf", "gauss", "gaussq"])
@@ -85,8 +87,22 @@ def main():
     res, params = {}, None
     idx = None
     for ch in a.channels:
-        need = ({"vtx": [("vtx", a.vtx_npz)], "mass": [("mass", a.mass_npz)],
-                 "joint": [("vtx", a.vtx_npz), ("mass", a.mass_npz)]})[ch]
+        # A channel is a SET of terms fitted over ONE parameter vector on the
+        # SAME candidates: that is what makes the joint `J` carry the
+        # within-candidate correlation, and it is the only place over-counting
+        # can show up.  The two BEAM-LINE residuals join as two more terms of
+        # the vertex kind.
+        _T = {"vtx": ("vtx",), "mass": ("mass",), "bsx": ("bsx",),
+              "bsy": ("bsy",), "bs": ("bsx", "bsy"),
+              "joint": ("vtx", "mass"),
+              "vtxbs": ("vtx", "bsx", "bsy"),
+              "bsmass": ("bsx", "bsy", "mass"),
+              "vtxbsmass": ("vtx", "bsx", "bsy", "mass")}
+        _NPZ = {"vtx": a.vtx_npz, "mass": a.mass_npz,
+                "bsx": a.bsx_npz, "bsy": a.bsy_npz}
+        if ch not in _T:
+            sys.exit(f"unknown channel '{ch}'; known: {sorted(_T)}")
+        need = [(nm, _NPZ[nm]) for nm in _T[ch]]
         if any(x[1] is None for x in need):
             log(f"skip channel {ch}: missing npz")
             continue

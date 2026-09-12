@@ -124,8 +124,10 @@ def densities(a, sel, outdir, tag):
 def composition(a, sel, outdir, tag):
     n = sel["n"]
     # ---- by family --------------------------------------------------------
+    # `vbs` is the LUMINOUS REGION's own share, present only for the two
+    # beam-line functionals (it is a registered Gaussian block, family 16).
     fams = [("hit (Gaussian)", sel.get("vhit")), ("multiple scattering", sel.get("vms")),
-            ("ionization", sel.get("vioni"))]
+            ("ionization", sel.get("vioni")), ("beam line (Gaussian)", sel.get("vbs"))]
     fams = [(k, v) for k, v in fams if v is not None]
     if fams:
         fig, ax = plt.subplots(figsize=(8.0, 6.0))
@@ -257,6 +259,8 @@ def main():
     p.add_argument("--nbins", type=int, default=60)
     p.add_argument("--upsample", type=int, default=8)
     p.add_argument("--outpath", default=None)
+    p.add_argument("--outtag", default="vtxres",
+                   help="the study tag in ~/public_html/ZMass/cvh/<YYMMDD>_<tag>")
     p.add_argument("--densities", action="store_true")
     p.add_argument("--composition", action="store_true")
     p.add_argument("--sigma", action="store_true")
@@ -265,7 +269,7 @@ def main():
         a.densities = a.composition = a.sigma = True
     logging.setup_logger(__file__, 3, False)
     day = datetime.date.today().strftime("%y%m%d")
-    outdir = a.outpath or pubhtml.figdir("vtxres", day)
+    outdir = a.outpath or pubhtml.figdir(a.outtag, day)
     os.makedirs(outdir, exist_ok=True)
     pubhtml.ensure_index(outdir, logger=logger)
     tags = a.tags or [os.path.basename(x).replace(".npz", "") for x in a.npz]

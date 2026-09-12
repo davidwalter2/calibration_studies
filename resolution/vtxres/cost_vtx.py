@@ -45,6 +45,28 @@ GROUPS = [
                                 "resinfcovhit", "resinfcovgrp", "Jpsi_sigmamass")),
     ("mass: the influence a_b", ("resinfv",)),
     ("mass: the D row", ("Jpsi_jacMass",)),
+    # THE BEAM-LINE block.  Two functionals, so every per-group / per-class
+    # array carries both components (a `*comp` key alongside the group key)
+    # and `resinfbsv` is 2 x the vertex's.
+    ("beam: the exponents (per group)", ("cfbs_grp_ms", "cfbs_grp_ioni_re",
+                                         "cfbs_grp_ioni_im", "cfbs_grp_rad_re",
+                                         "cfbs_grp_rad_im", "cfbs_grp",
+                                         "cfbs_grpcomp", "cfbs_grp_vqms",
+                                         "cfbs_grp_vqio", "cfbs_grp_closure")),
+    ("beam: the exponents (flat)", ("cfbs_ms", "cfbs_del", "cfbs_ioni_re",
+                                    "cfbs_ioni_im", "cfbs_rad_re",
+                                    "cfbs_rad_im")),
+    ("beam: shares + scalars", ("bsvarv", "cfbs_hitcls", "cfbs_hitcomp",
+                                "cfbs_hitv", "Jpsi_bsres", "Jpsi_bscov",
+                                "Jpsi_bsz", "Jpsi_bschi2", "Jpsi_bschi2fit",
+                                "Jpsi_bschi20", "Jpsi_bsvchk", "Jpsi_bsok",
+                                "Jpsi_bsvtx", "Jpsi_bsspot", "Jpsi_bsslope",
+                                "Jpsi_bswidth", "Jpsi_bsvbs", "Jpsi_bsvhit",
+                                "Jpsi_bsvms", "Jpsi_bsvioni", "Jpsi_bssgnchk",
+                                "Jpsi_massvbs", "Jpsi_vtxvbs", "Jpsi_covvtx")),
+    ("beam: the influence a_b", ("resinfbsv",)),
+    ("beam: the MEAN-TERM weights", ("Jpsi_bsmeanmass", "Jpsi_bsmeanvtx",
+                                     "Jpsi_bsmeanbs")),
 ]
 
 
@@ -87,6 +109,14 @@ def bill(a):
     print(f"the MASS block alone  : {mass/n/1024:.2f} kB/cand "
           f"({mass/n*FULLSCALE/1e12:.3f} TB at 41 M)")
     print(f"=> the vertex term costs {vtx/max(mass,1):.2f} x the mass term's export")
+    bs = sum(sizes.get(x, 0.0) for lab, br in GROUPS if lab.startswith("beam")
+             for x in br)
+    if bs > 0:
+        print(f"the BEAM block alone  : {bs/n/1024:.2f} kB/cand "
+              f"({bs/n*FULLSCALE/1e12:.3f} TB at 41 M, "
+              f"{bs/n*7e6/1e12:.3f} TB at 7 M Z)")
+        print(f"=> the two beam terms cost {bs/max(vtx,1):.2f} x the vertex "
+              f"term's export ({bs/max(mass,1):.2f} x the mass term's)")
     top = sorted(sizes.items(), key=lambda kv: -kv[1])[:12]
     print("\nthe 12 largest branches:")
     for k, v in top:

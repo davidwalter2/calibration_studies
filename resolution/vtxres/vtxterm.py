@@ -59,7 +59,9 @@ def load(npz, maxn=None, max_chi2_ndof=3.0, keys=None):
         v = d[k]
         if v.ndim == 1 and len(v) == n_all:
             out[k] = v[idx]
-    mref = 0.0 if out["functional"] == "vtx" else 3.0969
+    # every functional except the mass is a CONSTRAINT residual whose
+    # reference value is zero: the vertex DCA and the two beam-line residuals
+    mref = 3.0969 if out["functional"] == "mass" else 0.0
     out["z"] = (out["m0"] - mref) / out["sigma"]
     return out
 
