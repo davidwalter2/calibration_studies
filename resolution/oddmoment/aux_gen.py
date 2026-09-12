@@ -61,6 +61,7 @@ if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
 
 import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
+import selection  # noqa: E402  (the standard two-track selection)
 
 MJPSI = 3.0969
 BR = ["run", "lumi", "event",
@@ -72,13 +73,21 @@ BR = ["run", "lumi", "event",
       "Muplus_nvalid", "Muminus_nvalid",
       "chisqval", "ndof", "niter",
       "resinfvarv", "reseigidx", "resinfcov"]
+# THE STANDARD TWO-TRACK SELECTION's columns, carried through so a card built
+# from the joined cache can apply it.  This script does NOT cut: its rows are
+# joined ROW BY ROW to a pairs cache, so dropping any here would silently
+# misalign the two.  Optional -- a production without `exportVtxResidual` has
+# no `Jpsi_vtxz`.
+BR_OPT = ["Jpsi_vtxz", "Jpsi_vtxsig", "Jpsi_vtxok"]
 
 
 def one(fn):
     f = uproot.open(fn)
     pt = f["runtree"]["parmtype"].array(library="np")
     t = f["tree"]
-    a = t.arrays(BR, library="np")
+    keys = set(k.split(";")[0] for k in t.keys())
+    got_opt = [b for b in BR_OPT if b in keys]
+    a = t.arrays(BR + got_opt, library="np")
     n = len(a["Jpsi_mass"])
     m = a["Jpsi_mass"].astype(np.float64)
     mg = a["Jpsigen_mass"].astype(np.float64)
@@ -126,6 +135,9 @@ def one(fn):
         nv_m=a["Muminus_nvalid"].astype(np.float64),
         normchi2=(a["chisqval"] / np.maximum(a["ndof"], 1)).astype(np.float64),
         niter=a["niter"].astype(np.float64),
+        sigmam=s,
+        **{b.split("_", 1)[1]: np.asarray(a[b]).astype(np.float64)
+           for b in got_opt},
     )
 
 
@@ -211,6 +223,11 @@ def main():
 
     idx, d = join_to_cache(A, a.cache)
     out = {k: v[idx] for k, v in A.items()}
+    # WHAT THE STANDARD SELECTION WOULD REMOVE.  Reported, not applied: these
+    # rows are joined to the pairs cache row by row, so the cut belongs to the
+    # card builder that consumes both (`resolution/selection.py`).
+    _m, _s = selection.standard(out, None, n=len(idx))
+    _s.log(lambda l: print(l, flush=True))
     assert np.array_equal(out["sigma"], d["sigma"]), "sigma mismatch"
     dv = np.abs(out["fhit"] - d["vgf"].astype(np.float64))
     print(f"ALIGNED: {len(idx)} rows, sigma bit-identical; "

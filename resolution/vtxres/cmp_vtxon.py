@@ -27,9 +27,14 @@ usage:
   python3 cmp_vtxon.py --on '<prod_vtxon>/task_*/globalcor_*.root' \
                        --off '<prod>/task_*/globalcor_*.root' [--max N]
 """
-import argparse, glob, sys
+import argparse, glob, os, sys
 import numpy as np
 import uproot
+
+_RES = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _RES not in sys.path:
+    sys.path.insert(0, _RES)
+import selection as stdsel  # noqa: E402  (the standard two-track selection)
 
 SEL_CUTS = ('Jpsi_vtxok', 'cfmass_ok', 'sigma_v > 0', 'sigma_m > 0',
             'chi2/ndof < 3', '|vtxvchk| < 1e-4')
@@ -38,6 +43,7 @@ SCAL = ['Jpsi_vtxres', 'Jpsi_vtxsig', 'Jpsi_vtxz', 'Jpsi_vtxok', 'Jpsi_vtxvchk',
         'Jpsi_mass', 'Jpsi_sigmamass', 'Jpsi_mass_unc', 'Jpsi_covmassvtx',
         'Jpsi_d', 'Jpsi_pt', 'Jpsi_eta', 'Jpsigen_mass', 'chisqval', 'ndof',
         'Muplusgen_pt', 'Muminusgen_pt', 'Muplusgen_eta', 'Muminusgen_eta',
+        'Muplus_nvalid', 'Muminus_nvalid',
         'cfmass_ok', 'run', 'lumi', 'event']
 VEC = ['resinfv', 'resinfvtxv']
 
@@ -64,9 +70,14 @@ def load(pattern, nmax=None, vec=False):
     return {k: np.concatenate(v)[:nmax] for k, v in out.items()}, len(files)
 
 
-def selection(d):
+def selection(d, args=None):
     """The extraction's own selection, cut by cut, so the two regimes'
-    candidate sets can be compared rather than assumed equal."""
+    candidate sets can be compared rather than assumed equal.
+
+    THE STANDARD TWO-TRACK SELECTION (`resolution/selection.py`) is appended
+    to the flow, so this comparison is made on the sample the terms are
+    actually fitted on; `--no-standard-selection` reverts to the old flow.
+    """
     n = len(d['run'])
     ndof = np.asarray(d['ndof'], dtype=float)
     c2 = np.where(ndof > 0, np.asarray(d['chisqval'], dtype=float)
@@ -83,6 +94,14 @@ def selection(d):
     for nm, m in zip(SEL_CUTS, masks):
         keep &= m
         flow.append((nm, int(keep.sum())))
+    m, summ = stdsel.standard(d, args, n=n)
+    if summ.enabled:
+        keep &= m
+        for label, k in summ.steps:
+            if k is None:
+                flow.append((label + ' (NOT APPLIED)', int(keep.sum())))
+            else:
+                flow.append((label, int(keep.sum())))
     return keep, flow
 
 
@@ -105,6 +124,7 @@ def main():
                     help='npz of the per-candidate matched arrays, for plotting')
     ap.add_argument('--nvec', type=int, default=20000,
                     help='candidates for the per-candidate influence correlation')
+    stdsel.add_args(ap)
     a = ap.parse_args()
 
     on, nfon = load(a.on, a.max, vec=True)
@@ -226,8 +246,8 @@ def main():
         print(f'\n  dumped {a.dump}')
 
     print('\n=== the extraction selection, cut by cut')
-    kon, flon = selection(on)
-    koff, floff = selection(off)
+    kon, flon = selection(on, a)
+    koff, floff = selection(off, a)
     print(f'  {"cut":24s} {"ON":>8s} {"OFF":>8s}')
     print(f'  {"(entries)":24s} {len(on["run"]):8d} {len(off["run"]):8d}')
     for (nm, a1), (_, a2) in zip(flon, floff):

@@ -720,7 +720,7 @@ def _gate_load(pattern):
     return {k: np.concatenate(v) for k, v in out.items()}, len(files)
 
 
-def report_gate(newpat, refpat, constraint):
+def report_gate(newpat, refpat, constraint, minleghits=0):
     """Every candidate the NEW build writes must be present in the REFERENCE
     and BIT-IDENTICAL in it; the reference may have extra candidates, and
     those extras must be exactly the ones the new minimum-size cut removes."""
@@ -778,6 +778,8 @@ def report_gate(newpat, refpat, constraint):
              if k not in nmap
              and (int(dr["run"][j]), int(dr["lumi"][j]), int(dr["event"][j])) in common]
     minhits = 10 if constraint else 11
+    minleg = int(minleghits)
+    nlr = np.minimum(dr["Muplus_nvalid"], dr["Muminus_nvalid"])
     nvr = dr["Muplus_nvalid"] + dr["Muminus_nvalid"]
     nmr = nvr + dr["Muplus_nvalidpixel"] + dr["Muminus_nvalidpixel"]
     ndr = nmr - (9 if constraint else 10)
@@ -786,11 +788,17 @@ def report_gate(newpat, refpat, constraint):
         print(f"    ndof {int(ndr[j]):3d}  nvalid {int(nvr[j]):3d} "
               f"({int(dr['Muplus_nvalid'][j])},{int(dr['Muminus_nvalid'][j])})"
               f"  |z_v| {abs(float(dr['Jpsi_vtxz'][j])):.4f}"
+              f"  weakleg {int(nlr[j]):2d}"
               f"  -> cut by "
-              f"{'minNdof' if ndr[j] < 1 else ''}"
-              f"{'minPairHits' if nvr[j] < minhits else ''}"
-              f"{'NEITHER (INVESTIGATE)' if (ndr[j] >= 1 and nvr[j] >= minhits) else ''}")
-    unexplained = [j for j in extra if ndr[j] >= 1 and nvr[j] >= minhits]
+              f"{'minNdof ' if ndr[j] < 1 else ''}"
+              f"{'minPairHits ' if nvr[j] < minhits else ''}"
+              f"{'minLegHits ' if (minleg > 0 and nlr[j] < minleg) else ''}"
+              f"{'NEITHER (INVESTIGATE)' if (ndr[j] >= 1 and nvr[j] >= minhits and not (minleg > 0 and nlr[j] < minleg)) else ''}")
+    nleg = int(sum(1 for j in extra if minleg > 0 and nlr[j] < minleg))
+    print(f"  of those, explained by minLegHits >= {minleg}: {nleg}")
+    unexplained = [j for j in extra
+                   if ndr[j] >= 1 and nvr[j] >= minhits
+                   and not (minleg > 0 and nlr[j] < minleg)]
     print(f"  reference-only candidates NOT explained by the cut: "
           f"{len(unexplained)}")
     # every surviving candidate must have ndof >= 1 and finite exports
@@ -815,6 +823,9 @@ def main():
     ap.add_argument("--mass", action="store_true")
     ap.add_argument("--density", action="store_true")
     ap.add_argument("--hits", action="store_true")
+    ap.add_argument("--gate-min-leg-hits", type=int, default=0,
+                    help="the NEW build's minLegHits, so the reference-only "
+                         "candidates it removes are counted as explained")
     ap.add_argument("--gate", nargs=2, metavar=("NEW", "REF"),
                     help="two globs: the new build's output and the reference")
     ap.add_argument("--resonances", type=int, nargs="*", default=list(RESONANCES))
@@ -834,7 +845,8 @@ def main():
     logging.setup_logger(__file__, 3, False)
 
     if a.gate:
-        report_gate(a.gate[0], a.gate[1], a.constraint == "on")
+        report_gate(a.gate[0], a.gate[1], a.constraint == "on",
+                    a.gate_min_leg_hits)
 
     if a.hits:
         d, nf = load_raw(a.raw, maxfiles=a.max_files, jobs=a.jobs)

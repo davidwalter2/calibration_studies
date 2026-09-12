@@ -39,6 +39,7 @@ for _p in (_HERE, _RES, _MAT, _GF):
 
 import groups as G          # noqa: E402
 import make_global_term as MGT  # noqa: E402
+import selection            # noqa: E402  (the standard two-track selection)
 
 MJPSI = 3.0969
 FAMS = ("ms", "io_re", "io_im", "rad_re", "rad_im")
@@ -56,6 +57,104 @@ def kappa2_from_grid(S, tgrid):
     return -(16.0 * S[:, 1] - S[:, 2]) / (6.0 * t1 * t1)
 
 
+def _norm_halfwidth(args, d):
+    """The half-width of the window the vertex term is TRUNCATED to.
+
+    In order: `--vtx-norm-window` if given; else the window THIS card cut in
+    (the standard selection, applied below, when the npz carries `vtxz`);
+    else the window the EXTRACTION cut in, which `extract_vtx.py` records as
+    `sel_max_abs_vtxz`.  0 means the sample is untruncated and no
+    normalisation is wanted.
+
+    Tying the default to the cut that was actually applied is what makes it
+    impossible to fit a truncated sample with an untruncated likelihood by
+    forgetting a flag -- the one mistake this whole mechanism exists to stop.
+    """
+    if args.vtx_norm_window is not None:
+        return float(args.vtx_norm_window)
+    keys = set(d.files)
+    cfg = selection.from_args(args)
+    if cfg["enabled"] and cfg["max_abs_vtxz"] > 0 and \
+            selection.column(d, "vtxz", keys) is not None:
+        return float(cfg["max_abs_vtxz"])
+    if "sel_max_abs_vtxz" in keys:
+        return float(np.asarray(d["sel_max_abs_vtxz"]).ravel()[0])
+    return 0.0
+
+
+def _vtx_norm_block(args, wnorm, sigma, tg, nt, ngroups, seg, gid, drop, arrs,
+                    winj, nhptr, hcls, hv, vother, nhitpar, log):
+    """The RESOLUTION CLASSES of the truncation normalisation.
+
+    `Z_c = Int_{-w}^{+w} L(z; class c) dz` is evaluated once per class rather
+    than per candidate, so a class needs a class-level copy of everything the
+    per-candidate density is built from: the representative `sigma`, the
+    per-group family exponents (K, ngroups, nt), their pinned baselines
+    (K, nt), the per-hit-class Gaussian variance shares (K, ncls) and the
+    Gaussian remainder no class scales (K,).  A class row is the MEAN of its
+    members -- the same approximation the class-representative `sigma` is, and
+    the same one `fullscale/make_card.py` uses for the Z mass window.
+    """
+    n = len(sigma)
+    K = n if args.norm_classes <= 0 else int(min(args.norm_classes, n))
+    if K <= 0:
+        raise ValueError("norm_classes resolved to 0")
+    if K == n:
+        cls = np.arange(n)
+    else:
+        edges = np.quantile(sigma, np.linspace(0.0, 1.0, K + 1))
+        cls = np.clip(np.searchsorted(edges[1:-1], sigma, "right"), 0, K - 1)
+    members = [np.flatnonzero(cls == c) for c in range(K)]
+    for c in range(K):
+        if not len(members[c]):
+            members[c] = np.arange(n)
+    sig_c = np.array([np.median(sigma[m]) for m in members])
+    nm_c = np.array([float(len(m)) for m in members])
+
+    # ---- the per-group exponents, per class ------------------------------
+    # `arrs[f]` is (nnz, nt) over the SURVIVING group rows of every candidate;
+    # `seg` maps a row to its candidate and `gid` to its group.  The class row
+    # is the mean over the class's candidates of the candidate's own
+    # (ngroups, nt) block, i.e. a segment sum over (class, group) divided by
+    # the class size.  `winj` is the injection applied on the data side, so
+    # the normalisation sees the same exponents the density does.
+    ccls = cls[seg] if len(seg) else np.zeros(0, np.int64)
+    gfam_c, fixed_c = {}, {}
+    for f in FAMS:
+        nmf = f[:-3] if f.endswith(("_re", "_im")) else f
+        comp = "im" if f.endswith("_im") else "re"
+        a_ = arrs[f] * winj[gid][:, None] if len(gid) else arrs[f]
+        acc = np.zeros((K, ngroups, nt))
+        if len(gid):
+            np.add.at(acc, (ccls[~drop], gid[~drop]), a_[~drop])
+        acc /= nm_c[:, None, None]
+        e = gfam_c.setdefault(nmf, {"name": nmf})
+        e[comp] = acc
+        fx = np.zeros((K, nt))
+        if len(gid) and drop.any():
+            np.add.at(fx, ccls[drop], a_[drop])
+        fx /= nm_c[:, None]
+        if np.any(fx):
+            e["fix_" + comp] = fx
+    del fixed_c
+    gfam = [gfam_c[k] for k in sorted(gfam_c)]
+
+    # ---- the Gaussian share, per class -----------------------------------
+    vgo_c = np.array([vother[m].mean() for m in members])
+    hitv_c = np.zeros((K, max(nhitpar, 0)))
+    if nhitpar and len(hcls):
+        hseg = np.repeat(np.arange(n), np.diff(nhptr))
+        dense = np.zeros((K, nhitpar))
+        np.add.at(dense, (cls[hseg], hcls), hv)
+        hitv_c = dense / nm_c[:, None]
+    vgf_c = vgo_c + hitv_c.sum(axis=1)
+    log(f"  norm classes: sigma {sig_c.min():.3g}..{sig_c.max():.3g}, "
+        f"members {int(nm_c.min())}..{int(nm_c.max())}")
+    return {"sigma": sig_c, "class": cls, "vgf": vgf_c,
+            "vg_other": vgo_c, "hit_v": hitv_c,
+            "families": [], "group_families": gfam}
+
+
 def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
                inj_groups, inj_hits, idx=None):
     """One MaterialCFTerm from an `extract_vtx.py` npz."""
@@ -67,7 +166,13 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     keep = np.ones(n_all, bool)
     if args.max_chi2_ndof > 0:
         keep &= d["chi2ndof"] < args.max_chi2_ndof
+    # THE STANDARD TWO-TRACK SELECTION on the npz, so the cut and the window
+    # it is normalised over are set in ONE place (`resolution/selection.py`).
+    # The extraction may already have applied it -- it is idempotent.
+    _m, _s = selection.standard(d, args, n=n_all)
+    keep &= _m
     if idx is None:
+        _s.log(lambda l: log("  " + name + ": " + l))
         idx = np.where(keep)[0]
         if args.maxn and args.maxn < len(idx):
             idx = idx[: args.maxn]
@@ -222,10 +327,56 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
         # r_v the way sigma_m is to m -- the measured corr(sigma_v, z_v) is
         # consistent with zero, which is the justification, stated in
         # STATE.md with its number.
+        #
+        # THE TRUNCATION.  The standard selection cuts |z_v| < 5
+        # (`resolution/selection.py`), so what is fitted is the density
+        # CONDITIONED on the window, `L_i / Z_i` with
+        # `Z_i = Int_{-w}^{+w} L_i dz`.  `Z` depends on the WIDTH -- a wider
+        # model spills more of itself out of the window -- so leaving it out
+        # biases every material amount and hit-class scale towards a narrower
+        # model.  `norm_window` switches it on and `--vtx-norm-window` sets
+        # `w`; it DEFAULTS to the window the extraction cut in, which
+        # `extract_vtx.py` records in the npz as `sel_max_abs_vtxz`, so the
+        # two can never disagree by accident.
+        wnorm = _norm_halfwidth(args, d)
+        # the BACKGROUND window is in the PHYSICAL units of `mobs`; the
+        # truncation window is in SIGMA (the cut is on the pull). They are
+        # deliberately not tied together. With `bkg_frac = 0` the background
+        # is inert anyway.
         wdw = float(args.vtx_window) if args.vtx_window > 0 else \
             float(8.0 * np.median(sigma))
         kw.update(background=unbinned.UniformBackground((-wdw, wdw)),
                   self_consistent_sigma=False, a_res=None)
+        if wnorm > 0:
+            # `share` is what the TERM is built from (it already carries
+            # `--no-hits`, where the injected class variance is folded into
+            # `vg_other`), so the normalisation reads it rather than the
+            # intermediates -- the two can then never describe different
+            # Gaussian shares.
+            norm = _vtx_norm_block(
+                args, wnorm, sigma, tg, nt, ngroups, seg, gid, drop, arrs, w,
+                share[0], share[1], share[2], share[3], len(hit_params), log)
+            # IN SIGMA: `|z_v| < 5` is a cut on the PULL, so the window is
+            # +-5 sigma_i and its physical width differs candidate by
+            # candidate. A resolution class IS a sigma, which is exactly what
+            # makes the class-level integral able to represent it.
+            kw.update(norm_window=(-wnorm, wnorm), norm=norm,
+                      norm_window_sigma=True,
+                      norm_tpoints=args.norm_tpoints)
+            data["norm_sigma"] = norm["sigma"]
+            data["norm_class"] = norm["class"].astype(np.int64)
+            data["norm_vgf"] = norm["vgf"]
+            data["norm_vg_other"] = norm["vg_other"]
+            data["norm_hit_v"] = norm["hit_v"]
+            for m in norm["group_families"]:
+                for c in ("re", "im"):
+                    if c in m:
+                        data[f"Sg_{c}_{m['name']}_norm"] = m[c].astype(np.float32)
+                    if "fix_" + c in m:
+                        data[f"Sgfix_{c}_{m['name']}_norm"] = \
+                            m["fix_" + c].astype(np.float32)
+            log(f"  truncation normalisation on [-{wnorm:g}, {wnorm:g}] sigma, "
+                f"{len(norm['sigma'])} class(es), {args.norm_tpoints} t points")
     else:
         dm = d["mgen"][idx] - MJPSI
         tabs, phik = MGT.build_phik_table(dm, tg[-1] / max(sigma.min(), 1e-12), 4096)
@@ -245,6 +396,11 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
         hit_params=hit_params, hit_share=share,
         amount_mode=args.amount_mode, hit_mode=args.hit_mode,
         m_ref=mref, bkg_frac=0.0, floor=args.floor, chunk=args.chunk,
+        # THE MOMENTUM SCALE.  Off by default -- this card exists to measure
+        # the RESOLUTION -- but the mass channel can float it, which is what
+        # the selection study needs in order to say what the |z_v| cut does
+        # to alpha and not only to the widths.
+        scale_param=("alpha" if (args.alpha and not isvtx) else None),
         channel="jpsi", **kw)
     log(f"{name} term: {n} candidates, {len(ngid)} group rows "
         f"({int(drop.sum())} pruned), {len(hcls)} hit rows, "
@@ -275,6 +431,9 @@ def common_index(npz_list, args):
         k = np.ones(len(d["sigma"]), bool)
         if args.max_chi2_ndof > 0:
             k &= d["chi2ndof"] < args.max_chi2_ndof
+        _m, _s = selection.standard(d, args, n=len(k))
+        k &= _m
+        _s.log(lambda l: log("  " + name + ": " + l))
         if args.max_abs_z > 0:
             mref0 = MJPSI if name == "mass" else 0.0
             k &= np.abs(d["m0"] - mref0) / np.maximum(d["sigma"], 1e-300) <= args.max_abs_z
@@ -286,12 +445,12 @@ def common_index(npz_list, args):
 
 
 def _poi_set(spec, names):
+    if spec == "all":
+        return set(names)
     if spec == "material":
         return {n for n in names if n.startswith("material_")}
     if spec == "hitres":
         return {n for n in names if n.startswith("hitres_")}
-    if spec == "all":
-        return set(names)
     if spec == "none":
         return set()
     return {s for s in spec.split(",") if s}
@@ -320,14 +479,30 @@ def main():
     p.add_argument("--prune-frac", type=float, default=1e-3)
     p.add_argument("--hit-prior", type=float, default=1.0)
     p.add_argument("--vtx-window", type=float, default=0.0)
+    p.add_argument("--vtx-norm-window", type=float, default=None,
+                   help="half-width of the window the vertex residual was "
+                        "SELECTED in, over which its density is normalised. "
+                        "Default: the window the extraction recorded "
+                        "(`sel_max_abs_vtxz`); 0 = no truncation "
+                        "normalisation (an untruncated sample, or the "
+                        "DIAGNOSTIC that measures the bias of leaving it out)")
+    p.add_argument("--norm-classes", type=int, default=8,
+                   help="resolution classes of the truncation normalisation")
+    p.add_argument("--norm-tpoints", type=int, default=2048,
+                   help="t points of the truncation integral (Gil-Pelaez)")
     p.add_argument("--max-abs-z", type=float, default=40.0,
                    help="drop candidates beyond this pull: the Gaussian arms' "
                         "density underflows float64 there, so no arm could be "
                         "compared with them in. Applied to every arm alike.")
+    p.add_argument("--alpha", action="store_true",
+                   help="float the MOMENTUM SCALE `alpha` (units 1e-3) on the "
+                        "mass channel. Free, no prior; the vertex channels "
+                        "have no mass to scale")
     p.add_argument("--floor", default="softplus")
     p.add_argument("--chunk", type=int, default=32768)
     p.add_argument("--poi", default="all")
     p.add_argument("--inject", nargs="*", default=[])
+    selection.add_args(p)
     p.add_argument("--same-candidates", action="store_true",
                    help="require the two npz to be the SAME candidates, and "
                         "use one index set for both (the JOINT card)")
@@ -404,6 +579,9 @@ def main():
         prior_by_name = dict(zip(gparams, gprior_card))
         sig = [args.hit_prior if q.startswith("hitres_")
                else prior_by_name.get(q, np.nan) for q in term.param_names]
+        # `alpha` is FREE: it is the measurement, not a nuisance
+        sig = [np.nan if q == "alpha" else v
+               for q, v in zip(term.param_names, sig)]
         writer.add_unbinned_term(
             nm, term.config(), term.param_names, data,
             param_defaults=[0.0] * len(term.param_names),

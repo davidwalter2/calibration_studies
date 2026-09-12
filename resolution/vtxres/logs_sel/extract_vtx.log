@@ -1,0 +1,28 @@
+# 160 files, functional vtx
+[10/160] cumulative 1300 (5 s)
+[20/160] cumulative 2600 (5 s)
+[30/160] cumulative 3900 (7 s)
+[40/160] cumulative 5200 (8 s)
+[50/160] cumulative 6500 (8 s)
+[60/160] cumulative 7800 (10 s)
+[70/160] cumulative 9100 (12 s)
+[80/160] cumulative 10400 (13 s)
+[90/160] cumulative 11700 (14 s)
+[100/160] cumulative 13000 (15 s)
+[110/160] cumulative 14300 (17 s)
+[120/160] cumulative 15600 (18 s)
+[130/160] cumulative 16900 (20 s)
+[140/160] cumulative 18200 (21 s)
+[150/160] cumulative 19500 (22 s)
+[160/160] cumulative 20800 (22 s)
+standard two-track selection on 300017 candidates
+    Jpsi_vtxok                    299450  ( 99.81 %, -567)
+    finite sigma_m, sigma_v       299374  ( 99.79 %, -76)
+    min leg hits >= 8             294111  ( 98.03 %, -5263)
+    |z_v| < 0                         --  (column absent: NOT APPLIED)
+    kept                          294111  ( 98.03 %)
+
+=== vtx: 20800 candidates, 456087 group rows (21.93/cand), 12.34 hit rows/cand
+    exponent storage 27.41 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/selection/runs/vtx.npz (557.1 MB)

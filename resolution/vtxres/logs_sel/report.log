@@ -1,0 +1,53 @@
+fit                     npar      NLL(reduced)         EDM  cert
+vtx_a_nocut               60     -68767.337250   1.962e-14    OK
+vtx_b_cut_norm            60     -68901.990740   9.195e-13    OK
+vtx_c_cut_nonorm          60     -68880.647708   3.364e-14    OK
+mass_a_nocut              61     -42121.640416   3.541e-13    OK
+mass_b_cut_norm           61     -42107.374412   1.198e-12    OK
+mass_c_cut_nonorm         --         (missing)
+
+=== GATE (a) vs (b): the cut WITH the truncated normalisation -- must agree   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  material_bpix_support6            0.03311      0.03082     -0.00229     0.03164    -0.07    -0.79
+  hitres_str_N3_hi                  0.01685      0.00175     -0.01510     0.22874    -0.07    -0.42
+  material_tib_support             -0.00864     -0.01138     -0.00274     0.04737    -0.06    -1.85
+  hitres_str_N5_hi                  0.15305      0.13285     -0.02020     0.72634    -0.03    -0.24
+  hitres_str_N2_hi                 -0.36668     -0.36047      0.00620     0.24591     0.03     0.42
+  material_bpix_services            0.05870      0.05660     -0.00210     0.08944    -0.02    -0.74
+  hitres_pix_y_q1                  -0.29651     -0.29455      0.00196     0.08591     0.02     0.95
+  hitres_pix_x_q1                  -0.11510     -0.11240      0.00269     0.12721     0.02     0.66
+  material_other                    0.00232     -0.00168     -0.00400     0.19639    -0.02    -0.36
+  hitres_str_N1_hi                 -0.48465     -0.47486      0.00979     0.51064     0.02     0.28
+  |shift| / sigma_own:  max 0.07   median 0.00   rms 0.02   > 0.2 sigma: 0/60
+  |shift| / sigma_dif:  max 1.85   median 0.13   rms 0.44
+
+=== GATE (c) vs (b): the SAME data with the normalisation LEFT OUT -- the bias   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  material_bpix_support6            0.03082      0.01879     -0.01203     0.03162    -0.38      nan
+  hitres_pix_x_q1                  -0.11240     -0.10280      0.00960     0.12730     0.08      nan
+  hitres_pix_y_q1                  -0.29455     -0.28922      0.00533     0.08594     0.06      nan
+  hitres_pix_x_q0                  -0.35750     -0.35104      0.00646     0.12960     0.05      nan
+  hitres_pix_y_q2                  -0.24095     -0.23528      0.00566     0.11628     0.05      nan
+  hitres_pix_x_q3                   1.04207      1.05280      0.01073     0.25058     0.04      nan
+  hitres_pix_x_q2                   0.35451      0.36303      0.00852     0.21060     0.04      nan
+  hitres_pix_y_q3                   0.00283      0.00748      0.00465     0.12812     0.04      nan
+  material_tib_support             -0.01138     -0.01309     -0.00171     0.04732    -0.04      nan
+  material_bpix_active_L1           0.00185      0.00117     -0.00069     0.01991    -0.03      nan
+  |shift| / sigma_own:  max 0.38   median 0.00   rms 0.05   > 0.2 sigma: 1/60
+
+=== THE MASS TERM under the |z_v| < 5 cut (a -> b)   (61 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_str_N5_hi                 -0.62309     -0.75545     -0.13236     1.07207    -0.12    -0.44
+  material_tib_support             -0.02790     -0.03068     -0.00278     0.04259    -0.07    -3.54
+  material_tec_structure           -0.03052     -0.03294     -0.00242     0.04014    -0.06    -2.78
+  hitres_str_N3_hi                  0.66774      0.63946     -0.02828     0.57810    -0.05    -0.85
+  material_bpix_services           -0.00553     -0.00979     -0.00426     0.09259    -0.05    -0.87
+  material_bpix_support6           -0.02119     -0.02289     -0.00170     0.04689    -0.04    -1.03
+  hitres_str_N3_lo                 -0.47321     -0.46107      0.01215     0.38620     0.03     1.23
+  hitres_pix_x_q3                   0.36710      0.34318     -0.02391     0.79259    -0.03    -0.80
+  hitres_pix_x_q0                   0.66913      0.69319      0.02406     0.80196     0.03     2.10
+  hitres_str_N2_lo                  0.07004      0.05872     -0.01132     0.37838    -0.03    -0.44
+  |shift| / sigma_own:  max 0.12   median 0.00   rms 0.02   > 0.2 sigma: 0/61
+  |shift| / sigma_dif:  max 3.54   median 0.21   rms 0.79
+
+  alpha [1e-3]: -0.0296 +- 0.0613 (no cut) -> -0.0299 +- 0.0613 (cut);  shift -0.0003 = -0.01 sigma_own, -0.20 sigma_dif

@@ -139,10 +139,22 @@ _MASS_AUX = {
     "ptm":          "Muminus_pt",
     "etap":         "Muplus_eta",
     "etam":         "Muminus_eta",
+    # THE STANDARD TWO-TRACK SELECTION's columns (`resolution/selection.py`).
+    # They are cached rather than cut on here, because this is the cache a
+    # card builder selects FROM: a card that cuts must also normalise over
+    # what it cut to, and that decision belongs to the card, not to the
+    # cache. Absent in a production without `exportVtxResidual` -- every
+    # entry of this map is optional.
+    "vtxz":         "Jpsi_vtxz",
+    "vtxsig":       "Jpsi_vtxsig",
+    "sigmam":       "Jpsi_sigmamass",
 }
 # integer provenance columns, kept so a cache row can be joined against the
 # quadratic term's own extraction of the same production
-_MASS_AUX_INT = {"run": "run", "lumi": "lumi", "event": "event"}
+_MASS_AUX_INT = {"run": "run", "lumi": "lumi", "event": "event",
+                 # the selection's per-leg hit counts and the vertex flag
+                 "nvp": "Muplus_nvalid", "nvm": "Muminus_nvalid",
+                 "vtxok": "Jpsi_vtxok"}
 
 
 # --------------------------------------------------------------------------

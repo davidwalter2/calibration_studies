@@ -1,0 +1,16 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789246046.380905 2321511 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789246054.617683 2321511 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  vtx: standard two-track selection on 20800 candidates
+  vtx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  vtx:     finite sigma_m, sigma_v        20800  (100.00 %, -0)
+  vtx:     min leg hits >= 8              20800  (100.00 %, -0)
+  vtx:     |z_v| < 5                      20774  ( 99.88 %, -26)
+  vtx:     kept                           20774  ( 99.88 %)
+  norm classes: sigma 0.00384..0.0391, members 2596..2597
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789246133.363213 2321511 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+vtx term: 20774 candidates, 336569 group rows (118956 pruned), 256333 hit rows, 60 parameters, arm 'cf'
+  vtx NLL(0) = -68872.338373, max|grad| = 447.6
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/selection/runs/cards/vtx_b_cut_norm.hdf5 (357.4 MB, 60 parameters)

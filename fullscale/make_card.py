@@ -54,9 +54,13 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 _Z = os.path.join(os.path.dirname(HERE), "zchannel")
-for _p in (HERE, _Z):
+_RES = os.path.join(os.path.dirname(HERE), "resolution")
+_ODD = os.path.join(_RES, "oddmoment")
+for _p in (HERE, _Z, _RES, _ODD):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+import selection  # noqa: E402  (the standard two-track selection)
 
 MZ_REF = 91.1876
 FAMILY_ORDER = ["ms", "ioni", "rad"]
@@ -346,7 +350,49 @@ def parse_args(argv=None):
     p.add_argument("--tau-max", type=float, default=40.0)
     p.add_argument("--chunk", type=int, default=32768)
     p.add_argument("--report-selection", action="store_true", default=True)
+    p.add_argument("--selection-aux", default=None,
+                   help="an `oddmoment/aux_gen.py` npz carrying the standard "
+                        "selection's columns (`nv_p`, `nv_m`, and `vtxz` when "
+                        "the production has it), joined to the pairs cache on "
+                        "(run, lumi, event, z). Needed only for caches built "
+                        "before `cf_inmaker.py` carried those columns itself; "
+                        "a cache that has them is selected directly")
+    selection.add_args(p)
     return p.parse_args(argv)
+
+
+def selection_table(d, args, log=print):
+    """The candidate table `selection.standard` reads, cache + optional aux.
+
+    The v2 J/psi and DY caches predate the selection columns; `--selection-aux`
+    supplies them from the aux cache, joined ROW BY ROW on
+    (run, lumi, event, z) with `oddmoment/aux_gen.join_to_cache`, which is the
+    one join every aux consumer in this tree uses.
+    """
+    if not args.selection_aux:
+        return d
+    import aux_gen  # noqa: PLC0415  (optional dependency of this path only)
+    # READ ONLY WHAT THE JOIN AND THE SELECTION NEED.  A pairs cache is tens
+    # of gigabytes (`D`, `Sgrp_*`); materialising either file whole would kill
+    # the process, and nothing below looks at any of the bulk.
+    WANT = ("nvp", "nvm", "vtxz", "vtxsig", "vtxok", "sigmam")
+    with np.load(args.selection_aux, allow_pickle=True) as fh:
+        have = set(fh.files)
+        need = [k for k in ("run", "lumi", "event", "z") if k in have]
+        cols = {}
+        for logical in WANT:
+            for cand in selection.ALIASES[logical]:
+                if cand in have:
+                    cols[logical] = cand
+                    break
+        A = {k: np.asarray(fh[k]) for k in need + list(cols.values())}
+    idx = aux_gen.join_to_cache(A, args.pairs)
+    if isinstance(idx, tuple):
+        idx = idx[0]
+    tab = {cand: A[cand][idx] for cand in cols.values()}
+    log(f"  --selection-aux {os.path.basename(args.selection_aux)}: "
+        f"joined {len(idx)} rows, columns {sorted(tab)}")
+    return tab
 
 
 def discover_families(keys, want_del=False):
@@ -372,6 +418,16 @@ def select(d, args, log=print):
     steps = []
     keep = np.isfinite(m) & np.isfinite(sigma) & (sigma > 0.0)
     steps.append(("finite m, sigma > 0", keep.copy()))
+    # THE STANDARD TWO-TRACK SELECTION, first, so its counts read against the
+    # full cache.  Every one of its cuts is skipped, loudly, when the cache
+    # has no column for it -- the v2 productions predate `exportVtxResidual`
+    # and `cf_inmaker`'s selection columns, so on them only the finiteness
+    # part bites and the card is unchanged.  (`resolution/selection.py`.)
+    stdmask, stdsumm = selection.standard(selection_table(d, args, log),
+                                          args, n=n0)
+    if stdsumm.enabled:
+        keep &= stdmask
+        steps.append(("standard two-track selection", keep.copy()))
     lo, hi = args.window
     keep &= (m >= lo) & (m <= hi)
     steps.append((f"m_obs in [{lo:g}, {hi:g}]", keep.copy()))
@@ -422,6 +478,7 @@ def select(d, args, log=print):
         steps.append((f"sigma_m < {args.max_sigma:g} GeV", keep.copy()))
 
     log(f"  selection on {n0} cached candidates")
+    stdsumm.log(lambda l: log("  " + l))
     prev = n0
     for label, k in steps:
         nk = int(k.sum())

@@ -1226,6 +1226,231 @@ against rejection, the three event-multiplicity classes) and
 version of each.
 
 
+### 14. THE SELECTION DECISIONS, AND WHERE EACH ONE LIVES
+
+David, 2026-09-12, on the two cuts section 13 recommended:
+
+> "About the minimum number of hits I agree with putting 8 as default.  On the
+> vertex residual cutting on 5 sigma also sounds good.  We could keep these
+> candidates and only put the cuts downstream, e.g. when running the fits or
+> evaluating some other quantity."
+
+Read as: **the leg-hit minimum is a maker default; the vertex-residual cut is
+downstream, once, as one documented standard selection.**  They are different
+kinds of cut, and that is why they live in different places.
+
+* `minLegHits = 8` removes candidates that carry no usable resolution
+  information at all -- 0.885 +- 0.026 of what it removes is a duplicate or
+  unmatched pairing by gen truth (section 13.5), and every candidate with a
+  non-finite `Jpsi_sigmamass` has a thin leg (13.8).  Cutting them PRE-FIT
+  costs nothing downstream and saves the fit.
+* `|z_v| < 5` removes 0.24 % of gen SIGNAL.  It is an acceptance cut on the
+  resolution tail, so a term fitted on the survivors carries the TRUNCATED
+  density and must normalise over the window it cut to.  Keeping the
+  candidates in the trees is what makes that possible, and what lets the tail
+  still be measured.
+
+#### 14.1 The maker default (`dbfe6e4b2c2`)
+
+`minLegHits` 0 -> **8** in `ResidualGlobalCorrectionMakerTwoTrackG4e.cc` (the
+member default, the `existsAs` fallback and the member documentation), in all
+**8** two-track cfis and in both drivers.  `minNdof = 1` and
+`minPairHits = -1` (auto) are unchanged.  Built in
+`CMSSW_15_0_19_patch2_dev2` on `cvh-exports-clean-260911`; nothing was running
+from that area and its `git status` was clean.
+
+**The gate** -- the new build re-run on the SAME inputs as the reference,
+candidates matched on (run, lumi, event, nhits, nvalid):
+
+| | new / ref | matched | bit-identical | not found in ref | ref-only, explained | unexplained | ndof min | non-finite |
+|---|---|---|---|---|---|---|---|---|
+| `gate_dy` (400 DY ev) | 179 / 186 | **179** | **29/29** | 0 | **6 / 6** | **0** | 12 -> 13 | 0 |
+| `gate_gun` (200 gun ev) | 188 / 192 | **188** | **29/29** | 0 | 0 / 0 | **0** | 10 -> 14 | 0 |
+
+`skipped[leghits<8]` is 8 (DY) and 4 (gun).  On DY the reference's ONE
+`fail[kinfit]` is among the 8 -- the fit no longer has to fail on it -- and one
+more skipped pair was the only candidate of its event (176 -> 175 events),
+which is why 8 skipped gives 6 reference-only candidates.  On the gun all 4
+were the only candidate of their event, so there are no reference-only
+candidates in common events at all.  Four of the six DY ones sit at `|z_v|` =
+35, 74, 88 and 262 -- the tail.
+
+`genbkg.py --gate` grew `--gate-min-leg-hits` so it can attribute those
+candidates instead of calling them unexplained.
+
+#### 14.2 The standard selection (`resolution/selection.py`)
+
+    |z_v| < 5              on `Jpsi_vtxz`, the vertex-constraint pull
+    weaker leg >= 8 hits   on `Mu{plus,minus}_nvalid`
+    Jpsi_vtxok             the vertex block closed
+    finite sigma_m, sigma_v, both > 0
+
+`standard(table, args) -> (mask, Summary)`; the `Summary` is logged by every
+caller, cut by cut, and DISTINGUISHES a cut that removed nothing from one
+whose column is absent from one that was switched off.  `ALIASES` maps the
+logical columns onto the tree names, `cf_inmaker`'s cache names and the aux
+cache names, so no caller has to rename anything.  `--no-standard-selection`
+is the escape hatch, for studies OF the tail.
+
+Applied in `extract_vtx.py`, `make_vtx_card.py`, `cmp_vtxon.py`,
+`matres/extract_groups.py` (mass functional only), `globalfit/extract.py`
+(two-track productions only), `fullscale/make_card.py` and
+`make_joint_card.py` (which forwards the escape hatch and the aux to both
+legs).  `oddmoment/aux_gen.py` REPORTS it and does not cut -- its rows are
+joined row by row to a pairs cache -- and `cf_inmaker.py` caches the columns
+so a card built from a cache can cut on them at all.
+
+`extract_vtx.py` records what it ACTUALLY applied in the npz
+(`sel_max_abs_vtxz`, `sel_min_leg_hits`), and `make_vtx_card.py` defaults its
+truncation window to the window that was actually cut -- by itself or by the
+extraction -- so a truncated sample cannot be fitted with an untruncated
+likelihood by forgetting a flag.
+
+#### 14.3 THE TRUNCATED NORMALISATION, and two things that were missing
+
+The fitted density on a sample selected in `|z_v| < w` is `L_i / Z_i` with
+`Z_i = Int_{-w}^{+w} L_i dz`.  `Z` depends on the WIDTH -- a wider model
+spills more of itself out of the window -- so a fit that leaves it out is
+pulled towards a narrower model.  `rabbit.unbinned.MassCFTerm` already had
+`norm_window` for the Z MASS window; two things had to be added
+(`rabbit-vmass` `c7e6a8f`).
+
+1. **`Z` did not depend on a `MaterialCFTerm`'s parameters.**  `_norm_z`
+   summed the flat families, and a `MaterialCFTerm` declares none: its width
+   IS the per-group exponents and the per-hit-class variance shares.  `Z` was
+   therefore a constant, dropped out of the gradient, and the truncated fit
+   was exactly as biased as one with no `Z`.  `MassCFTerm` gains a
+   `_norm_extra` hook (a no-op, so nothing existing moves by a float) and
+   `MaterialCFTerm` implements it from class-level copies of its blocks:
+   `norm["group_families"]` `(K, ngroups, nt)`, `norm["hit_v"]` `(K, ncls)`,
+   `norm["vg_other"]` `(K,)`.  A class row is the MEAN of its members, the
+   same approximation the class-representative `sigma` already is.
+
+2. **The window has UNITS.**  A Z channel is selected in a MASS window, the
+   same for every candidate; a constraint residual is selected on its PULL,
+   a window of +-5 `sigma_i` whose physical width differs candidate by
+   candidate.  `norm_window_sigma` (default False) makes the class edges
+   `d = window * sigma_c`, which a class-level integral represents exactly
+   because a class IS a sigma.  This is not a small error: read as
+   centimetres, 5 against a `sigma_v` of 0.004-0.04 cm is 125-1250 sigma and
+   `NLL(0)` moved by **0.0057**; read as sigma it moves by **21.058**.
+
+#### 14.4 The gate on the J/psi gun
+
+One extraction of `prod_vtxon` (160 x 130 = 20 800 candidates), three cards,
+so only the LIKELIHOOD differs between them.  Every fit through
+`rabbit_fit.py`, certified by rabbit's EDM.
+
+| arm | candidates | `NLL(0)` | NLL(min) | EDM |
+|---|---|---|---|---|
+| (a) no `\|z_v\|` cut, untruncated | 20 800 | -68 737.530403 | -68 767.337250 | 1.96e-14 |
+| (b) `\|z_v\| < 5` + truncated norm | 20 774 | -68 872.338373 | -68 901.990740 | 9.20e-13 |
+| (c) `\|z_v\| < 5`, NO norm | 20 774 | -68 851.280030 | -68 880.647708 | 3.36e-14 |
+| mass (a) no cut | 20 800 | -42 115.036875 | -42 121.640416 | 3.54e-13 |
+| mass (b) cut | 20 774 | -42 100.524940 | -42 107.374412 | 1.20e-12 |
+
+The mass channel carries no `norm_window`, so its (b) and (c) are the same
+card and only (a) vs (b) is fitted.
+
+`NLL(0)`(b) - `NLL(0)`(c) = **-21.058** over 20 774 candidates, i.e.
+`<log Z> = -1.014e-3`: the MODEL puts **0.101 %** of itself beyond +-5 sigma
+against the measured **0.125 %** on this sample.  Those two agreeing is the
+check that the truncation integral is right.
+
+**(a) vs (b) -- the cut with its matching normalisation is consistent.**
+Over all 60 parameters the shift is at most **0.07** of the parameter's own
+error (median 0.00, rms 0.02, **0/60** above 0.2 sigma).  The largest is
+`material_bpix_support6`, the group the vertex term weighs most (0.324 of
+`sigma_v^2`): 0.03311 -> 0.03082, sigma 0.03164.
+
+**(c) vs (b) -- the bias of leaving it out.**  On the SAME data,
+`material_bpix_support6` goes 0.03082 -> **0.01879**, a shift of
+**-0.38 sigma**, towards LESS material -- a narrower model, which is exactly
+what a fit does when it is not charged for the tail it no longer has to
+describe.  Everything else moves by <= 0.08 sigma (**1/60** above 0.2 sigma,
+rms 0.05).  The bias sits where the term's information sits, which is the
+worst place for it.
+
+**The cut's effect on the MASS term** (61 parameters, `alpha` floating):
+every shift is below **0.12** of its own error (median 0.00, rms 0.02,
+**0/61** above 0.2 sigma), and
+
+    alpha [1e-3] = -0.0296 +- 0.0613  (no cut)  ->  -0.0299 +- 0.0613  (cut)
+
+a shift of **-0.0003 = -0.01 sigma**.  The material groups move by at most
+0.07 sigma (`material_tib_support` -0.02790 -> -0.03068,
+`material_tec_structure` -0.03052 -> -0.03294) and the hit classes by at most
+0.12 sigma (`hitres_str_N5_hi`).  **Nothing crosses 0.2 sigma, so the |z_v|
+cut is not a systematic of the mass term at this size** and no joint
+truncation is needed.
+
+Two of those shifts are nevertheless significant AS SHIFTS -- against
+`sqrt(|sigma_b^2 - sigma_a^2|)`, the error on the difference for nested
+samples, `material_tib_support` is 3.5 and `material_tec_structure` 2.8 -- so
+they are a real pull from the 26 removed candidates and not a fluctuation.
+They do not grow with statistics: the removed FRACTION is fixed, so the shift
+and the error both scale as `1/sqrt(N)` and the ratio stays at 0.07.
+
+#### 14.5 The DY class table (`sel_dytable.py`)
+
+`bkg/dy_vtxon_gen`, 6 x 4000 events, constraint ON, no chi2 cut (the full
+flow, in the order the cuts are applied):
+
+| cut | total | signal | dup | otherdecay | unmatched |
+|---|---|---|---|---|---|
+| all | 10 638 | 10 320 | 89 | 11 | 218 |
+| `Jpsi_vtxok` + finite sigma | 10 638 | 10 320 | 89 | 11 | 218 |
+| min leg hits >= 8 | 10 414 | 10 304 | 15 | 11 | 84 |
+| `\|z_v\| < 5` | **10 332** | **10 280** | **6** | 9 | **37** |
+
+signal efficiency **0.9961 +- 0.0006**, background rejection
+**0.847 +- 0.020**, purity **97.01 -> 99.50 %**.
+
+With the extraction's `chi2/ndof < 3` first the cut has less left to do
+(10 350 -> 10 273; signal 0.9976 +- 0.0005, purity 99.09 -> 99.59 %).  In the
+FREE regime, where the tail lives, the same flow gives 10 628 -> 10 324
+(signal 0.9959 +- 0.0006, purity 97.08 -> 99.54 %) and with chi2 first
+10 505 -> 10 271 (signal 0.9962 +- 0.0006, purity 97.72 -> 99.57 %).
+
+`Jpsi_vtxok` and the finiteness cut remove NOTHING on DY.  They bite on the
+gun: 567 of 300 017 fail `Jpsi_vtxok`, 76 more have a non-finite `sigma_m`,
+and `min leg hits >= 8` removes **5 263** (1.76 %).
+
+#### 14.6 The v2 caches (the productions that predate the vertex export)
+
+`fullscale/make_card.py` on `runs/gpairs_v2_n50.npz`:
+
+* without `--selection-aux`, all four cuts log `column absent: NOT APPLIED`
+  and the card keeps **645 473** candidates -- BIT-IDENTICAL to before, cut
+  flow line by line;
+* with `--selection-aux runs/auxgen_jpsiv2.npz` (which carries `nv_p`/`nv_m`),
+  `min leg hits >= 8` removes **555** (0.085 %) and the card keeps
+  **644 956**, 517 fewer after the downstream window / chi2 / sigma cuts;
+* the DY v2 cache has **3 896** of 487 742 (**0.799 %**) with a weaker leg
+  below 8.
+
+Neither v2 production carries `Jpsi_vtxz`, so the residual cut is genuinely
+unavailable there and is REPORTED as such rather than silently skipped.
+`cf_inmaker.py` now caches the columns, so the next cache needs no aux.
+
+#### 14.7 Running it, and the figures
+
+    ./run_sel.sh extract|cards|fits|report        (SELROOT on ceph)
+    python3 sel_dytable.py --npz <dy gen npz> [--chi2 3]
+    python3 sel_plots.py --npz <gun vtx npz> --dy <dy gen npz> \
+        --fits <R>/fits --groups <materialGroups50.txt>
+
+`~/public_html/ZMass/cvh/260912_selection/`, one file per panel with a PNG
+twin: `zv_spectrum_{gun,dy}` (the pull with the cut marked and the fraction
+beyond it), `cutflow_dy` (the gen-class composition through the flow) and
+`shift_{vtx_a_vs_b,vtx_b_vs_c,mass_a_vs_b}` (every parameter's shift in units
+of its own error, with the 0.2 sigma marks).
+
+Inputs and outputs under
+`/ceph/.../runs_vtxres_260911/selection/` -- `gate_{gun,dy}/` (the maker
+gate), `runs/{vtx,mass}.npz`, `runs/cards/`, `runs/fits/`.
+
+
 ## Defects found and fixed
 
 1. **`Jpsi_d`'s charge re-sign destroys the sign it claims to define.**
@@ -1347,11 +1572,12 @@ None blocking; each is a new study.
    weaker leg of <= 8 valid hits has `P(|z_v|>5)` = 0.104 +- 0.044 against
    0.0020 +- 0.0004 for the rest.
 
-6. **Should `minLegHits` be on by default?** Section 13.5 recommends
-   `minLegHits = 8` (with `|z_v| < 5`: efficiency 0.9961 +- 0.0006, rejection
-   0.811 +- 0.026), but the parameter ships at 0 = OFF so that no existing
-   production changes silently. Turning it on is a decision for the next
-   production, not for this branch.
+6. ~~**Should `minLegHits` be on by default?**~~ DECIDED and DONE, section
+   14: `minLegHits = 8` is the maker default (`dbfe6e4b2c2`), gated
+   bit-identical on the surviving candidates of both gate samples. The
+   companion `|z_v| < 5` is NOT a maker cut -- it is the downstream standard
+   selection (`resolution/selection.py`) with the matching truncated
+   normalisation.
 
 3. **The concatenated-tau trick is not ported.** Every exponent primitive depends
    on `weight * tau` alone, so the mass and the vertex functional could share ONE

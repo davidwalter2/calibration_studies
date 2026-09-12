@@ -321,7 +321,26 @@ def parse_args(argv=None):
                         "asserts that each term's stored parameter list is the "
                         "one its configuration implies")
     p.add_argument("--no-verify", dest="verify", action="store_false")
+    p.add_argument("--z-selection-aux", default=None,
+                   help="aux npz carrying the standard selection's columns "
+                        "for the Z leg (see make_card.py --selection-aux)")
+    p.add_argument("--jpsi-selection-aux", default=None,
+                   help="the same for the J/psi leg")
+    p.add_argument("--no-standard-selection", action="store_true",
+                   help="passed through to BOTH legs' make_card.select: do "
+                        "not apply the standard two-track selection "
+                        "(resolution/selection.py). For studies of the tail "
+                        "itself only")
     return p.parse_args(argv)
+
+
+def _selargv(args, which=None):
+    """The standard-selection flags, forwarded to a `make_card` argv."""
+    out = ["--no-standard-selection"] if args.no_standard_selection else []
+    aux = getattr(args, f"{which}_selection_aux", None) if which else None
+    if aux:
+        out += ["--selection-aux", aux]
+    return out
 
 
 def log(msg):
@@ -905,7 +924,7 @@ def build_jpsi(args, log=print, matctx=None):
         "--fit-upsample", str(args.fit_upsample_jpsi),
         "--corr-form", args.corr_form,
         "--corr-clip", "0",
-    ])
+    ] + _selargv(args, "jpsi"))
 
     d = np.load(args.jpsi_pairs, allow_pickle=True)
     tgrid = np.asarray(d["tgrid"], dtype=np.float64)
@@ -1267,6 +1286,7 @@ def main():
              "--corr-form", args.corr_form,
              "--corr-clip", "0",
              "--fit-upsample", str(args.fit_upsample_z)]
+    zargv += _selargv(args, "z")
     if args.fsr:
         zargv += ["--fsr", args.fsr]
     if args.acc:

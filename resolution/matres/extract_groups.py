@@ -70,6 +70,7 @@ for _p in (_HERE, _PARENT):
 
 import groups as G  # noqa: E402
 import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
+import selection  # noqa: E402  (the standard two-track selection)
 
 # ---------------------------------------------------------------------------
 # CF primitives -- imported lazily (cf_ms_exact builds its electron tables at
@@ -150,6 +151,7 @@ def parse_args():
                         "report max|sum_g S_g - S_flat| per family")
     p.add_argument("-j", "--jobs", type=int, default=8)
     p.add_argument("-o", "--output", required=True)
+    selection.add_args(p)
     return p.parse_args()
 
 
@@ -258,6 +260,11 @@ def process_file(fname):
         want += list(_CB)
     elif "reshitidx" in keys:
         want.append("reshitidx")
+    # the columns THE STANDARD TWO-TRACK SELECTION reads, when the production
+    # has them (`resolution/selection.py`).  Optional, one by one: the v2
+    # productions predate `exportVtxResidual` and carry no `Jpsi_vtxz`.
+    if ismass:
+        want += [b for b in sum(selection.ALIASES.values(), ()) if b in keys]
     want = sorted(set(want))
     a = t.arrays(want, library="np")
 
@@ -269,6 +276,12 @@ def process_file(fname):
         if cut > 0.0 and br in a:
             m = np.abs(np.asarray(a[br], np.float64)) < cut
             ok_cut = m if ok_cut is None else (ok_cut & m)
+    # THE STANDARD TWO-TRACK SELECTION.  Only for the two-track (mass)
+    # functional -- a single track has no vertex residual and no second leg.
+    stdsumm = None
+    if ismass:
+        m, stdsumm = selection.standard(a, args, n=nent)
+        ok_cut = m if ok_cut is None else (ok_cut & m)
 
     store = G.GroupStore(fams, len(_TSEL))
     out = {k: [] for k in ("sigma", "vgf", "vg_other", "chi2ndof", "fioni")}
@@ -574,7 +587,8 @@ def process_file(fname):
         for f in fams:
             res["Sfix" + f] = (np.stack(fixbuf[f]) if fixbuf[f]
                                else np.zeros((0, len(_TSEL)), np.float32))
-    stats = dict(nsel=nsel, ndrop=ndrop, ncut=ncut, want_rad=int(want_rad),
+    stats = dict(nsel=nsel, ndrop=ndrop, ncut=ncut, sel=stdsumm,
+                 want_rad=int(want_rad),
                  gap_min=float(gap_min), lost_max=float(lost_max),
                  nblk_io=nblk_io, grp_mult=grp_mult,
                  flatmax=(flatmax or {}))
@@ -679,6 +693,9 @@ def main():
     nt = len(tsel)
     raw_b = nnz * nt * 4 * len(fams) / max(n, 1)
     print("\n=== summary ===")
+    _sel = selection.merge([s.get("sel") for s in stats])
+    if _sel is not None:
+        _sel.log(print)
     print(f"candidates          {n}")
     print(f"rad model           {stats[0]['want_rad']}")
     print(f"groups/candidate    mean {mult.mean():.2f}  median {np.median(mult):.0f}  "

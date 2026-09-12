@@ -1,0 +1,15 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789244471.824932 3261187 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789244478.585020 3261187 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  mass: standard two-track selection on 20800 candidates
+  mass:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  mass:     finite sigma_m, sigma_v        20800  (100.00 %, -0)
+  mass:     min leg hits >= 8                 --  (column absent: NOT APPLIED)
+  mass:     |z_v| cut (off)                   --  (switched off: NOT APPLIED)
+  mass:     kept                           20800  (100.00 %)
+[16:21:57] kernel CF tabulation (20800 samples) built in 10.5 s
+E0000 00:00:1789244517.468045 3261187 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+mass term: 20800 candidates, 433725 group rows (22362 pruned), 256647 hit rows, 61 parameters, arm 'cf'
+  mass NLL(0) = -42115.036875, max|grad| = 737.3
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/selection/runs/cards/mass_a_nocut.hdf5 (446.5 MB, 61 parameters)

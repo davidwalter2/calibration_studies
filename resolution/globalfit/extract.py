@@ -64,6 +64,7 @@ if os.path.dirname(_HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(_HERE))
 
 import prodfiles  # noqa: E402  (needs the parent directory on sys.path)
+import selection  # noqa: E402  (the standard two-track selection)
 
 # The CF primitives live in the parent directory and are expensive to import
 # (cf_ms_exact builds its electron tables at import time: ~6 min), so they are
@@ -188,6 +189,7 @@ def parse_args():
         help="stop after roughly this many selected candidates",
     )
     p.add_argument("-o", "--output", required=True)
+    selection.add_args(p)
     return p.parse_args()
 
 
@@ -359,6 +361,12 @@ def process_file(fname):
             raise ValueError(f"{fname}: partial radiative export {rb}")
         want_rad = len(rb) == 4
         want += rb
+    # the columns THE STANDARD TWO-TRACK SELECTION reads, where the
+    # production has them (`resolution/selection.py`); each is optional.
+    istwotrack = "Jpsi_jacMass" in keys
+    if istwotrack:
+        want += [b for b in sum(selection.ALIASES.values(), ()) if b in keys]
+    want = list(dict.fromkeys(want))
     a = t.arrays(want, library="np")
     pt_all = _PARMTYPE
 
@@ -382,6 +390,12 @@ def process_file(fname):
             fr = r if fr is None else np.maximum(fr, r)
         ok = fr < args.max_dEref_p
         chi2ok = ok if chi2ok is None else (chi2ok & ok)
+    # THE STANDARD TWO-TRACK SELECTION.  It applies to a two-track production
+    # only; a single-track one has no vertex residual and no second leg.
+    stdsumm = None
+    if istwotrack:
+        m, stdsumm = selection.standard(a, args, n=nent)
+        chi2ok = m if chi2ok is None else (chi2ok & m)
     for ic in range(nent):
         if chi2ok is not None and not chi2ok[ic]:
             nchi2cut += 1
@@ -559,7 +573,7 @@ def process_file(fname):
 
     res = {k: (np.array(v) if len(v) else None) for k, v in out.items()}
     return (fname, res, grad, hess, nsel, ndrop, nquad, (fmt or "none"),
-            int(want_rad), nchi2cut, jout)
+            int(want_rad), nchi2cut, jout, stdsumm)
 
 
 def main():
@@ -591,6 +605,7 @@ def main():
     nsel = ndrop = nquad = nchi2cut = 0
     fmts = set()
     rad = set()
+    selsumms = []
     t0 = time.time()
     with Pool(
         args.jobs,
@@ -600,7 +615,8 @@ def main():
         for i, r in enumerate(pool.imap(process_file, files)):
             if r is None:
                 continue
-            fname, res, g, h, ns, nd, nq, fmt, wr, ncut, jj = r
+            fname, res, g, h, ns, nd, nq, fmt, wr, ncut, jj, ss = r
+            selsumms.append(ss)
             grad += g
             hess += h
             jsand += jj
@@ -621,6 +637,9 @@ def main():
                 log(f"reached --maxcand {args.maxcand}, stopping")
                 pool.terminate()
                 break
+    _sel = selection.merge(selsumms)
+    if _sel is not None:
+        _sel.log(log)
     if len(rad) > 1:
         sys.exit(
             "the radiative export is present in some input files and not in "

@@ -46,6 +46,8 @@ for _p in (_HERE, _RES, _MAT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import selection  # noqa: E402  (needs resolution/ on sys.path)
+
 FAMS = ("ms", "io_re", "io_im", "rad_re", "rad_im")
 # branch suffix of each family, per functional prefix
 SUF = {"ms": "ms", "io_re": "ioni_re", "io_im": "ioni_im",
@@ -171,6 +173,13 @@ def process_file(fn):
         keep &= chi2n < a.max_chi2_ndof
     if "Jpsi_vtxvchk" in d and a.max_vchk > 0:
         keep &= np.abs(np.asarray(d["Jpsi_vtxvchk"], np.float64)) < a.max_vchk
+    # THE STANDARD TWO-TRACK SELECTION (`resolution/selection.py`): |z_v| < 5,
+    # weaker leg >= 8 valid hits, `Jpsi_vtxok`, finite sigma.  The vertex cut
+    # TRUNCATES the residual density, so a card built from this npz must be
+    # built with the matching normalisation (`make_vtx_card.py --vtx-window`,
+    # which defaults to the same number).
+    stdmask, stdsumm = selection.standard(d, a, n=n0)
+    keep &= stdmask
     idx = np.flatnonzero(keep)
     if a.max_cands:
         idx = idx[: a.max_cands]
@@ -291,7 +300,7 @@ def process_file(fn):
         if br in d:
             res[nm] = np.asarray(d[br], np.int64)[idx]
     res["ndof"] = np.asarray(d["ndof"], np.int64)[idx]
-    return fn, res, {"n0": n0, "nsel": n}
+    return fn, res, {"n0": n0, "nsel": n, "sel": stdsumm}
 
 
 def main():
@@ -309,6 +318,7 @@ def main():
     ap.add_argument("--max-files", type=int, default=0)
     ap.add_argument("--require-complete", action="store_true")
     ap.add_argument("-o", "--output", required=True)
+    selection.add_args(ap)
     a = ap.parse_args()
 
     import groups as G
@@ -341,6 +351,23 @@ def main():
                       f"({time.time()-t0:.0f} s)", flush=True)
     if not parts:
         sys.exit("nothing extracted")
+    # EVERY CALLER LOGS THE STANDARD SELECTION.  The per-file summaries are
+    # summed so the printed table is the one for the whole extraction; note
+    # the counts are AFTER this script's own chi2/vchk cuts, which run first.
+    tot = selection.merge([st.get("sel") for st in stats])
+    _selcfg = selection.from_args(a)
+    _selw, _selh = 0.0, 0
+    if tot is not None:
+        tot.steps = [tuple(x) for x in tot.steps]
+        tot.log(print)
+        # what was ACTUALLY applied, not what was asked for: a production
+        # without the vertex export cannot be cut on |z_v|, and a card built
+        # from it must not normalise over a window nothing was cut to.
+        if _selcfg["enabled"]:
+            if tot.applied(f"|z_v| < {_selcfg['max_abs_vtxz']:g}"):
+                _selw = float(_selcfg["max_abs_vtxz"])
+            if tot.applied(f"min leg hits >= {_selcfg['min_leg_hits']}"):
+                _selh = int(_selcfg["min_leg_hits"])
 
     # the group catalog: names only, from the tier file
     gmap, _gp = G.read_groups(a.groups)
@@ -351,6 +378,11 @@ def main():
            "group_names": np.array(gnames),
            "hit_classes": np.array(hitres_classes.CLASSES),
            "functional": np.array(a.functional),
+           # THE WINDOW THE SAMPLE WAS SELECTED IN.  A term built from this npz
+           # must normalise its density over it (`make_vtx_card.py` reads this
+           # key as the default of `--vtx-norm-window`); 0 = untruncated.
+           "sel_max_abs_vtxz": np.array(_selw),
+           "sel_min_leg_hits": np.array(_selh),
            "amount_convention": np.array("exp(k_g) per group, weights frozen")}
     scalars = [k for k in parts[0]
                if k not in ("tgrid", "grp_ptr", "hit_ptr", "grp_id", "hit_cls",
