@@ -2,7 +2,7 @@
 """Phase-1 input diagnostics: what the selection and the two corrections do.
 
 One panel per file, ratio panel wherever a comparison is being made, into
-`~/public_html/cvh/<YYMMDD>_fullscale/`.
+`~/public_html/ZMass/cvh/<YYMMDD>_fullscale/`.
 """
 import argparse
 import datetime
@@ -39,7 +39,7 @@ def outpath(args):
     if args.outpath:
         return os.path.expanduser(args.outpath)
     today = datetime.date.today().strftime("%y%m%d")
-    return os.path.expanduser(f"~/public_html/cvh/{today}_fullscale/")
+    return os.path.expanduser(f"~/public_html/ZMass/cvh/{today}_fullscale/")
 
 
 def save(outdir, name, args):

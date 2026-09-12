@@ -2,7 +2,7 @@
 # THE SAFE BAND DEFINITION. `--eta-lead` cuts on the |eta| of the leg with the
 # larger RECO pT, so when the legs have similar pT the band edge is decided by
 # which one fluctuated up: corr(|eta| lead, z) = +0.0203, against +0.0025 for
-# max(|eta_p|,|eta_m|) and +0.0004 for the gen definition (STATE sec. 0f.63).
+# max(|eta_p|,|eta_m|) and +0.0004 for the gen definition.
 # These cards repeat the eta bands and the barrel sigma/m split on the safe
 # variable, which needs no truth.
 #

@@ -2,16 +2,16 @@
 """The closure summary of the certified table, one panel per file.
 
 Reads `certtable.py`'s ledger (so a point is only drawn when it PASSES the
-four-part acceptance test of STATE sec. 0f.16 -- a fit that stopped early is
+four-part acceptance test of `certtable.py` -- a fit that stopped early is
 drawn hollow and labelled, never silently) and makes:
 
   * `mz_eta_<form>.png`  -- `m_Z` closure against the leading-muon |eta| band,
-    m form and v form on the same axes, with the fit-free prediction of
-    sec. 0f.1 overlaid and a PULL panel underneath;
+    m form and v form on the same axes, with the fit-free prediction
+    overlaid and a PULL panel underneath;
   * `mz_eta_safe.png`    -- the SAME `eta` bands with the two band DEFINITIONS
     against each other: the `|eta|` of the RECO-leading leg (a cut on the
     residual, `corr = +0.0203`) and `max(|eta_p|,|eta_m|)` (`corr = +0.0025`),
-    with the pre-registered prediction of STATE 0f.66 overlaid. The two
+    with the pre-registered prediction overlaid. The two
     definitions select different candidates, so the comparison is the SPREAD;
   * `gz_kladder.png`     -- `Gamma_Z` against the number of `K(m)` terms;
   * `mz_variants.png`    -- the inclusive `m_Z` ladder over the model variants.
@@ -19,7 +19,6 @@ drawn hollow and labelled, never silently) and makes:
 usage:  python3 plot_closure.py [-o OUTDIR]
 """
 import argparse
-import datetime
 import os
 import sys
 
@@ -39,12 +38,12 @@ sys.path.insert(0, _HERE)
 import certtable as CT  # noqa: E402
 import pubhtml  # noqa: E402      (savefig: .png twin for every .pdf)
 
-# the fit-free prediction of sec. 0f.1, MeV: conditioning on sigma vs on k
+# the fit-free prediction, MeV: conditioning on sigma vs on k
 PREDICT = {"z_full380_fl": -15.33, "z_M_etaB": -12.04,
            "z_M_etaT": -16.50, "z_M_etaE": -25.61}
 PREDICT_V = {"z_V_full": +0.30, "z_V_etaB": -0.23,
              "z_V_etaT": +0.44, "z_V_etaE": +0.20}
-# STATE 0f.66, RECORDED BEFORE THE FITS LANDED: `dm/m = -A`, with the per-leg
+# PRE-REGISTERED, recorded before the fits landed: `dm/m = -A`, with the per-leg
 # charge-even momentum bias `A` measured in the SAME cells the card selects
 # (`legscale.py`, 5 % trim, bootstrap over candidates).
 PREDICT_LEAD = {"z_V_etaB": -23.4, "z_V_etaT": +0.6, "z_V_etaE": +44.4}
@@ -92,9 +91,9 @@ def ledger(edm_tol=1e-3, nll_tol=0.01):
 def band(ax, cards, L, q, colour, label, marker, keep=None):
     """`keep` selects WHICH cards this series draws, at their index in `cards`.
 
-    Without it both the `m` and the `v` call drew EVERY card and the second
-    overplotted the first, so every panel showed one series in the other's
-    colour (the legend still claimed two).
+    Without it both the `m` and the `v` call would draw EVERY card and the
+    second would overplot the first, so a panel would show one series in the
+    other's colour while the legend claimed two.
     """
     x, y, e, hollow = [], [], [], []
     for i, c in enumerate(cards):
@@ -122,7 +121,7 @@ def band(ax, cards, L, q, colour, label, marker, keep=None):
 
 
 def panel_bandpair(outdir, name):
-    """The two band DEFINITIONS on one axis (STATE 0f.63/0f.66/0f.72.2).
+    """The two band DEFINITIONS on one axis.
 
     Both card families are v-form, so `panel`'s m/v split cannot separate them
     -- the series are keyed on the card list instead, and each carries its own
@@ -235,9 +234,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-o", "--outdir", default=None)
     a = ap.parse_args()
-    out = a.outdir or os.path.expanduser(
-        "~/public_html/cvh/"
-        + datetime.date.today().strftime("%y%m%d") + "_fullscale")
+    out = a.outdir or pubhtml.figdir("fullscale")
 
     panel(out, "mz_eta.png",
           ["z_M_etaB", "z_V_etaB", "z_M_etaT", "z_V_etaT", "z_M_etaE", "z_V_etaE"],

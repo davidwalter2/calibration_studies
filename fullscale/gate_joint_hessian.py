@@ -4,8 +4,8 @@
 `test_rabbit_path.py`'s check 4 compares the Fitter's Hessian BLOCK on one
 unbinned term's parameters against that term's standalone
 `ChunkedObjective.hess`. That is a correct test of a card whose only content
-is that term -- `cards/z_full380_fl.hdf5`, which is what it was written for --
-and it is STRUCTURALLY WRONG on a joint card: the block also carries the other
+is that term (`cards/z_full380_fl.hdf5` is one), and it is STRUCTURALLY WRONG
+on a joint card: the block also carries the other
 mass term's curvature (the two share 110 parameters) and the `hitchi2`
 external quadratic's, neither of which is in the standalone objective. On the
 phase-3 smoke card it reports a "mismatch" of 7.2e5, and the reason is visible

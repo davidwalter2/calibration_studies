@@ -104,7 +104,7 @@ def v_model(mgrid, p, mobs, k, f, quad=None, fmod=None):
     ``f = vgf_i``); ``fmod`` is the exponent the MODEL uses. They are the same
     number only if the convolution variable is chosen per candidate.
 
-    The card as built today uses ONE common ``p = 1 + fmod = 1.264`` for every
+    The card uses ONE common ``p = 1 + fmod = 1.264`` for every
     candidate, for both the conditioning label ``k_i = sigma_i/m_i^p`` and the
     convolution variable. The first is a labelling choice and any
     mass-independent ``p`` will do; the second is physics and its answer is
@@ -127,8 +127,8 @@ def v_model(mgrid, p, mobs, k, f, quad=None, fmod=None):
         # L_v(v_i) = E_x[p_v(v_i - u^v(x))] with p_v = p(m) m^{1+f}, and the
         # density in m is L_v / m_i^{1+f}: BOTH Jacobians, and their ratio
         # (m'/m_i)^{1+f} is a 7 % effect over the kernel's own support, i.e.
-        # exactly the size of the thing being corrected. Dropping it was the
-        # first bug this script found.
+        # exactly the size of the thing being corrected -- dropping either
+        # Jacobian silently absorbs the effect under test.
         jac = (msrc / mo) ** (1.0 + fmod)
         out[i] = np.sum(np.interp(msrc, mgrid, p, left=0.0, right=0.0) * jac * px) * (x[1] - x[0])
     return out
@@ -160,8 +160,8 @@ def main():
                     help="the candidate's TRUE width exponent, sigma ~ m^{1+f}")
     ap.add_argument("--pmodel", type=float, default=None,
                     help="the COMMON p the card's v map uses (1+f_model). "
-                         "Default: matched to --f, which is the idealisation "
-                         "sec. 0f.1 validated. Set it to 1.264 to measure what "
+                         "Default: matched to --f, which is the validated "
+                         "idealisation. Set it to 1.264 to measure what "
                          "the card as built actually does to a candidate whose "
                          "own exponent is --f.")
     ap.add_argument("--bands", action="store_true",
@@ -204,7 +204,7 @@ def main():
                                              -0.5 * (1.0 + fmb), fmod=fmb))
             print(f"{lab:11s} {fb:7.4f} {1+fb:7.4f} {pm-(1+fb):+8.4f} {sb:8.5f} "
                   f"{a:+10.2f} {b:+11.2f}   MeV")
-        print("\n`v matched` is the idealisation of sec. 0f.1 (p chosen per "
+        print("\n`v matched` is the idealisation (p chosen per "
               "candidate);\n`v common p` is what the card as built does. The "
               "difference is the effect under test.")
         return

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Two panels for the 2026-09-08 findings, one file each.
+"""Two panels, one file each.
 
   * `am_closed.png`      -- the MEASURED `a/(sigma/m)` per `|eta|` band against
     `1 + vgf` (the spec) and `1 + f_hit - f_ioni` (the Q-matrix closed form of
@@ -16,7 +16,6 @@ table cannot drift apart.
     python3 plot_mixture.py [-o OUTDIR]
 """
 import argparse
-import datetime
 import os
 import sys
 
@@ -38,8 +37,7 @@ from model_odd_mass import PROBES  # noqa: E402
 from mixture_legs import odd, boot_odd, flatness, BANDS  # noqa: E402
 from measure_a import wls_slope  # noqa: E402  (ONE implementation)
 
-DEF_OUT = os.path.expanduser(
-    "~/public_html/cvh/" + datetime.date.today().strftime("%y%m%d") + "_fullscale")
+DEF_OUT = pubhtml.figdir("fullscale")
 
 
 
@@ -197,12 +195,7 @@ def main():
     ap.add_argument("-o", "--outdir", default=DEF_OUT)
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
-    idx = os.path.join(a.outdir, "index.php")
-    if not os.path.exists(idx):
-        src = os.path.expanduser("~/public_html/cvh/260814_cleanprop/index.php")
-        if os.path.exists(src):
-            import shutil
-            shutil.copy(src, idx)
+    pubhtml.ensure_index(a.outdir)
     panel_am(a.outdir)
     panel_mixture(a.outdir)
 

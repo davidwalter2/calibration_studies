@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """The two-component decomposition on the REAL discriminator, Z and J/psi legs.
 
-STATE sec. 0f.50 tried this with `chi2/ndof` as a proxy and it did NOT
-reproduce: the IN population it selects is `eta`-flat but so is its FRACTION,
-where the hit-class agent's grows 2.4 -> 21.2 %. The actual discriminator is
-`|seed -> final dq/p|` per leg, which `oddmoment/aux_seed.py` now extracts from
-the two-track trees and aligns to the pairs caches.
+`chi2/ndof` is NOT a usable proxy for the split: the IN population it selects
+is `eta`-flat and so is its FRACTION, where the real discriminator's grows
+2.4 -> 21.2 %. That discriminator is `|seed -> final dq/p|` per leg, which
+`oddmoment/aux_seed.py` extracts from the two-track trees and aligns to the
+pairs caches.
 
 Two levels, both against the same split:
 

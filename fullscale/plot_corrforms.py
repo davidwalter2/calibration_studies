@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The two correction forms, side by side, on the real Z candidates.
 
-Panel per file, into `~/public_html/cvh/<YYMMDD>_fullscale/`:
+Panel per file, into `~/public_html/ZMass/cvh/<YYMMDD>_fullscale/`:
 
  20  what each form DISPLACES the model by, per candidate.  The residual form
      is fed `delta_i = m_i - M(theta)` and its exact Jensen map moves the
@@ -11,7 +11,7 @@ Panel per file, into `~/public_html/cvh/<YYMMDD>_fullscale/`:
  21  the pieces of the fluctuation form: `c_i`, `d_i`, `-a_i sigma_i` and their
      sum, showing the cancellation `c_i = -vgf_i sigma_i^2/m_i`.
  22  the clip scan: `m_Z` and `Gamma_Z` against `corr_clip`, i.e. the
-     measurement that the stopgap is not stable in its own knob.
+     measurement that the residual form is not stable in its own knob.
 
 usage:
   ./run_tf.sh python3 plot_corrforms.py --card cards/z_full380_fl.hdf5 \
@@ -49,7 +49,7 @@ def outpath(args):
     if args.outpath:
         return os.path.expanduser(args.outpath)
     today = datetime.date.today().strftime("%y%m%d")
-    return os.path.expanduser(f"~/public_html/cvh/{today}_fullscale/")
+    return os.path.expanduser(f"~/public_html/ZMass/cvh/{today}_fullscale/")
 
 
 def save(outdir, name, args):

@@ -10,7 +10,7 @@ result -- with the card's own defaults for whatever the json does not name.
 The point of it is throughput, not correctness: on the full-statistics card a
 COLD scipy `trust-exact` fit is ~38 iterations and ~5.5 h, and most rows of the
 certified table already have a stored point within a few sigma of their
-minimum. The acceptance test (sec. 0f.16) is on where a fit ARRIVES -- value
+minimum. The acceptance test is on where a fit ARRIVES -- value
 AND NLL AND EDM -- not on where it started, so a warm start cannot flatter a
 result; it can only save iterations. The one row that must stay COLD is the
 control, which is testing that the minimiser finds -11.0643 on its own.

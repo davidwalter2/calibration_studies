@@ -32,10 +32,10 @@ with `f_hit` and `f_ioni` the per-family shares of the mass variance taken from
 the fit's own **Q matrix** (`resinfvarv` grouped by the runtree `parmtype`:
 8/9 hit, 10 multiple scattering, 11 ionisation; parmtype 15 is a RE-PARTITION
 of 10+11 into material groups and must NOT be added -- see
-`ResidualGlobalCorrectionMakerTwoTrackG4e.cc:4758`). These are the well-defined
-quantities that the CF exponent's `-S''(0)` is NOT (STATE sec. 0f.47b: the
-Moliere and Landau exponents have no finite second moment, so a
-finite-difference second derivative is cut-dependent).
+`ResidualGlobalCorrectionMakerTwoTrackG4e.cc`). These are the well-defined
+quantities that the CF exponent's `-S''(0)` is NOT: the Moliere and Landau
+exponents have no finite second moment, so a finite-difference second
+derivative is cut-dependent.
 
     python3 measure_a.py [--pairs runs/zpairs_dyv2_full.npz] \
         [--aux runs/auxgen_dyv2.npz]

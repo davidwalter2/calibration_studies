@@ -160,8 +160,8 @@ def main():
     # ---- fit-time model switches (one card, every variant) --------------
     # In the FLUCTUATION form the two corrections are baked into
     # per-candidate constants at construction, so the flags cannot simply be
-    # flipped: `set_corrections` rebuilds them.  On a rabbit that predates it
-    # the old in-place flip is still correct (residual form only).
+    # flipped: `set_corrections` rebuilds them.  A rabbit without that method
+    # is residual-form only, where the in-place flip below is correct.
     if args.ares != "card" or args.jensen != "card":
         want_a = None if args.ares == "card" else (args.ares == "on")
         want_j = None if args.jensen == "card" else args.jensen
@@ -286,7 +286,7 @@ def main():
         # iteration, which at 99 free parameters OOMs an H200 at chunk 32768 and
         # is ~105 h where it fits.  One full Hessian is still built AFTER the
         # fit, for the covariance.  The `tf-` methods keep the trust-region
-        # subproblem on the device as well (rabbit/minimizer/, PR #153).
+        # subproblem on the device as well (rabbit/minimizer/).
         snap = md.make_snapshotter(args, obj.freenames,
                                    log=lambda m: print("   " + m))
         t0 = time.time()
@@ -334,11 +334,11 @@ def main():
         # `m_Z` and `Gamma_Z`, the stiff ones the `K(m)` shape coefficients --
         # so a stopping rule on the unscaled gradient infinity norm stops when
         # the STIFFEST direction is converged and says nothing about the
-        # softest. Measured: a full-statistics fit stopped at
-        # `|grad|inf = 1.42`, ALL of it `shape5` (converged to 0.003 sigma),
-        # with `m_Z` 0.98 sigma and `Gamma_Z` 2.06 sigma from their minimum and
-        # both POIs still within 1e-4 of their STARTING values. It looked like
-        # a perfect closure and it was a fit that never took a POI step.
+        # softest. A full-statistics fit can stop at `|grad|inf = 1.42` with
+        # ALL of it in `shape5` (converged to 0.003 sigma) while `m_Z` is 0.98
+        # sigma and `Gamma_Z` 2.06 sigma from their minimum and both POIs are
+        # still within 1e-4 of their STARTING values -- a fit that never took a
+        # POI step and yet looks like a perfect closure.
         #
         # What is reported instead is the diagonal Newton step at the stop, in
         # units of each parameter's OWN error: `g_i sigma_i`, since
@@ -354,7 +354,7 @@ def main():
         delta = -(C @ gj_)
         edm = float(0.5 * gj_ @ (C @ gj_))
         step = (delta / errs).tolist()
-        dstep = (gj_ * errs).tolist()          # the OLD diagonal proxy, for the record
+        dstep = (gj_ * errs).tolist()          # the diagonal proxy, reported alongside
         pois = [nm for nm in obj.freenames if nm in POI_GATE]
         worst = max((abs(step[obj.freenames.index(nm)]) for nm in pois),
                     default=0.0)

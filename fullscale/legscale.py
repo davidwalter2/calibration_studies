@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Is the mass-level `sigma/m` pattern a per-leg MOMENTUM bias, or the model?
 
-The fixed-`eta` `sigma/m` split (sec. 0f.44) gives `m_Z` = -4.56 (barrel LOW),
+The fixed-`eta` `sigma/m` split gives `m_Z` = -4.56 (barrel LOW),
 -40.90 (barrel HIGH), +65.87 (endcap HIGH) MeV. Only a per-leg bias that is the
 SAME for both charges survives into the pair mass: with
 `m ~ 2 sqrt(p1 p2) sin(theta/2)`, a relative momentum bias `d_l` on each leg
@@ -42,7 +42,7 @@ did. Three cells are therefore reported for every split:
 `sigma_bar = sigma (1 - a z)` is NOT used as a split variable: it is built from
 `z`, so it is ANTI-correlated with the residual by construction
 (`corr(sigma_bar/m, z) = -0.090` measured against `corr(sigma/m, z) = -0.006`),
-i.e. it is a worse conditioning variable than the thing it was meant to fix.
+i.e. it conditions worse than the `sigma/m` it would replace.
 Regression to the mean; the gen predictor is the right instrument.
 
 and the DIRECT mass shift `<(m_reco - m_gen)/m_gen>` is carried next to `A` in
@@ -58,7 +58,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 MZ = 91.153509740726733
 
-# certified fitted m_Z, MeV from the generator (sec. 0f.44 / the RESUME table)
+# certified fitted m_Z, MeV from the generator
 FITTED = {"barrel |eta|<0.9, sigma/m LOW": -4.56, "barrel, sigma/m HIGH": -40.90,
           "endcap 1.6-3.0, sigma/m HIGH": +65.87, "barrel, both": -21.08,
           "endcap, both": +34.22, "endcap 1.6-3.0, sigma/m LOW": +28.38}
@@ -117,13 +117,13 @@ def main():
     dp = (S["qopref_p"] / S["qopgen_p"] - 1.0).astype(np.float64)
     dmn = (S["qopref_m"] / S["qopgen_m"] - 1.0).astype(np.float64)
 
-    # `eta_lead` EXACTLY as make_card.py defines it (l.365-375): the |eta| of
+    # `eta_lead` EXACTLY as make_card.py defines it: the |eta| of
     # the leg with the larger RECO pT -- NOT max(|eta_p|, |eta_m|), which is a
     # different variable and gives a barrel population 2.2x smaller.
     ptp, ptm = P["ptp"].astype(np.float64), P["ptm"].astype(np.float64)
     plus_leads = ptp >= ptm
     etal = np.abs(np.where(plus_leads, P["etap"], P["etam"])).astype(np.float64)
-    # and the GEN counterpart of the same definition (sec. 0f.57: they agree)
+    # and the GEN counterpart of the same definition (they agree)
     gplus_leads = G["gpt_p"].astype(np.float64) >= G["gpt_m"].astype(np.float64)
     getal = np.abs(np.where(gplus_leads, G["geta_p"], G["geta_m"])).astype(np.float64)
     gpt_sub = np.minimum(G["gpt_p"], G["gpt_m"]).astype(np.float64)

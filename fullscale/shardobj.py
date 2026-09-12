@@ -7,10 +7,9 @@ one tape per shard on a device-local copy of `x`, and the only things that
 cross devices per evaluation are the parameter vector out and one `[nparams]`
 partial back. None of that touches unbinned terms, because an unbinned term
 has no bins -- it is a sum over candidates, and the shard views carry no
-candidate axis. (On the merged branch a sharded fit therefore evaluates
-unbinned terms in the *global*, unsharded term, which is correct but puts
-their per-candidate tensors on one device; before that they were silently
-dropped.)
+candidate axis. A sharded fit therefore evaluates unbinned terms in the
+*global*, unsharded term, which is correct but puts their per-candidate
+tensors on one device.
 
 This module applies exactly PR #154's structure to the axis an unbinned term
 does have. The two rules it establishes hold verbatim:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Dump every `rabbit_fit.py` result in a directory as one table.
 
-Value AND NLL AND EDM (sec. 0f.16) for each, plus the free-parameter values,
+Value AND NLL AND EDM for each, plus the free-parameter values,
 straight out of the rabbit output file. No fit is run.
 """
 import argparse

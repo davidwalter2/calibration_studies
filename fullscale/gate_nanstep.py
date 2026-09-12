@@ -2,20 +2,20 @@
 """Where is the NaN born? Localise a `trust-exact` failure to a point, a term,
 a class and a candidate.
 
-Two fits died with `Minimizer raised: array must not contain infs or NaNs`.
-That string is `scipy.linalg.norm(self.hess, np.inf)` inside
+`Minimizer raised: array must not contain infs or NaNs` comes from
+`scipy.linalg.norm(self.hess, np.inf)` inside
 `IterativeSubproblem.__init__` (scipy checks finiteness there), i.e. scipy
 never even got to the factorisation: the Hessian handed to it already had a
 NaN.  Since the subproblem is CONSTRUCTED at every trial point -- before the
 reduction-ratio test that would have rejected it -- one bad trial point is a
-hard abort, and `cb.xval` (the snapshot) is still the last ACCEPTED point,
-which is why the snapshot looks like the minimiser never moved.
+hard abort, and `cb.xval` (the snapshot) is still the last ACCEPTED point, so
+the snapshot looks as though the minimiser never moved.
 
 What this does, on the real card and the real Fitter:
 
 1. evaluate value / gradient / Hessian at the START point and say whether each
-   is finite (this alone separates `P2X`, whose first printed diagnostic is
-   already `nan`, from `SVetaEslo`, whose first is fine);
+   is finite -- this alone separates a card that is already non-finite before
+   the minimiser runs from one that only goes bad at a trial point;
 2. per TERM and per PIECE at that point: each unbinned term's own `nll`, the
    external terms, the constraints -- so a NaN at the start point is
    attributed without guessing;

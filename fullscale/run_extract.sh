@@ -6,7 +6,7 @@
 #               `partial radiative export`. The mass side comes from
 #               cf_inmaker.py pairs instead.
 #   --max-dEref-p 0.01
-#               the mean-loss quality requirement of NOTES sec. 7(a). `Mu*_dEref`
+#               the mean-loss quality requirement of REFERENCE_DEDX.md. `Mu*_dEref`
 #               is in BOTH productions, so this is the quantity itself rather
 #               than the daughter-pT proxy.
 #   the sandwich J = sum_i G_i G_i^T is accumulated unconditionally.

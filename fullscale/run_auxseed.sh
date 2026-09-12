@@ -3,9 +3,8 @@
 # caches.  See `resolution/oddmoment/aux_seed.py` for what it extracts and why
 # only the ABSOLUTE step is usable.
 #
-# *** NOT RUNNABLE FROM A CLAUDE CODE SANDBOX SHELL ***: it reads /ceph, which
-# is permission-denied there and on submit82 (cephx eviction).  Run it from
-# submit50 / submit51.
+# *** NEEDS /ceph ***: run it from submit50 / submit51.  A sandboxed shell, and
+# submit82 (cephx eviction), get permission denied.
 set -euo pipefail
 FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
 OM=/work/submit/david_w/ZMass/calibration_studies/resolution/oddmoment

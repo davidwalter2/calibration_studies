@@ -17,22 +17,15 @@ Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
 CEPH=/ceph/submit/data/user/d/david_w/ZMass/cvh
 JV2=$CEPH/jpsimc_20M_260906_v2
 # EXCLUSIONS: NONE.  `./run_phase2.sh xlist` writes the file list from whatever
-# carries a `.complete` sentinel; as of 2026-09-07 15:30 that is all 1645 tasks
-# (6580 files) of a production that finished at 21 750 740 events.
+# carries a `.complete` sentinel: all 1645 tasks (6580 files) of a production
+# that finished at 21 750 740 events.
 #
-# HISTORY, so nobody re-derives it.  Three separate defects were excluded and
-# then repaired:
-#   1219-1222, 1334-1337, 1409-1412  the "re-staged" grid copies -- 0.82
-#       candidates/event against 0.997 and chi2/ndof median 3.5e6, i.e.
-#       worthless, so the exclusion was necessary and not conservative;
-#   1552-1555                        input exited rc=91 after 27 s, no output;
-#   1313                             silently EMPTY -- four 15.5 kB streams WITH
-#       a `.complete` sentinel, because its input lacked a StreamerInfo, so the
-#       sentinel check could not catch it and it had to be named.
-# All were re-produced from properly repacked inputs and validated at 0.9967
-# candidates/event, 0.0073 % failures, chi2/ndof median 0.953 against 0.954 for
-# the control.  Repairing 1313 also recovered its input's missing tail as three
-# NEW tasks, 1642-1644.
+# THE SENTINEL ALONE IS NOT A VALIDATION.  A task whose input carries no
+# StreamerInfo writes four ~15 kB streams AND a `.complete` sentinel while
+# being silently EMPTY; a task reading a badly re-staged grid copy writes
+# 0.82 candidates/event against 0.997 with chi2/ndof median 3.5e6.  Validate a
+# production on candidates/event (0.9967 here), failure rate (0.0073 %) and
+# chi2/ndof median (0.953 against 0.954 for the control).
 JV2LIST=$FS/runs/jpsiv2_tasks_ok.txt
 JV2_BAD=""
 DYV2=$CEPH/dymc_8p5M_260906_v2
@@ -78,8 +71,8 @@ pairs)
   # 0.3 MeV, an order below sigma(m_Z) = 2 MeV -- while the cache, the card and
   # the fit all scale linearly with it.
   NT=${NTASKS:-600}
-  # tasks 0-599 contain none of the 16 excluded indices, so --ntasks 600 on the
-  # directory is already clean; use "@$JV2LIST" if NTASKS is ever raised past 1219
+  # --ntasks 600 reads the directory directly; pass "@$JV2LIST" instead if a
+  # task ever has to be excluded
   python3 -u "$RES/cf_inmaker.py" pairs --files "$JV2" --ntasks "$NT" \
       --cache "$FS/runs/jpairs_v2_n${NT}.npz" --jac-parmtypes 14 15 \
       2>&1 | tee "$FS/logs/jpairs_v2_n${NT}.log"

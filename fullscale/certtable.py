@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """The CERTIFIED table: every fit of every card, and which row may be quoted.
 
-The acceptance test of STATE sec. 0f.16, applied mechanically to EVERY stored
-result rather than to a chosen one:
+The acceptance test, applied mechanically to EVERY stored result rather than
+to a chosen one:
 
 1. **the value** -- what the fit returns;
 2. **the NLL** -- the same minimum? Every fit of a card is compared with the
@@ -11,8 +11,8 @@ result rather than to a chosen one:
 3. **the EDM** -- `0.5 g^T H^-1 g < --edm-tol` (1e-3 is 0.045 sigma in the
    worst direction);
 4. **the full Newton step of each POI in units of its own error** -- the
-   interpretable form of (3), and the one that catches sec. 0f.19's failure
-   mode: a fit that never moved sits at its start, which in every closure test
+   interpretable form of (3), and the one that catches the failure mode of a
+   fit that never moved: it sits at its start, which in every closure test
    here is the MC truth, and so reads as a perfect closure.
 
 Nothing is re-fitted. The verdict is BEST when a row passes all four and is
@@ -61,7 +61,7 @@ CARDS = {
     "z_V_etaE_slo":     ("endcap, sigma/m low",       "v"),
     "z_V_etaE_shi":     ("endcap, sigma/m high",      "v"),
     # THE SAFE BAND: max(|eta_p|,|eta_m|), which does not depend on which leg
-    # leads and so is not a cut on the residual (STATE 0f.63/0f.66/0f.72).
+    # leads and so is not a cut on the residual.
     # NOT cell-by-cell comparable with the `z_V_eta*` rows -- they select
     # different candidates -- the comparison is SPREAD against SPREAD.
     "z_VX_etaB":        ("max|eta| < 0.9  (safe)",    "v"),
@@ -69,7 +69,7 @@ CARDS = {
     "z_VX_etaE":        ("max|eta| 1.6 - 3.0 (safe)", "v"),
     "z_VX_etaB_slo":    ("safe barrel, sigma/m low",  "v"),
     "z_VX_etaB_shi":    ("safe barrel, sigma/m high", "v"),
-    # the code/keyword equivalence triple of STATE 0f.72
+    # the code/keyword equivalence triple
     "z_n300k":          ("300 k control",             "m"),
     "z_n300k_k":        ("300 k control + corr_a_max","m"),
 }

@@ -8,9 +8,9 @@ offline numpy implementation `oddmoment/masslik_np.py`:
     + self-consistent sigma            +0.1410  e-3   (i.e. +0.146 e-3)
     + Jensen (EXACT) on top            +0.0512 +- 0.0167 e-3
 
-At the J/psi `delta_i` IS the resolution fluctuation, so the RESIDUAL form
-(the historical one) is exact there and this is the one place the two forms
-must agree.  This script builds the SAME candidates as three rabbit
+At the J/psi `delta_i` IS the resolution fluctuation, so the RESIDUAL form --
+the one the spec's gates are defined in -- is exact there, and this is the one
+place the two forms must agree.  This script builds the SAME candidates as three rabbit
 `MassCFTerm`s -- uncorrected, `corr_form="residual"` at `corr_clip = 0`, and
 `corr_form="fluctuation"` -- and scans `alpha`.
 

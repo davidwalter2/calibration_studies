@@ -11,7 +11,7 @@ independent of the PDF set, the PDF order and mu_F (0.25 / 0.03 MeV across five
 luminosity tables). It is therefore MANDATORY, not optional.
 
 It exists in `zchannel/fit_gen.py` (`GenFit(shape=N)`) but not in rabbit, so
-the detector-level card could not float it. This moves the identical
+the detector-level card cannot float it there. This moves the identical
 construction into the provider, where it applies to the Born spectrum BEFORE
 the FSR fold -- the same place `GenFit` applies it -- so `pdf`, the CF and
 `MassCFTerm` all inherit it.

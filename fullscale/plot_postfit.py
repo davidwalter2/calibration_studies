@@ -56,7 +56,7 @@ def main():
 
     args = parse_args()
     outdir = args.outpath or os.path.expanduser(
-        f"~/public_html/cvh/{datetime.date.today().strftime('%y%m%d')}_fullscale/")
+        f"~/public_html/ZMass/cvh/{datetime.date.today().strftime('%y%m%d')}_fullscale/")
     os.makedirs(outdir, exist_ok=True)
 
     with h5py.File(args.card, "r") as f:

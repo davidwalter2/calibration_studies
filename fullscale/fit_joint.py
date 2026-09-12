@@ -35,9 +35,9 @@ the card's `global_index_map` auxiliary in the card's (whitened) units. The NLL
 score of one such candidate is `s_i = G_i/2`, so the meat is `jsand/4`. That is
 added to the unbinned meat when `--ext-sandwich` is on (the default).
 
-What NOBODY has is the CROSS term. A J/psi candidate contributes to the mass
-term AND to the quadratic term, so its two scores are correlated, and the
-correct meat has a cross block that neither extraction stored (each accumulates
+What is NOT available is the CROSS term. A J/psi candidate contributes to the
+mass term AND to the quadratic term, so its two scores are correlated, and the
+correct meat has a cross block that neither extraction stores (each accumulates
 only its own outer products). Adding the two meats therefore treats the two
 constraints as independent, which they are not. The driver says so in its
 output rather than quoting a robust error that quietly assumes it away.
@@ -576,7 +576,7 @@ def main(argv=None):
     # parameter count.  `trust-exact` needs the full matrix at EVERY iteration,
     # which at 99 free parameters OOMs an H200 at chunk 32768 and is ~105 h
     # where it fits.  The `tf-` methods additionally keep the trust-region
-    # subproblem on the device (rabbit/minimizer/, PR #153).
+    # subproblem on the device (rabbit/minimizer/).
     snap = md.make_snapshotter(args, obj.freenames, log=lambda m: print("   " + m))
     t0 = time.time()
     with md.GpuMonitor(args.gpu_monitor) as gpu:
@@ -664,9 +664,9 @@ def main(argv=None):
                     "rms": float(np.sqrt((rho ** 2).mean()))}
 
     # THE CONVERGENCE GATE (see fit.py for why |grad|inf is not the test:
-    # the Hessian's condition number is ~1e6 and an infinity-norm rule
+    # the Hessian's condition number is ~1e6, so an infinity-norm rule
     # converges the stiff K(m) shapes while leaving the POIs a sigma or two
-    # out -- measured, on a fit that then looked like a perfect closure).
+    # out and the fit still looks like a clean closure).
     _errq = np.asarray(errs) if "errs" in dir() else np.asarray(err)
     gj_ = np.asarray(r.jac)
     delta = -(C @ gj_)

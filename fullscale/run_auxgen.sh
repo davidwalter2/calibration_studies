@@ -14,7 +14,7 @@
 #   fhit, fms, fioni, fother   -- the per-family MASS-VARIANCE shares, built
 #       from `resinfvarv` grouped by `parmtype`, i.e. from the fit's own Q
 #       matrix. NOTE these are the well-defined quantities that the CF-exponent
-#       second derivative is NOT (sec. 0f.47b: the Moliere and Landau families
+#       second derivative is NOT (the Moliere and Landau families
 #       have no finite second moment, so -S''(0) is cut-dependent). `f_ioni`
 #       from here is the number `e = f_hit - f_ioni` actually needs.
 #
@@ -24,9 +24,9 @@
 # so they are. A cache built with `--maxn N` and a random draw is NOT and will
 # fail the alignment loudly rather than silently mis-join.
 #
-# *** THIS CANNOT BE RUN FROM A CLAUDE CODE SANDBOX SHELL ***: it reads the
-# productions under /ceph, which is permission-denied there, and the local
-# slurm has no slurm.conf. Run it from an ordinary submit login shell.
+# *** NEEDS /ceph AND A REAL SLURM ***: run it from an ordinary submit login
+# shell.  A sandboxed shell gets permission denied on the productions and has
+# no slurm.conf.
 set -euo pipefail
 FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
 OM=/work/submit/david_w/ZMass/calibration_studies/resolution/oddmoment

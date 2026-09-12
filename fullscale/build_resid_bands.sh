@@ -31,9 +31,8 @@
 # 5.7e-5/745 = 7.7e-8 < s and keep 4.6 s below the densities that matter.
 # s = 1e-7 handles li down to -7.45e-5 and distorts only below li = 4.6e-7 --
 # beyond ~5.2 sigma, where nothing but the three pathologies lives.
-# (s = 1e-4 was tried first and is WRONG: it inflates every density below
-# 4.6e-4, i.e. everything past ~4 sigma, and blew the fitted alpha up to
-# +71 +- 25 MeV.) `--floor clip` would not do either: max(li, 0) = 0 gives
+# (s = 1e-4 is WRONG: it inflates every density below 4.6e-4, i.e. everything
+# past ~4 sigma, and takes the fitted alpha to +71 +- 25 MeV.) `--floor clip` would not do either: max(li, 0) = 0 gives
 # log 0 as well.
 set -uo pipefail
 FS=/work/submit/david_w/ZMass/calibration_studies/fullscale

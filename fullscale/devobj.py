@@ -13,10 +13,9 @@ mode, and it converts to numpy at the end of every chunk::
 
 Every TF op in the chunk is dispatched individually from python, and the two
 `.numpy()` calls force a device sync that stops any overlap between the host
-building chunk `c+1` and the device finishing chunk `c`.  Measured on the
-full-scale fits (Engaging jobs 22199336 / 22224280, H200): **8-9 % GPU
-utilisation**.  The device is idle almost all the time; the fit is bound by
-python.
+building chunk `c+1` and the device finishing chunk `c`.  On the full-scale
+fits that costs an order of magnitude: **8-9 % GPU utilisation** on an H200.
+The device is idle almost all the time; the fit is bound by python.
 
 This module evaluates the SAME objective -- it subclasses
 `ChunkedObjective` and calls its `_chunk_nll`, so the arithmetic is literally

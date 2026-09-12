@@ -33,13 +33,13 @@ def main():
                    help="an m-form card on the SAME candidates. Checks the one "
                         "identity the v formulation cannot dodge: "
                         "`L_v(v_i) = L_m(m_i) m_i^p` per candidate, and "
-                        "`Z_v = Z_m`. This is what caught the `vpow`-missing-"
-                        "from-`config()` bug, which silently rebuilt the "
-                        "provider in the mass variable and left the density "
-                        "with no resonance peak (ratio 0.026 at the peak, 1.6 "
-                        "in the tails) and Z 21x too small -- while every "
-                        "stored array and every other config field looked "
-                        "right. It needs no minimiser and costs one NLL each.")
+                        "`Z_v = Z_m`. It catches a `vpow` missing from "
+                        "`config()`, which silently rebuilds the provider in "
+                        "the mass variable and leaves the density with no "
+                        "resonance peak (ratio 0.026 at the peak, 1.6 in the "
+                        "tails) and Z 21x too small, while every stored array "
+                        "and every other config field still looks right. It "
+                        "needs no minimiser and costs one NLL each.")
     ap.add_argument("--compare", default=None,
                    help="a second card whose NLL DIFFERENCES must match this "
                         "one's. Used as the off-switch gate: a card built with "

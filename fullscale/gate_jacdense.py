@@ -3,7 +3,7 @@
 
 `tf.sparse.sparse_dense_matmul` has no deterministic GPU kernel, so a card
 carrying a per-candidate sparse `D` dies at the first loss evaluation under
-`rabbit_fit.py`'s `enable_op_determinism()`. `JacChunkTable` now stores `D`
+`rabbit_fit.py`'s `enable_op_determinism()`. `JacChunkTable` stores `D`
 dense when it is denser than ~1/3 (the joint cards are 79-82 % dense, where
 COO is the LARGER representation as well as the undifferentiable-on-GPU one).
 

@@ -29,10 +29,11 @@ multiplicative factors on the per-candidate material exponents, so one number
 per family is the physical statement, and the two terms' declarations of them
 are checked to agree rather than silently taking the first.
 
-The `f_ang` caveat: `jpsimc_20M_260905` predates `Jpsi_covrefmom`, so the
-J/psi leg's Jensen `s^2` cannot be made truth-free from the candidate itself.
-`--jpsi-fang` supplies the MC-measured value (gun 0.086 / data 0.106); the DY
-leg uses its own per-candidate `Jpsi_fang`.
+The `f_ang` caveat: the `jpsimc_20M_260905` production carries no
+`Jpsi_covrefmom` branch, so the J/psi leg's Jensen `s^2` cannot be made
+truth-free from the candidate itself. `--jpsi-fang` supplies the MC-measured
+value (gun 0.086 / data 0.106); the DY leg uses its own per-candidate
+`Jpsi_fang`.
 
 WHO DECLARES THE 92 (`--declare`)
 ---------------------------------
@@ -68,58 +69,44 @@ WHAT `--inject` DOES AND DOES NOT CLOSE
 `-K dtheta`, so a translation-invariant mass likelihood puts the joint minimum
 at `theta*_base + dtheta` exactly.
 
-MEASURED on the 100 k DY card, RESIDUAL form (`bfield_mode0/1/2` free,
-everything else frozen, `dtheta = (+0.010, -0.002, +0.003)` card units):
-
-    mode1   -0.00200065 vs -0.002    -3.3e-4 of the injection
-    mode2   +0.00299921 vs +0.003    -2.6e-4 of the injection
-    mode0   +0.01120382 vs +0.010    +1.20e-1 of the injection   <-- NOT closed
-
-RE-MEASURED 2026-09-06 in the FLUCTUATION form, on the 60 k + 60 k joint smoke
-card (`cards/joint_smoke.hdf5` vs `cards/joint_smoke_inj.hdf5`, the same three
-modes free, `fit_joint.py --free bfield_mode0 bfield_mode1 bfield_mode2`), as
-the difference between the injected and the un-injected minimum:
+In the FLUCTUATION form the closure is exact to numerical noise. On a
+60 k + 60 k joint smoke card (`cards/joint_smoke.hdf5` vs
+`cards/joint_smoke_inj.hdf5`, `fit_joint.py --free bfield_mode0 bfield_mode1
+bfield_mode2`, `dtheta = (+0.010, -0.002, +0.003)` card units), as the
+difference between the injected and the un-injected minimum:
 
     mode1   -0.00200000 vs -0.002    +1.5e-11  =  +0.0000 % of the injection
     mode2   +0.00300000 vs +0.003    -6.7e-11  =  -0.0000 % of the injection
     mode0   +0.01000023 vs +0.010    +2.3e-07  =  +0.0023 % of the injection
 
-i.e. mode 0 closes 5300x better and the other two by four orders of magnitude.
-The diagnosis below is confirmed and now historical: what did not translate was
-the residual form's Jensen map, whose argument `r = delta/m` carries the
-OBSERVED mass. The fluctuation form's residual is linear in theta again -- the
-Jensen map contributes a per-candidate CONSTANT `d_i` and a CF factor with no
-`delta` in it -- so the only thing left that does not translate is the second-
-order dependence of `a_i`, `c_i`, `d_i` themselves on the shifted masses, and
-that is the 2.3e-7 above: 1.6e-3 of `bfield_mode0`'s own statistical error, and
-NOT the minimiser (the Newton step still implied by the residual gradient is
-1.8e-12, five orders smaller).
+The fluctuation form's residual is linear in theta: the Jensen map contributes
+a per-candidate CONSTANT `d_i` and a CF factor with no `delta` in it, so the
+only thing that does not translate is the second-order dependence of `a_i`,
+`c_i`, `d_i` themselves on the shifted masses -- the 2.3e-7 above, which is
+1.6e-3 of `bfield_mode0`'s own statistical error and not a minimiser artefact
+(the Newton step still implied by the residual gradient is 1.8e-12).
 
-**This was measured with the RESIDUAL form** (`corr_form="residual"`, the
-only one that existed then); the fluctuation form makes the residual LINEAR in
-theta again, so the defect below is expected to collapse. Re-measure it.
-
-The 12 % is entirely `jensen_mode="exact"`. `MassCFTerm._jensen_m` is
-`mobs + m_ref`, the OBSERVED mass, and it is the denominator of `r = delta/m`
-(and of the discriminant floor) in the exact second-order map -- so the map
-does not commute with a shift of the observed masses. Turning that one
-correction off at fit time and re-measuring the translation defect in the
-gradient gives:
+With `--corr-form residual` the same test closes to -3e-4 on modes 1 and 2 but
+leaves +12 % on mode 0, and that defect is entirely `jensen_mode="exact"`:
+`MassCFTerm._jensen_m` is `mobs + m_ref`, the OBSERVED mass, and it is the
+denominator of `r = delta/m` (and of the discriminant floor) in the exact
+second-order map, so the map does not commute with a shift of the observed
+masses. Switching that one correction off and re-measuring the translation
+defect in the gradient isolates it:
 
     jensen exact   defect  -8494  ->  +1.214e-3 = +12.14 % of the injection
     jensen off     defect   -235  ->  +3.35e-5  =  +0.34 % of the injection
     a_res off      defect  -8244  ->  +1.178e-3 = +11.78 %  (a_res is NOT it)
 
-i.e. the sparse-`D` wiring is right (it closes to 3e-4 on the two modes whose
-`D` column is not proportional to `m`), and what does not translate is the
-Jensen map's dependence on the observed mass. The likely reason it shows up
-ONLY on mode 0 is that the map is invariant under a COMMON rescaling of
-`(m, sigma, delta)` -- a momentum-scale error rescales all three -- while
-`--inject` moves the mean and leaves `sigma`, `a_res` and `jensen_s2` at the
-values computed from the unshifted masses. A faithful scale injection would
-have to rescale those too; until it does, read a `--inject` closure on
-`bfield_mode0` (or on any mode whose `D` column is proportional to `m`) as a
-12 %-level statement, not a 1e-2 one.
+The sparse-`D` wiring is therefore right -- it closes on the two modes whose
+`D` column is not proportional to `m` -- and it shows up ONLY on mode 0
+because the map is invariant under a COMMON rescaling of `(m, sigma, delta)`,
+which is exactly what a momentum-scale error is, while `--inject` moves the
+mean and leaves `sigma`, `a_res` and `jensen_s2` at the values computed from
+the unshifted masses. A faithful scale injection would have to rescale those
+too, so in the residual form a `--inject` closure on `bfield_mode0` (or on any
+mode whose `D` column is proportional to `m`) is a 12 %-level statement, not a
+1e-2 one.
 
 PHASE 3: `--material`
 ---------------------
@@ -149,9 +136,9 @@ WHAT IS EXACT AT k = 0, AND WHAT IS NOT
     * the Gaussian share: `vg_other + sum_c H(0) v_c == vgf` EXACTLY -- the
       maker defines `vg_other` as `vgf - sum_c v_c`, so it is the algebraic
       remainder and not "noise". It is negative for 40.2 % of J/psi
-      candidates (median |vg_other|/vgf = 3.2e-7, max 2.3e-4). `--clip-vg-other`
-      clips it at 0 as an earlier note suggested; that BREAKS the identity for
-      those 40 %, so it is off by default;
+      candidates (median |vg_other|/vgf = 3.2e-7, max 2.3e-4).  It is
+      written through unclipped: clipping at 0 would break the identity for
+      those 40 %;
     * the TRUNCATION NORMALISATION `Z_c`: `_norm_z` sums over resolution
       CLASSES, which have no per-group decomposition. In `--material` the
       class exponents are written as rabbit's FIXED norm families (coefficient
@@ -259,10 +246,11 @@ def parse_args(argv=None):
                    help="drop the 18 hitres_<class> parameters; the whole "
                         "Gaussian share then rides as a FIXED vg_other = vgf")
     p.add_argument("--legacy-families", action="store_true",
-                   help="ALSO keep the old k_hit knob on top of the physical "
-                        "parameterisation, as make_material_card.py does. It "
-                        "DOUBLE COUNTS the Gaussian share by construction and "
-                        "exists only for comparison fits.")
+                   help="ALSO keep the ad-hoc k_hit knob on top of the "
+                        "physical parameterisation, as "
+                        "matres/make_material_card.py does. It DOUBLE COUNTS "
+                        "the Gaussian share by construction and exists only "
+                        "for comparison fits.")
     p.add_argument("--group-prune", type=float, default=0.0,
                    help="fold group rows contributing less than this fraction "
                         "of the candidate's max_tau |S| into the FIXED "
@@ -270,11 +258,6 @@ def parse_args(argv=None):
                         "card size (~30 kB/candidate at 0).")
     p.add_argument("--hit-prior", type=float, default=0.0,
                    help="Gaussian prior sigma on every hitres_<class>")
-    p.add_argument("--clip-vg-other", action="store_true",
-                   help="clip the Gaussian remainder at 0. It is the exact "
-                        "algebraic remainder vgf - sum_c v_c and is negative "
-                        "for 40 %% of candidates at the 1e-7 level, so "
-                        "clipping breaks `sum = vgf` for those; off by default.")
     p.add_argument("--material-maxrows", type=int, default=0,
                    help="abort if the group block would exceed this many CSR "
                         "rows (a guard against building a 100 GB card by "
@@ -663,8 +646,6 @@ class MaterialContext:
         vgf = np.asarray(d["vgf"], np.float64)[idx]
         vgo = np.asarray(d["vg_other"], np.float64)[idx]
         nneg = int((vgo < 0).sum())
-        if args.clip_vg_other:
-            vgo = np.maximum(vgo, 0.0)
         if args.no_hits:
             hit_params = []
             share = (np.zeros(n + 1, np.int64), np.zeros(0, np.int64),
@@ -680,8 +661,8 @@ class MaterialContext:
             resid = np.abs(vgo + tot - vgf) / np.maximum(vgf, 1e-300)
             log(f"    hit share: {len(cnames)} classes, "
                 f"{len(hc)/max(n,1):.2f} rows/candidate; "
-                f"|vg_other + sum_c v_c - vgf|/vgf max {resid.max():.3e} "
-                f"(0 unless --clip-vg-other); vg_other < 0 for {nneg} "
+                f"|vg_other + sum_c v_c - vgf|/vgf max {resid.max():.3e}; "
+                f"vg_other < 0 for {nneg} "
                 f"candidates ({100.*nneg/max(n,1):.2f} %)")
         datasets["hit_ptr"] = share[0]
         datasets["hit_cls"] = np.asarray(share[1], np.int32)
@@ -993,13 +974,11 @@ def build_jpsi(args, log=print, matctx=None):
         corr_form=args.corr_form,
         norm_window=(lo, hi), norm_tpoints=jargs.norm_tpoints,
         upsample=args.fit_upsample_jpsi,
-        # The positivity floor was MISSING here until 2026-09-09, so the J/psi
-        # leg of every joint card ran at MassCFTerm's own 1e-9 while the Z leg
-        # (built through `make_card.build`) took whatever --floor-scale said.
-        # Two of 3 000 000 J/psi candidates have a Fourier-reconstructed
-        # density that undershoots to ~-6e-4, which underflowed 1e-9 to exactly
-        # zero and took the joint NLL to inf AT THE START POINT -- that is what
-        # made P2X's gradient non-finite in 88 of 103 components.
+        # The positivity floor must be passed here too, not left at
+        # MassCFTerm's own 1e-9: two of 3 000 000 J/psi candidates have a
+        # Fourier-reconstructed density that undershoots to ~-6e-4, and 1e-9
+        # underflows that to exactly zero, taking the joint NLL to inf at the
+        # start point and making the gradient non-finite in most components.
         floor_scale=jargs.floor_scale,
         chunk=args.chunk, channel="jpsi")
 
@@ -1228,11 +1207,11 @@ def main():
     log(f"  parameter map: the D block of every pairs cache matches the "
         f"quadratic extraction on all {nfit} (fitidx, parmtype, subidx)")
 
-    # `f_ang` (decision 10): the Jensen s^2 must be TRUTH-FREE on both legs,
-    # i.e. read per candidate from `Jpsi_covrefmom`. The phase-2 J/psi cache
-    # predated that branch and needed the scalar --jpsi-fang; say explicitly
-    # which source each leg of THIS card uses rather than leaving it in the
-    # middle of make_card's selection log.
+    # `f_ang`: the Jensen s^2 must be TRUTH-FREE on both legs, i.e. read per
+    # candidate from `Jpsi_covrefmom`. A cache built from a production without
+    # that branch falls back to the scalar --jpsi-fang; say explicitly which
+    # source each leg of THIS card uses rather than leaving it in the middle of
+    # make_card's selection log.
     fangsrc = {}
     for tag, path in (("jpsi", args.jpsi_pairs), ("z", args.z_pairs)):
         if not path:
@@ -1426,7 +1405,6 @@ def main():
             "hit_mode": args.hit_mode,
             "group_prune": args.group_prune,
             "hit_prior": args.hit_prior,
-            "clip_vg_other": bool(args.clip_vg_other),
             "legacy_families": bool(args.legacy_families),
             "unconstrained": frozen if args.material else [],
             "paramModels": models,

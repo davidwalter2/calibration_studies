@@ -8,10 +8,9 @@ runs on dies at load with
 
     TypeError: MassCFTerm.__init__() got an unexpected keyword argument '...'
 
-which is what happened on 2026-09-09 to the five `z_VX_*` band cards and to the
-rebuilt floored K-ladder cards: they were written by a checkout carrying
-`corr_a_max` and submitted against a staged checkout that predates it
-(STATE 0f.72).
+This is the failure mode of a card written by a checkout carrying a keyword
+such as `corr_a_max` and then submitted against a staged checkout that does
+not have it.
 
 Two uses:
 

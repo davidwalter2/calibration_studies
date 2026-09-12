@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Post-fit mass spectra for the WG deck of 2026-09-09: `z_postfit.png`,
+"""Post-fit mass spectra for the Z-mass working-group deck: `z_postfit.png`,
 `z_postfit_mform.png`, `jpsi_postfit.png`.
 
 Same arithmetic as `fullscale/plot_postfit.py` -- the model curve is the
@@ -24,9 +24,9 @@ three figures:
    term, which is what makes the v-form constants (`a - p sigma/m` and the
    substitution's own curvature) the ones actually used.
 
-3. **the WG style**: 13 x 8 in at 160 dpi, constrained layout, SHORT axis
-   labels on both panels (the defect of `260907_fullscale/12_postfit_*`, where
-   the long main y-label ran into the ratio panel's), MIT palette.
+3. **the deck style**: 13 x 8 in at 160 dpi, constrained layout, SHORT axis
+   labels on both panels (a long main y-label runs into the ratio panel's),
+   MIT palette.
 
     ssh submit50 'cd .../fullscale && RABBIT=.../rabbit-vmass THREADS=16 \
       ./run_tf.sh python3 figs_wg260909/postfit_wg.py --card ... --name ...'

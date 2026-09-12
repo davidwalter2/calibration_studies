@@ -2,11 +2,11 @@
 """Assemble the FULL-SCALE Z -> mumu card of the unbinned CVH mass likelihood.
 
 This is `zchannel/make_z_card.py` taken to production statistics and to the
-model the group-leader numbers require. What is different, and why:
+full model. What is different, and why:
 
 1. **Weights.** The sample is POWHEG MiNNLO: 7.7 % of the events carry a
-   negative weight and a handful carry |w| ~ 1e19 (unweighting failures). The
-   smoke card was unweighted, which is only harmless at 459 candidates. Here
+   negative weight and a handful carry |w| ~ 1e19 (unweighting failures).
+   Running unweighted is only harmless at a few hundred candidates. Here
    `genweight` is clipped at `--wclip` times the modal |w|, rescaled to mean 1
    (so the inverse Hessian is the naive covariance and the weight variance
    shows up where it belongs, in the sandwich), and passed as `weights=`.
@@ -30,7 +30,8 @@ model the group-leader numbers require. What is different, and why:
    map of it INSIDE the convolution (`--corr-form fluctuation`), not evaluated
    at `delta_i = m_i - M(theta)`, which over a +-27 sigma window is the
    Breit-Wigner tail and FSR rather than resolution. `--corr-form residual`
-   plus `--corr-clip` is the historical stopgap, kept for the J/psi gate.
+   plus `--corr-clip` evaluates them at `delta_i` instead and is kept as the
+   reference for the J/psi gate.
 
 5. **Quality cuts**, documented and scannable: the observed-mass window, the
    fit quality `chi2/ndof`, and a `sigma_m/m` cut. The last is not cosmetic:
@@ -127,16 +128,14 @@ def parse_args(argv=None):
                         "keeps log finite; 1e-4 is too aggressive (it moved "
                         "alpha to +71 +- 25 MeV). Pass 0 to fall back to "
                         "MassCFTerm's 1e-9. "
-                        "NOT residual-mode-only, which is what this help used "
-                        "to say: on 2026-09-09 `gate_nanstep.py` showed the "
-                        "1e-9 default is what killed the full physics-kernel "
-                        "cards too -- `joint_ok_full` had 2 of 3 000 000 J/psi "
-                        "candidates already negative AT THE START POINT (loss "
-                        "inf, gradient non-finite in 88 of 103 components), and "
-                        "`z_V_etaE_slo` / `z_V_s9` / `z_*_s12` all died when a "
-                        "trust-region step drove a high shape term to ~-1 and "
-                        "made 300+ densities negative. Every one of those cards "
-                        "was built without an explicit --floor-scale.")
+                        "This is NOT residual-mode-only: full physics-kernel "
+                        "cards need it just as much (`gate_nanstep.py` "
+                        "diagnoses it). A 3 000 000-candidate J/psi leg can "
+                        "have candidates already negative AT THE START POINT "
+                        "(loss inf, gradient non-finite in most components), "
+                        "and a trust-region step that drives a high shape term "
+                        "to ~-1 puts hundreds of Z densities negative. Always "
+                        "set it explicitly.")
     p.add_argument("--max-resid", type=float, default=10.0,
                    help="residual-mode only: keep |m_reco - m_gen| below this "
                         "[GeV]. A delta kernel convolved with the resolution "
@@ -158,8 +157,8 @@ def parse_args(argv=None):
                         "have similar pT which one 'leads' is decided by which "
                         "one fluctuated up and the band edge becomes a cut on "
                         "the residual -- corr(|eta| lead, z) = +0.0203 against "
-                        "+0.0025 here and +0.0004 for the gen definition "
-                        "(STATE sec. 0f.63). max(|eta_p|, |eta_m|) does not "
+                        "+0.0025 here and +0.0004 for the gen definition. "
+                        "max(|eta_p|, |eta_m|) does not "
                         "depend on which leg leads and needs no truth. The two "
                         "select DIFFERENT candidates (the max-band barrel "
                         "requires BOTH legs central), so cards built with the "
@@ -260,10 +259,10 @@ def parse_args(argv=None):
                         "default, and the only form defined at the Z) applies "
                         "them as one deterministic map of the resolution "
                         "fluctuation INSIDE the convolution: no clip, no "
-                        "log-Jacobian, no dependence on delta_i. `residual` is "
-                        "the historical form, exact at a delta kernel and "
-                        "measured on the J/psi, which needs --corr-clip at the "
-                        "Z and is kept only as the reference for that gate.")
+                        "log-Jacobian, no dependence on delta_i. `residual` "
+                        "applies them to the residual delta_i instead: exact "
+                        "at a delta kernel, so it is the form the J/psi gate "
+                        "is defined in, but it needs --corr-clip at the Z.")
     p.add_argument("--vpow", type=float, default=0.0,
                    help="THE v FORMULATION. Convolve in "
                         "`v(m) = Int dm/m^p` instead of in `m`, condition each "
@@ -317,16 +316,16 @@ def parse_args(argv=None):
     p.add_argument("--with-alpha", action="store_true")
     p.add_argument("--background", choices=["none", "uniform", "bernstein"],
                    default="none",
-                   help="MC has no background; the default is therefore none, "
-                        "not the smoke card's uniform")
+                   help="MC has no background, so the default is none")
     p.add_argument("--bernstein-degree", type=int, default=2)
     p.add_argument("--fbkg", type=float, default=0.0)
     p.add_argument("--float-bkg", action="store_true")
     p.add_argument("--add-del-family", "--del-family", dest="add_del_family",
                    action="store_true",
-                   help="ADD the delta-ray family. It was called --del-family, "
-                        "which reads as a family REMOVER and is the opposite "
-                        "of what it does; the old spelling still works. To "
+                   help="ADD the delta-ray family. `--del-family` is "
+                        "accepted as an alias, but it reads as a family "
+                        "REMOVER and is the opposite of what it does, so "
+                        "prefer the long spelling. To "
                         "remove a family, build from a cache with that "
                         "family's S_* keys dropped -- `discover_families` only "
                         "appends families present in the cache -- or set its "
@@ -722,8 +721,6 @@ def build(args, log=print):
         log(f"  acceptance: {args.acc} ({acc.get('kind','bernstein')}, "
             f"{len(acc.get('coef', []))} coefficients)")
     kw = {}
-    if args.shape_prior and not args.shape:
-        pass
     if args.fsr_mmax:
         kw["fsr_mmax"] = args.fsr_mmax
     if args.shape:
@@ -784,9 +781,9 @@ def build(args, log=print):
     if args.corr_form != "residual":
         if "corr_form" not in sig:
             raise SystemExit(
-                "this rabbit's MassCFTerm has no `corr_form`: it predates the "
-                "fluctuation reformulation. Pass --corr-form residual "
-                "--corr-clip 5 to reproduce the clipped stopgap.")
+                "this rabbit's MassCFTerm has no `corr_form`: it does not "
+                "implement the fluctuation form. Pass --corr-form residual "
+                "--corr-clip 5 for the clipped residual form.")
         if args.corr_clip:
             raise SystemExit(
                 "--corr-clip has no meaning with --corr-form fluctuation "
@@ -798,9 +795,9 @@ def build(args, log=print):
     if args.corr_clip and (a_res is not None or args.jensen != "off"):
         if "corr_clip" not in sig:
             raise SystemExit(
-                "this rabbit's MassCFTerm has no `corr_clip`: it predates the "
-                "domain fix. Pass --corr-clip 0 only if you mean to feed the "
-                "corrections the full residual.")
+                "this rabbit's MassCFTerm has no `corr_clip`. Pass "
+                "--corr-clip 0 only if you mean to feed the corrections the "
+                "full residual.")
         kw2["corr_clip"] = args.corr_clip
     if args.shape and "shape" not in inspect.signature(
             ZGammaLineshape.__init__).parameters:
@@ -860,7 +857,7 @@ def build(args, log=print):
         d0, ps, pm, poi = decl[nm]
         v = float(val)
         # the prior MEAN moves with the default: a parameter set to a value is
-        # being asserted, not pulled back towards where it used to be
+        # being asserted, not pulled back towards the card's own default
         decl[nm] = (v, ps, v, poi)
         log(f"  --set {nm} = {v:g}  (was {d0:g})")
     decl = unbinned.declare_params(term, decl)

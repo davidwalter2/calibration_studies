@@ -30,7 +30,7 @@ KROWS = [("|eta_lead| < 0.9", "V_etaB", "VK_etaB"),
          ("0.9 - 1.6", "V_etaT", "VK_etaT"),
          ("1.6 - 3.0", "V_etaE", "VK_etaE")]
 
-# the fit-free prediction of sec. 0f.1, MeV: conditioning on sigma vs on k
+# the fit-free prediction, MeV: conditioning on sigma vs on k
 PREDICT = {"inclusive, K 5 terms": (-15.33, +0.30),
            "|eta_lead| < 0.9": (-12.04, -0.23),
            "0.9 - 1.6": (-16.50, +0.44),
@@ -65,8 +65,8 @@ def cell(r, q):
     """One table cell, with the convergence verdict attached.
 
     A `!` means the fit stopped with a POI more than `conv_tol` of its own
-    error from the minimum and MUST NOT BE QUOTED; a `?` means the result
-    predates the gate and its convergence is unknown. `|grad|inf` is not the
+    error from the minimum and MUST NOT BE QUOTED; a `?` means the stored
+    result carries nothing the gate can be evaluated on. `|grad|inf` is not the
     test -- see `checkconv.py`.
     """
     if r is None or q not in r:
@@ -87,7 +87,7 @@ def main():
         rm, rv = load(mt), load(vt)
         print(f"{lab:22s} {cell(rm,'m_Z')} {cell(rv,'m_Z')}"
               f" {cell(rm,'Gamma_Z')} {cell(rv,'Gamma_Z')}")
-    print("\nthe fit-free prediction of the same thing (sec. 0f.1), MeV:")
+    print("\nthe fit-free prediction of the same thing, MeV:")
     print(f"{'':22s} {'cond. on sigma':>18s} {'cond. on k':>18s}")
     for lab, (a, b) in PREDICT.items():
         print(f"{lab:22s} {a:+18.2f} {b:+18.2f}")

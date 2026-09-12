@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Gate: the rabbit Fitter reproduces the standalone drivers, exactly.
 
-The full-scale fits were driven by `fit.py` / `chunkfit.py` / `devobj.py`
-rather than by `Fitter.minimize` only because an unbinned term did not fit in
-memory inside the Fitter. Now that the candidate loop is the TERM's own
-implementation (`rabbit.unbinned`, `chunk_mode="graph"`), the Fitter is the
-right entry point again -- but only if it computes the same numbers.
+The standalone drivers `fit.py` / `chunkfit.py` / `devobj.py` exist because an
+unbinned term did not fit in memory inside the Fitter. With the candidate loop
+in the TERM's own implementation (`rabbit.unbinned`, `chunk_mode="graph"`) the
+Fitter is the entry point for new fits -- but only if it computes the same
+numbers.
 
 This checks, on a real card:
 

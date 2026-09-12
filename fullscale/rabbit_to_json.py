@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turn a `rabbit_fit.py` result into the json `fit.py --start-from` reads.
 
-The division of labour after the migration is: `rabbit_fit.py` finds the
+The division of labour is: `rabbit_fit.py` finds the
 minimum (with the EDM, the termination convention and the snapshots), and the
 standalone driver is still the only thing that computes the **sandwich**
 covariance -- which is not optional here, since the MiNNLO weights alone cost

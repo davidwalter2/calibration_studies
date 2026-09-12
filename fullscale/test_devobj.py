@@ -114,10 +114,10 @@ def main():
     # THE ABSOLUTE ANCHOR. Comparing two minimisers from the same start passes
     # when BOTH stall -- and a stalled fit sits near its starting point, which
     # on a closure test is the MC truth, so it reads as a beautiful closure.
-    # Every defect found in this migration produced a number more attractive
-    # than the truth for exactly that reason. So the gate asserts that each
-    # method actually MOVED: its final NLL must be below the starting NLL by
-    # much more than the tolerance on their agreement.
+    # A defect that stalls the minimiser therefore produces a number MORE
+    # attractive than the truth. So the gate asserts that each method actually
+    # MOVED: its final NLL must be below the starting NLL by much more than the
+    # tolerance on their agreement.
     nll_start = host.value_grad(x0)[0]
 
     t0 = time.time()

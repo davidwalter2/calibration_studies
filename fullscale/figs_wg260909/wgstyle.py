@@ -1,9 +1,9 @@
-"""Shared style for the Z-mass working-group deck of 2026-09-09.
+"""Shared style for the Z-mass working-group deck.
 
 One place for the palette and the figure geometry so the four figures of
 `slides/260909_unbinned_likelihood_walter/assets/` look like one set.
 
-Rules baked in here (from the user's plotting preferences):
+Rules baked in here:
   * `hep.style.ROOT` via mplhep;
   * `constrained_layout=True` -- no manual `subplots_adjust`;
   * 13 x 8 in at 160 dpi, so nothing is smaller than ~14 pt at slide scale;
