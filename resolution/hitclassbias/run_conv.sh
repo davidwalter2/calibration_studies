@@ -2,7 +2,7 @@
 # Convergence / seed-dependence diagnostic productions on the 20-60 GeV tight
 # muon gun.
 #
-# Reproduces `run_all_260903x.sh`'s `mugun_ul16_260903x_m0` arm EXACTLY --
+# Reproduces the `mugun_ul16_260903x_m0` production arm EXACTLY --
 # same cfg (CMSSW_15_0_19_patch2_dev, commit ca6058d96fc, identical to dev2),
 # same filelist, same COMMON block, same E_MUGUN extras, CgfQoPMode=0 -- and
 # changes ONLY the Gauss-Newton convergence knobs per variant:
