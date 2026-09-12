@@ -283,6 +283,63 @@ def report_dup(d, cls, aux):
           f"P(>5) {fmtpm(int((zs > 5).sum()), zs.size)}")
 
 
+def report_hitcut(d, cls, aux):
+    """The OTHER cut: a minimum on the weaker leg's valid hits.  Same figures
+    of merit as the |z_v| cut, plus the overlap -- do the two remove the same
+    candidates or different ones?"""
+    if "nvalid_plus" not in d:
+        logger.warning("no per-leg hit counts in the npz: skipping")
+        return
+    weak = np.minimum(np.asarray(d["nvalid_plus"], np.int64),
+                      np.asarray(d["nvalid_minus"], np.int64))
+    pair = (np.asarray(d["nvalid_plus"], np.int64)
+            + np.asarray(d["nvalid_minus"], np.int64))
+    z = np.abs(np.asarray(d["vtxz"], float))
+    sig = cls == CLASSES.index("signal")
+    ns, nb = int(sig.sum()), int((~sig).sum())
+    logger.info(f"=== cut on the WEAKER leg's valid hits: {ns} signal, "
+                f"{nb} background")
+    print(f"  {'minLegHits':>11s} {'removed':>8s} {'signal eff':>22s} "
+          f"{'bkg rejection':>22s} {'purity after':>16s} "
+          f"{'bkg in removed':>16s}")
+    for k in (4, 5, 6, 7, 8, 9, 10):
+        keep = weak >= k
+        ks, kb = int((sig & keep).sum()), int((~sig & keep).sum())
+        rej, erej = binom(nb - kb, nb)
+        nrem = int((~keep).sum())
+        print(f"  {k:11d} {nrem:8d} {fmtpm(ks, ns):>22s} "
+              f"{(f'{rej:.4f} +- {erej:.4f}'):>22s} {fmtpm(ks, ks + kb):>16s} "
+              f"{fmtpm(int((~sig & ~keep).sum()), max(nrem, 1)):>16s}")
+    print(f"  class of the candidates a minLegHits cut removes:")
+    for k in (4, 6, 8):
+        m = weak < k
+        print(f"    < {k}: N {int(m.sum()):5d}  " + "  ".join(
+            f"{c} {int((cls[m] == ic).sum())}" for ic, c in enumerate(CLASSES)
+            if (cls[m] == ic).any()))
+    # the overlap with the |z_v| cut
+    logger.info("=== do the two cuts remove the SAME candidates?")
+    for k in (4, 6, 8):
+        a = z > 5
+        b = weak < k
+        print(f"  |z_v| > 5: {int(a.sum())}  weaker leg < {k}: {int(b.sum())}"
+              f"  BOTH: {int((a & b).sum())}  "
+              f"|z_v| only: {int((a & ~b).sum())}  hits only: {int((b & ~a).sum())}")
+    print(f"  pair-hit cut (minPairHits): N(pair < 10) {int((pair < 10).sum())}, "
+          f"N(pair < 11) {int((pair < 11).sum())}, "
+          f"N(pair < 16) {int((pair < 16).sum())}")
+    logger.info("=== the two together (drop if |z_v| >= t OR weaker leg < k)")
+    print(f"  {'t':>5s} {'k':>4s} {'removed':>8s} {'signal eff':>22s} "
+          f"{'bkg rejection':>22s} {'purity after':>16s}")
+    for t in (3.0, 5.0):
+        for k in (0, 6, 7, 8):
+            keep = (z < t) & (weak >= k)
+            ks, kb = int((sig & keep).sum()), int((~sig & keep).sum())
+            rej, erej = binom(nb - kb, nb)
+            print(f"  {t:5g} {k:4d} {int((~keep).sum()):8d} {fmtpm(ks, ns):>22s} "
+                  f"{(f'{rej:.4f} +- {erej:.4f}'):>22s} "
+                  f"{fmtpm(ks, ks + kb):>16s}")
+
+
 # ------------------------------------------------------------------ mass ---
 def report_mass(d, cls, mwin=15.0, mref=91.1876):
     if "mass_unc" not in d:
@@ -795,6 +852,7 @@ def main():
         report_cuts(d, cls, aux)
     if a.cuts:
         report_dup(d, cls, aux)
+        report_hitcut(d, cls, aux)
     if a.mass:
         report_mass(d, cls, mwin=a.mwin, mref=a.mref)
     if a.density:

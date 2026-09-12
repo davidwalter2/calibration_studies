@@ -8,6 +8,10 @@
 #   gate-dy    400 DY MiniAOD events, ditto against `dy_vtxon/task_0000`
 #   dy         the 6 DY files re-run with the gen-provenance export on
 #              (`Mu*gen_idx`, `Mu*gen_motherPdgId`, `Jpsigen_sameDecay`)
+#   dy-off     the same 6 files with the vertex constraint OFF.  That regime
+#              is where the tail lives -- 146 outliers at |z_v| > 5 against 17
+#              with the constraint on -- so it is where the gen composition of
+#              the tail can actually be MEASURED rather than bounded.
 #
 # Nothing else changes: the maker's new `minNdof` / `minPairHits` are left at
 # their defaults, which IS the cut under test, and the gate is what shows the
@@ -72,7 +76,8 @@ case "$WHAT" in
   gate-gun) CFG=$GUN_CFG; LIST=$GUN_LIST; COMMON=$GUN_COMMON; OUTTAG=gate_gun; NEV=200; TASKS_FROM=0; TASKS_TO=0 ;;
   gate-dy)  CFG=$DY_CFG;  LIST=$DY_LIST;  COMMON=$DY_COMMON;  OUTTAG=gate_dy;  NEV=400; TASKS_FROM=0; TASKS_TO=0 ;;
   dy)       CFG=$DY_CFG;  LIST=$DY_LIST;  COMMON=$DY_COMMON;  OUTTAG=dy_vtxon_gen; NEV=4000 ;;
-  *) echo "usage: $0 {gate-gun|gate-dy|dy} [nparallel] [from] [to]"; exit 2 ;;
+  dy-off)   CFG=$DY_CFG;  LIST=$DY_LIST;  COMMON="$DY_COMMON doVtxConstraint=False"; OUTTAG=dy_vtxoff_gen; NEV=4000 ;;
+  *) echo "usage: $0 {gate-gun|gate-dy|dy|dy-off} [nparallel] [from] [to]"; exit 2 ;;
 esac
 export CFG LIST COMMON OUTTAG NEV RUN_ONE OUTROOT NPAR STAGGER
 seq "$TASKS_FROM" "$TASKS_TO" | xargs -P "$NPAR" -I{} bash -c 'run_task {}'

@@ -190,6 +190,14 @@ geometry, pileup, MiniAOD, `massMin=60 massMax=120`, GT
     ./run_all.sh bill                         # the export bill
     ./run_all.sh plots ; ./run_all.sh plots-dy
 
+    # section 13, the gen-background question and the minimum-size cut
+    ./run_bkg.sh dy 3 0 5 ; ./run_bkg.sh dy-off 3 0 5   # the two gen legs
+    ./run_bkg.sh gate-gun 1 ; ./run_bkg.sh gate-dy 1    # the bit-identity gate
+    ./run_all.sh bkg-gate                               # ... and its verdict
+    ./run_all.sh extract-bkg                            # -> bkg/runs/*_vtx*.npz
+    ./run_all.sh bkg                                    # classes, cuts, mass, figures
+    ./run_all.sh bkg-hits                               # the ndof / hit-count report
+
 `run_tf.sh` runs a command in the rabbit TF container against `rabbit-vmass` (and
 binds `/ceph/submit` when the host can read it); `run_ladder.sh card_<name>` and
 `run_fit.sh <name>` are the per-card entry points. Every matrix and every
@@ -210,6 +218,8 @@ so `run_all.sh eff` is the certified path and no unit flag is needed anywhere.
 | `plot_vtxon.py` | the constraint-ON figures (gain, correlation, DCA identity, DY) |
 | `drop_params.py` | a Fisher npz with uninformative parameters removed (section 12) |
 | `report_vtxon.sh` | the whole ON-vs-OFF comparison, read off the two log sets |
+| `genbkg.py` | section 13: the gen classification, the cut tables, the mass side, the `--gate` bit-identity check and the `--hits` ndof/hit-count report |
+| `run_bkg.sh` | the gen-provenance DY legs (`dy` / `dy-off`) and the two gates (`gate-gun` / `gate-dy`) |
 
 Third-party consumers: `hitlik/efficiency.py` (the sandwich),
 `hitlik/recovery.py` (the injections), `hitlik/perhit/certify.py` (value + NLL +
@@ -864,6 +874,342 @@ lets that be seen, and vetoed, at analysis level.
 **30.40** kB/candidate ON against 30.41 OFF, the mass block 30.26 against
 30.23, the file 327.0 MB against 328.0 MB for the same 2 000 events. The two
 new scalars are free.
+
+
+### 13. IS THE TAIL BACKGROUND?  GEN TRUTH, AND A MINIMUM SIZE FOR A PAIR
+
+Two questions from David, both about candidates the fit should arguably never
+have written.
+
+**A.** Section 12.9 argued the DY vertex tail is COMBINATORIAL -- 116 of 146
+free-regime outliers sat in the 311 candidates of multi-candidate events.
+That is a COUNTING argument. "If the candidates with large vertex residuals
+are background we should cut on it, this would also be good for background
+reduction. Did you verify that those are background by doing a gen matching?"
+No gen matching had been done.
+
+**B.** `ndof == 0` crashed an earlier DY production (`fab515e`). "How are
+track pairs with 9 hits treated? I suggest to also add a cut with requiring
+more than 9 (10 w/o vertex constraint) hits, these pairs are most likely
+anyway bad."
+
+Code: maker `23b4c9c7046` on `cvh-exports-clean-260911`; analysis
+`genbkg.py` + `run_bkg.sh` + `run_all.sh` stages
+`extract-bkg` / `bkg` / `bkg-hits` / `bkg-gate`.  Productions
+`/ceph/.../runs_vtxres_260911/bkg/{dy_vtxon_gen,dy_vtxoff_gen,gate_gun,
+gate_dy}`, npz in `bkg/runs/`, figures
+`~/public_html/ZMass/cvh/260912_vtxbkg/`, logs `logs/genbkg_*`.
+
+#### 13.1 What was added to the maker
+
+**Gen provenance**, behind the existing `doGen_`.  `Mu*gen_dr` said only that
+SOME status-1 gen muon of the right charge sat within dR < 0.1 of the leg.
+That cannot tell ONE MUON RECONSTRUCTED TWICE from two different muons, which
+is exactly the distinction the tail turns on.  New, per leg:
+`Mu{plus,minus}gen_pdgId`, `_idx` (position in the gen collection),
+`_motherPdgId` and `_motherIdx` (the first ancestor that is not itself a muon
+copy), `_isPrompt`, `_fromHardProcess`; plus `Jpsigen_sameDecay` -- both legs
+matched, to DIFFERENT gen particles, whose first non-muon ancestor is the SAME
+particle.  The MATCH ITSELF IS UNCHANGED.  `Mu*gen_dr` and the reco/gen pT
+ratio were already derivable.
+
+**A minimum size for a pair**, pre-fit: `minNdof` (default 1),
+`minPairHits` (default -1 = auto = 10 ON / 11 OFF), `minLegHits` (default 0 =
+off).  Counted as `skipped[ndof<N]` / `skipped[hits<N]` /
+`skipped[leghits<N]`.  Documented in all 8 two-track cfis and both drivers.
+
+#### 13.2 THE CLASSIFICATION
+
+Criterion, stated so it can be argued with: the leg is MATCHED if the closest
+status-1 gen muon of the SAME CHARGE lies within **dR < 0.1** of its fitted
+momentum (the maker's own rule).  Then, in order:
+
+  `unmatched`   a leg with no such particle
+  `otherdecay`  both matched, but to muons with DIFFERENT ancestors
+  `nonres`      one decay, but the ancestor is not a resonance (never seen)
+  `dup`         the resonance's two daughters, but ANOTHER candidate of the
+                same event matched the SAME two gen particles.  The candidate
+                with the smaller dR(+)+dR(-) keeps `signal`; the rest are
+                `dup`.  THAT TIE-BREAK USES TRUTH and nothing downstream may
+                use it as a selection.
+  `signal`      the rest
+
+#### 13.3 THE ANSWER: yes, the tail is background
+
+`dy_vtxoff_gen` (FREE regime, 6 x 4000 events, 10 494 selected candidates).
+Quoted first because this is where the tail LIVES.
+
+| class | N | fraction | `P(>3)` | `P(>4)` | `P(>5)` | `P(>10)` |
+|---|---|---|---|---|---|---|
+| signal | 10 266 | 0.9783 +- 0.0014 | 0.0137 +- 0.0011 | 0.0044 +- 0.0007 | **0.0024 +- 0.0005** | 0.0009 +- 0.0003 |
+| dup | 117 | 0.0111 +- 0.0010 | 0.906 +- 0.027 | 0.906 +- 0.027 | **0.872 +- 0.031** | 0.795 +- 0.037 |
+| otherdecay | 12 | 0.0011 +- 0.0003 | 0.417 +- 0.142 | 0.333 +- 0.136 | 0.250 +- 0.125 | 0.250 +- 0.125 |
+| unmatched | 99 | 0.0094 +- 0.0009 | 0.667 +- 0.047 | 0.626 +- 0.049 | **0.606 +- 0.049** | 0.485 +- 0.050 |
+
+**Of the 190 candidates at `|z_v| > 5`, 86.8 % +- 2.5 % are BACKGROUND**
+(102 dup + 60 unmatched + 3 otherdecay, 25 signal); at `|z_v| > 10`,
+**94.1 % +- 1.9 %**.  **201 of the 228 background candidates sit in
+multi-candidate events**, where half of everything is background (188 signal
+against 201 background) -- section 12.9's argument, confirmed by truth.
+
+The `dup` class is what the tail is made of: 112 gen decays reconstructed more
+than once, median `|z_v|` **79.1**, p90 362, against 0.67 for signal.  And the
+vertex residual is the RIGHT discriminator between two reconstructions of one
+decay: the gen-preferred one has the smaller `|z_v|` in **97.3 % +- 1.5 %** of
+the 112 cases, against 83.0 % +- 3.6 % for the smaller chi2/ndof.
+
+What the classes ARE:
+
+| | N | med pT+ / pT- | med `\|eta\|` | med mass | med `sigma_v` | pair hits | multi-cand |
+|---|---|---|---|---|---|---|---|
+| signal | 10 266 | 39.2 / 39.2 | 1.05 | 90.7 | 0.0026 cm | 33 | 188 |
+| unmatched | 99 | 24.8 / 25.9 | 1.48 | 75.1 | 0.0071 cm | 31 | 74 |
+| dup | 117 | 29.2 / 33.3 | 1.90 | 82.8 | 0.0110 cm | 24 | 117 |
+
+`unmatched` is ONE leg in 98 of 99, and that leg has median reco pT
+**7.6 GeV** (p10 4.8, p90 28): a soft track paired with a real Z muon -- a
+pileup muon (pileup is not in `prunedGenParticles` at all), a muon from a
+hadron decay below the pruning threshold, or a fake.  `dup` is forward and
+short.  Mother spectrum: 23 x 10 438, none found x 50, 421 x 2, 411 x 2,
+521 x 1, 511 x 1 -- real heavy flavour exists and is negligible.
+
+`dup` and `unmatched` legs are also badly MEASURED, not just mis-paired:
+dR(+) median 0.0161 for `dup` against 0.00030 for signal, and reco/gen pT
+p5-p95 **0.52-1.53** against 0.969-1.035.
+
+**The CF model describes the SIGNAL class and nothing else** -- data/CF at
+3 / 4 / 5 sigma **3.3 / 7.0 / 10.2** for signal, 175 / 889 / 1964 for
+background, 238 / 1833 / **4890** for the duplicates.  The residual signal
+tail is the FEW-HIT LEGS: gen signal with a weaker leg of <= 8 valid hits has
+`P(|z_v|>5)` = 0.104 +- 0.044 on 48 candidates against **0.0020 +- 0.0004**
+on the 10 218 with more -- which is the gun's free-regime floor.
+
+#### 13.4 THE CUT
+
+| `\|z_v\| < t` | ALL (10 266 S / 228 B) | 1 cand/ev (10 078 / 27) | >1 cand/ev (188 / 201) |
+|---|---|---|---|
+| t = 3 | 0.9863 +- 0.0011 / 0.776 +- 0.028 | 0.9864 / 0.815 +- 0.075 | 0.9787 +- 0.0105 / 0.771 +- 0.030 |
+| t = 4 | 0.9956 +- 0.0007 / 0.754 +- 0.029 | 0.9957 / 0.741 +- 0.084 | 0.9894 +- 0.0075 / 0.756 +- 0.030 |
+| **t = 5** | **0.9976 +- 0.0005 / 0.724 +- 0.030** | 0.9977 / 0.704 +- 0.088 | 0.9894 +- 0.0075 / 0.726 +- 0.031 |
+| t = 10 | 0.9991 +- 0.0003 / 0.632 +- 0.032 | 0.9993 / 0.630 +- 0.093 | 0.9894 +- 0.0075 / 0.632 +- 0.034 |
+
+(signal efficiency / background rejection, both against GEN TRUTH).  Purity
+0.9783 -> **0.9939 +- 0.0008** at t = 5 inclusively, **0.483 -> 0.772 +-
+0.027** in multi-candidate events.
+
+**The floor a cut cannot go below.**  On the J/psi gun, where **99.996 %** of
+candidates have both legs gen-matched and only 30 of 55 853 sit in a
+multi-candidate event (against 3.7 % on DY), `P(|z_v| > t)` on ~298 000
+selected candidates is
+
+| | `>3` | `>4` | `>5` | `>10` |
+|---|---|---|---|---|
+| `prod_vtxon` ON | 0.0081 +- 0.0002 | 0.0025 +- 0.0001 | **0.00104 +- 0.00006** | 0.0000 |
+| `prod` OFF | 0.0088 +- 0.0002 | 0.0032 +- 0.0001 | **0.00161 +- 0.00007** | 0.00031 |
+
+and those 30 multi-candidate gun candidates have `P(|z_v|>5)` = **13.3 %**
+against 0.090 % for the 55 823 single-candidate ones.  Even in a
+one-resonance-per-event gun the multi-candidate population IS the outlier
+population.
+
+#### 13.5 A MINIMUM ON THE WEAKER LEG is a different, complementary cut
+
+`minPairHits` removes **zero** SELECTED candidates.  Its two victims in
+`dy_vtxon` are both in ONE event (run 1, lumi 19061, event 14924058), both
+`nvalid = (3,6)`, `|z_v|` 58.3 and 0.0, chi2/ndof 1.7e3 and 6.6e4 -- an event
+that produces nothing but garbage and that the extraction selection already
+threw away.  So `minPairHits` is a crash/CPU guard, not a physics cut.
+
+`minLegHits` is the physics cut.  Free regime, gen truth:
+
+| weaker leg | N | signal | dup | unmatched |
+|---|---|---|---|---|
+| < 4 | 4 | 1 | 0 | 3 |
+| < 6 | 22 | 2 | 8 | 12 |
+| < 8 | 148 | 17 | 100 | 31 |
+
+| `minLegHits` | removed | signal eff | bkg rejection | bkg among removed |
+|---|---|---|---|---|
+| 6 | 22 | 0.9998 +- 0.0001 | 0.088 +- 0.019 | 0.909 +- 0.061 |
+| 7 | 80 | 0.9997 +- 0.0002 | 0.338 +- 0.031 | **0.963 +- 0.021** |
+| 8 | 148 | 0.9983 +- 0.0004 | 0.575 +- 0.033 | 0.885 +- 0.026 |
+| 10 | 264 | 0.9897 +- 0.0010 | 0.693 +- 0.031 | 0.599 +- 0.030 |
+
+**They are NOT the same candidates.**  At `minLegHits = 8` against
+`|z_v| > 5`: 113 fail both, **77 fail only the residual cut** (a healthy
+weaker leg with a huge residual -- the duplicate pairings) and **35 only the
+hit cut** (a thin leg with a small residual -- the degenerate `sigma_v`).
+Together:
+
+| cut | signal eff | bkg rejection | purity |
+|---|---|---|---|
+| `\|z_v\| < 5` | 0.9976 +- 0.0005 | 0.724 +- 0.030 | 0.9939 |
+| weaker leg >= 8 | 0.9983 +- 0.0004 | 0.575 +- 0.033 | 0.9906 |
+| **both** | **0.9961 +- 0.0006** | **0.811 +- 0.026** | **0.9958** |
+
+**RECOMMENDED: `|z_v| < 5` with `minLegHits = 8`** -- efficiency
+**0.9961 +- 0.0006**, rejection **0.811 +- 0.026**, purity 0.9783 ->
+0.9958 +- 0.0006.  `|z_v| < 5` alone is the conservative version
+(0.9976 +- 0.0005 / 0.724 +- 0.030): it sits a factor 2 above the gun's
+pure-signal floor, so it costs essentially only the irreducible resolution
+tail.  `|z_v| < 3` buys 5 % more rejection for 14x the signal loss (1.4 %
+against 0.24 %) and is not worth it.
+
+#### 13.6 THE CONSTRAINT IS ITSELF A BACKGROUND REJECTOR
+
+The constrained leg `dy_vtxon_gen` looks much cleaner -- 10 325 selected
+candidates, **99.30 %** signal, 72 background, `|z_v| > 5` only **17**
+candidates of which 41.2 % +- 11.9 % background, `|z_v| > 10` EMPTY -- and
+the reason is NOT that the fit is different.  Before the extraction's
+`chi2/ndof < 3`:
+
+| | N | background | `\|z_v\|>5` | bkg fraction there |
+|---|---|---|---|---|
+| ON, no chi2 cut | 10 638 | 318 (2.99 %) | 190 | **0.874 +- 0.024** |
+| OFF, no chi2 cut | 10 628 | 310 (2.92 %) | 242 | **0.884 +- 0.021** |
+| ON, chi2/ndof < 3 | 10 325 | **72 (0.70 %)** | **17** | 0.412 +- 0.119 |
+| OFF, chi2/ndof < 3 | 10 494 | 228 (2.17 %) | 190 | 0.868 +- 0.025 |
+
+**The two regimes contain the SAME background.  `chi2/ndof < 3` rejects 77 %
+of it with the constraint on and 26 % with it off**, because a combinatorial
+pairing cannot satisfy a common-vertex constraint.  That, not a resolution
+difference, is what turned section 12.3's inclusive DY tail from 1.86 % into
+0.165 %.  In the constrained regime `chi2/ndof` also beats `|z_v|` at picking
+the right duplicate (94.3 % +- 2.5 % against 79.6 % +- 4.3 %) -- the reverse
+of the free regime, for the same reason.
+
+The same holds for how well the CF describes gen SIGNAL: data/CF at 5 sigma
+is **9.7** (ON) and **11.3** (OFF) before the chi2 cut, and **4.07** (ON)
+against 10.2 (OFF) after it.  The constrained regime's better-described tail
+is the chi2 selection working, not a different residual.
+
+Consequently, in the ON regime AFTER the chi2 cut the `|z_v|` cut has little
+left to reject (t = 5: efficiency 0.9990 +- 0.0003, rejection
+0.097 +- 0.035; t = 3: 0.9880 +- 0.0011 / 0.236 +- 0.050), and gen SIGNAL has
+`P(|z_v|>5)` = **0.0010 +- 0.0003** -- exactly the gun's ON floor of
+0.00104 +- 0.00006.  Before the chi2 cut it is the same picture as the free
+regime (t = 5: 0.9977 / 0.522 +- 0.028; `minLegHits = 8`: 0.9984 /
+0.654 +- 0.027; both: **0.9961 / 0.837 +- 0.021**).
+
+#### 13.7 THE MASS SIDE: the constraint moves background, not signal
+
+`m_c - m_unc` in units of `sigma_m`, constrained DY leg:
+
+| sample | N | median | p90 | max | mean `m_c - m_unc` |
+|---|---|---|---|---|---|
+| signal | 10 253 | **0.053** | 0.296 | 12.4 | +3.6 MeV |
+| background | 72 | **0.414** | **10.8** | 49.5 | +6 991 MeV |
+| background, `\|z_v\|>5` | 7 | **4.26** | 20.3 | 28.5 | +22 210 MeV |
+| signal, `\|z_v\|>5` | 10 | 0.435 | 0.611 | 0.978 | +257 MeV |
+
+Within **+-15 GeV of `m_Z`**: the constraint moves **8 background candidates
+IN and 1 OUT, net +7 on 26** (a 27 % increase of in-window background), while
+signal goes 9 505 -> 9 516 (+20 in, -9 out, +0.1 %).  So on the chi2-selected
+sample **the constraint pulls background INTO the Z window**.  On the
+unselected sample, where the background is wilder, it is neutral (+25 in,
+-28 out, net -3 on 76) because the same candidates are thrown far out.
+
+Either way the veto is available, and it is sharp: for in-window background
+the median `|m_c - m_unc|` is **0.51 sigma_m** and the mean is
+**+7.55 GeV**, against 0.053 sigma_m and +19 MeV for in-window signal.  That
+is the argument for exporting BOTH masses, now with truth behind it.
+
+#### 13.8 TASK B: the ndof arithmetic, as implemented
+
+`ndof = nvalid + nvalidpixel - nstatefree` with `nstatefree = 10`, plus the
+constraint rows (+3 beamspot, +1 pointing, +1 vertex, +1 mass on the
+constrained pass) -- ONE measurement coordinate per strip hit, TWO per pixel
+hit, against the ten state parameters the common vertex costs.  With the
+vertex constraint on that is `n_meas - 9`, with it off `n_meas - 10`.
+
+VERIFIED on every written candidate of all four productions:
+10 654/10 654 and 300 017/300 017 satisfy `- 9`; 7 948/7 948 and
+300 025/300 025 satisfy `- 10`.  **Zero deviations.**  So David's "more than
+9 hits (10 without the constraint)" IS `ndof >= 1`, and `minNdof = 1` is that
+requirement exactly.
+
+| sample | written | ndof min | nvalid(pair) min | minNdof=1 cuts | minPairHits cuts |
+|---|---|---|---|---|---|
+| `dy_vtxon` ON | 10 654 | 1 | 9 | 0 | 2 (0.019 %) |
+| `dy` OFF | 7 948 | 1 | 9 | 0 | 1 (0.013 %) |
+| `prod_vtxon` ON | 300 017 | 3 | 9 | 0 | 1 (0.0003 %) |
+| `prod` OFF | 300 025 | 2 | 9 | 0 | 1 (0.0003 %) |
+
+**`ndof == 0` is never written** -- `fab515e` aborts the fit -- and the abort
+IS reached: summed over the production logs it fired **1 time in 10 671**
+`dy_vtxon` pairs and **2 in 7 964** `dy` pairs, and **0 in 300 370** gun pairs
+in either regime.  It is a MiniAOD phenomenon: `slimmedMuons` keeps the hit
+pattern but not every RecHit.
+
+**`ndof == 1` is degenerate and is written as GOOD.**  `dy_vtxon` idx 3879:
+`ndof` 1, hits (3,6), **`sigma_v` = 32 515 cm**, `z_v` = 7.2e-6,
+chi2/ndof = 66 432, and `Jpsi_vtxok` **TRUE**.  The DCA is fixed by the data,
+the pull collapses to zero and the candidate dilutes the core.  Neighbours:
+`ndof` 2 -> `|z_v|` = 58.3; `ndof` 3 -> `sigma_m` = 1041 GeV; `ndof` 5 ->
+`sigma_m` = 73 859 GeV.
+
+**Non-finite exports DO exist, and the cause is the WEAKER LEG:**
+
+| sample | non-finite `Jpsi_sigmamass` | `Jpsi_vtxok` TRUE among them | weaker leg <= 3 |
+|---|---|---|---|
+| `dy_vtxon` | 5 (0.047 %) | 1 | 5/5 |
+| `dy` | 10 (0.126 %) | 2 | 9/10 (<=4: 10/10) |
+| `prod_vtxon` | 186 (0.062 %) | 76 | **186/186** |
+| `prod` | 525 (0.175 %) | 83 | 462/525 (<=4: 525/525) |
+
+Their PAIR totals are 13-23 hits, so no pair-sum cut can see them.  A further
+391 (`prod_vtxon`) / 447 (`prod`) candidates have `sigma_v > 1000 cm`, ALL
+flagged `Jpsi_vtxok`, median weaker leg 2 hits.  `Jpsi_vtxres`, `Jpsi_vtxsig`,
+`Jpsi_vtxz`, `Jpsi_vtxdchi2`, `Jpsi_mass` and `Jpsi_mass_unc` are finite
+everywhere; only `Jpsi_sigmamass` is not, and `cfmass_ok` is False on every
+one of them, so nothing downstream consumed them.
+
+**There is no minimum-hit requirement anywhere else in the chain.**  DY:
+`slimmedMuons` -> `TrackProducerFromPatMuons` (`innerTrackOnly=False` ->
+`muonBestTrack`, `ptMin = -1`, the track must have `extra().isAvailable()`)
+-> `DiMuonTrackVertexCandidateProducer` (opposite sign, 60 < m < 120).  Gun:
+`useLegacyPairLoop=True`, the all-pairs loop over `generalTracks`.  The
+maker's only pre-fit guards were the charge sum and `nhits != 0` per leg.
+
+**The gate.**  The new build re-run on the SAME inputs as the reference
+production, candidates matched on (run, lumi, event, nhits, nvalid):
+
+| | matched | bit-identical | missing from ref | ref-only | ndof min | non-finite |
+|---|---|---|---|---|---|---|
+| `gate_gun` (200 gun ev) vs `prod_vtxon/task_0000` | **192** | **29/29 branches** | 0 | 0 | 10 | 0 |
+| `gate_dy` (400 DY ev) vs `dy_vtxon/task_0000` | **186** | **29/29 branches** | 0 | 0 | 12 | 0 |
+
+Both summaries show `skipped[ndof<1]=0  skipped[hits<10]=0
+skipped[leghits<0]=0`.
+
+#### 13.9 A CORRECTION to section 12.9
+
+"The constrained fit writes 10 654 candidates against 7 948 ... the constraint
+converges on 2 616 events the free fit produced nothing for" has nothing to do
+with the constraint: **the two productions ran on different numbers of
+events.**  `dy/task_0000/local.log` carries `nEvents=3000`; `dy_vtxon` ran the
+slurm array at 4 000.  Per event they agree:
+
+| production | events/task | pairs attempted | attempted / event |
+|---|---|---|---|
+| `dy` (free, 09-11) | 3 000 | 7 964 | 0.4424 |
+| `dy_vtxon` (09-12) | 4 000 | 10 671 | 0.4446 |
+| `dy_vtxoff_gen` (free, today) | 4 000 | **10 668** | **0.4445** |
+
+Re-running the same 6 files with the same `doVtxConstraint=False` at 4 000
+events writes 10 648 candidates against 10 654 constrained -- a 0.06 %
+difference, not 34 %.  The tail FRACTION is unchanged: 190/10 494 = 1.81 %
+now against 146/7 841 = 1.86 % then.
+
+#### 13.10 Figures
+
+`~/public_html/ZMass/cvh/260912_vtxbkg/`, one file per panel, PNG twin beside
+every PDF, 21 panels: `density_<leg>_{signal,background,dup,unmatched}`
+(density + CF model + data/CF ratio panel), `cut_roc_<leg>` (efficiency
+against rejection, the three event-multiplicity classes) and
+`cut_composition_<leg>` (the `|z_v|` spectrum stacked by class), for
+`<leg>` = `dy_vtxon_gen`, `dy_vtxoff_gen` and the `_all` (pre-chi2-cut)
+version of each.
 
 
 ## Defects found and fixed
