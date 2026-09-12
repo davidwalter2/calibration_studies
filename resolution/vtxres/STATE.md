@@ -1182,6 +1182,20 @@ production, candidates matched on (run, lumi, event, nhits, nvalid):
 Both summaries show `skipped[ndof<1]=0  skipped[hits<10]=0
 skipped[leghits<0]=0`.
 
+**And the full re-production closes on the reference.**  `dy_vtxon_gen`, the
+same 6 x 4000 events with the cut on:
+
+    attempted 10 668  succeeded 10 652
+    skipped[ndof<1]=1  skipped[hits<10]=2  skipped[leghits<0]=0
+
+against `dy_vtxon`'s attempted 10 671, succeeded 10 654, `fail[ndof]=1`.  The
+three skipped pairs never reach `++fitAttempted_` (10 671 - 3 = 10 668), the
+two written ones are exactly the `nvalid == 9` pair, **`ndof` min rises from
+1 to 3**, and the SELECTED sample is **10 325 candidates with
+`P(|z_v| > 3/4/5/10)` = 0.0136 / 0.0038 / 0.0016 / 0.0000 -- identical to the
+reference**, because everything the cut removes the extraction selection had
+already removed.
+
 #### 13.9 A CORRECTION to section 12.9
 
 "The constrained fit writes 10 654 candidates against 7 948 ... the constraint
