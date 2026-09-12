@@ -1324,7 +1324,20 @@ None blocking; each is a new study.
    Gaussian. On the gun the CF is within 1.4-1.7 of the data out to 5 sigma in
    the free regime and 1.03-1.26 with the constraint on; on DY it is a factor
    85 short free and 7.5 constrained, and the residual DY excess is
-   combinatorial rather than a resolution effect (section 12.9).
+   combinatorial rather than a resolution effect (section 12.9) -- section 13
+   proves that by gen matching (86.8 +- 2.5 % of the free-regime `|z_v| > 5`
+   candidates are background). What is LEFT after the background is removed is
+   still a factor **10.2** free / 4.07 constrained on gen signal, against
+   1.03-1.68 on the gun, so the DY signal tail is a real, unmodelled excess
+   and this item stands. Its likeliest cause is in hand: gen signal with a
+   weaker leg of <= 8 valid hits has `P(|z_v|>5)` = 0.104 +- 0.044 against
+   0.0020 +- 0.0004 for the rest.
+
+6. **Should `minLegHits` be on by default?** Section 13.5 recommends
+   `minLegHits = 8` (with `|z_v| < 5`: efficiency 0.9961 +- 0.0006, rejection
+   0.811 +- 0.026), but the parameter ships at 0 = OFF so that no existing
+   production changes silently. Turning it on is a decision for the next
+   production, not for this branch.
 
 3. **The concatenated-tau trick is not ported.** Every exponent primitive depends
    on `weight * tau` alone, so the mass and the vertex functional could share ONE
