@@ -1,0 +1,27 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789252369.438868  976946 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789252373.476200  976946 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  bsx: standard two-track selection on 10254 candidates
+  bsx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsx:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsx:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsx:     kept                           10254  (100.00 %)
+  bsy: standard two-track selection on 10254 candidates
+  bsy:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsy:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsy:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsy:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsy:     kept                           10254  (100.00 %)
+--same-candidates: 8000 candidates kept by BOTH functionals
+  norm classes: sigma 0.00154..0.0124, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789252378.193316  976946 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+bsx term: 8000 candidates, 167312 group rows (37827 pruned), 102886 hit rows, 60 parameters, arm 'gaussq'
+  bsx NLL(0) = -34405.260666, max|grad| = 898.5
+  norm classes: sigma 0.00149..0.0118, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 167700 group rows (37439 pruned), 102886 hit rows, 60 parameters, arm 'gaussq'
+  bsy NLL(0) = -34464.786270, max|grad| = 824.9
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs/cards/bs_gaussq.hdf5 (132.0 MB, 60 parameters)

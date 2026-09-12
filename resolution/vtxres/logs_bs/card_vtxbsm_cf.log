@@ -1,0 +1,46 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789252423.283302  986301 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789252427.440900  986301 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  vtx: standard two-track selection on 10254 candidates
+  vtx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  vtx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  vtx:     min leg hits >= 8              10254  (100.00 %, -0)
+  vtx:     |z_v| < 5                      10254  (100.00 %, -0)
+  vtx:     kept                           10254  (100.00 %)
+  bsx: standard two-track selection on 10254 candidates
+  bsx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsx:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsx:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsx:     kept                           10254  (100.00 %)
+  bsy: standard two-track selection on 10254 candidates
+  bsy:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsy:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsy:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsy:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsy:     kept                           10254  (100.00 %)
+  mass: standard two-track selection on 10254 candidates
+  mass:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  mass:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  mass:     min leg hits >= 8              10254  (100.00 %, -0)
+  mass:     |z_v| < 5                      10254  (100.00 %, -0)
+  mass:     kept                           10254  (100.00 %)
+--same-candidates: 8000 candidates kept by BOTH functionals
+  norm classes: sigma 0.00181..0.00435, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789252433.377696  986301 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+vtx term: 8000 candidates, 183169 group rows (22198 pruned), 102856 hit rows, 60 parameters, arm 'cf'
+  vtx NLL(0) = -35789.866746, max|grad| = 1064
+  norm classes: sigma 0.00154..0.0123, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 170702 group rows (34665 pruned), 102856 hit rows, 60 parameters, arm 'cf'
+  bsx NLL(0) = -34534.703271, max|grad| = 843.6
+  norm classes: sigma 0.00149..0.0116, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 171197 group rows (34170 pruned), 102856 hit rows, 60 parameters, arm 'cf'
+  bsy NLL(0) = -34629.758370, max|grad| = 721.3
+[18:34:00] kernel CF tabulation (8000 samples) built in 0.9 s
+mass term: 8000 candidates, 184987 group rows (20380 pruned), 102856 hit rows, 60 parameters, arm 'cf'
+  mass NLL(0) = 23543.937094, max|grad| = 11.16
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs/cards/vtxbsm_cf.hdf5 (739.4 MB, 60 parameters)

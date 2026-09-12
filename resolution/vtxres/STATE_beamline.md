@@ -503,3 +503,28 @@ of slope. Meanwhile the BEAM PULLS respond COHERENTLY (`mean = mean|.|`
 a measurement of the beam-spot centroid**: `sigma(x0) = 5 um/(0.199 sqrt(N))
 = 25 um/sqrt(N)`, i.e. 0.01 um at 7 M candidates. The parameters are
 over-determined by the residuals they create, so floating them is free.
+
+## The rebase, and the gates re-run on it
+
+`beamline-260913` rebased onto `cvh-exports-clean-260911` @ **`dbfe6e4b2c2`**
+("Two-track maker: minLegHits = 8 by default") -- **no conflicts**, the other
+agent's edits are in other regions of the file. New head **`0cb6c291354`**.
+Rebuilt clean in dev3.
+
+Four fresh 700-event legs with the REBASED build (`rb_on`, `rb_off`,
+`rb_wide`, `rb_half`; 1899 candidates) and `dy_bsold` unchanged:
+
+| gate | measured |
+|---|---|
+| G1 | ndof difference **3 x 1866 / 1866** on the baseline, and **3 x 1899 / 1899** unselected -- with `minLegHits = 8` applied PRE-FIT the mis-paired multi-candidate events are gone |
+| G2 | median **0**, max **6.5e-5** |
+| G3 | recomputed/exported **4.5e-6** (median); linearisation point vs optimum **0** (median) |
+| G4a | OLD == NEW at `1/sqrt(2)`, max **1.6e-5** |
+| G4b | the defect: worst **1.95** (`Jpsi_vtxz`) |
+| G4c | OLD `vtxvchk` 0.0217, NEW **9.1e-9**, OFF 8.8e-9 |
+| G5 | `bsvchk` **7.0e-9**; `resinfbsv` vs `bsvarv` 1.7e-7; vertex **9.0e-9**; mass **1.3e-7**; group closures ~5e-16 |
+| G6 | **7.9e-14** |
+| G7 | **9.2e-4** / 1.2e-3 / 8.4e-4 (median) |
+
+`logs_bs/gates_bs_rebased.log`. The `skipped[leghits<8]` counter fires 10
+times in 700 events of `rb_on/task_0000`, so the new default is active.

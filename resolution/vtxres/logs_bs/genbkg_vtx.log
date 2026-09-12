@@ -1,0 +1,70 @@
+[38;21mINFO:genbkg.py: === gen classes, 10254 candidates[0m
+  class              N               frac              P(|z|>3)              P(|z|>4)              P(|z|>5)             P(|z|>10)
+  signal         10214   0.9961 +- 0.0006      0.0086 +- 0.0009      0.0007 +- 0.0003      0.0000 +- 0.0000      0.0000 +- 0.0000
+  dup                1   0.0001 +- 0.0001      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000
+  otherdecay         8   0.0008 +- 0.0003      0.1250 +- 0.1169      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000
+  nonres             0
+  unmatched         31   0.0030 +- 0.0005      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000
+  SIGNAL         10214   0.9961 +- 0.0006
+  BACKGROUND        40   0.0039 +- 0.0006
+  |z_v| > 3: N 89  background fraction 0.0112 +- 0.0112   [signal 88  dup 0  otherdecay 1  nonres 0  unmatched 0]
+  |z_v| > 4: N 7  background fraction 0.0000 +- 0.0000   [signal 7  dup 0  otherdecay 0  nonres 0  unmatched 0]
+  |z_v| > 5: EMPTY
+  |z_v| > 10: EMPTY
+  first non-muon ancestor |pdgId| of the plus leg (top 8): 23:10235, 0:15, 421:2, 411:2
+  SIGNAL only, by weaker-leg valid hits: <= 5: N 0 P(|z|>5) --   <= 8: N 28 P(|z|>5) 0.0000 +- 0.0000   > 8: N 10186 P(|z|>5) 0.0000 +- 0.0000
+  class               dR(+) med/p99        dR(-) med/p99          pT+/genpT+ med/p5/p95          pT-/genpT- med/p5/p95
+  signal            0.00022/0.00100      0.00022/0.00099           1.0003/0.9714/1.0308           1.0001/0.9714/1.0304 
+  dup               0.02820/0.02820      0.00008/0.00008           0.9280/0.9280/0.9280           1.0051/1.0051/1.0051 
+  otherdecay        0.00038/0.00788      0.00049/0.00085           0.9882/0.9684/0.9934           1.0035/0.9846/1.0196 
+  unmatched         0.00017/0.00052      0.00021/0.00059           0.9958/0.9718/1.0231           1.0046/0.9837/1.0532 
+[38;21mINFO:genbkg.py: === cut |z_v| < t, ALL events: 10214 signal, 40 background[0m
+      t             signal eff          bkg rejection    purity before     purity after
+      3       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9961 +- 0.0006 0.9962 +- 0.0006
+      4       0.9993 +- 0.0003       0.0000 +- 0.0000 0.9961 +- 0.0006 0.9961 +- 0.0006
+      5       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.9961 +- 0.0006
+     10       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.9961 +- 0.0006
+[38;21mINFO:genbkg.py: === cut |z_v| < t, 1 candidate/event: 10183 signal, 5 background[0m
+      t             signal eff          bkg rejection    purity before     purity after
+      3       0.9914 +- 0.0009       0.0000 +- 0.0000 0.9995 +- 0.0002 0.9995 +- 0.0002
+      4       0.9993 +- 0.0003       0.0000 +- 0.0000 0.9995 +- 0.0002 0.9995 +- 0.0002
+      5       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9995 +- 0.0002 0.9995 +- 0.0002
+     10       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9995 +- 0.0002 0.9995 +- 0.0002
+[38;21mINFO:genbkg.py: === cut |z_v| < t, >1 candidate/event: 31 signal, 35 background[0m
+      t             signal eff          bkg rejection    purity before     purity after
+      3       1.0000 +- 0.0000       0.0286 +- 0.0282 0.4697 +- 0.0614 0.4769 +- 0.0620
+      4       1.0000 +- 0.0000       0.0000 +- 0.0000 0.4697 +- 0.0614 0.4697 +- 0.0614
+      5       1.0000 +- 0.0000       0.0000 +- 0.0000 0.4697 +- 0.0614 0.4697 +- 0.0614
+     10       1.0000 +- 0.0000       0.0000 +- 0.0000 0.4697 +- 0.0614 0.4697 +- 0.0614
+[38;21mINFO:genbkg.py: === the duplicate pairings: 1 gen decays reconstructed more than once (2 candidates)[0m
+  the gen-preferred candidate is also the one with the smallest |z_v|:      0.0000 +- 0.0000
+  the gen-preferred candidate is also the one with the smallest chi2/ndof: 1.0000 +- 0.0000
+  |z_v| of the 1 duplicates: median 0.489, p90 0.489, P(>5) 0.0000 +- 0.0000   against the 10214 signal: median 0.674, P(>5) 0.0000 +- 0.0000
+[38;21mINFO:genbkg.py: === cut on the WEAKER leg's valid hits: 10214 signal, 40 background[0m
+   minLegHits  removed             signal eff          bkg rejection     purity after   bkg in removed
+            4        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            5        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            6        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            7        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            8        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            9       29       0.9973 +- 0.0005       0.0250 +- 0.0247 0.9962 +- 0.0006 0.0345 +- 0.0339
+           10       89       0.9916 +- 0.0009       0.0750 +- 0.0416 0.9964 +- 0.0006 0.0337 +- 0.0191
+  class of the candidates a minLegHits cut removes:
+    < 4: N     0  
+    < 6: N     0  
+    < 8: N     0  
+[38;21mINFO:genbkg.py: === do the two cuts remove the SAME candidates?[0m
+  |z_v| > 5: 0  weaker leg < 4: 0  BOTH: 0  |z_v| only: 0  hits only: 0
+  |z_v| > 5: 0  weaker leg < 6: 0  BOTH: 0  |z_v| only: 0  hits only: 0
+  |z_v| > 5: 0  weaker leg < 8: 0  BOTH: 0  |z_v| only: 0  hits only: 0
+  pair-hit cut (minPairHits): N(pair < 10) 0, N(pair < 11) 0, N(pair < 16) 0
+[38;21mINFO:genbkg.py: === the two together (drop if |z_v| >= t OR weaker leg < k)[0m
+      t    k  removed             signal eff          bkg rejection     purity after
+      3    0       89       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9962 +- 0.0006
+      3    6       89       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9962 +- 0.0006
+      3    7       89       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9962 +- 0.0006
+      3    8       89       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9962 +- 0.0006
+      5    0        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006
+      5    6        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006
+      5    7        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006
+      5    8        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006

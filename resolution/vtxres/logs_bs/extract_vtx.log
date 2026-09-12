@@ -1,0 +1,13 @@
+# 6 files, functional vtx
+[6/6] cumulative 10254 (1 s)
+standard two-track selection on 10655 candidates
+    Jpsi_vtxok                     10655  (100.00 %, -0)
+    finite sigma_m, sigma_v        10653  ( 99.98 %, -2)
+    min leg hits >= 8              10413  ( 97.73 %, -240)
+    |z_v| < 5                      10358  ( 97.21 %, -55)
+    kept                           10358  ( 97.21 %)
+
+=== vtx: 10254 candidates, 263054 group rows (25.65/cand), 12.84 hit rows/cand
+    exponent storage 32.07 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs/dy_vtx.npz (321.0 MB)

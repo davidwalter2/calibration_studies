@@ -1,0 +1,63 @@
+# ON 10655 candidates (6 files), OFF 10650 (6 files), matched 10648
+# selected on BOTH: 10237; of those Jpsi_bsok 100.000 %
+
+=== ndof(ON) - ndof(OFF): 3 x10237
+
+=== sigma_m(ON)/sigma_m(OFF)  n 10236
+  mean 0.943410  median 0.957953  -> 5.659 % in sigma, 10.998 % in variance
+  vs softer muon GEN pT:
+    [   4.6,   20.7) GeV  n   1276  ratio 0.940720  (5.928 %)
+    [  20.7,   26.8) GeV  n   1276  ratio 0.943952  (5.605 %)
+    [  26.8,   31.0) GeV  n   1275  ratio 0.945362  (5.464 %)
+    [  31.0,   34.7) GeV  n   1276  ratio 0.946177  (5.382 %)
+    [  34.7,   37.7) GeV  n   1276  ratio 0.946115  (5.389 %)
+    [  37.7,   40.6) GeV  n   1275  ratio 0.942188  (5.781 %)
+    [  40.6,   43.3) GeV  n   1276  ratio 0.946291  (5.371 %)
+    [  43.3,  142.6) GeV  n   1275  ratio 0.937380  (6.262 %)
+  |m(ON) - m(OFF)| [MeV]                          median 205.9  p90 634.9  max 3.652e+04 MeV
+  rms(m_ON - m_OFF) = 861.06 MeV against the predicted 804.49 MeV (= sqrt(sigma_OFF^2 - sigma_ON^2))
+  MEAN m(ON) - m(OFF) = -10.942 +- 8.512 MeV   (relative -1.223e-04)
+
+=== where the gain comes from
+  sigma(p)/p, mu+: ON/OFF median 0.97017  mean 0.95661   (OFF median 0.01637)
+  sigma(p)/p, mu-: ON/OFF median 0.97012  mean 0.95672   (OFF median 0.01632)
+  the ANGULAR share of sigma_m^2 (Jpsi_fang, rows OFF): median 0.00009, mean 0.00016 -- so the gain is on the CURVATURES, not the opening angle
+  predicted sigma_m ratio from the two curvatures alone: median 0.95802, mean 0.94351
+  measured                                             : median 0.95795, mean 0.94351
+
+=== the VERTEX residual must be UNCHANGED
+  |r_v(ON)-r_v(OFF)| / max|.|                     median 0.293  p90 1.098  max 1.997 
+  |sigma_v(ON)-sigma_v(OFF)| / max|.|             median 0.05563  p90 0.3608  max 0.997 
+  |z_v(ON)-z_v(OFF)| / max|.|                     median 0.2833  p90 1.123  max 2 
+  |vhit(ON)-vhit(OFF)| / max|.|                   median 0.06306  p90 0.2733  max 0.7915 
+  |vms(ON)-vms(OFF)| / max|.|                     median 0.1032  p90 0.5073  max 0.9952 
+  max |z_v(ON) - z_v(OFF)| = 6.029 (median 0.1936)
+  Var(z_v) ON 1.12589  OFF 1.12593
+
+=== the leave-one-out identity against the rows-OFF fit
+  |r_bs(ON) - r_bs(OFF)| / sigma                  median 0.0009095  p90 0.00386  max 0.5409 
+  |z_bs(ON) - z_bs(OFF)|                          median 0.00116  p90 0.005525  max 3.291 
+  |Cov(ON) - Cov(OFF)| / |Cov|                    median 0.0008417  p90 0.003735  max 0.135 
+
+=== the beam-spot MEAN TERM (the numbers that decide whether the beam-spot parameters must float)
+  a 5 um shift of the beam-spot CENTROID (10237 candidates)
+    mass, d x0 [MeV]           mean    -0.40729 +- 0.888 MeV   rms     89.811   mean|.|     66.232   [mean/sigma -0.000854, rms/sigma 0.065583]
+    mass, d y0 [MeV]           mean     -1.0334 +- 0.961 MeV   rms     97.272   mean|.|     67.534   [mean/sigma -0.000525, rms/sigma 0.067777]
+    mass, d x0 [rel]           mean -4.1557e-06 +- 9.73e-06    rms 0.00098488   mean|.| 0.00073724
+    mass, d y0 [rel]           mean -1.0585e-05 +- 1e-05    rms  0.0010153   mean|.| 0.00075108
+    vertex r_v / sigma_v, d x0 mean  -0.0014949 +- 0.00081    rms    0.08196   mean|.|    0.05969
+    vertex r_v / sigma_v, d y0 mean -0.00029743 +- 0.000817    rms   0.082704   mean|.|   0.060492
+    beam z_bs,x, d x0          mean     -0.1994 +- 0.000909    rms   0.091933   mean|.|     0.1994
+    beam z_bs,y, d y0          mean    -0.20325 +- 0.000935    rms   0.094647   mean|.|    0.20325
+  a 1e-4 change of the SLOPE (response = the same weight x (z_v - z0))
+    mass, d dxdz [MeV]         mean     -1.6336 +- 0.625 MeV   rms     63.188   mean|.|     37.918   [mean/sigma -0.001172, rms/sigma 0.047020]
+    mass, d dydz [MeV]         mean    -0.72404 +- 0.663 MeV   rms     67.127   mean|.|     38.979   [mean/sigma -0.000479, rms/sigma 0.049027]
+    mass, d dxdz [rel]         mean -1.8937e-05 +- 6.91e-06    rms 0.00069892   mean|.| 0.00042215
+    vertex r_v / sigma_v, d dxdz mean -2.3954e-05 +- 0.000595    rms   0.060201   mean|.|   0.034588
+    beam z_bs,x, d dxdz        mean   -0.001797 +- 0.00155    rms    0.15656   mean|.|    0.11386
+  <|z_v - z0|> = 2.8933 cm
+  <sigma_m> = 1135.24 MeV, <sigma_bs,x> = 51.68 um, <sigma_bs,y> = 50.82 um
+
+=== the luminous region as a share of the other two functionals
+  <Jpsi_massvbs> = 0.040012
+  <Jpsi_vtxvbs>  = 0.061051
