@@ -13,6 +13,7 @@ HALF=${HALF:-$BL/dy_bshalf}
 OLD=${OLD:-$BL/dy_bsold}
 GRP=${GRP:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev3/src/Analysis/HitAnalyzer/data/materialGroups50.txt}
 VENV=/work/submit/david_w/ZMass/mfs/.venv/bin/activate
+FIG=${FIG:-$HOME/public_html/ZMass/cvh/260913_beamline}
 NCAND=${NCAND:-8000}
 J=${J:-24}
 mkdir -p $R/cards $R/fits $HERE/logs_bs
@@ -46,14 +47,18 @@ extract)
   done ;;
 bkg)
   source $VENV
-  for F in bsx bsy vtx; do
-    python3 -u genbkg.py --npz $R/dy_$F.npz --tag dy_bs_$F --constraint on \
-      --classes --cuts 2>&1 | tee logs_bs/genbkg_$F.log
-  done ;;
+  python3 -u bkg_bs.py --bsx $XNPZ --bsy $YNPZ --tag dy_bs \
+    2>&1 | tee logs_bs/bkg_bs.log
+  python3 -u genbkg.py --npz $VNPZ --tag dy_bs_vtx --constraint on \
+    --classes --cuts 2>&1 | tee logs_bs/genbkg_vtx.log ;;
 plots)
   source $VENV
-  python3 -u plot_vtx.py --npz $XNPZ $YNPZ --tags bsx bsy --maxn ${2:-20000} \
-    --outtag beamline --densities --composition --sigma 2>&1 | tee logs_bs/plots.log ;;
+  # the figure directory is named explicitly (`260913_beamline`) rather than
+  # by today's date: it is the study's directory and it is referenced by name
+  # in the report and in STATE.
+  python3 -u plot_vtx.py --npz $XNPZ $YNPZ $VNPZ $MNPZ --tags bsx bsy vtx mass \
+    --maxn ${2:-20000} --outpath $FIG --densities --composition --sigma \
+    2>&1 | tee logs_bs/plots.log ;;
 cards)
   for c in bs_cf bs_gauss bs_gaussq vtx_cf vtx_gaussq mass_cf \
            vtxbs_cf vtxbs_gaussq vtxbsm_cf \

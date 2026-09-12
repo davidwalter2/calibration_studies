@@ -38,7 +38,10 @@ SCAL = ['Jpsi_vtxres', 'Jpsi_vtxsig', 'Jpsi_vtxz', 'Jpsi_vtxok', 'Jpsi_vtxvchk',
         'Jpsi_bsres', 'Jpsi_bscov', 'Jpsi_bsz', 'Jpsi_bschi2', 'Jpsi_bschi2fit',
         'Jpsi_bsok', 'Jpsi_bsvchk', 'Jpsi_bsvtx', 'Jpsi_bsspot', 'Jpsi_bswidth',
         'Jpsi_bsslope', 'Jpsi_bsmeanmass', 'Jpsi_bsmeanvtx', 'Jpsi_bsmeanbs',
-        'Jpsi_massvbs', 'Jpsi_vtxvbs']
+        'Jpsi_massvbs', 'Jpsi_vtxvbs', 'Jpsi_fang',
+        'Jpsi_sigmarelplus', 'Jpsi_sigmarelminus', 'Jpsi_rhomom',
+        'Jpsigen_mass', 'Muplusgen_pt', 'Muminusgen_pt',
+        'Muplus_nvalid', 'Muminus_nvalid']
 
 
 def load(pattern, nmax=None):
@@ -74,8 +77,32 @@ def load(pattern, nmax=None):
 
 
 def key(d):
-    return np.array([f'{r}:{l}:{e}:{p:.6f}' for r, l, e, p
-                     in zip(d['run'], d['lumi'], d['event'], d['Jpsi_pt'])])
+    """(run, lumi, event, rank by Jpsi_pt within the event).
+
+    `Jpsi_pt` itself cannot be part of the key: the two regimes are DIFFERENT
+    FITS, so their fitted pT differ in the last digits and a value-based key
+    matches nothing.  The ORDER within an event is stable.
+    """
+    run = np.asarray(d['run'], np.int64)
+    lumi = np.asarray(d['lumi'], np.int64)
+    evt = np.asarray(d['event'], np.int64)
+    pt = np.asarray(d['Jpsi_pt'], float)
+    if 'Muplus_nvalid' in d:
+        nvp = np.asarray(d['Muplus_nvalid'], np.int64)
+        nvm = np.asarray(d['Muminus_nvalid'], np.int64)
+        base = np.array([f'{r}:{l}:{e}:{a}:{b}'
+                         for r, l, e, a, b in zip(run, lumi, evt, nvp, nvm)])
+    else:
+        base = np.array([f'{r}:{l}:{e}' for r, l, e in zip(run, lumi, evt)])
+    rank = np.zeros(len(base), np.int64)
+    order = np.lexsort((-pt, base))
+    prev, k = None, 0
+    for i in order:
+        if base[i] != prev:
+            prev, k = base[i], 0
+        rank[i] = k
+        k += 1
+    return np.char.add(np.char.add(base, ':'), rank.astype(str))
 
 
 def match(da, db):
@@ -108,8 +135,23 @@ def unpack6(v):
     return np.array([[v[0], v[1], v[2]], [v[1], v[3], v[4]], [v[2], v[4], v[5]]])
 
 
+MINLEG = 8   # the gen-background study's baseline (STATE_bkg.md)
+
+
 def sel(d):
+    """The SAME selection on both regimes -- that is the point of it.
+
+    On top of the vtxres extraction's cuts it adds a FINITENESS check and a
+    minimum of 8 valid hits on the weaker leg: a leg of <= 3-4 hits can give
+    an infinite `Jpsi_sigmamass` and an absurd sigma_v with every flag true.
+    Both are cuts on the FIT'S OWN covariance, never on a residual.
+    """
     ok = np.asarray(d['Jpsi_vtxok'], bool)
+    ok &= np.isfinite(np.asarray(d['Jpsi_sigmamass'], float))
+    ok &= np.isfinite(np.asarray(d['Jpsi_vtxsig'], float))
+    if 'Muplus_nvalid' in d:
+        ok &= np.minimum(np.asarray(d['Muplus_nvalid'], np.int64),
+                         np.asarray(d['Muminus_nvalid'], np.int64)) >= MINLEG
     ok &= np.asarray(d.get('cfmass_ok', np.ones(len(ok), bool)), bool)
     ok &= np.asarray(d['Jpsi_vtxsig'], float) > 0
     ok &= np.asarray(d['Jpsi_sigmamass'], float) > 0
@@ -177,6 +219,51 @@ def main():
     mon = np.asarray(don['Jpsi_mass'], float)[ia]
     mof = np.asarray(dof['Jpsi_mass'], float)[ib]
     q('|m(ON) - m(OFF)| [MeV]', np.abs(mon-mof)*1e3, 'MeV')
+    # A per-candidate shift is EXPECTED: conditioning on a new measurement
+    # moves the estimate, and its spread must be sqrt(sigma_OFF^2 -
+    # sigma_ON^2).  What matters for a mass measurement is the ENSEMBLE MEAN.
+    dm = (mon - mof)*1e3
+    pred = np.sqrt(np.maximum(smof**2 - smon**2, 0.))*1e3
+    okd = np.isfinite(dm) & np.isfinite(pred) & (pred > 0)
+    print(f'  rms(m_ON - m_OFF) = {dm[okd].std():.2f} MeV against the predicted '
+          f'{np.sqrt(np.mean(pred[okd]**2)):.2f} MeV '
+          f'(= sqrt(sigma_OFF^2 - sigma_ON^2))')
+    print(f'  MEAN m(ON) - m(OFF) = {dm[okd].mean():+.3f} +- '
+          f'{dm[okd].std()/np.sqrt(okd.sum()):.3f} MeV   '
+          f'(relative {dm[okd].mean()/np.mean(mon[okd])/1e3:+.3e})')
+
+    # ---------------- THE MECHANISM ----------------
+    if 'Jpsi_sigmarelplus' in don and 'Jpsi_sigmarelplus' in dof:
+        print('\n=== where the gain comes from')
+        for b, lab in (('Jpsi_sigmarelplus', 'sigma(p)/p, mu+'),
+                       ('Jpsi_sigmarelminus', 'sigma(p)/p, mu-')):
+            x = np.asarray(don[b], float)[ia]
+            y = np.asarray(dof[b], float)[ib]
+            m2 = np.isfinite(x) & np.isfinite(y) & (y > 0)
+            r2 = x[m2]/y[m2]
+            print(f'  {lab}: ON/OFF median {np.median(r2):.5f}  mean {r2.mean():.5f}'
+                  f'   (OFF median {np.median(y[m2]):.5f})')
+        if 'Jpsi_fang' in dof:
+            fa = np.asarray(dof['Jpsi_fang'], float)[ib]
+            fa = fa[np.isfinite(fa)]
+            print(f'  the ANGULAR share of sigma_m^2 (Jpsi_fang, rows OFF): '
+                  f'median {np.median(fa):.5f}, mean {fa.mean():.5f} '
+                  f'-- so the gain is on the CURVATURES, not the opening angle')
+        if all(k in don and k in dof for k in
+               ('Jpsi_sigmarelplus', 'Jpsi_sigmarelminus', 'Jpsi_rhomom')):
+            def vmass(d, idx):
+                sp = np.asarray(d['Jpsi_sigmarelplus'], float)[idx]
+                sm = np.asarray(d['Jpsi_sigmarelminus'], float)[idx]
+                rr = np.asarray(d['Jpsi_rhomom'], float)[idx]
+                return 0.25*(sp**2 + sm**2 + 2*rr*sp*sm)
+            vo, vn = vmass(dof, ib), vmass(don, ia)
+            m3 = np.isfinite(vo) & np.isfinite(vn) & (vo > 0)
+            pr = np.sqrt(vn[m3]/vo[m3])
+            me = (smon/smof)[m3]
+            print(f'  predicted sigma_m ratio from the two curvatures alone: '
+                  f'median {np.median(pr):.5f}, mean {pr.mean():.5f}')
+            print(f'  measured                                             : '
+                  f'median {np.median(me):.5f}, mean {me.mean():.5f}')
 
     # ---------------- the VERTEX residual ----------------
     print('\n=== the VERTEX residual must be UNCHANGED')
@@ -245,22 +332,45 @@ def main():
     sbx = np.sqrt(np.maximum(bcov[:, 0], 0.))
     sby = np.sqrt(np.maximum(bcov[:, 2], 0.))
     f = bsok
-    print(f'  a 5 um shift of the beam-spot CENTROID (x0 then y0):')
-    print(f'    mass  |dm| = {np.abs(mm[f,0]).mean()*d5*1e3:.5f} / '
-          f'{np.abs(mm[f,1]).mean()*d5*1e3:.5f} MeV (mean), '
-          f'p99 {np.percentile(np.abs(mm[f,0])*d5*1e3,99):.5f} MeV; '
-          f'in units of sigma_m: {np.abs(mm[f,0]*d5/smon[f]).mean():.5f}')
-    print(f'    vertex |dr_v|/sigma_v = {np.abs(mv[f,0]*d5/sv[f]).mean():.5f} / '
-          f'{np.abs(mv[f,1]*d5/sv[f]).mean():.5f}')
-    print(f'    beam   |dz_bs,x| = {np.abs(mb[f,0,0]*d5/sbx[f]).mean():.5f}, '
-          f'|dz_bs,y| = {np.abs(mb[f,1,1]*d5/sby[f]).mean():.5f}')
-    print(f'  a 1e-4 change of the SLOPE (dxdz then dydz), response = weight x (z_v - z0):')
-    print(f'    mass  |dm| = {np.abs(mm[f,0]*zv[f]).mean()*ds*1e3:.5f} / '
-          f'{np.abs(mm[f,1]*zv[f]).mean()*ds*1e3:.5f} MeV; '
-          f'in sigma_m {np.abs(mm[f,0]*zv[f]*ds/smon[f]).mean():.5f}')
-    print(f'    vertex |dr_v|/sigma_v = {np.abs(mv[f,0]*zv[f]*ds/sv[f]).mean():.5f}')
-    print(f'    beam   |dz_bs,x| = {np.abs(mb[f,0,0]*zv[f]*ds/sbx[f]).mean():.5f}, '
-          f'|dz_bs,y| = {np.abs(mb[f,1,1]*zv[f]*ds/sby[f]).mean():.5f}')
+    nf = int(f.sum())
+
+    def report(lab, resp, unit, scale=1.0, ref=None):
+        """resp = d(functional)/d(parameter) per candidate, already multiplied
+        by the parameter shift.  THE TWO NUMBERS ARE DIFFERENT QUESTIONS:
+
+          <resp>   the ENSEMBLE MEAN -- a BIAS on the functional, which is
+                   what a mass measurement feels.  The per-candidate response
+                   depends on the pair's phi, so it largely cancels and this
+                   is what has to be compared with the target.
+          rms      the per-candidate SPREAD -- it adds in quadrature to the
+                   resolution, it does not move the scale.
+        """
+        v = resp[f]*scale
+        mu, sd = float(np.mean(v)), float(np.std(v))
+        err = sd/np.sqrt(max(nf, 1))
+        line = (f'    {lab:<26} mean {mu:+11.5g} +- {err:.3g} {unit}   '
+                f'rms {sd:10.5g}   mean|.| {float(np.mean(np.abs(v))):10.5g}')
+        if ref is not None:
+            r = ref[f]
+            line += (f'   [mean/sigma {float(np.mean(v/r)):+.6f}, '
+                     f'rms/sigma {float(np.std(v/r)):.6f}]')
+        print(line)
+
+    print(f'  a 5 um shift of the beam-spot CENTROID ({nf} candidates)')
+    report('mass, d x0 [MeV]', mm[:, 0]*d5*1e3, 'MeV', ref=smon*1e3)
+    report('mass, d y0 [MeV]', mm[:, 1]*d5*1e3, 'MeV', ref=smon*1e3)
+    report('mass, d x0 [rel]', mm[:, 0]*d5/np.maximum(mon, 1e-9), '')
+    report('mass, d y0 [rel]', mm[:, 1]*d5/np.maximum(mon, 1e-9), '')
+    report('vertex r_v / sigma_v, d x0', mv[:, 0]*d5/np.maximum(sv, 1e-30), '')
+    report('vertex r_v / sigma_v, d y0', mv[:, 1]*d5/np.maximum(sv, 1e-30), '')
+    report('beam z_bs,x, d x0', mb[:, 0, 0]*d5/np.maximum(sbx, 1e-30), '')
+    report('beam z_bs,y, d y0', mb[:, 1, 1]*d5/np.maximum(sby, 1e-30), '')
+    print(f'  a 1e-4 change of the SLOPE (response = the same weight x (z_v - z0))')
+    report('mass, d dxdz [MeV]', mm[:, 0]*zv*ds*1e3, 'MeV', ref=smon*1e3)
+    report('mass, d dydz [MeV]', mm[:, 1]*zv*ds*1e3, 'MeV', ref=smon*1e3)
+    report('mass, d dxdz [rel]', mm[:, 0]*zv*ds/np.maximum(mon, 1e-9), '')
+    report('vertex r_v / sigma_v, d dxdz', mv[:, 0]*zv*ds/np.maximum(sv, 1e-30), '')
+    report('beam z_bs,x, d dxdz', mb[:, 0, 0]*zv*ds/np.maximum(sbx, 1e-30), '')
     print(f'  <|z_v - z0|> = {np.abs(zv[f]).mean():.4f} cm')
     print(f'  <sigma_m> = {smon[f].mean()*1e3:.2f} MeV, '
           f'<sigma_bs,x> = {sbx[f].mean()*1e4:.2f} um, '

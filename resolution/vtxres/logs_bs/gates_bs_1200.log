@@ -1,0 +1,99 @@
+# ON: 6 files, 3287 candidates
+# Jpsi_bsok 99.970 %
+
+=== G1 ndof(ON) - ndof(OFF) == 3
+  matched 3284, 3151 on the baseline; ndof difference: 3 x3151
+  PASS
+  (unselected: 2 x1, 3 x3282, 4 x1)
+
+# the baseline keeps 3153 of 3287 candidates
+
+=== G3 the beam chi2 enters ONCE
+  |recomputed/exported - 1| (chi2fit)           median 3.929e-06  p90 2.466e-05  max 0.0003794 
+  |chi2(linpoint)/chi2(optimum) - 1|            median 0  p90 2.916e-06  max 0.01095 
+  chi2fit on 3 rows: median 1.5078, mean 2.464 (the mean is tail-dominated on the UNSELECTED sample); 2x would double both
+
+=== G5 sum_b |a_b|^2 == Cov_ii  (the registered blocks, fam != 15)
+  maker Jpsi_bsvchk                             median 8.351e-09  p90 6.036e-08  max 2.898e-05 
+  resinfbsv vs bsvarv, per block, max rel       median 1.681e-07  p90 1.973e-07  max 2.494e-07 
+  Jpsi_vtxvchk (vertex, WITH the beam block)    median 8.804e-09  p90 3.975e-08  max 1.751e-06 
+  mass: |(mat+hit+bs)/sigma_m^2 - 1|            median 1.294e-07  p90 4.093e-07  max 0.01181 
+  cfmass_grp_closure                            median 4.196e-16  p90 7.341e-16  max 4.469e-15 
+  cfvtx_grp_closure                             median 5.009e-16  p90 7.391e-16  max 2.57e-15 
+  cfbs_grp_closure                              median 5.501e-16  p90 8.603e-16  max 4.421e-15 
+
+=== G6 the mean-term identity: Jpsi_bsmeanbs == -P
+  max |Jpsi_bsmeanbs + P|                       median 7.876e-14  p90 7.876e-14  max 2.326e-11 
+
+=== G7 the leave-one-out identity against the rows-OFF fit
+  3284 matched, 3153 with bsok, 3151 evaluated
+  |r_bs(ON) - r_bs(OFF)| / sigma                median 0.001168  p90 0.004463  max 0.5725 
+  |z_bs(ON) - z_bs(OFF)|                        median 0.001603  p90 0.00742  max 0.617 
+  |Cov(ON) - Cov(OFF)| / |Cov|                  median 0.001105  p90 0.004716  max 0.05454 
+
+=== G4a the OLD build == the NEW build at beamWidthScale=1/sqrt(2)
+  3287 matched candidates (half vs old); 3153 pass the baseline on BOTH
+    branch                        p50        p99      p99.9        max  frac>1e-6
+    Jpsi_vtxres             0.000e+00  2.319e-07  4.400e-06  1.961e-05    0.00317
+    Jpsi_vtxsig             0.000e+00  1.096e-07  1.896e-07  6.389e-07    0.00000
+    Jpsi_vtxz               0.000e+00  2.138e-07  4.190e-06  1.964e-05    0.00349
+    Jpsi_mass               0.000e+00  0.000e+00  8.116e-08  2.325e-07    0.00000
+    Jpsi_sigmamass          0.000e+00  3.045e-07  4.588e-07  9.838e-07    0.00000
+    Jpsi_mass_unc           0.000e+00  0.000e+00  1.056e-07  2.317e-07    0.00000
+    Jpsi_x                  0.000e+00  0.000e+00  0.000e+00  1.627e-07    0.00000
+    Jpsi_y                  0.000e+00  0.000e+00  0.000e+00  8.814e-08    0.00000
+    Jpsi_z                  0.000e+00  0.000e+00  1.257e-07  6.292e-07    0.00000
+    Jpsi_pt                 0.000e+00  0.000e+00  2.171e-07  8.474e-07    0.00000
+    Jpsi_eta                0.000e+00  0.000e+00  9.993e-08  3.942e-07    0.00000
+    Muplus_pt               0.000e+00  0.000e+00  9.598e-08  3.760e-07    0.00000
+    Muminus_pt              0.000e+00  0.000e+00  5.645e-08  2.014e-07    0.00000
+    chisqval                0.000e+00  6.318e-08  2.344e-06  5.959e-06    0.00222
+    Jpsi_vtxvgf             0.000e+00  1.019e-07  2.194e-07  5.172e-07    0.00000
+    resinfcov               9.764e-08  1.156e-06  1.834e-06  3.805e-06    0.01522
+    resinfcovhit            1.083e-07  1.249e-06  2.662e-06  1.219e-05    0.01840
+    cfmass_vgf              3.307e-07  2.988e-06  6.011e-06  9.937e-06    0.12972
+    ndof(A)-ndof(B): unique [0.]
+    WORST relative difference over all compared branches: 1.964e-05   (worst branch: Jpsi_vtxz)
+  PASS -- the rows DID enter twice
+
+=== G4b the SIZE of the double-emission defect (nominal vs old)
+  3287 matched candidates (on vs old); 3153 pass the baseline on BOTH
+    branch                        p50        p99      p99.9        max  frac>1e-6
+    Jpsi_vtxres             0.000e+00  2.319e-07  4.400e-06  1.961e-05    0.00317
+    Jpsi_vtxsig             0.000e+00  1.096e-07  1.896e-07  6.389e-07    0.00000
+    Jpsi_vtxz               0.000e+00  2.138e-07  4.190e-06  1.964e-05    0.00349
+    Jpsi_mass               0.000e+00  0.000e+00  8.116e-08  2.325e-07    0.00000
+    Jpsi_sigmamass          0.000e+00  3.045e-07  4.588e-07  9.838e-07    0.00000
+    Jpsi_mass_unc           0.000e+00  0.000e+00  1.056e-07  2.317e-07    0.00000
+    Jpsi_x                  0.000e+00  0.000e+00  0.000e+00  1.627e-07    0.00000
+    Jpsi_y                  0.000e+00  0.000e+00  0.000e+00  8.814e-08    0.00000
+    Jpsi_z                  0.000e+00  0.000e+00  1.257e-07  6.292e-07    0.00000
+    Jpsi_pt                 0.000e+00  0.000e+00  2.171e-07  8.474e-07    0.00000
+    Jpsi_eta                0.000e+00  0.000e+00  9.993e-08  3.942e-07    0.00000
+    Muplus_pt               0.000e+00  0.000e+00  9.598e-08  3.760e-07    0.00000
+    Muminus_pt              0.000e+00  0.000e+00  5.645e-08  2.014e-07    0.00000
+    chisqval                0.000e+00  6.318e-08  2.344e-06  5.959e-06    0.00222
+    Jpsi_vtxvgf             0.000e+00  1.019e-07  2.194e-07  5.172e-07    0.00000
+    resinfcov               9.764e-08  1.156e-06  1.834e-06  3.805e-06    0.01522
+    resinfcovhit            1.083e-07  1.249e-06  2.662e-06  1.219e-05    0.01840
+    cfmass_vgf              3.307e-07  2.988e-06  6.011e-06  9.937e-06    0.12972
+    ndof(A)-ndof(B): unique [0.]
+    WORST relative difference over all compared branches: 1.964e-05   (worst branch: Jpsi_vtxz)
+
+=== G4c the closure the OLD build cannot have (the beam rows are in V and in no dV_b)
+  OLD  Jpsi_vtxvchk                             median 0.02174  p90 0.1319  max 0.4135 
+  NEW  Jpsi_vtxvchk                             median 9.035e-09  p90 4.372e-08  max 0.009392 
+  OFF  Jpsi_vtxvchk                             median 8.709e-09  p90 7.821e-08  max 2.993 
+
+=== the two pulls (orientation only; the study does the real work)
+  UNSELECTED, for contrast: Var(z_x) 1.364 on 3153
+  z_bs,x: n 3153  mean +0.0106  Var 1.3639  trimVar 1.2841  P(|z|>3) 0.01840  P(|z|>5) 0.002537
+  z_bs,y: n 3153  mean -0.0023  Var 1.2550  trimVar 1.1968  P(|z|>3) 0.00983  P(|z|>5) 0.000951
+
+=== the family composition of the two beam functionals
+  Jpsi_bsvbs       x 0.1367   y 0.1292
+  Jpsi_bsvhit      x 0.6700   y 0.6769
+  Jpsi_bsvms       x 0.1933   y 0.1939
+  Jpsi_bsvioni     x 0.0000   y 0.0000
+  Jpsi_massvbs     0.034713
+  Jpsi_vtxvbs      0.044434
