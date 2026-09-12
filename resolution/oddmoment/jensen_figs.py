@@ -43,7 +43,7 @@ def main():
     ap.add_argument("--outdir", default="")
     a = ap.parse_args()
     outdir = a.outdir or os.path.expanduser(
-        "~/public_html/cvh/%s_oddmoment" % datetime.date.today().strftime("%y%m%d"))
+        "~/public_html/ZMass/cvh/%s_oddmoment" % datetime.date.today().strftime("%y%m%d"))
     os.makedirs(outdir, exist_ok=True)
     pubhtml.ensure_index(outdir, logger=logger)
     F = read_fits(a.fits)

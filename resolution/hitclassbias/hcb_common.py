@@ -10,8 +10,8 @@ and enters the fit as a curvature bias. Here the location is KEPT.
 
 THE SIGN CONVENTION, which is the whole difficulty. `dxrecsim` is
 `rec - sim` in the MODULE's own local frame (local x for pixels and barrel
-strips, local phi for the radial-strip wedges -- see
-ResidualGlobalCorrectionMakerG4e.cc:1761 and :1855), and `dxerr` is the
+strips, local phi for the radial-strip wedges -- filled in
+ResidualGlobalCorrectionMakerG4e.cc), and `dxerr` is the
 square root of the same coordinate's variance as the fit used it, so
 `pull = dxrecsim/dxerr` is exactly the residual in the fit's measurement dof.
 The map to curvature is

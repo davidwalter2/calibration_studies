@@ -38,8 +38,9 @@ regression measures exactly the C/B it needs. No free parameter.
 
 WHY THE LINEAR TERM MUST BE IN THE FIT. The seed is the generalTracks Kalman
 fit, which shares its hits with CVH, so d1 is correlated with the measurement
-noise that also sets d2 -- this is the conditioning trap of sec. 3 of the
-2026-09-08 note (corr(seed->final SIGNED, x) = +0.113). That contamination is
+noise that also sets d2 -- the conditioning trap that makes the SIGNED
+seed->final step unusable as a binning variable
+(corr(seed->final SIGNED, x) = +0.113). That contamination is
 LINEAR in d1 to leading order, so it is absorbed by `a` and the QUADRATIC
 coefficient is what carries the curvature. This is a mitigation, not a proof:
 a d1^2-correlated noise term would still leak.

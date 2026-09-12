@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """CHARGE DECOMPOSITION of the single-track q/p odd moment.
 
-The open item (NOTES 2026-09-03 s5, 2026-09-04 radiative s5): the odd moment
-<z e^{-uz^2}> of z = (q/p_fit - q/p_gen)/sigma_pred is 6-10x the CF model at
-pT 20-60 and ~2.6x at pT 2-20, and its ABSOLUTE size does not fall with
-momentum the way any energy-loss channel does.
+THE OPEN ITEM.  The odd moment <z e^{-uz^2}> of
+z = (q/p_fit - q/p_gen)/sigma_pred is 6-10x the CF model at pT 20-60 and ~2.6x
+at pT 2-20, and its ABSOLUTE size does not fall with momentum the way any
+energy-loss channel does.
 
 THE DECOMPOSITION.  Write any odd statistic O measured separately on the two
 charges as

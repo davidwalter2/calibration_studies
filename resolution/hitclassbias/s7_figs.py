@@ -24,7 +24,7 @@ def save(fig, outdir, name):
 
 
 day = datetime.date.today().strftime("%y%m%d")
-outdir = os.path.expanduser(f"~/public_html/cvh/{day}_hitclassbias")
+outdir = os.path.expanduser(f"~/public_html/ZMass/cvh/{day}_hitclassbias")
 os.makedirs(outdir, exist_ok=True)
 pubhtml.ensure_index(outdir, logger=logger)
 

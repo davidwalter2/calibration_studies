@@ -23,11 +23,11 @@ error) and remember sigma = sigma_rel / p.
           <x> = D_T / (sigma cosh eta).
 
   M3  A constant offset OF THE PULL itself -- no physical shape, the null
-      shape used by the earlier per-band analysis.
+      shape the per-band tables assume.
           <x> = const.
 
-WHY A REGRESSION AND NOT A BINNED FIT. Binning on the fitted sigma is the
-conditioning trap of sec. 3 of the 2026-09-08 note. Here every regressor is
+WHY A REGRESSION AND NOT A BINNED FIT. Binning on the fitted sigma is a
+conditioning trap: `sigma` is the pull's own denominator. Here every regressor is
 built from `sigma` and the RECO p, which are the same reconstructed quantities
 -- but the regression is against the CHARGE-EVEN projection, and the leading
 selection artefact (`sigma = sigma_bar (1 + a q x)`) is charge-ODD, so it

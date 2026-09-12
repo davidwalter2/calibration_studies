@@ -47,7 +47,7 @@ def main():
     a = ap.parse_args()
     day = datetime.date.today().strftime("%y%m%d")
     outdir = a.outdir or os.path.expanduser(
-        f"~/public_html/cvh/{day}_hitclassbias")
+        f"~/public_html/ZMass/cvh/{day}_hitclassbias")
     os.makedirs(outdir, exist_ok=True)
     pubhtml.ensure_index(outdir, logger=logger)
     logger.info(f"writing to {outdir}")

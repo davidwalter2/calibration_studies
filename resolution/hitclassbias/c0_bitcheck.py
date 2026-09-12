@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """THE BIT CHECK. `base` must reproduce `mugun_ul16_260903x_m0` track by track.
 
-WHY IT GATES EVERYTHING. `base` was launched from a DIFFERENT driver script
-(`run_conv.sh`) against the same CMSSW area weeks after the baseline was
-produced. If the area moved -- a rebuild, a changed default, a different
+WHY IT GATES EVERYTHING. `base` comes from a DIFFERENT driver script
+(`run_conv.sh`) run against the same CMSSW area long after the baseline. If
+the area has moved -- a rebuild, a changed default, a different
 scalar-potential init file -- then `tight` and `damp` are being compared
 against a baseline that is not the one whose -6.3e-3 / +21e-3 decomposition is
 the subject of the study, and every conclusion below is about the wrong thing.

@@ -11,12 +11,10 @@ OUT=out_conv.txt
 say() { echo "$@" | tee -a "$OUT"; }
 run() { echo -e "\n\n############ $* ############" >> "$OUT"; "$@" >> "$OUT" 2>&1; }
 
-# NTASKS pins the sample. The three productions were launched at 40 tasks and
-# a SECOND, larger pass (NT=160) was started on the same output directories
-# while this analysis was being written, so an unpinned extraction would keep
-# growing the sample under the reader and no two runs of this script would
-# compare the same tracks. 40 is what the numbers in NOTES/STATE quote; raise
-# it deliberately when the 160-task pass has finished.
+# NTASKS pins the sample. The production output directories keep filling as
+# further tasks complete, so an unpinned extraction would grow the sample under
+# the reader and no two runs of this script would compare the same tracks.
+# 40 is the sample the quoted numbers are measured on; raise it deliberately.
 NTASKS=${NTASKS:-40}
 for v in base tight damp; do
   say "=== extracting $v (first $NTASKS complete tasks)"

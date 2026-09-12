@@ -122,10 +122,10 @@ def main():
     P("|---|---|---|---|---|---|---|---|---|---|---|")
     # BINNING VARIABLE.  Binning on the EXPORTED sigma_m is binning on the mass
     # fluctuation itself (sigma_m = sigma_bar (1 + a_m x)), which displaces the
-    # mass location inside each bin by exactly the artefact of the previous
-    # entry -- up to 1e-3, an order above the Jensen term.  The binning must be
-    # done on a sigma that cannot see the fluctuation: the leave-one-out cell
-    # mean of ln sigma_m in cells built from GEN leg kinematics only.
+    # mass location inside each bin by the same self-consistency artefact --
+    # up to 1e-3, an order above the Jensen term.  The binning must be done on
+    # a sigma that cannot see the fluctuation: the leave-one-out cell mean of
+    # ln sigma_m in cells built from GEN leg kinematics only.
     def qb(v, nb):
         return np.clip(np.digitize(v, np.quantile(v, np.linspace(0, 1, nb + 1))[1:-1]),
                        0, nb - 1).astype(np.int64)

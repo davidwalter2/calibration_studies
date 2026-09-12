@@ -533,7 +533,7 @@ def main():
     args = ap.parse_args()
     stamp = datetime.date.today().strftime("%y%m%d")
     outdir = args.outpath or os.path.expanduser(
-        f"~/public_html/cvh/{stamp}_qmsmodel")
+        f"~/public_html/ZMass/cvh/{stamp}_qmsmodel")
     os.makedirs(outdir, exist_ok=True)
     pubhtml.ensure_index(outdir, logger=logger)
     D = load(args.tmp)

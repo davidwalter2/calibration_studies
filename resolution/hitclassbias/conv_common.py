@@ -111,7 +111,7 @@ def combine(vs, es):
 
 def pair(a, b):
     """Indices into a and b of the tracks present in BOTH, keyed on
-    (run, lumi, event, slot).
+    (run, lumi, event, charge).
 
     A PAIRED comparison is what makes the sub-1e-3 differences visible: the
     stochastic content of a track (its hits, its scatters) is COMMON to the

@@ -103,8 +103,6 @@ def main():
         e = float((q * x)[s0].std(ddof=1) / np.sqrt(s0.sum()))
         P(f"| {nm} | {A0:+.5f} | {A1:+.5f} +- {e:.5f} | {A2:+.5f} | {Am:+.5f} |")
     for iu, u in enumerate(PROBES):
-        A0 = 0.5 * ((q * z * np.exp(-u * z ** 2))[q > 0].mean() * 2
-                    - 0.0)  # placeholder, replaced below
         A0 = float((q * z * np.exp(-u * z ** 2)).mean())
         A1 = float((q * x * np.exp(-u * x ** 2)).mean())
         A2 = float((q * zb * np.exp(-u * zb ** 2)).mean())

@@ -3,9 +3,9 @@
 scan, and the sharper version of the three-band table.
 
 The three-band numbers (-4.9 / -3.6 / +0.1 e-3) invite the reading "the
-charge-even skew depends on eta". PART 2 already argued it does not -- the
-band pattern is a MIXTURE of two eta-independent components whose fraction
-runs with |eta|. This is the direct test at 24 bins, with an exogenous
+charge-even skew depends on eta". The mixture analysis says it does not -- the
+band pattern is two eta-independent components whose fraction runs with
+|eta|. This is the direct test at 24 bins, with an exogenous
 (generated) eta and analytic errors, and it also splits the profile into its
 eta-EVEN and eta-ODD parts: an eta-ODD charge-even curvature bias would be a
 z-antisymmetric sagitta twist, which is a different (and more alarming) object

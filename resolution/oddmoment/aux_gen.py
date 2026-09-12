@@ -18,8 +18,8 @@ It also rebuilds the per-family split of the mass variance from the fit's own
     f_mat  = sum_{parmtype==15} resinfvarv / sigma_m^2
 
 **parmtype 15 is a RE-PARTITION of the parmtype-10/11 noise into material
-groups, not an addition** (`sum_g dQ_g == dQMS + dQI`;
-`ResidualGlobalCorrectionMakerTwoTrackG4e.cc:4758`), so it must NOT enter the
+groups, not an addition** (`sum_g dQ_g == dQMS + dQI`, in
+`ResidualGlobalCorrectionMakerTwoTrackG4e.cc`), so it must NOT enter the
 closure sum -- it is carried as an independent CHECK, `f_mat ~ f_ms + f_ioni`.
 Likewise `f_hitx + f_hity ~ f_hit`. The closure that must hold is
 
@@ -27,13 +27,12 @@ Likewise `f_hitx + f_hity ~ f_hit`. The closure that must hold is
 
 and on both v2 productions it holds to a mean 7e-8 / max 8e-7 -- unlike the
 CF-exponent "shares", which sum to 1.074 at one finite-difference step and to
-0.980 at another (STATE sec. 0f.47b: Moliere and Landau have no finite second
-moment). An earlier version of this file summed everything that was neither 10
-nor 11 into a single `f_other`, which therefore silently added parmtypes 8, 9
-and 15 together and printed a closure of 2.0; `f_ms` and `f_ioni` themselves
-were never affected.
+0.980 at another, because Moliere and Landau have no finite second moment.
+`f_other` is therefore restricted to parmtypes outside 8, 9, 10, 11, 15: summing
+every non-10/11 family into it would fold 8, 9 and 15 back in and report a
+closure of 2.0.
 
-which give the CLOSED-FORM self-consistency coefficient of the mass pull.
+These give the CLOSED-FORM self-consistency coefficient of the mass pull.
 sigma_m^2 = A m^4 + B m^2 + C, because the hit contribution to sigma_rel grows
 as p (sigma_qop,hit is p-independent), the MS one is p-independent and the
 ionization one falls as 1/p, so
@@ -133,20 +132,20 @@ def one(fn):
 def join_to_cache(A, cache_path):
     """Return the index of each cache row in the concatenated tree arrays `A`.
 
-    ORDER-INDEPENDENT JOIN on (run, lumi, event, z). Factored out of `main` so
-    every aux extractor aligned to the same caches uses ONE implementation --
-    `aux_seed.py` is the second.
+    ORDER-INDEPENDENT JOIN on (run, lumi, event, z). Shared so that every aux
+    extractor aligned to the same caches uses ONE implementation; `aux_seed.py`
+    is the other consumer.
     """
     d = np.load(cache_path)
     zc = d["z"].astype(np.float64)
     n = len(zc)
     zt = A["z"]
 
-    # ORDER-INDEPENDENT JOIN. The original sequential scan assumed the cache is
-    # an in-order subsequence of the tree. That is false for any cache built by
+    # ORDER-INDEPENDENT JOIN. A sequential scan would assume the cache is an
+    # in-order subsequence of the tree. That is false for any cache built by
     # `fullscale/append_pairs.py` (base + a later tail) or from a different file
-    # ordering, and it fails hundreds of thousands of rows in --
-    # measured, `zpairs_dyv2_full.npz` breaks at row 986 433 of 3 733 323.
+    # ordering, and it fails hundreds of thousands of rows in:
+    # `zpairs_dyv2_full.npz` breaks at row 986 433 of 3 733 323.
     # `run`/`lumi`/`event` are cached precisely so this join can be done on a
     # key (that is what `append_pairs.py`'s disjointness check uses), and `z`
     # disambiguates the several candidates an event can carry.
@@ -212,11 +211,10 @@ def main():
 
     idx, d = join_to_cache(A, a.cache)
     out = {k: v[idx] for k, v in A.items()}
-    assert np.array_equal(out["z"], zc), "post-check failed"
     assert np.array_equal(out["sigma"], d["sigma"]), "sigma mismatch"
     dv = np.abs(out["fhit"] - d["vgf"].astype(np.float64))
-    print(f"ALIGNED: {n} rows, z and sigma bit-identical; "
-          f"{len(zt)-n} tree rows dropped by the cache; "
+    print(f"ALIGNED: {len(idx)} rows, sigma bit-identical; "
+          f"{len(A['z']) - len(idx)} tree rows dropped by the cache; "
           f"max|fhit - cache vgf| = {dv.max():.3e}", flush=True)
     tot = out["fhit"] + out["fms"] + out["fioni"]
     print(f"Q-matrix variance closure  <f_hit+f_ms+f_ioni> = {tot.mean():.9f} "

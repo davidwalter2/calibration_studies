@@ -4,7 +4,7 @@
 arrays line up with `blocks_*.npz` element by element.
 
 What the maker actually exports per track (checked against
-ResidualGlobalCorrectionMakerBase.h, 2026-09-08):
+ResidualGlobalCorrectionMakerBase.h):
   niter, edmval, edmvalref, deltachisqval, gradmax, hessmax
   chisqval, ndof, normalizedChi2, nHits, nValidHits, nValidPixelHits
   nChargeFlipProtect  -- GN iterations where the momentum clamp caught a q/p

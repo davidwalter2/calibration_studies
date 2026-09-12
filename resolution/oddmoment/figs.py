@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Figures for the charge-odd q/p pull asymmetry and its origin.
 
-One file per panel, under ~/public_html/cvh/<date>_oddmoment/.
+One file per panel, under ~/public_html/ZMass/cvh/<date>_oddmoment/.
 """
 import argparse
 import os
@@ -78,7 +78,7 @@ def main():
 
     import datetime
     outdir = a.outdir or os.path.expanduser(
-        "~/public_html/cvh/%s_oddmoment" % datetime.date.today().strftime("%y%m%d"))
+        "~/public_html/ZMass/cvh/%s_oddmoment" % datetime.date.today().strftime("%y%m%d"))
     os.makedirs(outdir, exist_ok=True)
     pubhtml.ensure_index(outdir, logger=logger)
 

@@ -9,7 +9,7 @@ Two quantities per class k:
           measured on the trackres arm.
 The class's contribution to the track-level charge-even shift is L_k mu_k --
 that product IS "the class bias in the bending sense", and its sign is what
-the coordinator's barrel/endcap reversal is a statement about.
+the barrel/endcap reversal of the measured shift is a statement about.
 """
 import os
 import sys

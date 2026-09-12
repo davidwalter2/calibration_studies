@@ -92,7 +92,7 @@ class MassLik:
         #     1/2 tr(H Sigma)/m = 3/8 (sigma_rel1^2 + sigma_rel2^2)
         #                       = 1.5 (sigma_m/m)^2
         # (exact for m ~ (kappa1 kappa2)^{-1/2} with uncorrelated legs and a
-        # negligible angular share of sigma_m; see NOTES 2026-09-05 (III)).
+        # negligible angular share of sigma_m).
         # It is DETERMINISTIC and truth-free: a per-candidate location shift.
         self.binon = binon
         self.jensen = float(jensen)

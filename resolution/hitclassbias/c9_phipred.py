@@ -2,28 +2,29 @@
 """THE NO-FREE-PARAMETER PREDICTION OF THE PHI HARMONICS from the measured
 per-class CPE LOCATION bias.
 
-WHY THIS IS THE DECISIVE TEST OF PART 1's NULL RESULT.
-PART 1 measured the hit location bias (BPix local x +0.1193 sigma_CPE, BPix-1
-alone +0.227 = +2.7 um; every strip subdetector null), propagated it through
-the per-hit influence weights with no free parameter, and got
+WHY THIS IS THE DECISIVE TEST OF THE PHI-AVERAGED NULL RESULT.
+The phi-averaged propagation (`t2_predict.py` / `t3_keys.py`) takes the
+measured hit location bias (BPix local x +0.1193 sigma_CPE, BPix-1 alone
++0.227 = +2.7 um; every strip subdetector null), pushes it through the
+per-hit influence weights with no free parameter, and gets
 +0.86 / +1.59 / +1.39 e-3 against a measured -4.89 / -3.57 / +0.12 -- wrong
-sign, wrong size, and >= 5.3 sigma away at every join key. That was a
-PHI-AVERAGED comparison.
+sign, wrong size, and >= 5.3 sigma away at every join key. That comparison is
+PHI-AVERAGED, and that is the whole of its weakness.
 
 The propagation is `delta z = sum_b s_b a_b mu_b` with `s_b` the BENDING SENSE
-read from `resinfbv`. `s_b` is a property of the MODULE'S ORIENTATION: PART 1
-measured the influence-weighted `<|<s>_group|>` running 0.016 (subdetector) ->
-0.072 (+layer) -> 0.159 (+z side) -> 0.761 (orientation group) -> 0.905
-(module). In the Phase-0 pixel barrel the ladders alternate inner/outer, so a
-location bias that is FIXED in the module's local x frame enters the bending
-coordinate with a sign that alternates from ladder to ladder -- period 2
-ladders. BPix-1 has 20 ladders, i.e. 36 deg, i.e. **n = 10**; the TEC has 8
-petals per disk face, i.e. **n = 8**. The phi-AVERAGE of an alternating sign
-is nearly zero, which is exactly why PART 1's prediction came out at 1e-3
-while the harmonic content -- which does not average away -- is +20e-3.
+read from `resinfbv`. `s_b` is a property of the MODULE'S ORIENTATION: the
+influence-weighted `<|<s>_group|>` runs 0.016 (subdetector) -> 0.072 (+layer)
+-> 0.159 (+z side) -> 0.761 (orientation group) -> 0.905 (module). In the
+Phase-0 pixel barrel the ladders alternate inner/outer, so a location bias
+that is FIXED in the module's local x frame enters the bending coordinate with
+a sign that alternates from ladder to ladder -- period 2 ladders. BPix-1 has
+20 ladders, i.e. 36 deg, i.e. **n = 10**; the TEC has 8 petals per disk face,
+i.e. **n = 8**. The phi-AVERAGE of an alternating sign is nearly zero, which
+is exactly why the phi-averaged prediction comes out at 1e-3 while the
+harmonic content -- which does not average away -- is +20e-3.
 
-So this script runs PART 1's propagation UNCHANGED and asks for its HARMONIC
-content instead of its mean:
+So this script runs the SAME propagation and asks for its HARMONIC content
+instead of its mean:
 
     A_n^cos = 2 <dz cos(n phi)>,   A_n^sin = 2 <dz sin(n phi)>
 
@@ -36,30 +37,28 @@ class location: `A_n = sum_k L_k mu_k` with
 `L_k = 2 <sum_{b in k} s_b a_b f(n phi)>`, so `var(A_n) = sum_k L_k^2 var(mu_k)`
 exactly, as in `t3_keys.py`.
 
-THE SIGN OF THE INFLUENCE FUNCTIONAL -- a bug in PART 1, fixed here from the
-code and confirmed by the data.
-`resinfbv` / `resinfv` are built from `W5 = VinvF * Cinvd.solve(E5)`
-(`ResidualGlobalCorrectionMakerG4e.cc:4619`), i.e. `W5 = V^-1 F C^-1 E5`,
-while the Gauss-Newton step the fit actually takes is
-`dxfree = -Cinvd.solve(VinvF.transpose()*rfull)`  (:4098), i.e.
+THE SIGN OF THE INFLUENCE FUNCTIONAL, which has to be taken from the code.
+In `ResidualGlobalCorrectionMakerG4e.cc`, `resinfbv` / `resinfv` are built
+from `W5 = VinvF * Cinvd.solve(E5)`, i.e. `W5 = V^-1 F C^-1 E5`, while the
+Gauss-Newton step the fit actually takes is
+`dxfree = -Cinvd.solve(VinvF.transpose()*rfull)`, i.e.
 `dx = -C^-1 F^T V^-1 r`, and the state is updated by ADDING it
-(`qbpupd = qbp + dxref[0]`, :4269). With C and V symmetric,
+(`qbpupd = qbp + dxref[0]`). With C and V symmetric,
 
     W5^T r = E5^T C^-1 F^T V^-1 r = -dx  .
 
 **The exported influence functional therefore has the OPPOSITE sign to the
 fit's response**: a positive residual `r_b` moves q/p by `-wqop_b r_b`, not
 `+wqop_b r_b`. (`F` is the RESIDUAL Jacobian, not the prediction one: the
-constraint is `dy0 = hitx - lxcor` at :3349, measured minus predicted, and the
+constraint is `dy0 = hitx - lxcor`, measured minus predicted, and the
 global-parameter block carries the matching minus,
-`Jfull.block(...) = -Hm*dStateDparams` at :3035.) The VARIANCE uses of these
-branches are unaffected -- `v_b = w^T dV w` is quadratic and sign-blind, which
-is why nothing else in the campaign moves; only the LOCATION (odd) channel
-PART 1 introduced does.
+`Jfull.block(...) = -Hm*dStateDparams`.) The VARIANCE uses of these branches
+are sign-blind -- `v_b = w^T dV w` is quadratic -- so only the LOCATION (odd)
+channel depends on getting this right.
 
 So the propagation is `delta z = -sum_b s_b a_b mu_b`, and `--sign +1` (the
-default) applies that minus. `--sign -1` reproduces PART 1's published numbers
-for comparison.
+default) applies that minus. `--sign -1` flips it, for comparison with the
+opposite convention.
 
 THE JOIN. `blocks_mugun_ul16_260903x.npz` and `conv_ref903x_full.npz` are two
 extractions of the SAME production with the same three cuts in the same file

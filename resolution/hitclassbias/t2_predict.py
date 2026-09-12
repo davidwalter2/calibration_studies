@@ -94,7 +94,6 @@ def main():
     print(f"blocks {len(kb)}, key not in bank: {miss.mean()*100:.2f}% "
           f"({np.abs(aw[miss]).sum()/np.abs(aw).sum()*100:.2f}% of |s a|)")
 
-    ptr = np.concatenate([[0], np.cumsum(b["nblk"])])
     trk = np.repeat(np.arange(len(b["nblk"])), b["nblk"])
     dz = np.bincount(trk, weights=aw * mu, minlength=len(b["nblk"]))
 
@@ -110,16 +109,6 @@ def main():
     good = np.isfinite(ztf) & (np.abs(ztf) < 30.)
     print(f"tracks {len(z)}, used {good.sum()}; truth-referenced transform "
           f"a_i median {np.median(a_i):.5f}")
-
-    def stat(f, m):
-        v = f(m)
-        bs = np.empty(a.nboot)
-        idx = np.where(m)[0]
-        for i in range(a.nboot):
-            k = rng.integers(0, len(idx), len(idx))
-            mm = np.zeros(len(m), bool)
-            bs[i] = f(idx[k], asidx=True)
-        return v, bs.std()
 
     def even(arr, m):
         """charge-even mean of arr: (mean over q+ plus mean over q-)/2"""

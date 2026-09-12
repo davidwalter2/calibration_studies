@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Per-leg SEED -> FINAL q/p step, aligned to a two-track pairs cache.
 
-The hit-class agent's PART 2 found the track-level `eta` dependence of the
-charge-even skew to be a MIXTURE: splitting the 20-60 GeV gun on
-`|seed -> final dq/p|` at its 90th percentile gives two `eta`-INDEPENDENT
-components (`+20.59 +- 6.45` and `-6.33 +- 1.84` e-3) whose mixing fraction
-runs 2.4 -> 7.0 -> 21.2 % with `|eta|`. The mass caches do not carry that
-step, and `chi2/ndof` is NOT a proxy for it (STATE sec. 0f.50: the population
-it selects is `eta`-flat but so is its fraction, where theirs grows 9x). This
-extracts the real thing from the two-track trees:
+The track-level `eta` dependence of the charge-even skew is a MIXTURE:
+splitting the 20-60 GeV gun on `|seed -> final dq/p|` at its 90th percentile
+gives two `eta`-INDEPENDENT components (`+20.59 +- 6.45` and `-6.33 +- 1.84`
+e-3) whose mixing fraction runs 2.4 -> 7.0 -> 21.2 % with `|eta|`. The mass
+caches do not carry that step, and `chi2/ndof` is NOT a proxy for it: the
+population it selects is `eta`-flat but so is its fraction, where theirs grows
+9x. This extracts the real thing from the two-track trees:
 
     q/p seed  = q / (Mu{plus,minus}trk_pt * cosh(Mu{plus,minus}trk_eta))
     q/p final = Jpsi_qopref{plus,minus}        (== Mu*_refParms[0], checked)
@@ -19,7 +18,7 @@ extracts the real thing from the two-track trees:
 generalTracks KF, which shares its hits with CVH, so their difference is partly
 the residual itself. The absolute step measured `+0.0061` there. Every
 consumer must state `corr(|delta|, |x|)` on ITS OWN sample before binning on
-it (STATE standing rule 2).
+it.
 
 Also carried, so a leg-level pull can be built without a second pass:
 
@@ -59,8 +58,8 @@ BR = ["run", "lumi", "event", "Jpsi_mass", "Jpsi_sigmamass", "Jpsigen_mass",
       "Muplus_pt", "Muplus_eta", "Muminus_pt", "Muminus_eta",
       "Muplusgen_pt", "Muplusgen_eta", "Muminusgen_pt", "Muminusgen_eta",
       "Muplus_charge", "Muminus_charge",
-      # hit content: the coordinator's third cell. `nvalidpixel` is the pixel
-      # count the mass-level endcap miss (sec. 0f.43) is indexed on.
+      # hit content. `nvalidpixel` is the pixel count the mass-level endcap
+      # miss is indexed on.
       "Muplus_nvalid", "Muminus_nvalid",
       "Muplus_nvalidpixel", "Muminus_nvalidpixel"]
 

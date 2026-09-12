@@ -5,11 +5,11 @@ mechanisms by construction rather than by assertion.
 THE STRUCTURE BEING REPRODUCED.  In the CVH fit the material-group parameter
 `k_g` enters the design matrix through ONE column, `transportJacobianBxByBzD`'s
 `dxi` column, whose only non-zero row is `dqopdxi = -dEdx * s * ...`
-(`Geant4ePropagator.cc` ~2967; `dlamdxi = dphidxi = dxtdxi = dytdxi = 0`).  It
+(in `Geant4ePropagator.cc`; `dlamdxi = dphidxi = dxtdxi = dytdxi = 0`).  It
 is therefore a MEAN-only derivative on the process-noise (material) constraint
 rows, weighted by the CURRENT Q.  `exp(k_g)` also multiplies the step's MS and
-ionization VARIANCES (`Geant4ePropagator.cc:1217-1265`), but that scaling is
-never differentiated -- "the fit never differentiates through the weights".
+ionization VARIANCES, but that scaling is never differentiated: the fit does
+not differentiate through its own weights.
 
 The toy is that model, minimally:
 
@@ -90,8 +90,8 @@ def run(ntrial, N, m, v, sh2, rvar=1.0, rho=1.0, kind="gauss", chi2cut=0.0,
         y = u + rng.normal(0.0, np.sqrt(sh2), N)
         b = np.zeros(nrow)
         b[:N] = y
-        b[N:] = m * 0.0                      # residual of the model at k=0 is
-        # (u_{i+1}-u_i-m_i); the constant -m_i goes into the rhs:
+        # the residual of the model at k = 0 is (u_{i+1} - u_i - m_i), so the
+        # constant -m_i goes into the rhs
         b[N:] = m
         # solve  min || J x - b ||_W^2  with b_hit = y and b_mat = m
         th = Ainv @ (JW @ b)

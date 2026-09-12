@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The complete no-free-parameter prediction: LOCATION + SKEW, and the
-degraded-hit-content splits the coordinator's sigma/m result points at.
+degraded-hit-content splits the per-class sigma/m result points at.
 
 The hit term contributes to the standardized momentum error
     z_hit = sum_b s_b a_b eps_b ,   a_b = sqrt(v_b)/sigma,
