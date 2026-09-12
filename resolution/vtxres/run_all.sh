@@ -7,6 +7,10 @@ HERE=/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres
 R=${R:-/work/submit/david_w/ZMass/calibration_studies/resolution/runs/vtxres}
 PROD=${PROD:-/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/prod}
 DY=${DY:-/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/dy}
+# the gen-provenance legs (`run_bkg.sh`) and their npz, both on ceph so the
+# /work quota is not touched
+BKG=${BKG:-/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/bkg}
+BR=${BR:-$BKG/runs}
 GRP=${GRP:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/materialGroups50.txt}
 VENV=/work/submit/david_w/ZMass/mfs/.venv/bin/activate
 NCAND=${NCAND:-8000}
@@ -29,6 +33,52 @@ extract)
       --max-chi2-ndof 3 --max-cands $((NEXT/160+1)) -o $R/$F.npz \
       2>&1 | tee logs/extract_$F.log
   done ;;
+extract-bkg)
+  source $VENV
+  mkdir -p $BR
+  for T in dy_vtxon_gen dy_vtxoff_gen; do
+    [[ -d $BKG/$T ]] || continue
+    python3 -u extract_vtx.py --files "$BKG/$T/task_*/globalcor_*.root" \
+      --functional vtx --groups $GRP -j $J --require-complete \
+      --max-chi2-ndof 3 -o $BR/${T}_vtx.npz 2>&1 | tee logs/extract_$T.log
+    # the SAME candidates with the chi2/ndof and closure cuts OFF: chi2/ndof
+    # is correlated with the residual being measured, so the class table is
+    # quoted both ways
+    python3 -u extract_vtx.py --files "$BKG/$T/task_*/globalcor_*.root" \
+      --functional vtx --groups $GRP -j $J --require-complete \
+      --max-chi2-ndof 0 --max-vchk 0 -o $BR/${T}_vtx_all.npz \
+      2>&1 | tee logs/extract_${T}_all.log
+  done ;;
+bkg)
+  source $VENV
+  for T in dy_vtxon_gen dy_vtxoff_gen; do
+    C=on; [[ $T == *off* ]] && C=off
+    for V in "" _all; do
+      [[ -f $BR/${T}_vtx$V.npz ]] || continue
+      python3 -u genbkg.py --npz $BR/${T}_vtx$V.npz --tag $T$V --constraint $C \
+        --classes --cuts --mass 2>&1 | tee logs/genbkg_$T$V.log
+    done
+    [[ -f $BR/${T}_vtx.npz ]] && python3 -u genbkg.py --npz $BR/${T}_vtx.npz \
+      --tag $T --constraint $C --density 2>&1 | tee -a logs/genbkg_$T.log
+  done ;;
+bkg-hits)
+  source $VENV
+  for T in dy_vtxon:on:dy_vtxon dy:off:dy prod_vtxon:on:prod_vtxon prod:off:prod; do
+    IFS=: read -r NAME C DIR <<< "$T"
+    python3 -u genbkg.py --tag $NAME --constraint $C --hits -j $J \
+      --raw "/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/$DIR/task_*/globalcor_*.root" \
+      2>&1 | tee logs/genbkg_hits_$NAME.log
+  done ;;
+bkg-gate)
+  source $VENV
+  python3 -u genbkg.py --tag gate_gun --constraint on --gate \
+    "$BKG/gate_gun/task_0000/globalcor_*.root" \
+    "/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/prod_vtxon/task_0000/globalcor_*.root" \
+    2>&1 | tee logs/genbkg_gate_gun.log
+  python3 -u genbkg.py --tag gate_dy --constraint on --gate \
+    "$BKG/gate_dy/task_0000/globalcor_*.root" \
+    "/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/dy_vtxon/task_0000/globalcor_*.root" \
+    2>&1 | tee logs/genbkg_gate_dy.log ;;
 extract-dy)
   source $VENV
   for F in vtx mass; do
@@ -99,5 +149,5 @@ recovery-hit)
             vtx_gaussq=$R/fits/vtx_gaussq:$R/fits/injhit_vtx_gaussq \
     --card $R/cards/injhit_vtx_cf.hdf5 --param hitres_pix_x_q2 \
     --groups $GRP 2>&1 | tee logs/recovery_hit.log ;;
-*) echo "usage: run_all.sh extract|extract-dy|gates|xcum|bill|cards|fits|fisher|eff|certify|plots|plots-dy|recovery|recovery-hit"; exit 2 ;;
+*) echo "usage: run_all.sh extract|extract-dy|extract-bkg|gates|bkg|bkg-hits|bkg-gate|xcum|bill|cards|fits|fisher|eff|certify|plots|plots-dy|recovery|recovery-hit"; exit 2 ;;
 esac

@@ -82,6 +82,23 @@ def process_file(fn):
         "Jpsi_mass_unc", "Jpsi_covmassvtx", "Jpsi_d",
         "Muplusgen_pt", "Muminusgen_pt", "Muplusgen_eta", "Muminusgen_eta",
         "Muplus_pt", "Muminus_pt", "Muplus_eta", "Muminus_eta",
+        # GEN PROVENANCE of the two legs (maker branch `Mu*gen_idx` etc.,
+        # written only under doGen_) plus the per-leg hit counts, so that a
+        # downstream consumer can classify a candidate as signal or
+        # combinatorial background and can reproduce the fit's own ndof.
+        # Every one is optional: files written before the export exists simply
+        # do not carry the key.
+        "Muplusgen_dr", "Muminusgen_dr",
+        "Muplusgen_idx", "Muminusgen_idx",
+        "Muplusgen_pdgId", "Muminusgen_pdgId",
+        "Muplusgen_motherPdgId", "Muminusgen_motherPdgId",
+        "Muplusgen_motherIdx", "Muminusgen_motherIdx",
+        "Muplusgen_isPrompt", "Muminusgen_isPrompt",
+        "Muplusgen_fromHardProcess", "Muminusgen_fromHardProcess",
+        "Jpsigen_sameDecay", "Jpsigenpre_mass",
+        "Muplus_nvalid", "Muminus_nvalid",
+        "Muplus_nvalidpixel", "Muminus_nvalidpixel",
+        "Muplus_nhits", "Muminus_nhits",
     ] + [f"{pre}_grp_{SUF[f]}" for f in FAMS]
     try:
         fh = uproot.open(fn)
@@ -171,9 +188,30 @@ def process_file(fn):
                    ("pt_plus", "Muplus_pt"), ("pt_minus", "Muminus_pt"),
                    ("sigmamass", "Jpsi_sigmamass"), ("mass", "Jpsi_mass"),
                    ("mass_unc", "Jpsi_mass_unc"), ("covmassvtx", "Jpsi_covmassvtx"),
-                   ("vtxd", "Jpsi_d")):
+                   ("vtxd", "Jpsi_d"),
+                   ("gendr_plus", "Muplusgen_dr"), ("gendr_minus", "Muminusgen_dr"),
+                   ("mgenpre", "Jpsigenpre_mass")):
         if br in d:
             res[nm] = np.asarray(d[br], np.float64)[idx]
+    # integer / boolean provenance and hit counts, kept as int so that an
+    # index comparison is exact
+    for nm, br in (("genidx_plus", "Muplusgen_idx"), ("genidx_minus", "Muminusgen_idx"),
+                   ("genpdg_plus", "Muplusgen_pdgId"), ("genpdg_minus", "Muminusgen_pdgId"),
+                   ("genmoth_plus", "Muplusgen_motherPdgId"),
+                   ("genmoth_minus", "Muminusgen_motherPdgId"),
+                   ("genmothidx_plus", "Muplusgen_motherIdx"),
+                   ("genmothidx_minus", "Muminusgen_motherIdx"),
+                   ("genprompt_plus", "Muplusgen_isPrompt"),
+                   ("genprompt_minus", "Muminusgen_isPrompt"),
+                   ("genhard_plus", "Muplusgen_fromHardProcess"),
+                   ("genhard_minus", "Muminusgen_fromHardProcess"),
+                   ("gensamedecay", "Jpsigen_sameDecay"),
+                   ("nvalid_plus", "Muplus_nvalid"), ("nvalid_minus", "Muminus_nvalid"),
+                   ("npix_plus", "Muplus_nvalidpixel"), ("npix_minus", "Muminus_nvalidpixel"),
+                   ("nhits_plus", "Muplus_nhits"), ("nhits_minus", "Muminus_nhits")):
+        if br in d:
+            res[nm] = np.asarray(d[br], np.int64)[idx]
+    res["ndof"] = np.asarray(d["ndof"], np.int64)[idx]
     return fn, res, {"n0": n0, "nsel": n}
 
 
