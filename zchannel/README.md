@@ -27,6 +27,8 @@ generator-level validation it rests on.
 | `run_gen_dump.sh` | shard `dump_gen_fsr.py` over the full DY MiniAOD filelist |
 | `merge_gen.py` | merge the per-file gen dumps into one compact npz |
 | `zfsr_kernel.py` | those samples → the empirical FSR kernel CF `phi_K(t)`, plus diagnostics |
+| `fsr_analytic.py` | the **analytic** QED FSR kernel: exact O(α) + exponentiation + O(α²)LL + pair emission, and the exact matrix element it is validated against |
+| `cmp_fsr.py` | the analytic kernel against the Photos++ generator record (figures + moment tables) |
 | `fit_gen.py` | **generator-level closure**: FSR kernel, acceptance, and the fit |
 | `kern_from_selected.py` | rebuild the kernel *and* `A(m)` from the gen record of the SELECTED reconstructed candidates |
 | `fit_gensel.py` | the same closure on the selected candidates' own gen masses, so the fold is isolated from the detector |
@@ -466,6 +468,10 @@ So FSR is *not* absorbable by a smooth nuisance (it broadens the peak; a smooth
 ratio cannot), and once folded the post-FSR fit returns what the pre-FSR fit
 returns.
 
+The residual `m_pre` dependence of `u` is not an accident of this sample: it is
+`beta(m) = (2 alpha/pi)(ln(m^2/m_mu^2) - 1)`, and the **analytic kernel** below
+tracks it exactly instead of banding a measured table.
+
 ### Acceptance, and where the multiplicative kernel breaks
 
 `A(m_pre) = P(selected | m_pre)` for `pT > 25` GeV, `|η| < 2.4` on the post-FSR
@@ -528,6 +534,313 @@ python3 fit_gen.py acceptance --gen data/genmerged_full.npz -o data/acc_d8.json 
 
 ---
 
+## Analytic FSR kernel
+
+`fsr_analytic.py` builds the same `(r_j, w_j, m_lo_j, m_hi_j)` atoms from a
+closed-form QED radiator instead of from the Photos++ record, so the kernel is
+a **function of the fitted mass** rather than a table measured at one generator
+setting, and its mass dependence is exact by construction. `cmp_fsr.py` is the
+validation against the generator; figures
+`~/public_html/ZMass/cvh/260913_fsr_analytic/`.
+
+### The radiator
+
+`z = (m_post/m_pre)^2`, `x = 1-z`, `u = -ln(m_post/m_pre) = -(1/2) ln z`;
+for a single emission `x = 2 E_gamma/m` in the Z rest frame.
+`L(m) = ln(m^2/m_mu^2)`, `beta(m) = (2 alpha/pi)(L-1)` with the **on-shell**
+`alpha = 1/137.035999` (the photons are real; the running of `alpha` belongs to
+the propagator, not the emission vertex) and `m_mu = 0.1056583745` GeV.
+`beta(91.19) = 0.058168`.
+
+The exact O(alpha) spectrum, integrated over all angles at fixed `z`, is
+
+```
+R1(z; m) = (alpha/pi) (1+z^2)/(1-z) [ ln(z m^2/m_mu^2) - 1 ]                (1)
+```
+
+— the Altarelli-Parisi splitting function times the collinear logarithm
+**evaluated at the outgoing pair mass** `s' = z m^2`, minus one. The `-1` is the
+non-logarithmic part of the soft eikonal of a back-to-back pair; the `ln z` is
+the *entire* non-logarithmic hard remainder. (Berends-Kleiss-Jadach,
+Nucl. Phys. B202 (1982) 63; the ZFITTER final-state radiator, Bardin et al.,
+Comput. Phys. Commun. 133 (2001) 229; Bardin-Passarino, *The Standard Model in
+the Making*.)
+
+`fsr_analytic.py validate` checks (1) against a **numerical evaluation of the
+exact spin-summed matrix element** for `V* -> mu+ mu- gamma` — Dirac traces with
+the exact muon mass, the transverse projector `-g + QQ/s` on the current indices
+and `-g` on the photon index, quadrature over the muon direction with the
+collinear region resolved by `1 -+ beta_mu cos = (1-beta_mu) e^t`:
+
+| | z = 0.99 | z = 0.9 | z = 0.5 | z = 0.02 |
+|---|---|---|---|---|
+| `R_exact/R1 - 1`, m = 91.19 | −2.4e−7 | −5.4e−7 | −2.5e−6 | −5.9e−6 |
+| `R_exact/R1 - 1`, m = 9.46 | −3.4e−5 | −6.3e−5 | −2.5e−4 | −6.2e−4 |
+| `R_exact/R1 - 1`, m = 3.097 | −4.3e−4 | −7.1e−4 | −2.6e−3 | −8.9e−3 |
+| `\|R_A/R_V - 1\|`, m = 91.19 | 5.5e−10 | 6.1e−8 | 2.2e−6 | — |
+
+The deviation scales as `m_mu^2/s` (dividing `m_mu` by 30 divides it by 900), and
+the soft limit `R_exact (1-z)/beta` reaches 1 to 1e−6. So at the Z the muon mass
+terms and the vector/axial (i.e. `gamma*`/`Z`) decomposition are irrelevant at
+the 1e−5 level — **the massless closed form (1) is exact for this purpose**, and
+only at the J/psi do mass terms reach 1e−3.
+
+### The kernels
+
+Every variant is a probability density in `z` normalised to 1 (the O(alpha)
+*rate* correction `3 alpha/4pi` is z- and m-independent and drops out).
+
+**`exp1`, exponentiated exact O(alpha)** (YFS / Kuraev-Fadin):
+
+```
+K(z) = C beta (1-z)^{beta-1} + h(z)
+h(z) = -(beta/2)(1+z) + (alpha/pi) (1+z^2) ln z / (1-z)                     (2)
+C    = 1 - int_0^1 h dz = 1 + 3 beta/4 + (alpha/pi)(pi^2/3 - 5/4)
+```
+
+`h` is (1) minus the soft term `beta/(1-z)` the exponentiated factor already
+supplies, so the O(alpha) expansion
+`beta(1-z)^{beta-1} = delta(1-z) + beta[1/(1-z)]_+ + O(beta^2)` reproduces (1)
+exactly. `int_0^1 (1+z^2) ln z/(1-z) dz = 5/4 - pi^2/3`.
+
+**`exp2`, `exp1` + the O(alpha^2) leading log.** The LL radiator for the
+pair-mass fraction is, in Mellin space, `R~(n) = exp[(beta/2) g(n)]` with
+`g(n) = 3/2 - 2 S_{n-1} - 1/n - 1/(n+1)` the QED non-singlet anomalous dimension
+(two radiating legs, each carrying `beta/2`). Its O(beta^2) term is
+`(beta^2/8)[P (x) P](z)` with `P = [(1+z^2)/(1-z)]_+`, and the convolution is
+
+```
+[P (x) P](z) = (9/4 - 2pi^2/3) delta(1-z) + 6 [1/(1-z)]_+
+             + 8 [ln(1-z)/(1-z)]_+
+             + (1+z)[3 ln z - 4 ln(1-z)] - 4 ln z/(1-z) - 5 - z            (3)
+```
+
+(derived here from `P = 2[1/(1-z)]_+ - (1+z) + (3/2) delta(1-z)`; its Mellin
+moments reproduce `g(n)^2` to 5e−13 for n = 1…8, and `int [P (x) P] = 0` as
+probability conservation requires — this is the Kuraev-Fadin second-order
+structure function, Sov. J. Nucl. Phys. 41 (1985) 466, written for the two-leg
+exponent `beta`). **Only the regular part of (3) is new**: the exponentiated
+factor already supplies `beta^2 [ln(1-z)/(1-z)]_+`, matching `(beta^2/8) x 8`
+exactly, and the `3 beta/4` in `C` already supplies `(3 beta^2/4)[1/(1-z)]_+`,
+matching `(beta^2/8) x 6` exactly. The `delta` coefficient follows from
+`int K = 1`.
+
+**`oalpha`**, fixed-order O(alpha) with a soft cutoff `x_cut`: a delta at `z = 1`
+carrying `1 - P(x > x_cut)` plus (1) above it. Not a model — it measures the
+size of the exponentiation.
+
+**Pair emission.** A virtual photon of mass² `q^2` radiated off the muon
+converts to a pair; the pair removes the same energy a photon would, so at
+leading log the `z` dependence is the photon one and only the coefficient
+changes, with the collinear log cut off at `q^2` instead of `m_mu^2`:
+
+```
+beta_pair = (2 alpha/pi) int_{q2_thr}^{s} (dq^2/q^2) rho(q^2) [ln(s/q^2) - 1] (4)
+rho_lepton = (alpha/3pi)(1 + 2 m_l^2/q^2) sqrt(1 - 4 m_l^2/q^2)
+rho_had    = (alpha/3pi) R(q^2),  R ~ 2 above 1 GeV^2
+```
+
+At `m = 91.19` GeV this gives `beta_pair` = 8.31e−4 (e⁺e⁻), 1.32e−3 (e, mu, tau
+and hadrons together), i.e. **1.43 % and 2.26 % of the photonic `beta`**. The
+soft part is exponentiated with the photon (`beta -> beta + beta_pair`) and the
+hard remainder `-(beta_pair/2)(1+z)` is added to `h`; virtual pairs cancel the
+soft part of (4) and otherwise change only the overall rate, so they do not
+enter a normalised kernel. (4) is LL; the `-1` and the upper limit carry ~1/L =
+8 % on `beta_pair`.
+
+### Discretisation
+
+The provider's fold is a midpoint quadrature, so each atom sits at the *exact*
+conditional mean of `u` in its group and the residual is
+`w_j Var(u|group) m^2 |p''| / 2`. Groups grow while `w_j Var_j` stays below
+`--var-budget` (default 6e−10, ~420 atoms per band). Both the weights and the
+conditional moments come from Gauss-Legendre quadrature in `t = (1-z)^beta`, the
+substitution that removes the `(1-z)^{beta-1}` endpoint singularity exactly
+(`dt = beta (1-z)^{beta-1} dz`, so the integrand is bounded); the integrand is
+evaluated as `C + (h+q2) x^{1-beta}/beta` rather than as `K |dz/dt|` because `x`
+reaches 1e−100 near `t = 0`, where the two factors individually overflow and
+underflow while their product does not. `<u>` is stable to 1e−11 against the
+panel count (500…8000) and the Gauss order (8…32).
+
+Banding in `m_pre` is free for an analytic kernel: 75 bands of 2 GeV over
+50-200 GeV, each with its own `beta(m)`, ~32 k atoms.
+
+### Validation against Photos++
+
+The sample's Photos++ 3.61 configuration was read out of the installed library
+and confirmed in the event record (`data/generator_settings_*.md`): **soft-photon
+exponentiation ON** (`IEXP = 1`, unbounded multiplicity — up to 7 photons per
+event survive in `prunedGenParticles`), **`XPHCUT = 1e-7`** on `x = 2 E_gamma/M`
+(measured directly: the single-photon `E_gamma/m_ll` edge converges to 5.0e−8 =
+XPHCUT/2 as the Z boost is removed, i.e. `E_gamma > 4.6` keV at the Z),
+`alpha = 1/137.036`, **the exact O(alpha) Z matrix-element correction OFF**
+(`meCorrectionWtForZ = false`), **real pair emission OFF** (`IfPair = false`),
+and Pythia's QED shower off leptons disabled by the interface. Since
+`1-z = 2 E_gamma/m` exactly for one emission, `x_cut = 1e-7` is directly
+comparable with the model.
+
+**Unradiated fraction** — a parameter-free test of the exponentiated soft factor.
+The MC's `npre == 0` flag (no status-746 pre-Photos muon copy; those events have
+`u <= 6.8e-7`, pure MiniAOD float noise) against the model's `P(1-z < 1e-7)`:
+
+| `m_pre` band | 50-60 | 70-80 | 86-96 | 110-130 | 150-200 |
+|---|---|---|---|---|---|
+| MC | 0.44254 | 0.42172 | 0.41029 | 0.39514 | 0.37551 |
+| exp. O(alpha) | 0.44180 | 0.42169 | 0.41058 | 0.39579 | 0.37575 |
+| ratio | 1.0017 | 1.0001 | 0.9993 | 0.9984 | 0.9994 |
+| O(alpha), no exp. | 0.18409 | 0.13758 | 0.11094 | 0.07435 | 0.02251 |
+
+**0.2 % or better in every band**, with no free parameter — and the fixed order
+is wrong by a factor 2.3 to 17.
+
+**Spectrum.** In the peak band the density `(1/N) dN/du` agrees over four decades
+in `u` (`01_u_density`), and the IR-safe tail `P(u > u_0)` (`02_u_tail`) gives
+
+| `u_0` | 1e−5 | 1e−4 | 1e−3 | 1e−2 | 5e−2 | 0.2 | 0.5 | 1.0 |
+|---|---|---|---|---|---|---|---|---|
+| MC / exp1 | 1.0044 | 1.0066 | 1.0100 | 1.0155 | 1.0189 | 1.0126 | 0.9961 | 0.9840 |
+| MC / exp2 | 1.0022 | 1.0036 | 1.0054 | 1.0086 | 1.0120 | 1.0168 | 1.0187 | 1.0128 |
+| MC / O(alpha) | 0.7629 | 0.8134 | 0.8699 | 0.9354 | 0.9891 | 1.0409 | 1.0730 | 1.0966 |
+
+The MC sits **0.4-1.9 % above** the exponentiated exact O(alpha) in the region
+that matters, with a shape that is not a rescaling of `beta`. That is the size
+and the character of the missing exact-ME correction in Photos, not a defect of
+(1)-(3): the O(alpha^2) NLL terms the model does drop are `alpha/(2pi)` =
+1.2e−3 of the radiator, ten times too small to account for it.
+
+**Mass dependence.** `<u>` per `m_pre` band (`03_mpre_mean_u`, `06_mpre_mean_x`,
+`00_moments.txt`): MC/exp1 is 1.025 at 50-60 GeV, 1.008 at the peak, 1.022 at
+130-150 GeV — flat to ~1.5 % over a factor 3 in mass, while `beta` itself moves
+by 16 %. The ratio the fold is actually sensitive to,
+
+```
+<u>(110-150) / <u>(60-80):   MC  1.1021 +- 0.0079     exp. O(alpha)  1.1019
+```
+
+agrees to 0.02 %; the naive collinear-log ratio `(L-1)|_{138.6}/(L-1)|_{75.6}` =
+1.0912 is 1 % off, because `<u>` is not linear in `beta`. Freezing `beta` at
+`m_Z` makes `<u>` flat and is wrong by 12 % at 50 GeV. The per-band *shape*
+ratio (`07_band_shape`) is flat to a couple of per cent in both the 60-80 and
+110-150 bands.
+
+### The fit-level test
+
+`fit_gen.py fit --suite postfsr`, 27.7 M gen events in 60-120 GeV, 5 Legendre
+shape terms, `nm = 8192`; offsets from the generator's own
+`m_Z = 91.153510`, `Gamma_Z = 2.493202` (constant-width scheme).
+
+| kernel | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| no FSR fold at all | −227.12 ± 0.48 | +741.35 ± 1.19 |
+| **empirical, inclusive** (`kern_incl_sc3.3e-4.npz`) | **+0.15 ± 0.56** | **+1.31 ± 1.14** |
+| empirical, banded 5 GeV | +0.60 ± 0.55 | −0.21 ± 1.13 |
+| analytic exp. O(α), banded 2 GeV | +1.25 ± 0.54 | +6.35 ± 1.13 |
+| analytic exp. O(α), single band | +0.89 ± 0.54 | +6.33 ± 1.13 |
+| **analytic exp. O(α) + O(α²)LL, banded** | **+1.07 ± 0.54** | **+2.67 ± 1.13** |
+| analytic exp. O(α) + O(α²)LL, single band | +0.70 ± 0.54 | +2.65 ± 1.13 |
+| … `β` frozen at `m_Z` | +0.86 ± 0.54 | +2.52 ± 1.13 |
+| … `L` instead of `L−1` in `β` (+8.0 % on `β`) | +5.60 ± 0.55 | −24.27 ± 1.13 |
+| … + `e⁺e⁻` pairs | +1.72 ± 0.54 | −2.02 ± 1.13 |
+| … + `e`, `μ`, `τ`, hadron pairs | +2.28 ± 0.54 | −4.86 ± 1.13 |
+| O(α), **no exponentiation**, `x_cut` = 1e−7 | +24.94 ± 0.54 | −39.12 ± 1.13 |
+
+Read like for like — banded analytic against banded empirical, single-band
+analytic against inclusive empirical — **the analytic kernel reproduces the
+MC-derived one to 0.5 MeV on `m_Z`** (+0.47 banded, +0.55 unbanded) and, with
+the O(α²)LL term, to 1.3-2.9 MeV on `Γ_Z`. The empirical reference carries
+±0.7 MeV of its own `sigma_cap` quadrature bias, so the two are equivalent
+within the precision of the comparison. The residual is the same +1.5 % of
+radiative strength the tail table shows, and it points at Photos (exact-ME
+correction off), not at the analytic form.
+
+What each ingredient is worth on `m_Z`:
+
+| ingredient | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| the fold itself | −227 | +741 |
+| exponentiation vs fixed order O(α) | **23.7** | −45.5 |
+| O(α²) LL | −0.18 | −3.67 |
+| the mass dependence of `β` | 0.21 | 0.15 |
+| `e⁺e⁻` pairs | 0.65 | −4.7 |
+| all pairs (`e`, `μ`, `τ`, hadrons) | 1.21 | −7.5 |
+| ±1 % on `β` (from the `L` vs `L−1` slope) | **0.57** | −3.3 |
+| O(α²) NLL, not included (`α/2π` of `β`) | 0.07 | −0.4 |
+
+**A relative error `ε` on the radiative strength moves `m_Z` by `ε × 57` MeV,
+not `ε × 250` MeV**: the floating 5-term smooth `K(m)` absorbs most of a uniform
+rescaling of the radiator (it also turns the −227 MeV of "no fold at all" into
+−31 MeV). `Γ_Z` is 5.8× more sensitive, `ε × 330` MeV.
+
+Numerics, on the banded exp. O(α) kernel: band width 1 / 2 / 5 GeV gives
++1.32 / +1.25 / +1.44 MeV; `--var-budget` 6e−11 / 6e−10 / 6e−9 gives
++1.10 / +1.25 / +1.33; truncating the support at `u = 2` instead of the two-muon
+threshold gives +1.13. Every discretisation choice is inside ±0.25 MeV, i.e.
+below the statistical error of the closure.
+
+### Reproducing
+
+```bash
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+python3 fsr_analytic.py validate                       # exact ME vs eq. (1)
+python3 fsr_analytic.py moments --u-cut 0.113013       # inclusive + windowed
+python3 fsr_analytic.py kernel -o data/fsr/kan_exp2_pair_all.npz \
+        --variant exp2 --pair e mu tau had             # the recommended kernel
+./run_tf_z.sh python3 -u fit_gen.py fit --gen data/genmerged_full.npz \
+        --suite postfsr --kernel data/kern_incl_sc3.3e-4.npz --nm 8192 \
+        --kernel-alt data/fsr/kan_*.npz -o data/fsr/fit_postfsr_analytic.json
+./run_tf_z.sh python3 -u cmp_fsr.py --gen data/genmerged_full.npz
+```
+
+### Narrow resonances
+
+The same radiator at the J/psi and the Upsilon, where the mass terms of the
+exact matrix element reach 1e−3 and 6e−4 (table above) and should be kept if
+these numbers are ever needed below the per-mille level:
+
+| | `β` | `<u>` incl. | `P(u > 0.113)` | window | `<u \| in window>` | mean mass shift |
+|---|---|---|---|---|---|---|
+| J/psi, 3.0969 | 0.026740 | 10.80e−3 | 0.0241 | ±0.35 GeV | 2.596e−3 | **−8.04 MeV** |
+| Υ(1S), 9.4603 | 0.037115 | 16.12e−3 | 0.0349 | ±0.35 GeV | 1.270e−3 | **−12.01 MeV** |
+| Υ(1S), 9.4603 | 0.037115 | 16.12e−3 | 0.0349 | ±0.60 GeV | 2.117e−3 | −20.02 MeV |
+| Z, 91.1876 | 0.058168 | 26.98e−3 | 0.0568 | — | — | — |
+
+`<u | in window>` is the mean of `u` over the events that stay inside the
+selection window; `-m <u | in window>` is therefore what an unmodelled FSR
+kernel costs a *mean*-based mass estimator, and an upper bound on what it costs
+a peak-based one. 2.3 % of J/psi decays radiate out of a ±0.35 GeV window
+altogether. Against a `delta` at the PDG mass this is a **−2.6e−3** relative
+scale shift at the J/psi and **−1.3e−3** at the Upsilon — both far above the
+1e−5 target, so the J/psi term cannot keep a `delta` lineshape once the MC it is
+fitted against radiates (`../fullscale/SUMMARY.md`, open item 2).
+
+### Recommendation for the data likelihood
+
+* Use `exp2` + pair emission (`e`, `mu`, `tau`, hadrons), banded at 2 GeV. It is
+  first-principles throughout — no fitted constant, no scale factor — and its
+  mass dependence is exact, which the tabulated kernel's cannot be.
+* Quote as theory systematics: the O(α²)LL term (0.18 MeV on `m_Z`, 3.7 MeV on
+  `Γ_Z`, with the next order ~`β/2` of that), the pair term's own 8 % LL
+  uncertainty (0.1 MeV), and the O(α²) NLL truncation (0.07 MeV). The
+  `L` vs `L−1` row is a **sensitivity slope, not an uncertainty**: `β` is known
+  exactly at O(α).
+* Do **not** take the +0.5 MeV difference against the Photos kernel as a
+  systematic on the analytic one. Photos in this sample runs with the exact
+  O(α) Z matrix-element correction switched off and with no pair emission —
+  exactly the two pieces the analytic kernel supplies.
+* **The analytic kernel is the *unconditional* kernel** `p(m_post | m_pre)`. It
+  does not and cannot describe the selection-conditional kernel `K_sel`: a
+  lepton `p_T` cut removes hard emission at an `m_pre`-dependent rate (⟨u⟩ runs
+  from 7.1e−3 to 14.9e−3 across the Born range under `p_T > 25`, and is 19.5e−3
+  vs 21.4e−3 inclusive under the CVH production's `p_T > 5`). The factorisation
+  to use is
+  `P(m_post, pass) = p_born(m_pre) A(m_pre) K(m_post|m_pre) x [K_sel/K](u, m_pre)`,
+  with the analytic `K` carrying all the QED and only the *ratio* `K_sel/K`
+  taken from MC — a geometry statement, not a QED one, and therefore insensitive
+  to the generator's radiative accuracy. That ratio, not the kernel, is now the
+  leading FSR-related modelling issue for a data Z channel.
+
+---
+
 ## What is still missing for a *data* Z channel
 
 * **The LO→MiNNLO `K(m)`, and its truncation.** The card must float a smooth
@@ -536,10 +849,13 @@ python3 fit_gen.py acceptance --gen data/genmerged_full.npz -o data/acc_d8.json 
   they make the fit independent of the PDF set, the PDF order and μ_F. At full
   statistics the truncation order is the one item still open — see
   `../fullscale/SUMMARY.md`.
-* **The kernel and `A(m)` must be rebuilt with the analysis selection**, with
-  `sigma_cap ≤ 3.3e-4` and banded in `m_pre`. `kern_from_selected.py` does this
-  from the selected candidates' own gen record; the gen-fiducial kernel
-  describes a sample radiating 1.66× more than the selected one.
+* **The selection-conditional part of the FSR kernel.** The QED content is
+  settled by `fsr_analytic.py` (see above) and no longer has to be measured; what
+  still has to come from MC is the *ratio* `K_sel/K` that a lepton `p_T` cut
+  imposes on the kernel at fixed `m_pre`, together with `A(m)`.
+  `kern_from_selected.py` builds both from the selected candidates' own gen
+  record; the gen-fiducial kernel describes a sample radiating 1.66× more than
+  the selected one.
 * **Background.** `UniformBackground` / `BernsteinBackground` are wired up with
   a fixed or floating fraction, but the shape and normalisation of the real
   background (Z→ττ, top, QCD) are not measured.
