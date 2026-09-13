@@ -1,0 +1,59 @@
+# 10301 candidates; median hits per subdetector:
+  BPix 4.0  FPix 0.0  TIB 8.0  TOB 8.0  TID 2.0  TEC 10.0
+
+=== the chi2 excess against the hit count per subdetector
+
+  -- BPix
+     n = 0..3  N   1679   median chi2/ndof 1.0377   P(prob<1e-3) 0.06135 +- 0.00586 (103/1679)
+     n = 3..4  N   2414   median chi2/ndof 1.0196   P(prob<1e-3) 0.04640 +- 0.00428 (112/2414)
+     n = 4..5  N   2985   median chi2/ndof 1.0126   P(prob<1e-3) 0.05159 +- 0.00405 (154/2985)
+     n = 5..8  N   3223   median chi2/ndof 1.0005   P(prob<1e-3) 0.04902 +- 0.00380 (158/3223)
+
+  -- FPix
+     n = 0..1  N   6213   median chi2/ndof 1.0184   P(prob<1e-3) 0.04426 +- 0.00261 (275/6213)
+     n = 1..6  N   4088   median chi2/ndof 1.0053   P(prob<1e-3) 0.06164 +- 0.00376 (252/4088)
+
+  -- TIB
+     n = 0..5  N   2243   median chi2/ndof 0.9998   P(prob<1e-3) 0.06152 +- 0.00507 (138/2243)
+     n = 5..8  N   2802   median chi2/ndof 1.0084   P(prob<1e-3) 0.05710 +- 0.00438 (160/2802)
+     n = 8..11  N   2461   median chi2/ndof 1.0115   P(prob<1e-3) 0.04551 +- 0.00420 (112/2461)
+     n = 11..18  N   2795   median chi2/ndof 1.0307   P(prob<1e-3) 0.04186 +- 0.00379 (117/2795)
+
+  -- TOB
+     n = 0..5  N   2330   median chi2/ndof 0.9938   P(prob<1e-3) 0.06094 +- 0.00496 (142/2330)
+     n = 5..8  N   1596   median chi2/ndof 0.9990   P(prob<1e-3) 0.06140 +- 0.00601 (98/1596)
+     n = 8..13  N   3460   median chi2/ndof 1.0181   P(prob<1e-3) 0.04855 +- 0.00365 (168/3460)
+     n = 13..21  N   2915   median chi2/ndof 1.0335   P(prob<1e-3) 0.04082 +- 0.00367 (119/2915)
+
+  -- TID
+     n = 0..2  N   4994   median chi2/ndof 1.0309   P(prob<1e-3) 0.04606 +- 0.00297 (230/4994)
+     n = 2..5  N   2549   median chi2/ndof 1.0076   P(prob<1e-3) 0.06042 +- 0.00472 (154/2549)
+     n = 5..16  N   2758   median chi2/ndof 0.9925   P(prob<1e-3) 0.05185 +- 0.00422 (143/2758)
+
+  -- TEC
+     n = 0..1  N   2527   median chi2/ndof 1.0328   P(prob<1e-3) 0.04036 +- 0.00392 (102/2527)
+     n = 1..10  N   2291   median chi2/ndof 1.0188   P(prob<1e-3) 0.04670 +- 0.00441 (107/2291)
+     n = 10..15  N   2710   median chi2/ndof 1.0003   P(prob<1e-3) 0.05203 +- 0.00427 (141/2710)
+     n = 15..35  N   2773   median chi2/ndof 1.0063   P(prob<1e-3) 0.06383 +- 0.00464 (177/2773)
+
+=== and at FIXED |eta|, is it the subdetector or the eta?
+  |eta| 0.0-1.4, TID <= 0     N   3375  median chi2/ndof 1.0342  P(prob<1e-3) 0.04059 +- 0.00340 (137/3375)
+  |eta| 0.0-1.4, TID >  0     N   1033  median chi2/ndof 1.0152  P(prob<1e-3) 0.05227 +- 0.00693 (54/1033)
+  |eta| 0.0-1.4, TEC <= 0     N   2527  median chi2/ndof 1.0328  P(prob<1e-3) 0.04036 +- 0.00392 (102/2527)
+  |eta| 0.0-1.4, TEC >  0     N   1881  median chi2/ndof 1.0251  P(prob<1e-3) 0.04732 +- 0.00490 (89/1881)
+  |eta| 1.4-1.8, TID <= 5     N   1128  median chi2/ndof 0.9974  P(prob<1e-3) 0.04078 +- 0.00589 (46/1128)
+  |eta| 1.4-1.8, TID >  5     N   1116  median chi2/ndof 0.9825  P(prob<1e-3) 0.05018 +- 0.00654 (56/1116)
+  |eta| 1.4-1.8, TEC <= 12    N   1316  median chi2/ndof 0.9929  P(prob<1e-3) 0.04027 +- 0.00542 (53/1316)
+  |eta| 1.4-1.8, TEC >  12    N    928  median chi2/ndof 0.9875  P(prob<1e-3) 0.05280 +- 0.00734 (49/928)
+  |eta| 1.8-2.4, TID <= 4     N   2000  median chi2/ndof 1.0266  P(prob<1e-3) 0.07100 +- 0.00574 (142/2000)
+  |eta| 1.8-2.4, TID >  4     N   1397  median chi2/ndof 1.0034  P(prob<1e-3) 0.05440 +- 0.00607 (76/1397)
+  |eta| 1.8-2.4, TEC <= 16    N   1926  median chi2/ndof 1.0242  P(prob<1e-3) 0.06438 +- 0.00559 (124/1926)
+  |eta| 1.8-2.4, TEC >  16    N   1471  median chi2/ndof 1.0047  P(prob<1e-3) 0.06390 +- 0.00638 (94/1471)
+
+=== the worst TEC / TID misalignment a candidate carries
+  TID max|dlocx|    0.08..4.16     um  N   3103  median chi2/ndof 1.0108  P(prob<1e-3) 0.05575 +- 0.00412 (173/3103)
+  TID max|dlocx|    4.16..6.74     um  N   2538  median chi2/ndof 0.9921  P(prob<1e-3) 0.05398 +- 0.00449 (137/2538)
+  TID max|dlocx|    6.74..9.77     um  N    653  median chi2/ndof 0.9963  P(prob<1e-3) 0.05513 +- 0.00893 (36/653)
+  TEC max|dlocx|    0.01..6.22     um  N   3909  median chi2/ndof 1.0084  P(prob<1e-3) 0.04886 +- 0.00345 (191/3909)
+  TEC max|dlocx|    6.22..9.78     um  N   3126  median chi2/ndof 1.0080  P(prob<1e-3) 0.05982 +- 0.00424 (187/3126)
+  TEC max|dlocx|    9.78..731.64   um  N    780  median chi2/ndof 1.0120  P(prob<1e-3) 0.06282 +- 0.00869 (49/780)

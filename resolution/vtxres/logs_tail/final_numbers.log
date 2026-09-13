@@ -1,0 +1,17 @@
+=== (1) THE EXTRA (unmodelled) NOISE-SCALE SPREAD, same candidates, two geometries
+  DY aligned (700 ev leg)          N  1878  median chi2/n 1.0221  trimmed rms 0.4108  exp 0.2741  EXTRA 0.3060 (15.3 % on sigma)  P(prob<1e-3) 0.05378 +- 0.00521 (101/1878)
+  DY IDEAL   (700 ev leg)          N  1878  median chi2/n 1.0222  trimmed rms 0.4116  exp 0.2741  EXTRA 0.3070 (15.4 % on sigma)  P(prob<1e-3) 0.05272 +- 0.00516 (99/1878)
+  DY aligned (4000 ev, published)  N 10301  median chi2/n 1.0140  trimmed rms 0.4014  exp 0.2734  EXTRA 0.2939 (14.7 % on sigma)  P(prob<1e-3) 0.05116 +- 0.00217 (527/10301)
+  J/psi gun (ideal geom)           N 55155  median chi2/n 0.9092  trimmed rms 0.2910  exp 0.2708  EXTRA 0.1066 (5.3 % on sigma)  P(prob<1e-3) 0.01557 +- 0.00053 (859/55155)
+
+=== (3) THE chi2/ndof < 3 CUT: what it removes, by GEN TRUTH
+  DY (4000 ev) N  10412  signal  10301  bkg   111
+     chi2/ndof<3 : signal eff 0.99039 +- 0.00096 (10202/10301)   bkg rejection 0.64865 +- 0.04531 (72/111)
+     removes 99 gen-SIGNAL candidates; of those 1.00000 +- 0.00000 (99/99) have chi2 prob < 1e-3
+     P(|z_v|>3) on gen signal: no cut 0.01107 +- 0.00103 (114/10301)   with the cut 0.00980 +- 0.00098 (100/10202)
+     P(|z_v|>5) on gen signal: no cut 0.00146 +- 0.00038 (15/10301)   with the cut 0.00098 +- 0.00031 (10/10202)
+  J/psi gun    N  55155  signal  55155  bkg     0
+     chi2/ndof<3 : signal eff 0.99674 +- 0.00024 (54975/55155)   bkg rejection n/a
+     removes 180 gen-SIGNAL candidates; of those 1.00000 +- 0.00000 (180/180) have chi2 prob < 1e-3
+     P(|z_v|>3) on gen signal: no cut 0.00905 +- 0.00040 (499/55155)   with the cut 0.00886 +- 0.00040 (487/54975)
+     P(|z_v|>5) on gen signal: no cut 0.00169 +- 0.00017 (93/55155)   with the cut 0.00162 +- 0.00017 (89/54975)

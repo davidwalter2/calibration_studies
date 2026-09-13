@@ -1,0 +1,105 @@
+# dy: 10413 candidates from /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/tail/dy_bs_final.npz
+# baseline flow on 10413 candidates
+#   finite sigma_v > 0         10413
+#   Jpsi_bsok                  10413
+#   Jpsi_vtxok                 10413
+#   cfmass_ok                  10413
+#   sigma_m > 0                10413
+#   chi2/ndof < 3              10258
+#   |vtxvchk| < 0.0001         10258
+#   weaker leg >= 8            10258
+#   |z_v| < 5                  10254
+
+=== gate: the exported pull IS the residual over its covariance
+  max |z_1 - r_x/sqrt(Cov_xx)|  5.254e-03
+  max |(x_v - line_x) - r_x|    36905277.6431 um   median 13.153132 um
+
+=== the beam-spot RECORD the maker used
+  x0          +916.4590 um  (1 distinct)
+  y0         +1695.3699 um  (1 distinct)
+  z0            +0.8819 cm  (1 distinct)
+  sigma_x       10.8337 um  (1 distinct)
+  sigma_y       10.3879 um  (1 distinct)
+  sigma_z        3.6239 cm  (1 distinct)
+  dxdz      -5.9697e-06       (1 distinct)
+  dydz      +4.7176e-06       (1 distinct)
+
+# baseline 10254, with a gen vertex 10223, gen SIGNAL 10214
+# classes on the baseline: signal 10214, dup 1, otherdecay 8, nonres 0, unmatched 31
+
+=== the two pieces of r_bs -- baseline (10223 cand)
+  gen offset x / sigBS_rec   n= 10223  mean  +0.0014 +- 0.0291  Var    8.6301  skew   +60.284  kurt   5958.22  P>3 0.00147  P>4 0.00029  P>5 0.00029
+  gen offset y / sigBS_rec   n= 10223  mean  +0.0833 +- 0.0864  Var   76.3447  skew   +93.043  kurt   9120.40  P>3 0.00137  P>4 0.00029  P>5 0.00029
+  delta_lum,x / sqrt(Cov)    n= 10223  mean  -0.0030 +- 0.0082  Var    0.6860  skew   +36.618  kurt   3272.36  P>3 0.00029  P>4 0.00029  P>5 0.00029
+  delta_reco,x / sqrt(Cov)   n= 10223  mean  +0.0161 +- 0.0122  Var    1.5327  skew   -14.970  kurt    902.07  P>3 0.01115  P>4 0.00411  P>5 0.00215
+  corr(delta_lum,x, delta_reco,x) = -0.0732   ;  sum of the two variances 3.0046  against Var(z_1) 1.1816
+  z_1 (global x pull)        n= 10223  mean  +0.0131 +- 0.0108  Var    1.1816  skew    +0.061  kurt      5.00  P>3 0.01242  P>4 0.00381  P>5 0.00176
+  z_2                        n= 10223  mean  +0.0009 +- 0.0104  Var    1.1102  skew    +0.059  kurt      4.39  P>3 0.00959  P>4 0.00225  P>5 0.00078
+  z_v                        n= 10223  mean  +0.0083 +- 0.0105  Var    1.1175  skew    -0.031  kurt      3.55  P>3 0.00871  P>4 0.00068  P>5 0.00000
+  delta_lum,x    rms    31.826 um   MAD   10.081 um   P(|.|>50um) 0.00029
+  delta_lum,y    rms    90.765 um   MAD    9.925 um   P(|.|>50um) 0.00029
+  delta_reco,x   rms   418.626 um   MAD   22.694 um   P(|.|>50um) 0.15641
+  delta_reco,y   rms   324.794 um   MAD   22.487 um   P(|.|>50um) 0.14996
+  r_bs,x         rms   417.505 um   MAD   26.282 um   P(|.|>50um) 0.16502
+
+=== the two pieces of r_bs -- gen SIGNAL only (10214 cand)
+  gen offset x / sigBS_rec   n= 10214  mean  -0.0100 +- 0.0092  Var    0.8556  skew    +0.045  kurt      2.93  P>3 0.00117  P>4 0.00000  P>5 0.00000
+  gen offset y / sigBS_rec   n= 10214  mean  -0.0048 +- 0.0095  Var    0.9175  skew    +0.007  kurt      2.95  P>3 0.00108  P>4 0.00000  P>5 0.00000
+  delta_lum,x / sqrt(Cov)    n= 10214  mean  -0.0045 +- 0.0044  Var    0.1947  skew    +0.105  kurt      4.56  P>3 0.00000  P>4 0.00000  P>5 0.00000
+  delta_reco,x / sqrt(Cov)   n= 10214  mean  +0.0184 +- 0.0099  Var    0.9932  skew    +0.146  kurt      5.98  P>3 0.01077  P>4 0.00382  P>5 0.00186
+  corr(delta_lum,x, delta_reco,x) = -0.0017   ;  sum of the two variances 1.1679  against Var(z_1) 1.1763
+  z_1 (global x pull)        n= 10214  mean  +0.0139 +- 0.0107  Var    1.1763  skew    +0.075  kurt      4.97  P>3 0.01234  P>4 0.00372  P>5 0.00166
+  z_2                        n= 10214  mean  +0.0010 +- 0.0104  Var    1.1093  skew    +0.059  kurt      4.40  P>3 0.00959  P>4 0.00225  P>5 0.00078
+  z_v                        n= 10214  mean  +0.0087 +- 0.0105  Var    1.1165  skew    -0.029  kurt      3.55  P>3 0.00862  P>4 0.00069  P>5 0.00000
+  delta_lum,x    rms    10.021 um   MAD   10.075 um   P(|.|>50um) 0.00000
+  delta_lum,y    rms     9.950 um   MAD    9.921 um   P(|.|>50um) 0.00000
+  delta_reco,x   rms   133.631 um   MAD   22.684 um   P(|.|>50um) 0.15596
+  delta_reco,y   rms   129.424 um   MAD   22.456 um   P(|.|>50um) 0.14960
+  r_bs,x         rms   133.989 um   MAD   26.246 um   P(|.|>50um) 0.16477
+
+=== is the SIMULATED luminous region Gaussian?  gen offsets over their OWN robust width, gen SIGNAL only
+  gen offset x / MAD         n= 10214  mean  +0.0085 +- 0.0098  Var    0.9894  skew    +0.045  kurt      2.93  P>3 0.00215  P>4 0.00000  P>5 0.00000
+  gen offset y / MAD         n= 10214  mean  -0.0054 +- 0.0099  Var    1.0059  skew    +0.007  kurt      2.95  P>3 0.00206  P>4 0.00000  P>5 0.00000
+  record sigma_x / simulated MAD = 1.0754
+  record sigma_y / simulated MAD = 1.0470
+
+=== THE TAIL CANDIDATES (a DIAGNOSTIC selection, not a cut)
+
+  -- |z_1| > 5 : 18 candidates (17 gen signal)
+     |gen pull| max(x,y)    median      0.885   (baseline median      0.984)
+     |delta_lum,x| um       median      8.735   (baseline median      6.801)
+     |delta_lum,y| um       median      4.746   (baseline median      6.695)
+     |delta_reco,x| um      median    124.675   (baseline median     15.359)
+     |delta_reco,y| um      median     40.688   (baseline median     15.160)
+     gen vertex beyond 3 sigma of the line: 0.05556 +- 0.05399 (1/18)   [baseline 0.00254 +- 0.00050 (26/10223)]
+     gen vertex beyond 5 sigma of the line: 0.05556 +- 0.05399 (1/18)   [baseline 0.00029 +- 0.00017 (3/10223)]
+
+  -- |z_2| > 5 : 8 candidates (8 gen signal)
+     |gen pull| max(x,y)    median      0.886   (baseline median      0.984)
+     |delta_lum,x| um       median      9.594   (baseline median      6.801)
+     |delta_lum,y| um       median      8.328   (baseline median      6.695)
+     |delta_reco,x| um      median     57.405   (baseline median     15.359)
+     |delta_reco,y| um      median    125.270   (baseline median     15.160)
+     gen vertex beyond 3 sigma of the line: 0.12500 +- 0.11693 (1/8)   [baseline 0.00254 +- 0.00050 (26/10223)]
+     gen vertex beyond 5 sigma of the line: 0.00000 +- 0.00000 (0/8)   [baseline 0.00029 +- 0.00017 (3/10223)]
+
+  -- |z_v| > 5 : 0 candidates (0 gen signal)
+
+=== A z-dependent offset would be a SLOPE mismatch (gen SIGNAL, robust IRLS fit)
+  simulated dxdz - record dxdz = +4.436e-06 +- 2.715e-06   (record -5.970e-06; 10193 of 10214 in fit)
+     -> centroid offset -0.1141 +- 0.0982 um   ;  the slope residual over |z|<3.6cm is 0.0147 sigma_BS
+  simulated dydz - record dydz = -4.044e-06 +- 2.699e-06   (record +4.718e-06; 10195 of 10214 in fit)
+     -> centroid offset -0.0392 +- 0.0977 um   ;  the slope residual over |z|<3.6cm is 0.0140 sigma_BS
+
+  <z_1> and <gen pull> against the gen vertex z (gen SIGNAL)
+  z bin (cm)                N               <z_1>          <gen pull x>
+   -14.02..  -3.26   1277       +0.0235 +- 0.0280         -0.0657 +- 0.0243
+    -3.26..  -1.51   1277       -0.0448 +- 0.0274         -0.0504 +- 0.0241
+    -1.51..  -0.27   1276       +0.0319 +- 0.0286         -0.0011 +- 0.0252
+    -0.27..  +0.89   1277       +0.0120 +- 0.0272         +0.0162 +- 0.0239
+    +0.89..  +2.07   1277       +0.0330 +- 0.0271         -0.0052 +- 0.0249
+    +2.07..  +3.35   1276       +0.0342 +- 0.0273         +0.0207 +- 0.0254
+    +3.35..  +5.07   1277       +0.0302 +- 0.0275         +0.0186 +- 0.0243
+    +5.07.. +14.83   1276       -0.0202 +- 0.0268         -0.0212 +- 0.0245
+
+# wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/tail/hypA_dy.npz

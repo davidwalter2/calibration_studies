@@ -1580,3 +1580,317 @@ calib_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')
 [38;21mINFO:fitter.py: 3 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
 [38;21mINFO:fitter.py: Perform iterative fit[0m
 [38;21mINFO:fitter.py: [minimize] method=trust-krylov options={}[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 5.057807075903902e-15[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute -12495.012384 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -61[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 28.68[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/work/submit/david_w/WRemnants_dev/wums/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/fits/inj_vtxbs_cf/fitresults.hdf5
+[38;21mINFO:rabbit_fit.py: 1035.13 seconds total time[0m
+=== fit inj_vtxbsm_cf
+param models: --paramModel UnbinnedParams
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789288092.627458 2793163 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789288098.556450 2793163 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789288105.909548 2793163 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+calib_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'bsx' (kind MaterialCF, channel jpsi): 8000 candidates, 1 chunk(s) of 8000, parameters ['material_other', 'material_beampipe', 'material_bpix_active_L1', 'material_bpix_active_L2', 'material_bpix_active_L3', 'material_bpix_services', 'material_bpix_support6', 'material_bpix_support7', 'material_fpix_active_D1', 'material_fpix_active_D2', 'material_fpix_support', 'material_tib_active_L1', 'material_tib_active_L2', 'material_tib_active_L3', 'material_tib_active_L4', 'material_tibtid_services', 'material_tib_support', 'material_tid_active_R1', 'material_tid_active_R2', 'material_tid_active_R3', 'material_tid_support', 'material_tob_active_L1', 'material_tob_active_L2', 'material_tob_active_L3', 'material_tob_active_L4', 'material_tob_active_L5', 'material_tob_active_L6', 'material_tob_services', 'material_tob_support', 'material_tec_active_R1', 'material_tec_active_R2', 'material_tec_active_R3', 'material_tec_active_R4', 'material_tec_active_R5', 'material_tec_active_R6', 'material_tec_active_R7', 'material_tec_services', 'material_tec_structure', 'material_thermal_screen', 'material_support_tube', 'material_pp1_cables', 'material_pixel_patch', 'hitres_pix_x_q0', 'hitres_pix_x_q1', 'hitres_pix_x_q2', 'hitres_pix_x_q3', 'hitres_pix_y_q0', 'hitres_pix_y_q1', 'hitres_pix_y_q2', 'hitres_pix_y_q3', 'hitres_str_N1_lo', 'hitres_str_N1_hi', 'hitres_str_N2_lo', 'hitres_str_N2_hi', 'hitres_str_N3_lo', 'hitres_str_N3_hi', 'hitres_str_N4_lo', 'hitres_str_N4_hi', 'hitres_str_N5_lo', 'hitres_str_N5_hi', 'beamwidth_x', 'beamwidth_y'][0m
+[38;21mINFO:unbinned.py: Loaded unbinned term 'bsy' (kind MaterialCF, channel jpsi): 8000 candidates, 1 chunk(s) of 8000, parameters ['material_other', 'material_beampipe', 'material_bpix_active_L1', 'material_bpix_active_L2', 'material_bpix_active_L3', 'material_bpix_services', 'material_bpix_support6', 'material_bpix_support7', 'material_fpix_active_D1', 'material_fpix_active_D2', 'material_fpix_support', 'material_tib_active_L1', 'material_tib_active_L2', 'material_tib_active_L3', 'material_tib_active_L4', 'material_tibtid_services', 'material_tib_support', 'material_tid_active_R1', 'material_tid_active_R2', 'material_tid_active_R3', 'material_tid_support', 'material_tob_active_L1', 'material_tob_active_L2', 'material_tob_active_L3', 'material_tob_active_L4', 'material_tob_active_L5', 'material_tob_active_L6', 'material_tob_services', 'material_tob_support', 'material_tec_active_R1', 'material_tec_active_R2', 'material_tec_active_R3', 'material_tec_active_R4', 'material_tec_active_R5', 'material_tec_active_R6', 'material_tec_active_R7', 'material_tec_services', 'material_tec_structure', 'material_thermal_screen', 'material_support_tube', 'material_pp1_cables', 'material_pixel_patch', 'hitres_pix_x_q0', 'hitres_pix_x_q1', 'hitres_pix_x_q2', 'hitres_pix_x_q3', 'hitres_pix_y_q0', 'hitres_pix_y_q1', 'hitres_pix_y_q2', 'hitres_pix_y_q3', 'hitres_str_N1_lo', 'hitres_str_N1_hi', 'hitres_str_N2_lo', 'hitres_str_N2_hi', 'hitres_str_N3_lo', 'hitres_str_N3_hi', 'hitres_str_N4_lo', 'hitres_str_N4_hi', 'hitres_str_N5_lo', 'hitres_str_N5_hi', 'beamwidth_x', 'beamwidth_y'][0m
+[38;21mINFO:unbinned.py: Loaded unbinned term 'mass' (kind MaterialCF, channel jpsi): 8000 candidates, 1 chunk(s) of 8000, parameters ['material_other', 'material_beampipe', 'material_bpix_active_L1', 'material_bpix_active_L2', 'material_bpix_active_L3', 'material_bpix_services', 'material_bpix_support6', 'material_bpix_support7', 'material_fpix_active_D1', 'material_fpix_active_D2', 'material_fpix_support', 'material_tib_active_L1', 'material_tib_active_L2', 'material_tib_active_L3', 'material_tib_active_L4', 'material_tibtid_services', 'material_tib_support', 'material_tid_active_R1', 'material_tid_active_R2', 'material_tid_active_R3', 'material_tid_support', 'material_tob_active_L1', 'material_tob_active_L2', 'material_tob_active_L3', 'material_tob_active_L4', 'material_tob_active_L5', 'material_tob_active_L6', 'material_tob_services', 'material_tob_support', 'material_tec_active_R1', 'material_tec_active_R2', 'material_tec_active_R3', 'material_tec_active_R4', 'material_tec_active_R5', 'material_tec_active_R6', 'material_tec_active_R7', 'material_tec_services', 'material_tec_structure', 'material_thermal_screen', 'material_support_tube', 'material_pp1_cables', 'material_pixel_patch', 'hitres_pix_x_q0', 'hitres_pix_x_q1', 'hitres_pix_x_q2', 'hitres_pix_x_q3', 'hitres_pix_y_q0', 'hitres_pix_y_q1', 'hitres_pix_y_q2', 'hitres_pix_y_q3', 'hitres_str_N1_lo', 'hitres_str_N1_hi', 'hitres_str_N2_lo', 'hitres_str_N2_hi', 'hitres_str_N3_lo', 'hitres_str_N3_hi', 'hitres_str_N4_lo', 'hitres_str_N4_hi', 'hitres_str_N5_lo', 'hitres_str_N5_hi', 'beamwidth_x', 'beamwidth_y'][0m
+[38;21mINFO:unbinned.py: Loaded unbinned term 'vtx' (kind MaterialCF, channel jpsi): 8000 candidates, 1 chunk(s) of 8000, parameters ['material_other', 'material_beampipe', 'material_bpix_active_L1', 'material_bpix_active_L2', 'material_bpix_active_L3', 'material_bpix_services', 'material_bpix_support6', 'material_bpix_support7', 'material_fpix_active_D1', 'material_fpix_active_D2', 'material_fpix_support', 'material_tib_active_L1', 'material_tib_active_L2', 'material_tib_active_L3', 'material_tib_active_L4', 'material_tibtid_services', 'material_tib_support', 'material_tid_active_R1', 'material_tid_active_R2', 'material_tid_active_R3', 'material_tid_support', 'material_tob_active_L1', 'material_tob_active_L2', 'material_tob_active_L3', 'material_tob_active_L4', 'material_tob_active_L5', 'material_tob_active_L6', 'material_tob_services', 'material_tob_support', 'material_tec_active_R1', 'material_tec_active_R2', 'material_tec_active_R3', 'material_tec_active_R4', 'material_tec_active_R5', 'material_tec_active_R6', 'material_tec_active_R7', 'material_tec_services', 'material_tec_structure', 'material_thermal_screen', 'material_support_tube', 'material_pp1_cables', 'material_pixel_patch', 'hitres_pix_x_q0', 'hitres_pix_x_q1', 'hitres_pix_x_q2', 'hitres_pix_x_q3', 'hitres_pix_y_q0', 'hitres_pix_y_q1', 'hitres_pix_y_q2', 'hitres_pix_y_q3', 'hitres_str_N1_lo', 'hitres_str_N1_hi', 'hitres_str_N2_lo', 'hitres_str_N2_hi', 'hitres_str_N3_lo', 'hitres_str_N3_hi', 'hitres_str_N4_lo', 'hitres_str_N4_hi', 'hitres_str_N5_lo', 'hitres_str_N5_hi', 'beamwidth_x', 'beamwidth_y'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 62 POI(s) ['material_other', 'material_beampipe', 'material_bpix_active_L1', 'material_bpix_active_L2', 'material_bpix_active_L3', 'material_bpix_services', 'material_bpix_support6', 'material_bpix_support7', 'material_fpix_active_D1', 'material_fpix_active_D2', 'material_fpix_support', 'material_tib_active_L1', 'material_tib_active_L2', 'material_tib_active_L3', 'material_tib_active_L4', 'material_tibtid_services', 'material_tib_support', 'material_tid_active_R1', 'material_tid_active_R2', 'material_tid_active_R3', 'material_tid_support', 'material_tob_active_L1', 'material_tob_active_L2', 'material_tob_active_L3', 'material_tob_active_L4', 'material_tob_active_L5', 'material_tob_active_L6', 'material_tob_services', 'material_tob_support', 'material_tec_active_R1', 'material_tec_active_R2', 'material_tec_active_R3', 'material_tec_active_R4', 'material_tec_active_R5', 'material_tec_active_R6', 'material_tec_active_R7', 'material_tec_services', 'material_tec_structure', 'material_thermal_screen', 'material_support_tube', 'material_pp1_cables', 'material_pixel_patch', 'hitres_pix_x_q0', 'hitres_pix_x_q1', 'hitres_pix_x_q2', 'hitres_pix_x_q3', 'hitres_pix_y_q0', 'hitres_pix_y_q1', 'hitres_pix_y_q2', 'hitres_pix_y_q3', 'hitres_str_N1_lo', 'hitres_str_N1_hi', 'hitres_str_N2_lo', 'hitres_str_N2_hi', 'hitres_str_N3_lo', 'hitres_str_N3_hi', 'hitres_str_N4_lo', 'hitres_str_N4_hi', 'hitres_str_N5_lo', 'hitres_str_N5_hi', 'beamwidth_x', 'beamwidth_y'], 0 nuisance(s) [], 62 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 62 parameters: ['material_other', 'material_beampipe', 'material_bpix_active_L1', 'material_bpix_active_L2', 'material_bpix_active_L3', 'material_bpix_services', 'material_bpix_support6', 'material_bpix_support7', 'material_fpix_active_D1', 'material_fpix_active_D2', 'material_fpix_support', 'material_tib_active_L1', 'material_tib_active_L2', 'material_tib_active_L3', 'material_tib_active_L4', 'material_tibtid_services', 'material_tib_support', 'material_tid_active_R1', 'material_tid_active_R2', 'material_tid_active_R3', 'material_tid_support', 'material_tob_active_L1', 'material_tob_active_L2', 'material_tob_active_L3', 'material_tob_active_L4', 'material_tob_active_L5', 'material_tob_active_L6', 'material_tob_services', 'material_tob_support', 'material_tec_active_R1', 'material_tec_active_R2', 'material_tec_active_R3', 'material_tec_active_R4', 'material_tec_active_R5', 'material_tec_active_R6', 'material_tec_active_R7', 'material_tec_services', 'material_tec_structure', 'material_thermal_screen', 'material_support_tube', 'material_pp1_cables', 'material_pixel_patch', 'hitres_pix_x_q0', 'hitres_pix_x_q1', 'hitres_pix_x_q2', 'hitres_pix_x_q3', 'hitres_pix_y_q0', 'hitres_pix_y_q1', 'hitres_pix_y_q2', 'hitres_pix_y_q3', 'hitres_str_N1_lo', 'hitres_str_N1_hi', 'hitres_str_N2_lo', 'hitres_str_N2_hi', 'hitres_str_N3_lo', 'hitres_str_N3_hi', 'hitres_str_N4_lo', 'hitres_str_N4_hi', 'hitres_str_N5_lo', 'hitres_str_N5_hi', 'beamwidth_x', 'beamwidth_y'][0m
+[38;21mINFO:fitter.py: [paramPriors] applying Gaussian priors to 62/62 ParamModel params:[0m
+[38;21mINFO:fitter.py:     material_other: μ=0 σ=0.04[0m
+[38;21mINFO:fitter.py:     material_beampipe: μ=0 σ=0.0001[0m
+[38;21mINFO:fitter.py:     material_bpix_active_L1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_bpix_active_L2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_bpix_active_L3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_bpix_services: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_bpix_support6: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_bpix_support7: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_fpix_active_D1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_fpix_active_D2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_fpix_support: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_tib_active_L1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tib_active_L2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tib_active_L3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tib_active_L4: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tibtid_services: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_tib_support: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_tid_active_R1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tid_active_R2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tid_active_R3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tid_support: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_tob_active_L1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L4: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L5: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L6: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_services: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_tob_support: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_tec_active_R1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R4: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R5: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R6: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R7: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_services: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_tec_structure: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_thermal_screen: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_support_tube: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_pp1_cables: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_pixel_patch: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     hitres_pix_x_q0: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_x_q1: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_x_q2: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_x_q3: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_y_q0: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_y_q1: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_y_q2: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_y_q3: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N1_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N1_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N2_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N2_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N3_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N3_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N4_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N4_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N5_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N5_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     beamwidth_x: μ=0 σ=0.05476[0m
+[38;21mINFO:fitter.py:     beamwidth_y: μ=0 σ=0.05476[0m
+[38;21mINFO:fitter.py: unbinned term 'bsx': 8000 candidates in 1 chunk(s) of 8000, graph loop[0m
+[38;21mINFO:fitter.py: unbinned term 'bsy': 8000 candidates in 1 chunk(s) of 8000, graph loop[0m
+[38;21mINFO:fitter.py: unbinned term 'mass': 8000 candidates in 1 chunk(s) of 8000, graph loop[0m
+[38;21mINFO:fitter.py: unbinned term 'vtx': 8000 candidates in 1 chunk(s) of 8000, graph loop[0m
+[38;21mINFO:fitter.py: 4 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-krylov options={}[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 3.500618846414946e-14[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute 11057.032677 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -61[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 29.5[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/work/submit/david_w/WRemnants_dev/wums/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/fits/inj_vtxbsm_cf/fitresults.hdf5
+[38;21mINFO:rabbit_fit.py: 1501.19 seconds total time[0m
+skip injhit_bs_cf (done)
+skip injhit_vtx_cf (done)
+skip injhit_vtxbs_cf (done)
+THE EXPECTATION, from the simulated luminous region against the record
+  sigma_x  record 10.83 um   simulated 10.05 um   -> k = 0.8600   eps = -0.1400
+  sigma_y  record 10.39 um   simulated 9.98 um   -> k = 0.9226   eps = -0.0774
+
+fit                           EDM              eps_x   pull_x              eps_y   pull_y  sigma_x(fit) sigma_y(fit)
+--------------------------------------------------------------------------------------------------------------------
+bs_cf                     7.18e-15    -0.0099 +- 0.0445     +2.93    +0.0355 +- 0.0426     +2.65   10.78+-0.24   10.57+-0.22
+                         corr(beamwidth_x, beamwidth_y) = +0.157
+vtx_cf                    7.99e-14    -0.0131 +- 0.0540     +2.35    -0.0102 +- 0.0541     +1.24   10.76+-0.29   10.33+-0.28
+                         corr(beamwidth_x, beamwidth_y) = -0.004
+vtxbs_cf                  4.91e-14    -0.0567 +- 0.0422     +1.97    -0.0257 +- 0.0396     +1.30   10.52+-0.24   10.25+-0.21
+                         corr(beamwidth_x, beamwidth_y) = +0.035
+vtxbsm_cf                 3.76e-15    -0.0545 +- 0.0422     +2.02    -0.0324 +- 0.0396     +1.13   10.53+-0.24   10.22+-0.21
+                         corr(beamwidth_x, beamwidth_y) = +0.035
+bsfree_cf                 1.43e-14    -0.0031 +- 0.0798     +1.72    +0.0899 +- 0.0728     +2.30   10.82+-0.43   10.84+-0.36
+                         corr(beamwidth_x, beamwidth_y) = +0.401
+vtxbsfree_cf              1.69e-15    -0.1394 +- 0.0638     +0.01    -0.0595 +- 0.0567     +0.32   10.05+-0.37   10.07+-0.30
+                         corr(beamwidth_x, beamwidth_y) = +0.088
+vtxbsmfree_cf             9.00e-16    -0.1350 +- 0.0639     +0.08    -0.0732 +- 0.0564     +0.07   10.08+-0.37   10.00+-0.30
+                         corr(beamwidth_x, beamwidth_y) = +0.089
+
+0 fit(s) not certified or unreadable
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789289615.297599 2798212 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789289621.204467 2798212 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  bsx: standard two-track selection on 10254 candidates
+  bsx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsx:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsx:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsx:     kept                           10254  (100.00 %)
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789289631.513992 2798212 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[04:57:18] bs/cf: H in 202 s, diag -4.51e+04 .. 5.11e+03
+[04:57:23] bs/cf: J from 200 batches, |sum_m g_m - g| = 6.82e-13
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167212 group rows (37927 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173407 group rows (31732 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[05:00:59] bs/gauss: H in 202 s, diag -3.98e+04 .. 4.09e+03
+[05:01:02] bs/gauss: J from 200 batches, |sum_m g_m - g| = 2.27e-13
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167312 group rows (37827 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173521 group rows (31618 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[05:04:34] bs/gaussq: H in 199 s, diag -3.69e+04 .. 563
+[05:04:37] bs/gaussq: J from 200 batches, |sum_m g_m - g| = 6.82e-13
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[05:06:32] vtx/cf: H in 106 s, diag -2.36e+04 .. 1.04e+04
+[05:06:34] vtx/cf: J from 200 batches, |sum_m g_m - g| = 0
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180021 group rows (25118 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[05:08:26] vtx/gauss: H in 106 s, diag -2.57e+04 .. 1.42e+04
+[05:08:27] vtx/gauss: J from 200 batches, |sum_m g_m - g| = 0
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180136 group rows (25003 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[05:10:20] vtx/gaussq: H in 105 s, diag -2.65e+04 .. 9.48e+03
+[05:10:22] vtx/gaussq: J from 200 batches, |sum_m g_m - g| = 0
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[05:15:52] vtxbs/cf: H in 302 s, diag -6.88e+04 .. 1.55e+04
+[05:15:57] vtxbs/cf: J from 200 batches, |sum_m g_m - g| = 4.55e-13
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180021 group rows (25118 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167212 group rows (37927 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173407 group rows (31732 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[05:21:21] vtxbs/gauss: H in 306 s, diag -6.55e+04 .. 1.82e+04
+[05:21:26] vtxbs/gauss: J from 200 batches, |sum_m g_m - g| = 1.36e-12
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180136 group rows (25003 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167312 group rows (37827 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173521 group rows (31618 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[05:26:52] vtxbs/gaussq: H in 304 s, diag -6.33e+04 .. 1e+04
+[05:26:58] vtxbs/gaussq: J from 200 batches, |sum_m g_m - g| = 6.82e-13
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[05:27:26] kernel CF tabulation (8000 samples) built in 2.1 s
+mass term: 8000 candidates, 184799 group rows (20340 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[05:33:56] vtxbsmass/cf: H in 390 s, diag -6.9e+04 .. 1.53e+04
+[05:34:02] vtxbsmass/cf: J from 200 batches, |sum_m g_m - g| = 2.27e-12
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180021 group rows (25118 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167212 group rows (37927 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173407 group rows (31732 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[05:34:38] kernel CF tabulation (8000 samples) built in 3.5 s
+mass term: 8000 candidates, 186135 group rows (19004 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[05:41:11] vtxbsmass/gauss: H in 392 s, diag -6.57e+04 .. 1.83e+04
+[05:41:17] vtxbsmass/gauss: J from 200 batches, |sum_m g_m - g| = 4.55e-13
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180136 group rows (25003 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167312 group rows (37827 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173521 group rows (31618 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[05:41:50] kernel CF tabulation (8000 samples) built in 3.4 s
+mass term: 8000 candidates, 182399 group rows (22740 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[05:48:20] vtxbsmass/gaussq: H in 390 s, diag -6.35e+04 .. 9.89e+03
+[05:48:26] vtxbsmass/gaussq: J from 200 batches, |sum_m g_m - g| = 4.55e-13
+[05:48:26] -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/fisherHJ.npz
+================================================================================================
+A. FITTED VALUES AT MC TRUTH (no injection) -- value +- error, and the physical amount
+================================================================================================
+fit                    EDM             NLL   params
+bs_cf            7.181e-15             nan       62
+vtx_cf           7.989e-14             nan       62
+vtxbs_cf         4.911e-14             nan       62
+
+parameter                      prior      bs_cf k       +-    %mat  /prior     vtx_cf k       +-    %mat  /prior   vtxbs_cf k       +-    %mat  /prior
+material_bpix_services         0.100      -0.0061   0.0983   -0.61   0.983      -0.0035   0.0990   -0.35   0.990      -0.0034   0.0976   -0.34   0.976
+material_bpix_support6         0.050       0.0463   0.0493    4.74   0.986       0.0236   0.0491    2.39   0.983       0.0685   0.0484    7.09   0.967
+material_tib_support           0.050      -0.0018   0.0497   -0.18   0.995      -0.0058   0.0497   -0.58   0.994      -0.0093   0.0494   -0.92   0.989
+material_tibtid_services       0.100      -0.0045   0.0996   -0.45   0.996       0.0027   0.1000    0.27   1.000       0.0018   0.0998    0.18   0.998
+material_other                 0.200      -0.0040   0.1994   -0.40   0.997      -0.0067   0.1992   -0.67   0.996      -0.0130   0.1984   -1.29   0.992
+material_pixel_patch           0.100      -0.0039   0.0998   -0.39   0.998      -0.0022   0.0999   -0.22   0.999      -0.0055   0.0997   -0.55   0.997
+material_tec_structure         0.050      -0.0008   0.0499   -0.08   0.999       0.0020   0.0500    0.20   1.000       0.0026   0.0500    0.26   1.000
+material_tid_support           0.050      -0.0009   0.0500   -0.09   0.999       0.0006   0.0500    0.06   1.000       0.0004   0.0500    0.04   1.000
+material_tob_services          0.100      -0.0001   0.1000   -0.01   1.000      -0.0070   0.0996   -0.70   0.996      -0.0074   0.0996   -0.74   0.996
+material_bpix_active_L3        0.020       0.0000   0.0200    0.00   1.000      -0.0002   0.0200   -0.02   1.000      -0.0002   0.0200   -0.02   1.000
+
+================================================================================================
+B. INJECTION RECOVERY for hitres_pix_x_q2  (physical units)
+================================================================================================
+   SIGN: the injection scales that group's exponents by exp(+k) in the CARD, i.e.
+   it declares the model at k = 0 to already have exp(k) times the material, so
+   the MLE moves by -k.  What is tested is |shift| against |truth|.
+   PRIOR SHRINKAGE: the group carries its tier prior, and the injection is about
+   one prior sigma, so the POSTERIOR only moves by a fraction
+   f = sigma_post^2 / sigma_lik^2 of it, with 1/sigma_lik^2 = 1/sigma_post^2 - 1/sigma_pri^2.
+   The prior-corrected column divides the shift by that f.
+arm            baseline       +-   injected       +-      shift  /truth  f_pri corr/truth pull_lik   leak
+bs_cf           0.04508  0.14436   -0.04821  0.13158   -0.09329     nan    nan        nan      nan  0.001
+      largest leakage: beamwidth_y -0.00 sigma, hitres_pix_y_q2 -0.00 sigma, beamwidth_x -0.00 sigma
+vtx_cf          0.34981  0.12296    0.22907  0.11202   -0.12073     nan    nan        nan      nan  0.001
+      largest leakage: hitres_str_N3_hi -0.00 sigma, hitres_pix_y_q2 -0.00 sigma, hitres_pix_x_q1 -0.00 sigma
+vtxbs_cf        0.25341  0.09252    0.14045  0.08421   -0.11296     nan    nan        nan      nan  0.000
+      largest leakage: hitres_pix_y_q2 -0.00 sigma, hitres_pix_x_q1 -0.00 sigma, material_bpix_support6 -0.00 sigma
+fit                   npar     NLLred(min)        EDM  cert              bpix_support                  pix_x_q2
+---------------------------------------------------------------------------------------------------------------
+bs_cf                   62      23381.7587   7.18e-15  PASS      +0.04633 +- 0.04930        +0.04508 +- 0.14436  
+bs_gauss                62      23433.6267   2.52e-10  PASS      +0.02009 +- 0.04874        +0.03560 +- 0.14342  
+bs_gaussq               62      23434.6099   3.00e-16  PASS      +0.02613 +- 0.04895        +0.06984 +- 0.14383  
+bsfree_cf               62      23381.2231   1.43e-14  PASS      +0.04586 +- 0.04931        +0.00361 +- 0.15612  
+inj_bs_cf               62      23380.8686   9.88e-14  PASS      +0.04483 +- 0.04914        +0.03547 +- 0.14425  
+inj_vtx_cf              62     -35883.7084   2.59e-16  PASS      +0.02181 +- 0.04898        +0.33773 +- 0.12291  
+inj_vtxbs_cf            62     -12480.6721   5.06e-15  PASS      +0.06503 +- 0.04806        +0.24222 +- 0.09249  
+inj_vtxbsm_cf           62      11071.7803   3.50e-14  PASS      +0.06825 +- 0.04812        +0.25382 +- 0.09309  
+injhit_bs_cf            62      23381.7588   1.17e-11  PASS      +0.04629 +- 0.04930        -0.04821 +- 0.13158  
+injhit_vtx_cf           62     -35883.3000   4.04e-14  PASS      +0.02355 +- 0.04913        +0.22907 +- 0.11202  
+injhit_vtxbs_cf         62     -12479.3911   3.03e-15  PASS      +0.06839 +- 0.04835        +0.14045 +- 0.08421  
+mass_cf                 62      23259.5292   9.04e-16  PASS      +0.00173 +- 0.05003        +0.15087 +- 0.98409  
+nobw_bs_cf              60      23382.1699   2.50e-16  PASS      +0.04630 +- 0.04929        +0.06682 +- 0.13934  
+vtx_cf                  62     -35883.2644   7.99e-14  PASS      +0.02364 +- 0.04913        +0.34981 +- 0.12296  
+vtxbs_cf                62     -12479.3686   4.91e-14  PASS      +0.06846 +- 0.04835        +0.25341 +- 0.09252  
+vtxbsfree_cf            62     -12480.9505   1.69e-15  PASS      +0.07024 +- 0.04840        +0.27767 +- 0.09426  
+vtxbsm_cf               62      11073.1457   3.76e-15  PASS      +0.07157 +- 0.04841        +0.26514 +- 0.09312  
+vtxbsmfree_cf           62      11071.5135   9.00e-16  PASS      +0.07330 +- 0.04847        +0.29126 +- 0.09491  
+
+18/18 certified at EDM < 0.001
+ANALYSIS_STAGE2_DONE

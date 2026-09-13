@@ -1,0 +1,9 @@
+# 6 files
+# absent in this production: Jpsi_bsfree
+#   task_0000: 313  (total 313)
+#   task_0001: 306  (total 619)
+#   task_0002: 313  (total 932)
+#   task_0003: 307  (total 1239)
+#   task_0004: 338  (total 1577)
+#   task_0005: 322  (total 1899)
+# wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/tail/dy_ideal700.npz: 1899 candidates, 124 columns
