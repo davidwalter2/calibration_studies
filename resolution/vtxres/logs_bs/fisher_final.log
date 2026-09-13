@@ -1,0 +1,124 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789280297.231392 3547432 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789280303.965636 3547432 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  bsx: standard two-track selection on 10254 candidates
+  bsx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsx:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsx:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsx:     kept                           10254  (100.00 %)
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789280318.368455 3547432 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[02:22:13] bs/cf: H in 206 s, diag -4.51e+04 .. 5.11e+03
+[02:22:19] bs/cf: J from 200 batches, |sum_m g_m - g| = 6.82e-13
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167212 group rows (37927 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173407 group rows (31732 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[02:25:55] bs/gauss: H in 199 s, diag -3.98e+04 .. 4.09e+03
+[02:25:58] bs/gauss: J from 200 batches, |sum_m g_m - g| = 2.27e-13
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167312 group rows (37827 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173521 group rows (31618 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[02:29:30] bs/gaussq: H in 199 s, diag -3.69e+04 .. 563
+[02:29:33] bs/gaussq: J from 200 batches, |sum_m g_m - g| = 6.82e-13
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[02:31:29] vtx/cf: H in 106 s, diag -2.36e+04 .. 1.04e+04
+[02:31:31] vtx/cf: J from 200 batches, |sum_m g_m - g| = 0
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180021 group rows (25118 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[02:33:24] vtx/gauss: H in 105 s, diag -2.57e+04 .. 1.42e+04
+[02:33:26] vtx/gauss: J from 200 batches, |sum_m g_m - g| = 0
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180136 group rows (25003 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[02:35:18] vtx/gaussq: H in 105 s, diag -2.65e+04 .. 9.48e+03
+[02:35:19] vtx/gaussq: J from 200 batches, |sum_m g_m - g| = 0
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[02:40:47] vtxbs/cf: H in 304 s, diag -6.88e+04 .. 1.55e+04
+[02:40:52] vtxbs/cf: J from 200 batches, |sum_m g_m - g| = 4.55e-13
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180021 group rows (25118 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167212 group rows (37927 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173407 group rows (31732 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[02:46:25] vtxbs/gauss: H in 306 s, diag -6.55e+04 .. 1.82e+04
+[02:46:30] vtxbs/gauss: J from 200 batches, |sum_m g_m - g| = 1.36e-12
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180136 group rows (25003 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167312 group rows (37827 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173521 group rows (31618 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[02:51:48] vtxbs/gaussq: H in 303 s, diag -6.33e+04 .. 1e+04
+[02:51:53] vtxbs/gaussq: J from 200 batches, |sum_m g_m - g| = 6.82e-13
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[02:52:34] kernel CF tabulation (8000 samples) built in 3.6 s
+mass term: 8000 candidates, 184799 group rows (20340 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+[02:59:04] vtxbsmass/cf: H in 389 s, diag -6.9e+04 .. 1.53e+04
+[02:59:10] vtxbsmass/cf: J from 200 batches, |sum_m g_m - g| = 2.27e-12
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180021 group rows (25118 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167212 group rows (37927 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173407 group rows (31732 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[02:59:44] kernel CF tabulation (8000 samples) built in 3.0 s
+mass term: 8000 candidates, 186135 group rows (19004 pruned), 118886 hit rows, 62 parameters, arm 'gauss'
+[03:06:19] vtxbsmass/gauss: H in 394 s, diag -6.57e+04 .. 1.83e+04
+[03:06:25] vtxbsmass/gauss: J from 200 batches, |sum_m g_m - g| = 4.55e-13
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 180136 group rows (25003 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 167312 group rows (37827 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 173521 group rows (31618 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[03:06:50] kernel CF tabulation (8000 samples) built in 3.2 s
+mass term: 8000 candidates, 182399 group rows (22740 pruned), 118886 hit rows, 62 parameters, arm 'gaussq'
+[03:13:22] vtxbsmass/gaussq: H in 391 s, diag -6.35e+04 .. 9.89e+03
+[03:13:27] vtxbsmass/gaussq: J from 200 batches, |sum_m g_m - g| = 4.55e-13
+[03:13:27] -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/fisherHJ.npz
+FISHERDONE

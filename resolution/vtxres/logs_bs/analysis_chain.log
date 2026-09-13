@@ -1,0 +1,433 @@
+=== all six dy_bs_final tasks complete Sun Sep 13 01:44:30 AM EDT 2026
+# ON: 6 files, 10413 candidates
+# Jpsi_bsok 100.000 %
+
+=== G1 ndof(ON) - ndof(OFF) == 3
+  matched 10413, 10237 on the baseline; ndof difference: 3 x10237
+  PASS
+  (unselected: 3 x10413)
+
+# the baseline keeps 10258 of 10413 candidates
+
+=== G3 the beam chi2 enters ONCE
+  |recomputed/exported - 1| (chi2fit)           median 4.473e-06  p90 1.988e-05  max 0.0006072 
+  |chi2(linpoint)/chi2(optimum) - 1|            median 0  p90 5.738e-06  max 0.00423 
+  chi2fit on 3 rows: median 1.1038, mean 1.649 (the mean is tail-dominated on the UNSELECTED sample); 2x would double both
+
+=== G5 sum_b |a_b|^2 == Cov_ii  (the registered blocks, fam != 15)
+  maker Jpsi_bsvchk                             median 7.742e-09  p90 5.036e-08  max 0.0001613 
+  resinfbsv vs bsvarv, per block, max rel       median 1.368e-07  p90 1.547e-07  max 1.759e-07 
+  Jpsi_vtxvchk (vertex, WITH the beam block)    median 8.61e-09  p90 3.928e-08  max 2.345e-06 
+  mass: |(mat+hit+bs)/sigma_m^2 - 1|            median 1.23e-07  p90 3.802e-07  max 0.0001193 
+  cfmass_grp_closure                            median 4.114e-16  p90 7.276e-16  max 2.836e-15 
+  cfvtx_grp_closure                             median 5.042e-16  p90 7.523e-16  max 2.308e-15 
+  cfbs_grp_closure                              median 5.346e-16  p90 8.288e-16  max 5.519e-15 
+
+=== G6 the mean-term identity: Jpsi_bsmeanbs == -L^-1 P (the WHITENED pair)
+  max |Jpsi_bsmeanbs + L^-1 P|                  median 1.012e-10  p90 2.035e-10  max 7.68e-10 
+
+=== G7 the leave-one-out identity against the rows-OFF fit
+  10413 matched, 10258 with bsok, 10237 evaluated
+  |r_bs(ON) - r_bs(OFF)| / sigma                median 0.0009095  p90 0.00386  max 0.5409 
+  |z_bs(ON) - z_bs(OFF)|                        median 0.00116  p90 0.005525  max 3.291 
+  |Cov(ON) - Cov(OFF)| / |Cov|                  median 0.0008417  p90 0.003735  max 0.135 
+
+=== G7a C_{-B}(ON, "+" form) == C_vtx(OFF), directly
+  |C_-B(ON) - C_vtx(OFF)| / |C_vtx(OFF)|        median 0.000791  p90 0.003128  max 0.2547 
+  the same on the DIAGONAL, relative            median 0.001571  p90 0.005708  max 0.7122 
+
+=== G8 the WHITENED pair: unit variance and zero correlation
+  10258 candidates
+  mean(z1) +0.01257 +- 0.01074   Var 1.18363
+  mean(z2) +0.00076 +- 0.01041   Var 1.11102
+  corr(z1, z2) +0.03159 +- 0.00987   (3.20 sigma from zero)
+  Jpsi_bsvchk (sum_b |a_b|^2 == 1)              median 7.742e-09  p90 5.036e-08  max 0.0001613 
+  Jpsi_bsmeig (the conditioning of M)           median 0.1114  p90 0.3051  max 0.5768 
+
+=== the two pulls (orientation only; the study does the real work)
+  UNSELECTED, for contrast: Var(z_x) 1.184 on 10258
+  z_bs,x: n 10258  mean +0.0126  Var 1.1835  trimVar 1.1178  P(|z|>3) 0.01248  P(|z|>5) 0.001755
+  z_bs,y: n 10258  mean +0.0008  Var 1.1109  trimVar 1.0567  P(|z|>3) 0.00965  P(|z|>5) 0.000780
+
+=== the family composition of the two beam functionals
+  Jpsi_bsvbs       x 0.2262   y 0.3610
+  Jpsi_bsvhit      x 0.6053   y 0.4656
+  Jpsi_bsvms       x 0.1685   y 0.1734
+  Jpsi_bsvioni     x 0.0000   y 0.0000
+  Jpsi_massvbs     0.040009
+  Jpsi_vtxvbs      0.061185
+# 6 files, functional bsx
+[6/6] cumulative 10254 (1 s)
+standard two-track selection on 10413 candidates
+    Jpsi_vtxok                     10413  (100.00 %, -0)
+    finite sigma_m, sigma_v        10413  (100.00 %, -0)
+    min leg hits >= 8              10413  (100.00 %, -0)
+    |z_v| < 5                      10358  ( 99.47 %, -55)
+    kept                           10358  ( 99.47 %)
+
+=== bsx: 10254 candidates, 263054 group rows (25.65/cand), 12.84 hit rows/cand
+    exponent storage 32.07 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/dy_bsx.npz (323.2 MB)
+# 6 files, functional bsy
+[6/6] cumulative 10254 (1 s)
+standard two-track selection on 10413 candidates
+    Jpsi_vtxok                     10413  (100.00 %, -0)
+    finite sigma_m, sigma_v        10413  (100.00 %, -0)
+    min leg hits >= 8              10413  (100.00 %, -0)
+    |z_v| < 5                      10358  ( 99.47 %, -55)
+    kept                           10358  ( 99.47 %)
+
+=== bsy: 10254 candidates, 263054 group rows (25.65/cand), 12.84 hit rows/cand
+    exponent storage 32.07 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/dy_bsy.npz (322.4 MB)
+# 6 files, functional vtx
+[6/6] cumulative 10254 (1 s)
+standard two-track selection on 10413 candidates
+    Jpsi_vtxok                     10413  (100.00 %, -0)
+    finite sigma_m, sigma_v        10413  (100.00 %, -0)
+    min leg hits >= 8              10413  (100.00 %, -0)
+    |z_v| < 5                      10358  ( 99.47 %, -55)
+    kept                           10358  ( 99.47 %)
+
+=== vtx: 10254 candidates, 263054 group rows (25.65/cand), 12.84 hit rows/cand
+    exponent storage 32.07 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/dy_vtx.npz (321.1 MB)
+# 6 files, functional mass
+[6/6] cumulative 10254 (1 s)
+standard two-track selection on 10413 candidates
+    Jpsi_vtxok                     10413  (100.00 %, -0)
+    finite sigma_m, sigma_v        10413  (100.00 %, -0)
+    min leg hits >= 8              10413  (100.00 %, -0)
+    |z_v| < 5                      10358  ( 99.47 %, -55)
+    kept                           10358  ( 99.47 %)
+
+=== mass: 10254 candidates, 263054 group rows (25.65/cand), 12.84 hit rows/cand
+    exponent storage 32.07 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/dy_mass.npz (317.8 MB)
+# ON 10413 candidates (6 files), OFF 10650 (6 files), matched 10413
+# selected on BOTH: 10237; of those Jpsi_bsok 100.000 %
+
+=== ndof(ON) - ndof(OFF): 3 x10237
+
+=== sigma_m(ON)/sigma_m(OFF)  n 10236
+  mean 0.943410  median 0.957953  -> 5.659 % in sigma, 10.998 % in variance
+  vs softer muon GEN pT:
+    [   4.6,   20.7) GeV  n   1276  ratio 0.940720  (5.928 %)
+    [  20.7,   26.8) GeV  n   1276  ratio 0.943952  (5.605 %)
+    [  26.8,   31.0) GeV  n   1275  ratio 0.945362  (5.464 %)
+    [  31.0,   34.7) GeV  n   1276  ratio 0.946177  (5.382 %)
+    [  34.7,   37.7) GeV  n   1276  ratio 0.946115  (5.389 %)
+    [  37.7,   40.6) GeV  n   1275  ratio 0.942188  (5.781 %)
+    [  40.6,   43.3) GeV  n   1276  ratio 0.946291  (5.371 %)
+    [  43.3,  142.6) GeV  n   1275  ratio 0.937380  (6.262 %)
+  |m(ON) - m(OFF)| [MeV]                          median 205.9  p90 634.9  max 3.652e+04 MeV
+  rms(m_ON - m_OFF) = 861.06 MeV against the predicted 804.49 MeV (= sqrt(sigma_OFF^2 - sigma_ON^2))
+  MEAN m(ON) - m(OFF) = -10.942 +- 8.512 MeV   (relative -1.223e-04)
+
+=== where the gain comes from
+  sigma(p)/p, mu+: ON/OFF median 0.97017  mean 0.95661   (OFF median 0.01637)
+  sigma(p)/p, mu-: ON/OFF median 0.97012  mean 0.95672   (OFF median 0.01632)
+  the ANGULAR share of sigma_m^2 (Jpsi_fang, rows OFF): median 0.00009, mean 0.00016 -- so the gain is on the CURVATURES, not the opening angle
+  predicted sigma_m ratio from the two curvatures alone: median 0.95802, mean 0.94351
+  measured                                             : median 0.95795, mean 0.94351
+
+=== the VERTEX residual must be UNCHANGED
+  |r_v(ON)-r_v(OFF)| / max|.|                     median 0.293  p90 1.098  max 1.997 
+  |sigma_v(ON)-sigma_v(OFF)| / max|.|             median 0.05563  p90 0.3608  max 0.997 
+  |z_v(ON)-z_v(OFF)| / max|.|                     median 0.2833  p90 1.123  max 2 
+  |vhit(ON)-vhit(OFF)| / max|.|                   median 0.06306  p90 0.2733  max 0.7915 
+  |vms(ON)-vms(OFF)| / max|.|                     median 0.1032  p90 0.5073  max 0.9952 
+  max |z_v(ON) - z_v(OFF)| = 6.029 (median 0.1936)
+  Var(z_v) ON 1.12589  OFF 1.12593
+
+=== the leave-one-out identity against the rows-OFF fit
+  |r_bs(ON) - r_bs(OFF)| / sigma                  median 0.0009095  p90 0.00386  max 0.5409 
+  |z_bs(ON) - z_bs(OFF)|                          median 0.00116  p90 0.005525  max 3.291 
+  |Cov(ON) - Cov(OFF)| / |Cov|                    median 0.0008417  p90 0.003735  max 0.135 
+
+=== the beam-spot MEAN TERM (the numbers that decide whether the beam-spot parameters must float)
+  a 5 um shift of the beam-spot CENTROID (10237 candidates)
+    mass, d x0 [MeV]           mean    -0.40729 +- 0.888 MeV   rms     89.811   mean|.|     66.232   [mean/sigma -0.000854, rms/sigma 0.065583]
+    mass, d y0 [MeV]           mean     -1.0334 +- 0.961 MeV   rms     97.272   mean|.|     67.534   [mean/sigma -0.000525, rms/sigma 0.067777]
+    mass, d x0 [rel]           mean -4.1557e-06 +- 9.73e-06    rms 0.00098488   mean|.| 0.00073724
+    mass, d y0 [rel]           mean -1.0585e-05 +- 1e-05    rms  0.0010153   mean|.| 0.00075108
+    vertex r_v / sigma_v, d x0 mean  -0.0014949 +- 0.00081    rms    0.08196   mean|.|    0.05969
+    vertex r_v / sigma_v, d y0 mean -0.00029743 +- 0.000817    rms   0.082704   mean|.|   0.060492
+    beam z_bs,x, d x0          mean     -96.428 +- 0.688    rms     69.636   mean|.|     96.428
+    beam z_bs,y, d y0          mean     -111.96 +- 0.714    rms      72.26   mean|.|     111.96
+  a 1e-4 change of the SLOPE (response = the same weight x (z_v - z0))
+    mass, d dxdz [MeV]         mean     -1.6336 +- 0.625 MeV   rms     63.188   mean|.|     37.918   [mean/sigma -0.001172, rms/sigma 0.047020]
+    mass, d dydz [MeV]         mean    -0.72404 +- 0.663 MeV   rms     67.127   mean|.|     38.979   [mean/sigma -0.000479, rms/sigma 0.049027]
+    mass, d dxdz [rel]         mean -1.8937e-05 +- 6.91e-06    rms 0.00069892   mean|.| 0.00042215
+    vertex r_v / sigma_v, d dxdz mean -2.3954e-05 +- 0.000595    rms   0.060201   mean|.|   0.034588
+    beam z_bs,x, d dxdz        mean     -0.9419 +- 0.838    rms     84.757   mean|.|     54.821
+  <|z_v - z0|> = 2.8933 cm
+  <sigma_m> = 1135.24 MeV, <sigma_bs,x> = 51.68 um, <sigma_bs,y> = 50.82 um
+
+=== the luminous region as a share of the other two functionals
+  <Jpsi_massvbs> = 0.040012
+  <Jpsi_vtxvbs>  = 0.061051
+# dy_bs: 10254 candidates
+# baseline (finite, minLegHits>=8, |z_v|<5): 10254 of 10254 (100.000 %)
+# classes BEFORE the baseline: signal 10214, dup 1, otherdecay 8, nonres 0, unmatched 31
+# classes: signal 10214 (99.610 %), dup 1 (0.010 %), otherdecay 8 (0.078 %), nonres 0 (0.000 %), unmatched 31 (0.302 %)
+
+=== the two beam pulls by GEN class
+class             n    <z_x>  Var z_x    <z_y>  Var z_y  P(|z|>3)  P(|z|>5)   <chi2>
+------------------------------------------------------------------------------------
+signal        10214    0.014    1.176    0.001    1.109   0.02066   0.00245    2.286
+otherdecay        8   -1.241    6.097   -0.082    2.331   0.12500   0.12500    9.974
+unmatched        31   -0.074    0.972   -0.156    0.765   0.00000   0.00000    1.767
+  signal z_x: n 10214  mean +0.0139 +- 0.0107  Var 1.1763  trimVar 1.1112  skew +0.0464  kurt 3.7654
+  signal z_y: n 10214  mean +0.0010 +- 0.0104  Var 1.1093  trimVar 1.0549  skew +0.0417  kurt 3.3704
+
+=== back-to-back COSMIC-LIKE pairs (|dphi - pi| < 0.05 AND |eta+ + eta-| < 0.05): 21 of 10254 = 0.2048 +- 0.0446 %
+  of those, gen class: signal 21, dup 0, otherdecay 0, nonres 0, unmatched 0
+  their pulls: <z_x> -0.124  Var 1.002   <z_y> -0.200  Var 0.790   <|z_v|> 0.628
+  the SIGNAL sample for comparison: <z_x> +0.014 Var 1.176, <|z_v|> 0.825
+  (|dphi - pi| < 0.05 alone: 1903 = 18.559 % -- a Z pair IS back to back, so this alone tags nothing)
+
+=== what a cut buys: signal efficiency vs background rejection
+cut                        eff(signal)      eff(bkg)   rejection      loss
+--------------------------------------------------------------------------
+|z_bs| < 3                0.97934+-0.00141  0.97500+-0.02469     0.02500   0.02066
+|z_bs| < 4                0.99432+-0.00074  0.97500+-0.02469     0.02500   0.00568
+|z_bs| < 5                0.99755+-0.00049  0.97500+-0.02469     0.02500   0.00245
+|z_v| < 3                 0.99138+-0.00091  0.97500+-0.02469     0.02500   0.00862
+|z_v| < 4                 0.99931+-0.00026  1.00000+-0.00000     0.00000   0.00069
+|z_v| < 5                 1.00000+-0.00000  1.00000+-0.00000     0.00000   0.00000
+|z_bs|<3 AND |z_v|<3      0.97337+-0.00159  0.95000+-0.03446     0.05000   0.02663
+|z_bs|<4 AND |z_v|<4      0.99373+-0.00078  0.97500+-0.02469     0.02500   0.00627
+|z_bs|<5 AND |z_v|<5      0.99755+-0.00049  0.97500+-0.02469     0.02500   0.00245
+chi2_bs(2dof) < 9         0.96975+-0.00169  0.92500+-0.04165     0.07500   0.03025
+chi2_bs(2dof) < 16        0.99119+-0.00092  0.97500+-0.02469     0.02500   0.00881
+beam-row chi2 < 9         0.99354+-0.00079  1.00000+-0.00000     0.00000   0.00646
+beam-row chi2 < 16        0.99951+-0.00022  1.00000+-0.00000     0.00000   0.00049
+
+  signal 10214, background 40 (0.390 % of the sample)
+
+=== the beam rows' own chi2 (3 rows, at the optimum)
+  signal       n  10214  median   1.1029  mean   1.6477  p90    3.766  p99     8.111
+  background   n     40  median   1.1387  mean   1.6310  p90    3.415  p99     5.262
+[38;21mINFO:genbkg.py: === gen classes, 10254 candidates[0m
+  class              N               frac              P(|z|>3)              P(|z|>4)              P(|z|>5)             P(|z|>10)
+  signal         10214   0.9961 +- 0.0006      0.0086 +- 0.0009      0.0007 +- 0.0003      0.0000 +- 0.0000      0.0000 +- 0.0000
+  dup                1   0.0001 +- 0.0001      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000
+  otherdecay         8   0.0008 +- 0.0003      0.1250 +- 0.1169      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000
+  nonres             0
+  unmatched         31   0.0030 +- 0.0005      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000      0.0000 +- 0.0000
+  SIGNAL         10214   0.9961 +- 0.0006
+  BACKGROUND        40   0.0039 +- 0.0006
+  |z_v| > 3: N 89  background fraction 0.0112 +- 0.0112   [signal 88  dup 0  otherdecay 1  nonres 0  unmatched 0]
+  |z_v| > 4: N 7  background fraction 0.0000 +- 0.0000   [signal 7  dup 0  otherdecay 0  nonres 0  unmatched 0]
+  |z_v| > 5: EMPTY
+  |z_v| > 10: EMPTY
+  first non-muon ancestor |pdgId| of the plus leg (top 8): 23:10235, 0:15, 421:2, 411:2
+  SIGNAL only, by weaker-leg valid hits: <= 5: N 0 P(|z|>5) --   <= 8: N 28 P(|z|>5) 0.0000 +- 0.0000   > 8: N 10186 P(|z|>5) 0.0000 +- 0.0000
+  class               dR(+) med/p99        dR(-) med/p99          pT+/genpT+ med/p5/p95          pT-/genpT- med/p5/p95
+  signal            0.00022/0.00100      0.00022/0.00099           1.0003/0.9714/1.0308           1.0001/0.9714/1.0304 
+  dup               0.02820/0.02820      0.00008/0.00008           0.9280/0.9280/0.9280           1.0051/1.0051/1.0051 
+  otherdecay        0.00038/0.00788      0.00049/0.00085           0.9882/0.9684/0.9934           1.0035/0.9846/1.0196 
+  unmatched         0.00017/0.00052      0.00021/0.00059           0.9958/0.9718/1.0231           1.0046/0.9837/1.0532 
+[38;21mINFO:genbkg.py: === cut |z_v| < t, ALL events: 10214 signal, 40 background[0m
+      t             signal eff          bkg rejection    purity before     purity after
+      3       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9961 +- 0.0006 0.9962 +- 0.0006
+      4       0.9993 +- 0.0003       0.0000 +- 0.0000 0.9961 +- 0.0006 0.9961 +- 0.0006
+      5       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.9961 +- 0.0006
+     10       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.9961 +- 0.0006
+[38;21mINFO:genbkg.py: === cut |z_v| < t, 1 candidate/event: 10183 signal, 5 background[0m
+      t             signal eff          bkg rejection    purity before     purity after
+      3       0.9914 +- 0.0009       0.0000 +- 0.0000 0.9995 +- 0.0002 0.9995 +- 0.0002
+      4       0.9993 +- 0.0003       0.0000 +- 0.0000 0.9995 +- 0.0002 0.9995 +- 0.0002
+      5       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9995 +- 0.0002 0.9995 +- 0.0002
+     10       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9995 +- 0.0002 0.9995 +- 0.0002
+[38;21mINFO:genbkg.py: === cut |z_v| < t, >1 candidate/event: 31 signal, 35 background[0m
+      t             signal eff          bkg rejection    purity before     purity after
+      3       1.0000 +- 0.0000       0.0286 +- 0.0282 0.4697 +- 0.0614 0.4769 +- 0.0620
+      4       1.0000 +- 0.0000       0.0000 +- 0.0000 0.4697 +- 0.0614 0.4697 +- 0.0614
+      5       1.0000 +- 0.0000       0.0000 +- 0.0000 0.4697 +- 0.0614 0.4697 +- 0.0614
+     10       1.0000 +- 0.0000       0.0000 +- 0.0000 0.4697 +- 0.0614 0.4697 +- 0.0614
+[38;21mINFO:genbkg.py: === the duplicate pairings: 1 gen decays reconstructed more than once (2 candidates)[0m
+  the gen-preferred candidate is also the one with the smallest |z_v|:      0.0000 +- 0.0000
+  the gen-preferred candidate is also the one with the smallest chi2/ndof: 1.0000 +- 0.0000
+  |z_v| of the 1 duplicates: median 0.489, p90 0.489, P(>5) 0.0000 +- 0.0000   against the 10214 signal: median 0.674, P(>5) 0.0000 +- 0.0000
+[38;21mINFO:genbkg.py: === cut on the WEAKER leg's valid hits: 10214 signal, 40 background[0m
+   minLegHits  removed             signal eff          bkg rejection     purity after   bkg in removed
+            4        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            5        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            6        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            7        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            8        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006 0.0000 +- 0.0000
+            9       29       0.9973 +- 0.0005       0.0250 +- 0.0247 0.9962 +- 0.0006 0.0345 +- 0.0339
+           10       89       0.9916 +- 0.0009       0.0750 +- 0.0416 0.9964 +- 0.0006 0.0337 +- 0.0191
+  class of the candidates a minLegHits cut removes:
+    < 4: N     0  
+    < 6: N     0  
+    < 8: N     0  
+[38;21mINFO:genbkg.py: === do the two cuts remove the SAME candidates?[0m
+  |z_v| > 5: 0  weaker leg < 4: 0  BOTH: 0  |z_v| only: 0  hits only: 0
+  |z_v| > 5: 0  weaker leg < 6: 0  BOTH: 0  |z_v| only: 0  hits only: 0
+  |z_v| > 5: 0  weaker leg < 8: 0  BOTH: 0  |z_v| only: 0  hits only: 0
+  pair-hit cut (minPairHits): N(pair < 10) 0, N(pair < 11) 0, N(pair < 16) 0
+[38;21mINFO:genbkg.py: === the two together (drop if |z_v| >= t OR weaker leg < k)[0m
+      t    k  removed             signal eff          bkg rejection     purity after
+      3    0       89       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9962 +- 0.0006
+      3    6       89       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9962 +- 0.0006
+      3    7       89       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9962 +- 0.0006
+      3    8       89       0.9914 +- 0.0009       0.0250 +- 0.0247 0.9962 +- 0.0006
+      5    0        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006
+      5    6        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006
+      5    7        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006
+      5    8        0       1.0000 +- 0.0000       0.0000 +- 0.0000 0.9961 +- 0.0006
+/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bs_final/task_0000/globalcor_0.root
+1686 candidates, 333.2 MB, 193.0 kB/candidate (all branches, compressed)
+
+group                                  kB/cand   TB at 41 M
+-----------------------------------------------------------
+vertex: the exponents (per group)        30.53        1.282
+vertex: the exponents (flat)              1.40        0.059
+vertex: shares + scalars                  0.94        0.040
+vertex: the influence a_b                 3.54        0.149
+vertex: the D row                         0.89        0.037
+mass: the exponents (per group)          30.23        1.269
+mass: the exponents (flat)                1.39        0.058
+mass: shares + scalars                    1.38        0.058
+mass: the influence a_b                   3.53        0.148
+mass: the D row                           0.88        0.037
+beam: the exponents (per group)          61.08        2.564
+beam: the exponents (flat)                2.80        0.118
+beam: shares + scalars                    1.80        0.076
+beam: the influence a_b                   7.07        0.297
+beam: the MEAN-TERM weights               0.05        0.002
+everything else (fit output, kinematics)     37.93        1.592
+-----------------------------------------------------------
+sum of branches                         185.44        7.786
+
+the VERTEX block alone: 37.30 kB/cand (1.566 TB at 41 M)
+the MASS block alone  : 37.41 kB/cand (1.571 TB at 41 M)
+=> the vertex term costs 1.00 x the mass term's export
+the BEAM block alone  : 72.80 kB/cand (3.056 TB at 41 M, 0.522 TB at 7 M Z)
+=> the two beam terms cost 1.95 x the vertex term's export (1.95 x the mass term's)
+
+the 12 largest branches:
+   hessfactorv                     28.19 kB/cand
+   cfbs_grp_ioni_im                12.30 kB/cand
+   cfbs_grp_rad_im                 12.27 kB/cand
+   cfbs_grp_ioni_re                12.05 kB/cand
+   cfbs_grp_ms                     12.03 kB/cand
+   cfbs_grp_rad_re                 12.00 kB/cand
+   resinfbsv                        7.07 kB/cand
+   cfvtx_grp_ioni_im                6.16 kB/cand
+   cfvtx_grp_rad_im                 6.14 kB/cand
+   cfmass_grp_ioni_im               6.02 kB/cand
+   cfvtx_grp_ioni_re                6.01 kB/cand
+   cfvtx_grp_ms                     6.01 kB/cand
+[38;21mINFO:pubhtml.py: installed index.php in /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal[0m
+[38;21mINFO:plot_vtx.py: === bsx: 10254 candidates, functional bsx[0m
+[38;21mINFO:plot_vtx.py: bsx: N 10254, Var(z) 1.18104, mean +0.01283 +- 0.01073, skew +0.0622, kurt 5.0006
+   norm(cf) 0.998699  var(model) 1.01060  skew(model) -0.0000  kurt(model) 4.135, norm(gauss) 0.998698  var(model) 1.01046  skew(model) +0.0000  kurt(model) 3.004, norm(gaussq) 0.998714  var(model) 0.99871  skew(model) +0.0000  kurt(model) 3.004
+   DATA trimmed at |z| < 5: Var 1.12409  skew +0.0227  kurt 3.8990  (drops 0.176 %)
+   P(|z| > 1): data 0.321143   cf 0.316050 (data/model 1.016)   gauss 0.319745 (data/model 1.004)   gaussq 0.316927 (data/model 1.013)
+   P(|z| > 2): data 0.062415   cf 0.046344 (data/model 1.347)   gauss 0.046728 (data/model 1.336)   gaussq 0.045453 (data/model 1.373)
+   P(|z| > 3): data 0.012385   cf 0.003466 (data/model 3.573)   gauss 0.002858 (data/model 4.333)   gaussq 0.002698 (data/model 4.591)
+   P(|z| > 4): data 0.003803   cf 0.000347 (data/model 10.946)   gauss 0.000070 (data/model 54.352)   gaussq 0.000063 (data/model 60.069)
+   P(|z| > 5): data 0.001755   cf 0.000110 (data/model 15.982)   gauss 0.000001 (data/model 2620.805)   gaussq 0.000001 (data/model 3060.885)[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/density_bsx.pdf[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/density_bsx_log.pdf[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/family_shares_bsx.pdf[0m
+[38;21mINFO:plot_vtx.py: bsx family shares (median): hit (Gaussian) 0.6027, multiple scattering 0.1412, ionization 0.0000, beam line (Gaussian) 0.2121[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/shares_vs_genpt_bsx.pdf[0m
+[38;21mINFO:plot_vtx.py:   hit (Gaussian)         0.490 0.578 0.619 0.629 0.625 0.639 0.635 0.620   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py:   multiple scattering    0.306 0.205 0.163 0.137 0.125 0.115 0.107 0.099   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py:   ionization             0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py:   beam line (Gaussian)   0.137 0.178 0.200 0.222 0.237 0.238 0.248 0.266   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/group_shares_bsx.pdf[0m
+[38;21mINFO:plot_vtx.py: bsx top material groups: material_bpix_support6 0.0674, material_tib_support 0.0239, material_bpix_services 0.0133, material_fpix_support 0.0119, material_bpix_active_L1 0.0091, material_tob_support 0.0079, material_bpix_active_L2 0.0079, material_tec_structure 0.0060, material_bpix_active_L3 0.0048, material_tibtid_services 0.0044[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/hitclass_shares_bsx.pdf[0m
+[38;21mINFO:plot_vtx.py: bsx top hit classes: pix_x_q1 0.0995, pix_y_q1 0.0972, str_N3_lo 0.0486, str_N2_lo 0.0444, pix_y_q0 0.0439, str_N3_hi 0.0391, pix_x_q2 0.0372, pix_y_q2 0.0318[0m
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_function_base_impl.py:2922: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_function_base_impl.py:2923: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+[38;21mINFO:plot_vtx.py: bsx: corr(sigma, z) = +nan +- 0.00988; corr(sigma, |z|) = +nan[0m
+/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres/plot_vtx.py:232: RuntimeWarning: Mean of empty slice.
+  m = np.array([z[ic == i].mean() for i in range(len(ed) - 1)])
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/_core/_methods.py:138: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/_core/_methods.py:218: RuntimeWarning: Degrees of freedom <= 0 for slice
+  ret = _var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/_core/_methods.py:175: RuntimeWarning: invalid value encountered in divide
+  arrmean = um.true_divide(arrmean, div, out=arrmean,
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/_core/_methods.py:210: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres/plot_vtx.py:235: RuntimeWarning: Degrees of freedom <= 0 for slice
+  v = np.array([z[ic == i].var() for i in range(len(ed) - 1)])
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/sigma_check_bsx.pdf[0m
+[38;21mINFO:plot_vtx.py: === bsy: 10254 candidates, functional bsy[0m
+[38;21mINFO:plot_vtx.py: bsy: N 10254, Var(z) 1.10925, mean +0.00039 +- 0.01040, skew +0.0599, kurt 4.3909
+   norm(cf) 0.998698  var(model) 1.01125  skew(model) -0.0000  kurt(model) 4.170, norm(gauss) 0.998698  var(model) 1.01111  skew(model) +0.0000  kurt(model) 3.004, norm(gaussq) 0.998714  var(model) 0.99871  skew(model) +0.0000  kurt(model) 3.004
+   DATA trimmed at |z| < 5: Var 1.08142  skew +0.0547  kurt 3.6966  (drops 0.078 %)
+   P(|z| > 1): data 0.317632   cf 0.316106 (data/model 1.005)   gauss 0.319902 (data/model 0.993)   gaussq 0.316927 (data/model 1.002)
+   P(|z| > 2): data 0.052955   cf 0.046393 (data/model 1.141)   gauss 0.046798 (data/model 1.132)   gaussq 0.045453 (data/model 1.165)
+   P(|z| > 3): data 0.009557   cf 0.003491 (data/model 2.738)   gauss 0.002867 (data/model 3.334)   gaussq 0.002698 (data/model 3.543)
+   P(|z| > 4): data 0.002243   cf 0.000357 (data/model 6.289)   gauss 0.000070 (data/model 31.896)   gaussq 0.000063 (data/model 35.425)
+   P(|z| > 5): data 0.000780   cf 0.000114 (data/model 6.843)   gauss 0.000001 (data/model 1156.599)   gaussq 0.000001 (data/model 1360.394)[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/density_bsy.pdf[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/density_bsy_log.pdf[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/family_shares_bsy.pdf[0m
+[38;21mINFO:plot_vtx.py: bsy family shares (median): hit (Gaussian) 0.4395, multiple scattering 0.1503, ionization 0.0000, beam line (Gaussian) 0.3736[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/shares_vs_genpt_bsy.pdf[0m
+[38;21mINFO:plot_vtx.py:   hit (Gaussian)         0.407 0.430 0.439 0.451 0.447 0.447 0.448 0.458   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py:   multiple scattering    0.287 0.209 0.166 0.145 0.139 0.131 0.124 0.107   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py:   ionization             0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py:   beam line (Gaussian)   0.280 0.340 0.370 0.381 0.394 0.401 0.415 0.416   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/group_shares_bsy.pdf[0m
+[38;21mINFO:plot_vtx.py: bsy top material groups: material_bpix_support6 0.0706, material_tib_support 0.0232, material_bpix_services 0.0125, material_fpix_support 0.0105, material_bpix_active_L1 0.0097, material_tob_support 0.0096, material_bpix_active_L2 0.0092, material_tec_structure 0.0059, material_bpix_active_L3 0.0058, material_tibtid_services 0.0050[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/hitclass_shares_bsy.pdf[0m
+[38;21mINFO:plot_vtx.py: bsy top hit classes: pix_x_q1 0.1392, pix_x_q2 0.0559, pix_y_q1 0.0504, pix_x_q3 0.0428, str_N3_lo 0.0246, pix_x_q0 0.0227, str_N2_lo 0.0214, pix_y_q0 0.0214[0m
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_function_base_impl.py:2922: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_function_base_impl.py:2923: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+[38;21mINFO:plot_vtx.py: bsy: corr(sigma, z) = +nan +- 0.00988; corr(sigma, |z|) = +nan[0m
+/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres/plot_vtx.py:232: RuntimeWarning: Mean of empty slice.
+  m = np.array([z[ic == i].mean() for i in range(len(ed) - 1)])
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/_core/_methods.py:138: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/_core/_methods.py:218: RuntimeWarning: Degrees of freedom <= 0 for slice
+  ret = _var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/_core/_methods.py:175: RuntimeWarning: invalid value encountered in divide
+  arrmean = um.true_divide(arrmean, div, out=arrmean,
+/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/_core/_methods.py:210: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres/plot_vtx.py:235: RuntimeWarning: Degrees of freedom <= 0 for slice
+  v = np.array([z[ic == i].var() for i in range(len(ed) - 1)])
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/sigma_check_bsy.pdf[0m
+[38;21mINFO:plot_vtx.py: === vtx: 10254 candidates, functional vtx[0m
+[38;21mINFO:plot_vtx.py: vtx: N 10254, Var(z) 1.11648, mean +0.00782 +- 0.01043, skew -0.0308, kurt 3.5472
+   norm(cf) 0.998688  var(model) 1.02005  skew(model) +0.0000  kurt(model) 5.516, norm(gauss) 0.998687  var(model) 1.01964  skew(model) +0.0000  kurt(model) 3.004, norm(gaussq) 0.998714  var(model) 0.99871  skew(model) +0.0000  kurt(model) 3.004
+   DATA trimmed at |z| < 5: Var 1.11648  skew -0.0308  kurt 3.5472  (drops 0.000 %)
+   P(|z| > 1): data 0.324361   cf 0.314696 (data/model 1.031)   gauss 0.321928 (data/model 1.008)   gaussq 0.316927 (data/model 1.023)
+   P(|z| > 2): data 0.061634   cf 0.046854 (data/model 1.315)   gauss 0.047727 (data/model 1.291)   gaussq 0.045453 (data/model 1.356)
+   P(|z| > 3): data 0.008680   cf 0.004132 (data/model 2.101)   gauss 0.002986 (data/model 2.906)   gaussq 0.002698 (data/model 3.217)
+   P(|z| > 4): data 0.000683   cf 0.000629 (data/model 1.085)   gauss 0.000075 (data/model 9.049)   gaussq 0.000063 (data/model 10.782)
+   P(|z| > 5): data 0.000000   cf 0.000230 (data/model 0.000)   gauss 0.000001 (data/model 0.000)   gaussq 0.000001 (data/model 0.000)[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/density_vtx.pdf[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/density_vtx_log.pdf[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/family_shares_vtx.pdf[0m
+[38;21mINFO:plot_vtx.py: vtx family shares (median): hit (Gaussian) 0.6561, multiple scattering 0.2858, ionization 0.0000[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/shares_vs_genpt_vtx.pdf[0m
+[38;21mINFO:plot_vtx.py:   hit (Gaussian)         0.542 0.615 0.642 0.670 0.677 0.677 0.688 0.715   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py:   multiple scattering    0.381 0.326 0.299 0.276 0.272 0.266 0.260 0.220   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py:   ionization             0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000   (pT bins [-99.    20.54  26.73  31.02  34.65  37.7   40.57  43.25 142.62])[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/group_shares_vtx.pdf[0m
+[38;21mINFO:plot_vtx.py: vtx top material groups: material_bpix_support6 0.1178, material_tib_support 0.0392, material_bpix_services 0.0188, material_tob_support 0.0175, material_fpix_support 0.0158, material_bpix_active_L2 0.0156, material_bpix_active_L1 0.0153, material_tec_structure 0.0109, material_bpix_active_L3 0.0100, material_tibtid_services 0.0089[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/hitclass_shares_vtx.pdf[0m
+[38;21mINFO:plot_vtx.py: vtx top hit classes: pix_x_q1 0.2583, pix_x_q2 0.1022, pix_x_q3 0.0773, pix_x_q0 0.0414, pix_y_q1 0.0305, str_N3_lo 0.0234, str_N3_hi 0.0216, str_N2_lo 0.0210[0m
+[38;21mINFO:plot_vtx.py: vtx: corr(sigma, z) = +0.00327 +- 0.00988; corr(sigma, |z|) = -0.02439[0m
+[38;21mINFO:plot_vtx.py: wrote /home/submit/david_w/public_html/ZMass/cvh/260913_bsfinal/sigma_check_vtx.pdf[0m
+ANALYSIS_STAGE1_DONE

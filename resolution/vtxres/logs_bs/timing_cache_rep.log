@@ -1,0 +1,7 @@
+host submit51.mit.edu  cpu 5  nevents 400
+old_off wall 1139 s  bytes 33089815
+old_full wall 1900 s  bytes 46881190
+new_off wall 1163 s  bytes 33089815
+new_rows wall 1309 s  bytes 33566669
+new_full wall 2176 s  bytes 46892348
+TIMINGDONE

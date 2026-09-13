@@ -1,43 +1,43 @@
-/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bs/task_0000/globalcor_0.root
-1727 candidates, 339.9 MB, 192.2 kB/candidate (all branches, compressed)
+/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bs_final/task_0000/globalcor_0.root
+1686 candidates, 333.2 MB, 193.0 kB/candidate (all branches, compressed)
 
 group                                  kB/cand   TB at 41 M
 -----------------------------------------------------------
 vertex: the exponents (per group)        30.53        1.282
 vertex: the exponents (flat)              1.40        0.059
-vertex: shares + scalars                  0.94        0.039
-vertex: the influence a_b                 3.51        0.147
+vertex: shares + scalars                  0.94        0.040
+vertex: the influence a_b                 3.54        0.149
 vertex: the D row                         0.89        0.037
-mass: the exponents (per group)          30.24        1.269
+mass: the exponents (per group)          30.23        1.269
 mass: the exponents (flat)                1.39        0.058
-mass: shares + scalars                    1.36        0.057
-mass: the influence a_b                   3.51        0.147
+mass: shares + scalars                    1.38        0.058
+mass: the influence a_b                   3.53        0.148
 mass: the D row                           0.88        0.037
 beam: the exponents (per group)          61.08        2.564
 beam: the exponents (flat)                2.80        0.118
-beam: shares + scalars                    1.79        0.075
-beam: the influence a_b                   6.98        0.293
-beam: the MEAN-TERM weights               0.03        0.001
-everything else (fit output, kinematics)     37.45        1.572
+beam: shares + scalars                    1.80        0.076
+beam: the influence a_b                   7.07        0.297
+beam: the MEAN-TERM weights               0.05        0.002
+everything else (fit output, kinematics)     37.93        1.592
 -----------------------------------------------------------
-sum of branches                         184.78        7.758
+sum of branches                         185.44        7.786
 
-the VERTEX block alone: 37.27 kB/cand (1.565 TB at 41 M)
-the MASS block alone  : 37.38 kB/cand (1.569 TB at 41 M)
+the VERTEX block alone: 37.30 kB/cand (1.566 TB at 41 M)
+the MASS block alone  : 37.41 kB/cand (1.571 TB at 41 M)
 => the vertex term costs 1.00 x the mass term's export
-the BEAM block alone  : 72.69 kB/cand (3.052 TB at 41 M, 0.521 TB at 7 M Z)
-=> the two beam terms cost 1.95 x the vertex term's export (1.94 x the mass term's)
+the BEAM block alone  : 72.80 kB/cand (3.056 TB at 41 M, 0.522 TB at 7 M Z)
+=> the two beam terms cost 1.95 x the vertex term's export (1.95 x the mass term's)
 
 the 12 largest branches:
-   hessfactorv                     27.83 kB/cand
+   hessfactorv                     28.19 kB/cand
    cfbs_grp_ioni_im                12.30 kB/cand
-   cfbs_grp_rad_im                 12.28 kB/cand
-   cfbs_grp_ioni_re                12.04 kB/cand
+   cfbs_grp_rad_im                 12.27 kB/cand
+   cfbs_grp_ioni_re                12.05 kB/cand
    cfbs_grp_ms                     12.03 kB/cand
    cfbs_grp_rad_re                 12.00 kB/cand
-   resinfbsv                        6.98 kB/cand
+   resinfbsv                        7.07 kB/cand
    cfvtx_grp_ioni_im                6.16 kB/cand
    cfvtx_grp_rad_im                 6.14 kB/cand
    cfmass_grp_ioni_im               6.02 kB/cand
    cfvtx_grp_ioni_re                6.01 kB/cand
-   cfmass_grp_rad_im                6.01 kB/cand
+   cfvtx_grp_ms                     6.01 kB/cand

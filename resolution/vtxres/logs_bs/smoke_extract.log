@@ -1,0 +1,61 @@
+# 1 files, functional bsx
+[1/1] cumulative 112 (0 s)
+standard two-track selection on 113 candidates
+    Jpsi_vtxok                       113  (100.00 %, -0)
+    finite sigma_m, sigma_v          113  (100.00 %, -0)
+    min leg hits >= 8                113  (100.00 %, -0)
+    |z_v| < 5                        113  (100.00 %, -0)
+    kept                             113  (100.00 %)
+
+=== bsx: 112 candidates, 2826 group rows (25.23/cand), 12.99 hit rows/cand
+    exponent storage 31.54 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_smoke/dy_bsx.npz (3.5 MB)
+# 1 files, functional bsy
+[1/1] cumulative 112 (0 s)
+standard two-track selection on 113 candidates
+    Jpsi_vtxok                       113  (100.00 %, -0)
+    finite sigma_m, sigma_v          113  (100.00 %, -0)
+    min leg hits >= 8                113  (100.00 %, -0)
+    |z_v| < 5                        113  (100.00 %, -0)
+    kept                             113  (100.00 %)
+
+=== bsy: 112 candidates, 2826 group rows (25.23/cand), 12.99 hit rows/cand
+    exponent storage 31.54 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_smoke/dy_bsy.npz (3.5 MB)
+# 1 files, functional vtx
+[1/1] cumulative 112 (0 s)
+standard two-track selection on 113 candidates
+    Jpsi_vtxok                       113  (100.00 %, -0)
+    finite sigma_m, sigma_v          113  (100.00 %, -0)
+    min leg hits >= 8                113  (100.00 %, -0)
+    |z_v| < 5                        113  (100.00 %, -0)
+    kept                             113  (100.00 %)
+
+=== vtx: 112 candidates, 2826 group rows (25.23/cand), 12.99 hit rows/cand
+    exponent storage 31.54 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_smoke/dy_vtx.npz (3.5 MB)
+# 1 files, functional mass
+[1/1] cumulative 112 (0 s)
+standard two-track selection on 113 candidates
+    Jpsi_vtxok                       113  (100.00 %, -0)
+    finite sigma_m, sigma_v          113  (100.00 %, -0)
+    min leg hits >= 8                113  (100.00 %, -0)
+    |z_v| < 5                        113  (100.00 %, -0)
+    kept                             113  (100.00 %)
+
+=== mass: 112 candidates, 2826 group rows (25.23/cand), 12.99 hit rows/cand
+    exponent storage 31.54 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_smoke/dy_mass.npz (3.4 MB)
+bsx   n=112 sigma[0]=1  new fields: ['vbsx', 'vbsy', 'bswidth', 'bswidtherr']
+       vbsx median 0.19253  vbsy median 0.00000
+bsy   n=112 sigma[0]=1  new fields: ['vbsx', 'vbsy', 'bswidth', 'bswidtherr']
+       vbsx median 0.02356  vbsy median 0.24312
+vtx   n=112 sigma[0]=0.002027  new fields: ['vbsx', 'vbsy', 'bswidth', 'bswidtherr']
+       vbsx median 0.00940  vbsy median 0.00762
+mass  n=112 sigma[0]=0.6854  new fields: ['vbsx', 'vbsy', 'bswidth', 'bswidtherr']
+       vbsx median 0.01807  vbsy median 0.01232
+SMOKEEXTRACTDONE

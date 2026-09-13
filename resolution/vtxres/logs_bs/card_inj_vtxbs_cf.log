@@ -1,8 +1,9 @@
+beam-width prior from the record: sigma(k) = 0.05476 (widths 10.83 / 10.39 um, errors 0.290 / 0.290 um)
 injecting material_bpix_support6=+0.00243951  -> physical k: material_bpix_support6=+0.0487902 (+5.000 % material)
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789252471.230621  994278 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789278695.620315 2707408 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789252475.225716  994278 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789278701.092104 2707408 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
   vtx: standard two-track selection on 10254 candidates
   vtx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
   vtx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
@@ -24,15 +25,15 @@ I0000 00:00:1789252475.225716  994278 port.cc:153] oneDNN custom operations are 
 --same-candidates: 8000 candidates kept by BOTH functionals
   norm classes: sigma 0.00181..0.00434, members 1000..1000
   truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
-E0000 00:00:1789252481.056801  994278 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-vtx term: 8000 candidates, 182967 group rows (22172 pruned), 102886 hit rows, 60 parameters, arm 'cf'
+E0000 00:00:1789278709.540553 2707408 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 118886 hit rows, 62 parameters, arm 'cf'
   vtx NLL(0) = -35801.222619, max|grad| = 1003
-  norm classes: sigma 0.00154..0.0124, members 1000..1000
+  norm classes: sigma 1..1, members 8000..8000
   truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
-bsx term: 8000 candidates, 170478 group rows (34661 pruned), 102886 hit rows, 60 parameters, arm 'cf'
-  bsx NLL(0) = -34505.215683, max|grad| = 814.8
-  norm classes: sigma 0.00149..0.0118, members 1000..1000
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  bsx NLL(0) = 11868.725560, max|grad| = 814.8
+  norm classes: sigma 1..1, members 8000..8000
   truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
-bsy term: 8000 candidates, 171000 group rows (34139 pruned), 102886 hit rows, 60 parameters, arm 'cf'
-  bsy NLL(0) = -34579.297629, max|grad| = 726.3
--> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs/cards/inj_vtxbs_cf.hdf5 (548.2 MB, 60 parameters)
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 118886 hit rows, 62 parameters, arm 'cf'
+  bsy NLL(0) = 11702.451582, max|grad| = 398.8
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/cards/inj_vtxbs_cf.hdf5 (552.8 MB, 62 parameters)

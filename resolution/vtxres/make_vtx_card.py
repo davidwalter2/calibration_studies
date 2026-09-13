@@ -161,6 +161,11 @@ def _vtx_norm_block(args, wnorm, sigma, tg, nt, ngroups, seg, gid, drop, arrs,
             "families": [], "group_families": gfam}
 
 
+# the prior sigma on the two luminous-region width scales, filled in main()
+# from the beam-spot record (or --beamwidth-prior)
+BWPRIOR = [-1.0]
+
+
 def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
                inj_groups, inj_hits, idx=None):
     """One MaterialCFTerm from an `extract_vtx.py` npz."""
@@ -294,18 +299,74 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     # the TOTAL Gaussian share `vgf`.
     vother = vgf - vsum0
     for c, e in (inj_hits or {}).items():
+        if not isinstance(c, (int, np.integer)):
+            continue          # the beam-width keys are by NAME; handled below
         m = hcls == c
         hv = np.where(m, hv * ((1.0 + e) if args.hit_mode == "linear" else np.exp(e)), hv)
     if len(hrows):
         vsum1 = np.zeros(n)
         np.add.at(vsum1, hseg, hv)
         vgf = vother + vsum1
+    # ---- the LUMINOUS-REGION WIDTHS as two more variance scales ----------
+    # The beam widths are PHYSICAL parameters, not a cosmetic knob: the
+    # beam-spot record's transverse widths are 8-12 % wider than the simulated
+    # luminous region on this MC, and on data they would have to be measured
+    # rather than trusted.  `vbsx` / `vbsy` from the maker are exactly
+    # d(this functional's variance share)/d(scale on sigma_x^2 / sigma_y^2),
+    # so they enter the SAME machinery the hit classes use -- two extra rows
+    # in the per-candidate class list, scaled LINEARLY in variance
+    # (`--hit-mode linear`, where the card value IS `eps`, and the physical
+    # variance scale is `k = 1 + eps`).  They are appended AFTER the hit
+    # classes so the class index of every hit class is unchanged.
+    bw_params = []
+    # `--no-hits` drops the whole per-class share vector, and the two width
+    # scales live in it (their class indices sit just past the hit classes),
+    # so the two options are taken together rather than half-applied.
+    if (not args.no_beamwidth) and (not args.no_hits) \
+            and ("vbsx" in d.files) and ("vbsy" in d.files):
+        vbx = d["vbsx"][idx].astype(np.float64)
+        vby = d["vbsy"][idx].astype(np.float64)
+        # injectable exactly like a hit class, and in the same (linear) mode
+        for _nm, _v in (("beamwidth_x", None), ("beamwidth_y", None)):
+            _e = (inj_hits or {}).get(_nm)
+            if _e is None:
+                continue
+            _f = (1.0 + _e) if args.hit_mode == "linear" else np.exp(_e)
+            if _nm.endswith("_x"):
+                vbx = vbx * _f
+            else:
+                vby = vby * _f
+        if np.any(np.abs(vbx) + np.abs(vby) > 0):
+            bw_params = ["beamwidth_x", "beamwidth_y"]
+            cx, cy = len(hparams), len(hparams) + 1
+            oldcnt = np.diff(nhptr)
+            newcnt = oldcnt + 2
+            newptr = np.concatenate([[0], np.cumsum(newcnt)]).astype(np.int64)
+            mtot = int(newptr[-1])
+            dest = np.arange(len(hcls)) - np.repeat(nhptr[:-1], oldcnt) \
+                + np.repeat(newptr[:-1], oldcnt) if len(hcls) else np.zeros(0, np.int64)
+            nhc = np.empty(mtot, np.int64)
+            nhv = np.empty(mtot, np.float64)
+            if len(hcls):
+                nhc[dest] = hcls
+                nhv[dest] = hv
+            px = newptr[:-1] + oldcnt
+            nhc[px], nhv[px] = cx, vbx
+            nhc[px + 1], nhv[px + 1] = cy, vby
+            hcls, hv, nhptr = nhc, nhv, newptr
+            hseg = np.repeat(np.arange(n), newcnt) if n else np.zeros(0, np.int64)
+            # `vother` must drop by the two new rows -- it is the part of the
+            # Gaussian share that NOTHING scales, and the beam block used to
+            # sit entirely inside it.
+            vsum0b = np.zeros(n)
+            np.add.at(vsum0b, hseg, hv)
+            vother = vgf - vsum0b
     if args.no_hits:
         share = (np.zeros(n + 1, np.int64), np.zeros(0, np.int64), np.zeros(0), vgf)
         hit_params = []
     else:
         share = (nhptr, hcls.astype(np.int64), hv, vother)
-        hit_params = list(hparams)
+        hit_params = list(hparams) + bw_params
 
     # Every channel EXCEPT the mass is a CONSTRAINT residual: reference value
     # zero, no kernel, no self-consistent-sigma correction.  That is the
@@ -488,6 +549,18 @@ def main():
     p.add_argument("--maxn", type=int, default=0)
     p.add_argument("--prune-frac", type=float, default=1e-3)
     p.add_argument("--hit-prior", type=float, default=1.0)
+    # THE LUMINOUS-REGION WIDTHS.  Two variance scales on the family-16 block,
+    # `beamwidth_x` / `beamwidth_y`, linear in variance exactly as the hit
+    # classes are.  The prior sigma comes from the RECORD itself
+    # (`2 * BeamWidthError / BeamWidth`, because the record quotes an error on
+    # sigma and the parameter scales sigma^2); --beamwidth-prior overrides it.
+    p.add_argument("--no-beamwidth", action="store_true",
+                   help="do NOT float the two luminous-region width scales")
+    p.add_argument("--beamwidth-prior", type=float, default=-1.0,
+                   help="prior sigma on the two width variance scales; "
+                        "<0 = take it from the beam-spot record's own errors, "
+                        "0 = FREE (no prior), which is the honest reading when "
+                        "the record's own errors are in tension with the data")
     p.add_argument("--vtx-window", type=float, default=0.0)
     p.add_argument("--vtx-norm-window", type=float, default=None,
                    help="half-width of the window the vertex residual was "
@@ -532,6 +605,44 @@ def main():
     import hitres_classes
     cnames = list(hitres_classes.CLASSES)
     hparams = [f"hitres_{c}" for c in cnames]
+    # the prior on the two width scales, read off the beam-spot record the
+    # maker actually used (median over the candidates of the first npz that
+    # carries it).  A variance scale `k = (sigma'/sigma)^2` has
+    # `sigma(k) = 2 sigma(sigma)/sigma`.
+    BWPRIOR[0] = float(args.beamwidth_prior)
+    if BWPRIOR[0] == 0.0:
+        # FREE: the same convention `alpha` uses -- a NaN prior sigma is no
+        # prior at all.  The beam-spot record quotes BeamWidthError ~ 0.29 um
+        # on a ~10.8 um width, i.e. sigma(k) ~ 0.054 on a variance scale,
+        # which is FIVE TIMES smaller than the record-vs-simulation mismatch
+        # this MC carries; a fit with that prior measures the tension, a fit
+        # without it measures the width.  Both are quoted.
+        BWPRIOR[0] = float("nan")
+        log("beam-width prior: FREE (--beamwidth-prior 0)")
+    elif BWPRIOR[0] < 0:
+        for _, _npz in CHANNELS(args):
+            if not _npz:
+                continue
+            _d = np.load(_npz, allow_pickle=False)
+            if "bswidth" in _d.files and "bswidtherr" in _d.files:
+                # `bswidth` carries (sigma_x, sigma_y, sigma_z); only the
+                # two TRANSVERSE ones have a floating scale
+                _w = np.asarray(_d["bswidth"], np.float64)[:, :2]
+                _e = np.asarray(_d["bswidtherr"], np.float64)
+                _ok = np.isfinite(_w) & np.isfinite(_e) & (_w > 0)
+                if _ok.all(axis=None) or _ok.any():
+                    BWPRIOR[0] = float(np.median(2.0 * _e[_ok] / _w[_ok]))
+                    log(f"beam-width prior from the record: "
+                        f"sigma(k) = {BWPRIOR[0]:.4g} "
+                        f"(widths {np.median(_w[:,0])*1e4:.2f} / "
+                        f"{np.median(_w[:,1])*1e4:.2f} um, errors "
+                        f"{np.median(_e[:,0])*1e4:.3f} / "
+                        f"{np.median(_e[:,1])*1e4:.3f} um)")
+                    break
+    if BWPRIOR[0] < 0:
+        BWPRIOR[0] = float(args.hit_prior)
+        log("beam-width prior: the record carries no width errors, "
+            f"falling back to --hit-prior = {BWPRIOR[0]:.4g}")
 
     inject_card = {}
     for spec in args.inject:
@@ -541,6 +652,12 @@ def main():
                   for g, nm in enumerate(gparams) if nm in inject_card}
     inj_hits = {c: inject_card[nm] for c, nm in enumerate(hparams)
                 if nm in inject_card}
+    # the two width scales are keyed by NAME (they are not hit classes and do
+    # not have a `hitres_classes` index), and `build_term` looks them up so
+    # `--inject beamwidth_x:0.10` works exactly like a hit-class injection
+    for _nm in ("beamwidth_x", "beamwidth_y"):
+        if _nm in inject_card:
+            inj_hits[_nm] = inject_card[_nm]
     if inject_card:
         log("injecting " + ", ".join(f"{k}={v:+.6g}" for k, v in inject_card.items())
             + ("  -> physical k: " + ", ".join(
@@ -588,7 +705,8 @@ def main():
             sys.exit(f"the {nm} term is not finite at theta = 0")
         poi_set = _poi_set(args.poi, term.param_names)
         prior_by_name = dict(zip(gparams, gprior_card))
-        sig = [args.hit_prior if q.startswith("hitres_")
+        sig = [BWPRIOR[0] if q.startswith("beamwidth_")
+               else args.hit_prior if q.startswith("hitres_")
                else prior_by_name.get(q, np.nan) for q in term.param_names]
         # `alpha` is FREE: it is the measurement, not a nuisance
         sig = [np.nan if q == "alpha" else v
@@ -601,19 +719,23 @@ def main():
             param_is_poi=[1 if q in poi_set else 0 for q in term.param_names])
         declared = sorted(set(declared) | set(term.param_names))
 
-    allp = list(gparams) + hparams
-    units = np.concatenate([group_units, np.ones(len(hparams))])
+    bwp = ["beamwidth_x", "beamwidth_y"] if any(
+        q.startswith("beamwidth_") for q in declared) else []
+    allp = list(gparams) + hparams + bwp
+    units = np.concatenate([group_units, np.ones(len(hparams) + len(bwp))])
     inj = np.zeros(len(allp))
     for i, nm in enumerate(allp):
         if nm in inject_card:
             inj[i] = inject_card[nm]
     writer.add_auxiliary("global_index_map", {
         "params": allp,
-        "prior_sigmas": np.concatenate([gprior_card, np.full(len(hparams), args.hit_prior)]),
-        "scale": np.concatenate([gscale, np.ones(len(hparams))]),
+        "prior_sigmas": np.concatenate([gprior_card,
+                                        np.full(len(hparams), args.hit_prior),
+                                        np.full(len(bwp), BWPRIOR[0])]),
+        "scale": np.concatenate([gscale, np.ones(len(hparams) + len(bwp))]),
         "units": units, "injected": inj,
         "group_params": list(gparams), "group_units": group_units,
-        "hit_params": hparams,
+        "hit_params": hparams, "beamwidth_params": bwp,
         "provenance": [json.dumps(dict(argv=sys.argv, arm=args.arm,
                                        mass_arm=args.mass_arm,
                                        inject=inject_card))]})

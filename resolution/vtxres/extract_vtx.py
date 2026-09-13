@@ -77,13 +77,15 @@ def process_file(fn):
     scal = {
         "vtx": dict(sigma="Jpsi_vtxsig", m0="Jpsi_vtxres", vgf="Jpsi_vtxvgf",
                     ok="Jpsi_vtxok", vhit="Jpsi_vtxvhit", vms="Jpsi_vtxvms",
-                    vioni="Jpsi_vtxvioni", z="Jpsi_vtxz"),
+                    vioni="Jpsi_vtxvioni", z="Jpsi_vtxz",
+                    vbsx="Jpsi_vtxvbsx", vbsy="Jpsi_vtxvbsy"),
         "mass": dict(sigma="Jpsi_sigmamass", m0="Jpsi_mass", vgf="cfmass_vgf",
-                     ok="cfmass_ok", vms="Jpsi_massvms", vioni="Jpsi_massvioni"),
+                     ok="cfmass_ok", vms="Jpsi_massvms", vioni="Jpsi_massvioni",
+                     vbsx="Jpsi_massvbsx", vbsy="Jpsi_massvbsy"),
         "bsx": dict(ok="Jpsi_bsok", vhit="Jpsi_bsvhit", vms="Jpsi_bsvms",
-                    vioni="Jpsi_bsvioni"),
+                    vioni="Jpsi_bsvioni", vbsx="Jpsi_bsvbsx", vbsy="Jpsi_bsvbsy"),
         "bsy": dict(ok="Jpsi_bsok", vhit="Jpsi_bsvhit", vms="Jpsi_bsvms",
-                    vioni="Jpsi_bsvioni"),
+                    vioni="Jpsi_bsvioni", vbsx="Jpsi_bsvbsx", vbsy="Jpsi_bsvbsy"),
     }[a.functional]
     want = list(dict.fromkeys(list(scal.values()) + ["Jpsi_vtxok", "cfmass_ok"])) + [
         f"{pre}_grp", f"{pre}_grp_vqms", f"{pre}_grp_vqio",
@@ -121,6 +123,10 @@ def process_file(fn):
         "Jpsi_bsvioni", "Jpsi_bsvtx", "Jpsi_bsspot", "Jpsi_bswidth",
         "Jpsi_bsslope", "Jpsi_bsmeanmass", "Jpsi_bsmeanvtx", "Jpsi_bsmeanbs",
         "Jpsi_massvbs", "Jpsi_vtxvbs", "Jpsi_covvtx",
+        # the WHITENED pair + the LUMINOUS-REGION WIDTH floats (this build on)
+        "Jpsi_bslinv", "Jpsi_bscovlo", "Jpsi_bsmeig", "Jpsi_bswidtherr",
+        "Jpsi_massvbsx", "Jpsi_massvbsy", "Jpsi_vtxvbsx", "Jpsi_vtxvbsy",
+        "Jpsi_bsvbsx", "Jpsi_bsvbsy",
         "Jpsi_x", "Jpsi_y", "Jpsi_z", "Jpsigen_x", "Jpsigen_y", "Jpsigen_z",
         "Muplus_phi", "Muminus_phi", "Muplus_eta", "Muminus_eta",
     ] + ([f"{pre}_grp_{SUF[f]}" for f in FAMS]
@@ -146,9 +152,21 @@ def process_file(fn):
         _bcov = np.asarray(d["Jpsi_bscov"], np.float64).reshape(-1, 3)
         _bres = np.asarray(d["Jpsi_bsres"], np.float64).reshape(-1, 2)
         d = dict(d)
-        d["_bssigma"] = np.sqrt(np.maximum(_bcov[:, 0 if bscomp == 0 else 2], 0.))
-        d["_bsm0"] = _bres[:, bscomp]
-        for nm in ("Jpsi_bsvhit", "Jpsi_bsvms", "Jpsi_bsvioni", "Jpsi_bsvbs"):
+        if "Jpsi_bslinv" in d:
+            # THE WHITENED PAIR.  The two CF functionals are the lower-
+            # Cholesky pulls `z = L^-1 r`, which have UNIT variance and zero
+            # correlation by construction, so the arm's `sigma` is 1 and its
+            # residual IS the pull.  (`Jpsi_bslinv` is the marker of a build
+            # that whitens; without it the functionals are the old GLOBAL x/y
+            # components and the marginal sigma is read off `Jpsi_bscov`.)
+            _bz = np.asarray(d["Jpsi_bsz"], np.float64).reshape(-1, 2)
+            d["_bssigma"] = np.ones(_bz.shape[0], np.float64)
+            d["_bsm0"] = _bz[:, bscomp]
+        else:
+            d["_bssigma"] = np.sqrt(np.maximum(_bcov[:, 0 if bscomp == 0 else 2], 0.))
+            d["_bsm0"] = _bres[:, bscomp]
+        for nm in ("Jpsi_bsvhit", "Jpsi_bsvms", "Jpsi_bsvioni", "Jpsi_bsvbs",
+                   "Jpsi_bsvbsx", "Jpsi_bsvbsy"):
             if nm in d:
                 d[nm] = np.asarray(d[nm], np.float64).reshape(-1, 2)[:, bscomp]
         # the GAUSSIAN share: everything that is not the two material
@@ -236,9 +254,21 @@ def process_file(fn):
     res["m0"] = np.asarray(d[scal["m0"]], np.float64)[idx]
     res["vgf"] = np.asarray(d[scal["vgf"]], np.float64)[idx]
     res["chi2ndof"] = chi2n[idx]
-    for nm in ("vhit", "vms", "vioni"):
+    for nm in ("vhit", "vms", "vioni", "vbsx", "vbsy"):
         if nm in scal and scal[nm] in d:
             res[nm] = np.asarray(d[scal[nm]], np.float64)[idx]
+    # THE LUMINOUS-REGION WIDTHS AS FLOATING PARAMETERS.  `vbsx` / `vbsy` are
+    # the derivative of THIS functional's variance share with respect to a
+    # scale on sigma_x^2 / sigma_y^2 (see the maker).  The record's own errors
+    # give the prior: the widths are quoted on sigma, so a VARIANCE scale
+    # `k = (sigma'/sigma)^2` has prior width `2 * BeamWidthError / BeamWidth`.
+    if "Jpsi_bswidth" in d and "Jpsi_bswidtherr" in d:
+        _bw = np.asarray(d["Jpsi_bswidth"], np.float64).reshape(-1, 3)[idx]
+        _be = np.asarray(d["Jpsi_bswidtherr"], np.float64).reshape(-1, 2)[idx]
+        # kept at THREE columns (x, y, z) so it is the same object the beam
+        # arms already store below; the card reads the two transverse ones
+        res["bswidth"] = _bw
+        res["bswidtherr"] = _be
     if bscomp is not None:
         res["vbs"] = np.asarray(d["Jpsi_bsvbs"], np.float64)[idx]
         res["bsz"] = (np.asarray(d["Jpsi_bsz"], np.float64)

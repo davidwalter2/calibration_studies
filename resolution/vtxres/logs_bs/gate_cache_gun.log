@@ -1,0 +1,4 @@
+=== gun 200 ev, rows OFF (cache + defaults)  A 1 file(s) / 188 cand, B 1 file(s) / 188 cand, 188 MATCHED
+    264 common branches; NEW-only: (none)
+    BIT-IDENTICAL on 264 of 264 comparable branches (0 skipped: ragged/shape)
+    GATE PASS: every branch that must not move is bit-identical

@@ -39,6 +39,15 @@ case $step in
   card_bs_cf)      ./run_tf.sh python3 -u $M $COMMON --bsx-npz $XNPZ --bsy-npz $YNPZ --arm cf     --same-candidates -o $R/cards/bs_cf.hdf5 "$@" ;;
   card_bs_gauss)   ./run_tf.sh python3 -u $M $COMMON --bsx-npz $XNPZ --bsy-npz $YNPZ --arm gauss  --same-candidates -o $R/cards/bs_gauss.hdf5 "$@" ;;
   card_bs_gaussq)  ./run_tf.sh python3 -u $M $COMMON --bsx-npz $XNPZ --bsy-npz $YNPZ --arm gaussq --same-candidates -o $R/cards/bs_gaussq.hdf5 "$@" ;;
+  # THE LUMINOUS-REGION WIDTHS.  The default cards float `beamwidth_x/y` with
+  # the RECORD's own prior (2 * BeamWidthError / BeamWidth ~ 0.054 on a
+  # variance scale); the `*free*` cards float them with NO prior, which is the
+  # honest reading when the record's error is five times smaller than the
+  # record-vs-simulation mismatch.  Both are quoted.
+  card_bsfree_cf)    ./run_tf.sh python3 -u $M $COMMON --bsx-npz $XNPZ --bsy-npz $YNPZ --arm cf --same-candidates --beamwidth-prior 0 -o $R/cards/bsfree_cf.hdf5 "$@" ;;
+  card_vtxbsfree_cf) ./run_tf.sh python3 -u $M $COMMON --vtx-npz $VNPZ --bsx-npz $XNPZ --bsy-npz $YNPZ --arm cf --same-candidates --beamwidth-prior 0 -o $R/cards/vtxbsfree_cf.hdf5 "$@" ;;
+  card_vtxbsmfree_cf) ./run_tf.sh python3 -u $M $COMMON --vtx-npz $VNPZ --bsx-npz $XNPZ --bsy-npz $YNPZ --mass-npz $MNPZ --arm cf --same-candidates --beamwidth-prior 0 -o $R/cards/vtxbsmfree_cf.hdf5 "$@" ;;
+  card_nobw_bs_cf)   ./run_tf.sh python3 -u $M $COMMON --bsx-npz $XNPZ --bsy-npz $YNPZ --arm cf --same-candidates --no-beamwidth -o $R/cards/nobw_bs_cf.hdf5 "$@" ;;
   card_vtx_cf)     ./run_tf.sh python3 -u $M $COMMON --vtx-npz $VNPZ --arm cf     -o $R/cards/vtx_cf.hdf5 "$@" ;;
   card_vtx_gaussq) ./run_tf.sh python3 -u $M $COMMON --vtx-npz $VNPZ --arm gaussq -o $R/cards/vtx_gaussq.hdf5 "$@" ;;
   card_mass_cf)    ./run_tf.sh python3 -u $M $COMMON --mass-npz $MNPZ --arm cf    -o $R/cards/mass_cf.hdf5 "$@" ;;

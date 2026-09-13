@@ -63,6 +63,7 @@ def main():
     p.add_argument("--max-chi2-ndof", type=float, default=3.0)
     p.add_argument("--prune-frac", type=float, default=1e-3)
     p.add_argument("--no-hits", action="store_true")
+    p.add_argument("--no-beamwidth", action="store_true")
     p.add_argument("--nbatch", type=int, default=200)
     p.add_argument("--chunk", type=int, default=4096)
     p.add_argument("--no-hessian", action="store_true")
@@ -105,7 +106,10 @@ def main():
             vtx_norm_window=a.vtx_norm_window, norm_classes=a.norm_classes,
             norm_tpoints=a.norm_tpoints, alpha=a.alpha,
             no_standard_selection=a.no_standard_selection,
-            max_abs_vtxz=a.max_abs_vtxz, min_leg_hits=a.min_leg_hits)
+            max_abs_vtxz=a.max_abs_vtxz, min_leg_hits=a.min_leg_hits,
+            # the two LUMINOUS-REGION WIDTH scales float here too, so the
+            # sandwich is computed over the SAME parameter vector the cards fit
+            no_beamwidth=a.no_beamwidth)
 
     res, params = {}, None
     idx = None

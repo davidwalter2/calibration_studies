@@ -1,0 +1,27 @@
+[run ] task 0 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bs_final/task_0000
+[run ] task 1 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bs_final/task_0001
+[run ] task 2 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bs_final/task_0002
+[run ] task 3 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bs_final/task_0003
+[run ] task 4 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bs_final/task_0004
+[run ] task 5 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bs_final/task_0005
+[done] task 0
+[done] task 1
+[done] task 2
+[done] task 5
+[done] task 3
+[done] task 4
+beamline block 0-5 (dy_bs_final) finished
+[run ] task 0 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bsoff_final/task_0000
+[run ] task 1 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bsoff_final/task_0001
+[run ] task 2 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bsoff_final/task_0002
+[run ] task 3 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bsoff_final/task_0003
+[run ] task 4 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bsoff_final/task_0004
+[run ] task 5 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_bsoff_final/task_0005
+[done] task 0
+[done] task 2
+[done] task 4
+[done] task 1
+[done] task 5
+[done] task 3
+beamline block 0-5 (dy_bsoff_final) finished
+ALLDONE

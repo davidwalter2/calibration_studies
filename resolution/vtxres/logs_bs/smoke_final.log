@@ -1,0 +1,7 @@
+[run ] task 0 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/smoke_final/task_0000
+[done] task 0
+beamline block 0-0 (smoke_final) finished
+[run ] task 0 -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/smoke_final_off/task_0000
+[done] task 0
+beamline block 0-0 (smoke_final_off) finished
+SMOKEDONE

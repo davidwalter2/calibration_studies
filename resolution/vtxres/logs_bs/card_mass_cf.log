@@ -1,7 +1,8 @@
+beam-width prior from the record: sigma(k) = 0.05476 (widths 10.83 / 10.39 um, errors 0.290 / 0.290 um)
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789252393.511768  981145 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789278483.291423 2686251 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789252397.411810  981145 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789278488.760132 2686251 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
   mass: standard two-track selection on 10254 candidates
   mass:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
   mass:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
@@ -9,8 +10,8 @@ I0000 00:00:1789252397.411810  981145 port.cc:153] oneDNN custom operations are 
   mass:     |z_v| < 5                      10254  (100.00 %, -0)
   mass:     kept                           10254  (100.00 %)
   mass: dropping 94 of 8000 candidates with |z| > 40 (the Gaussian arms' float64 underflow); max |z| kept 40.0
-[18:33:23] kernel CF tabulation (7906 samples) built in 0.9 s
-E0000 00:00:1789252403.480236  981145 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
-mass term: 7906 candidates, 182797 group rows (20137 pruned), 101625 hit rows, 60 parameters, arm 'cf'
+[01:48:17] kernel CF tabulation (7906 samples) built in 1.3 s
+E0000 00:00:1789278497.669287 2686251 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+mass term: 7906 candidates, 182797 group rows (20137 pruned), 117437 hit rows, 62 parameters, arm 'cf'
   mass NLL(0) = 23260.045706, max|grad| = 12.25
--> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs/cards/mass_cf.hdf5 (188.4 MB, 60 parameters)
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_final/cards/mass_cf.hdf5 (188.4 MB, 62 parameters)

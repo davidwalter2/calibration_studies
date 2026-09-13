@@ -25,9 +25,16 @@ fitted.
       closure for the MASS and VERTEX functionals WITH the beam block
       registered (`Jpsi_vtxvchk`; `resinfcov + resinfcovhit + massvbs`).
   G6  THE MEAN-TERM IDENTITY.  `w_i` restricted to the beam rows is exactly
-      `P_i^T`, so `Jpsi_bsmeanbs == -P` to machine precision.  It is the
-      analytic check that the influence rows are the ones the beam-spot
+      `(L^-1 P)_i^T` with the WHITENED functionals (`P_i^T` with the old
+      global pair), so `Jpsi_bsmeanbs == -L^-1 P` to machine precision.  It is
+      the analytic check that the influence rows are the ones the beam-spot
       parameters would move.
+  G7a THE "+" FORM, DIRECTLY.  `Jpsi_bscovlo` is `C_{-B} = A + A M^-1 A`, the
+      vertex covariance the same fit would have WITHOUT the beam rows,
+      predicted from the rows-ON fit.  The rows-OFF run MEASURES it.
+  G8  THE WHITENED PAIR.  `Cov(z) = I` by construction, so each pull has unit
+      variance (`Jpsi_bsvchk` is now the closure against ONE) and
+      `corr(z1, z2)` must be zero within statistics.
   G7  THE LEAVE-ONE-OUT IDENTITY.  The rows-OFF fit's vertex minus the beam
       line, whitened with `C_vtx(OFF) + covBS` projected to the transverse
       plane, must equal the ON export to linearisation precision (the vertex
@@ -44,6 +51,9 @@ BR = ['Jpsi_bsres', 'Jpsi_bscov', 'Jpsi_bsz', 'Jpsi_bschi2', 'Jpsi_bschi2fit',
       'Jpsi_massvbs', 'Jpsi_vtxvbs', 'bsvarv', 'resinfbsv',
       'Jpsi_vtxres', 'Jpsi_vtxsig', 'Jpsi_vtxz', 'Jpsi_vtxvchk', 'Jpsi_vtxvgf',
       'Jpsi_vtxok', 'Jpsi_vtxdchi2', 'Jpsi_covvtx', 'vtxvarv', 'resinfvtxv',
+      'Jpsi_bscovlo', 'Jpsi_bslinv', 'Jpsi_bsmeig',
+      'Jpsi_massvbsx', 'Jpsi_massvbsy', 'Jpsi_vtxvbsx', 'Jpsi_vtxvbsy',
+      'Jpsi_bsvbsx', 'Jpsi_bsvbsy', 'Jpsi_bswidtherr',
       'resinfv', 'resinfvarv', 'resinfcov', 'resinfcovhit',
       'Jpsi_x', 'Jpsi_y', 'Jpsi_z', 'Jpsi_mass', 'Jpsi_sigmamass', 'Jpsi_mass_unc',
       'Jpsi_pt', 'Jpsi_eta', 'chisqval', 'ndof', 'edmval', 'niter',
@@ -318,7 +328,13 @@ def main():
             if nb == 0 or av.size != 2*nb*5:
                 continue
             av = av.reshape(2, nb, 5)
-            for k, cii in enumerate((cov[i, 0], cov[i, 2])):
+            # THE NORMALISER.  `bsvarv` is the block's share of the
+            # FUNCTIONAL's variance, and with the WHITENED pair that variance
+            # is ONE by construction -- not `Cov(r_bs)_kk`, which belongs to
+            # the raw transverse pair.  Reading the old normaliser here is
+            # exactly a factor `1/Cov_kk` ~ 1e5 wrong.
+            cnorm = ((1., 1.) if 'Jpsi_bslinv' in d else (cov[i, 0], cov[i, 2]))
+            for k, cii in enumerate(cnorm):
                 if cii <= 0:
                     continue
                 vb = (av[k]**2).sum(axis=1)/cii
@@ -342,13 +358,24 @@ def main():
         q('cfbs_grp_closure', np.abs(np.asarray(d['cfbs_grp_closure'], dtype=float).ravel()))
 
     # ---------------- G6 ----------------
-    print('\n=== G6 the mean-term identity: Jpsi_bsmeanbs == -P')
+    # With the WHITENED functionals the identity picks up the whitening:
+    # `w_k` restricted to the beam rows is `(L^-1 P)_k^T`, so the exported
+    # mean weights are `-(L^-1 P)`.  Without `Jpsi_bslinv` (an older build)
+    # the functionals are the global x/y pair and it is `-P` as before.
+    haveL = 'Jpsi_bslinv' in d
+    print('\n=== G6 the mean-term identity: Jpsi_bsmeanbs == -%s'
+          % ('L^-1 P (the WHITENED pair)' if haveL else 'P'))
     mb = np.asarray(d['Jpsi_bsmeanbs'], dtype=float).reshape(-1, 2, 3)
+    li = (np.asarray(d['Jpsi_bslinv'], dtype=float).reshape(-1, 3)
+          if haveL else None)
     dev = []
     for i in np.flatnonzero(bsok):
         P = projector(covbs(wid[i], slo[i]))
+        if haveL:
+            L = np.array([[li[i, 0], 0.], [li[i, 1], li[i, 2]]])
+            P = L @ P
         dev.append(np.max(np.abs(mb[i] + P)))
-    q('max |Jpsi_bsmeanbs + P|', dev)
+    q('max |Jpsi_bsmeanbs + %s|' % ('L^-1 P' if haveL else 'P'), dev)
 
     # ---------------- G7 ----------------
     if doff is not None and 'Jpsi_covvtx' in doff:
@@ -393,6 +420,51 @@ def main():
             Cov_on = np.array([[cov[i, 0], cov[i, 1]], [cov[i, 1], cov[i, 2]]])
             dc.append(np.max(np.abs(Cov_on - Cov_off))/np.max(np.abs(Cov_off)))
         q('|Cov(ON) - Cov(OFF)| / |Cov|', dc)
+
+        # ---- G7a: the "+" form, compared DIRECTLY ------------------------
+        # `Jpsi_bscovlo` is `C_{-B} = A + A M^-1 A`: the vertex covariance
+        # the SAME fit would have had WITHOUT the beam rows, predicted from
+        # the rows-ON fit.  The rows-OFF run measures it.  This is the sharp
+        # version of G7 -- no projector, no beam covariance added, nothing
+        # that could hide a discrepancy.
+        if 'Jpsi_bscovlo' in d:
+            lo = np.asarray(d['Jpsi_bscovlo'], dtype=float).reshape(-1, 6)
+            dl, dld = [], []
+            for j, i in enumerate(sa):
+                if not (bsok[i] and bof[j]):
+                    continue
+                Cl = unpack6(lo[i])
+                Cv = unpack6(offc[j])
+                sc = np.max(np.abs(Cv))
+                if not np.isfinite(sc) or sc <= 0:
+                    continue
+                dl.append(np.max(np.abs(Cl - Cv))/sc)
+                sd = np.sqrt(np.clip(np.diag(Cv), 1e-300, None))
+                dld.append(np.max(np.abs(np.diag(Cl) - np.diag(Cv))/sd**2))
+            print('\n=== G7a C_{-B}(ON, "+" form) == C_vtx(OFF), directly')
+            q('|C_-B(ON) - C_vtx(OFF)| / |C_vtx(OFF)|', dl)
+            q('the same on the DIAGONAL, relative', dld)
+
+    # ---------------- G8: the whitened pair is uncorrelated ----------------
+    if 'Jpsi_bslinv' in d:
+        print('\n=== G8 the WHITENED pair: unit variance and zero correlation')
+        mb = baseline(d) & bsok
+        z0, z1 = z[mb, 0], z[mb, 1]
+        n8 = len(z0)
+        if n8 > 2:
+            r = float(np.corrcoef(z0, z1)[0, 1])
+            print(f'  {n8} candidates')
+            print(f'  mean(z1) {z0.mean():+.5f} +- {z0.std(ddof=1)/np.sqrt(n8):.5f}   '
+                  f'Var {z0.var(ddof=1):.5f}')
+            print(f'  mean(z2) {z1.mean():+.5f} +- {z1.std(ddof=1)/np.sqrt(n8):.5f}   '
+                  f'Var {z1.var(ddof=1):.5f}')
+            print(f'  corr(z1, z2) {r:+.5f} +- {1/np.sqrt(n8):.5f}   '
+                  f'({abs(r)*np.sqrt(n8):.2f} sigma from zero)')
+            # the variance closure is now against ONE, not against Cov_kk
+            q('Jpsi_bsvchk (sum_b |a_b|^2 == 1)',
+              np.abs(np.asarray(d['Jpsi_bsvchk'], float)[mb]))
+            q('Jpsi_bsmeig (the conditioning of M)',
+              np.asarray(d['Jpsi_bsmeig'], float)[mb])
 
     # ---------------- G4 ----------------
     if a.old:

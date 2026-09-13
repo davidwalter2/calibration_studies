@@ -20,6 +20,7 @@ mkdir -p $R/cards $R/fits $HERE/logs_bs
 cd $HERE
 export R GRP NCAND
 CARDS=${CARDS:-"bs_cf bs_gauss bs_gaussq vtx_cf mass_cf vtxbs_cf vtxbsm_cf \
+  bsfree_cf vtxbsfree_cf vtxbsmfree_cf nobw_bs_cf \
   inj_bs_cf inj_vtx_cf inj_vtxbs_cf inj_vtxbsm_cf \
   injhit_bs_cf injhit_vtx_cf injhit_vtxbs_cf"}
 export VNPZ=$R/dy_vtx.npz MNPZ=$R/dy_mass.npz XNPZ=$R/dy_bsx.npz YNPZ=$R/dy_bsy.npz

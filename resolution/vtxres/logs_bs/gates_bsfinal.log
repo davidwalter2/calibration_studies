@@ -1,0 +1,57 @@
+# ON: 6 files, 10413 candidates
+# Jpsi_bsok 100.000 %
+
+=== G1 ndof(ON) - ndof(OFF) == 3
+  matched 10413, 10237 on the baseline; ndof difference: 3 x10237
+  PASS
+  (unselected: 3 x10413)
+
+# the baseline keeps 10258 of 10413 candidates
+
+=== G3 the beam chi2 enters ONCE
+  |recomputed/exported - 1| (chi2fit)           median 4.473e-06  p90 1.988e-05  max 0.0006072 
+  |chi2(linpoint)/chi2(optimum) - 1|            median 0  p90 5.738e-06  max 0.00423 
+  chi2fit on 3 rows: median 1.1038, mean 1.649 (the mean is tail-dominated on the UNSELECTED sample); 2x would double both
+
+=== G5 sum_b |a_b|^2 == Cov_ii  (the registered blocks, fam != 15)
+  maker Jpsi_bsvchk                             median 7.742e-09  p90 5.036e-08  max 0.0001613 
+  resinfbsv vs bsvarv, per block, max rel       median 1.368e-07  p90 1.547e-07  max 1.759e-07 
+  Jpsi_vtxvchk (vertex, WITH the beam block)    median 8.61e-09  p90 3.928e-08  max 2.345e-06 
+  mass: |(mat+hit+bs)/sigma_m^2 - 1|            median 1.23e-07  p90 3.802e-07  max 0.0001193 
+  cfmass_grp_closure                            median 4.114e-16  p90 7.276e-16  max 2.836e-15 
+  cfvtx_grp_closure                             median 5.042e-16  p90 7.523e-16  max 2.308e-15 
+  cfbs_grp_closure                              median 5.346e-16  p90 8.288e-16  max 5.519e-15 
+
+=== G6 the mean-term identity: Jpsi_bsmeanbs == -L^-1 P (the WHITENED pair)
+  max |Jpsi_bsmeanbs + L^-1 P|                  median 1.012e-10  p90 2.035e-10  max 7.68e-10 
+
+=== G7 the leave-one-out identity against the rows-OFF fit
+  10413 matched, 10258 with bsok, 10237 evaluated
+  |r_bs(ON) - r_bs(OFF)| / sigma                median 0.0009095  p90 0.00386  max 0.5409 
+  |z_bs(ON) - z_bs(OFF)|                        median 0.00116  p90 0.005525  max 3.291 
+  |Cov(ON) - Cov(OFF)| / |Cov|                  median 0.0008417  p90 0.003735  max 0.135 
+
+=== G7a C_{-B}(ON, "+" form) == C_vtx(OFF), directly
+  |C_-B(ON) - C_vtx(OFF)| / |C_vtx(OFF)|        median 0.000791  p90 0.003128  max 0.2547 
+  the same on the DIAGONAL, relative            median 0.001571  p90 0.005708  max 0.7122 
+
+=== G8 the WHITENED pair: unit variance and zero correlation
+  10258 candidates
+  mean(z1) +0.01257 +- 0.01074   Var 1.18363
+  mean(z2) +0.00076 +- 0.01041   Var 1.11102
+  corr(z1, z2) +0.03159 +- 0.00987   (3.20 sigma from zero)
+  Jpsi_bsvchk (sum_b |a_b|^2 == 1)              median 7.742e-09  p90 5.036e-08  max 0.0001613 
+  Jpsi_bsmeig (the conditioning of M)           median 0.1114  p90 0.3051  max 0.5768 
+
+=== the two pulls (orientation only; the study does the real work)
+  UNSELECTED, for contrast: Var(z_x) 1.184 on 10258
+  z_bs,x: n 10258  mean +0.0126  Var 1.1835  trimVar 1.1178  P(|z|>3) 0.01248  P(|z|>5) 0.001755
+  z_bs,y: n 10258  mean +0.0008  Var 1.1109  trimVar 1.0567  P(|z|>3) 0.00965  P(|z|>5) 0.000780
+
+=== the family composition of the two beam functionals
+  Jpsi_bsvbs       x 0.2262   y 0.3610
+  Jpsi_bsvhit      x 0.6053   y 0.4656
+  Jpsi_bsvms       x 0.1685   y 0.1734
+  Jpsi_bsvioni     x 0.0000   y 0.0000
+  Jpsi_massvbs     0.040009
+  Jpsi_vtxvbs      0.061185

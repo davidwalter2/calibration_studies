@@ -1235,27 +1235,46 @@ The luminous region is a GAUSSIAN NOISE BLOCK: constraining the common vertex
 to the beam line with the beam-width covariance is mathematically ONE EXTRA
 HIT shared by the two legs.  This section is what came of implementing it
 properly -- the defect that was in the code, the gates, and what the rows and
-the two residuals they create are worth.  **Z / DY only**: the constraint is
-right for a prompt resonance and wrong for the non-prompt fraction of a
-J/psi sample (section 14 point 4 of "What a DATA fit needs").
+the two residuals they create are worth.  **The PROMPT channels only** -- Z, DY and
+Upsilon -- because the constraint is right for a prompt resonance and wrong
+for the non-prompt fraction of a charmonium sample and for every displaced
+channel (sections 14.17 and 14.15 point 4). It is ON BY DEFAULT there since
+`dbdedfde3c1`.
 
 #### 14.0 Where it lives
 
 | what | where |
 |---|---|
-| build area | `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev3` (copy of dev2, own git worktree) |
-| branch | `beamline-260913` @ **`0cb6c291354`**, rebased onto `cvh-exports-clean-260911` @ `dbfe6e4b2c2` |
+| build area | `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2` |
+| branch | `cvh-exports-clean-260911`, FAST-FORWARDED to `beamline-260913` @ `0cb6c291354`, finished on top of it in **`dbdedfde3c1`** |
 | maker | `src/Analysis/HitAnalyzer/plugins/ResidualGlobalCorrectionMakerTwoTrackG4e.cc` |
-| the base-class doc | the "BEAM-LINE (LUMINOUS-REGION) CONSTRAINT" block of `ResidualGlobalCorrectionMakerBase.h` -- the algebra, the two defects, and the mean-term identity |
-| analysis scripts | `resolution/vtxres/{gates_bs,cmp_bson,bkg_bs,bs_genvtx}.py`, `run_{prod_bs,prod_bs_old,timing_bs,ladder_bs,all_bs}.sh` |
+| the base-class doc | the "BEAM-LINE (LUMINOUS-REGION) CONSTRAINT" block of `ResidualGlobalCorrectionMakerBase.h` -- the algebra, the two defects, the "+" form, the whitened pair and the mean-term identity |
+| analysis scripts | `resolution/vtxres/{gates_bs,gate_cache,gate_defaults_cfg,cmp_bson,bkg_bs,bs_genvtx,width_report}.py`, `run_{prod_bs,prod_bs_old,timing_bs,timing_cache,gate_defaults,ladder_bs,all_bs,all_bsfinal}.sh` |
+| the three NEW gates | `gate_defaults_cfg.py` (the producer PSet expanded in BOTH areas, per channel), `gate_cache.py` (bit-identity on EVERY comparable branch, matched on (run, lumi, event, pT rank), with the beam-functional branches declared expected-to-move under `--rows-on`), `width_report.py` (the width floats with an EDM certification that REFUSES to quote an uncertified fit) |
 | outputs | `/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/` |
-| figures | `~/public_html/ZMass/cvh/260913_beamline/` |
+| figures | `~/public_html/ZMass/cvh/260913_beamline/` (the first pass) and `~/public_html/ZMass/cvh/260913_bsfinal/` (the finish) |
 | logs | `resolution/vtxres/logs_bs/` |
 
-Switches: `bsConstraint` (the three rows, default False), `beamWidthScale`
-(default 1.0; 1e6 is the weightless-rows gate), `exportBsResidual` (the two
-functionals, default False). The build area is a SEPARATE one (`dev3`, its own
-git worktree) because dev2 was running a production throughout.
+Switches: `bsConstraint` (the three rows, ON by default for the PROMPT
+channels -- Z, DY and Upsilon -- and OFF for charmonium and every displaced
+channel, section 14.17), `beamWidthScale` (default 1.0; 1e6 is the
+weightless-rows gate), `exportBsResidual` (the two functionals, default
+False).
+
+The FIRST pass was built in a separate area (`dev3`, its own git worktree)
+because dev2 was running a production throughout; the finish fast-forwarded
+`cvh-exports-clean-260911` onto it (`git merge-base --is-ancestor
+dbfe6e4b2c2 0cb6c291354` is true, so it is a real fast-forward) and everything
+since is in dev2.
+
+**The build must run on a SUBMIT NODE.** `scram b` from a host scram does not
+recognise as el9 (it reports `SCRAM architecture 'el9' on host with operating
+system 'linux514'`) fails with ~10 errors of the form `__gthread_cond_t ...
+cannot convert '<brace-enclosed initializer list>' to 'unsigned int'` in
+`<atomic>` / `std_mutex.h` -- the wrong system headers. `ssh submit50 'scram b'`
+builds clean. `/ceph` is likewise unreadable from such a host (Permission
+denied) and fine from a submit node, so every production and every read goes
+through one.
 
 The chain:
 
@@ -1352,7 +1371,11 @@ every comparison is same-candidate.  Under
 
 | tag | build | rows | events/task | what for |
 |---|---|---|---|---|
-| `dy_bs` | dev3 | ON, nominal widths | 4000 | THE STUDY SAMPLE |
+| **`dy_bs_final`** | **dev2 @ `dbdedfde3c1`** | **ON, all the new exports** | **4000** | **THE STUDY SAMPLE (10 413 candidates, 10 254 on the baseline)** |
+| **`dy_bsoff_final`** | dev2 | OFF | 4000 | the same-build rows-OFF reference |
+| `gate_defaults/{gun,dy}_{ref,new}` | dev3 / dev2 | off / on | 200 / 400 | the BIT-IDENTITY gates |
+| `timing_cache{,_rep}/*` | dev3 / dev2 | both | 400 | the cache cost |
+| `dy_bs` | dev3 | ON, nominal widths | 4000 | the FIRST pass's study sample |
 | `dy_bsoff` | dev3 | OFF | 4000 | the same-candidate reference (has `Jpsi_covvtx`) |
 | `dy_bsoff1200` | dev3 | OFF | 1200 | the gates' reference |
 | `dy_bswide` | dev3 | ON, `beamWidthScale=1e6` | 1200 | gate G2: weightless == off |
@@ -1380,6 +1403,14 @@ written into dev2).
 | vertex total (for scale) | 36.80 | 0.258 |
 | mass total (for scale) | 36.90 | 0.258 |
 
+Re-measured on the FINAL production (`cost_vtx.py` on `dy_bs_final`): the beam
+block is **72.80 kB/cand** (0.522 TB at 7 M Z) against the vertex block's 37.30
+and the mass block's 37.41. The ten new branches of this pass
+(`Jpsi_bscovlo`, `Jpsi_bslinv`, `Jpsi_bsmeig`, `Jpsi_bswidtherr`, the six
+direction-split shares) cost **~1 kB/candidate between them** -- the block is
+still dominated by the per-group CF exponents (5 x ~12 kB/cand) and
+`resinfbsv` (7.07).
+
 Two functionals, so the beam block is **1.95x the vertex block** -- it is
 almost exactly two copies of it, as it should be.  The whole file is
 181.9 kB/cand with all three functionals on.
@@ -1392,30 +1423,58 @@ The maker exports THREE things about the same 2-vector:
   out residual in the GLOBAL transverse frame and its covariance;
 * `Jpsi_bsz` -- the LOWER-CHOLESKY whitened pull, `Cov = L L^T`, `z = L^-1 r`,
   in the order (x, y), so `z[0]` is the x pull and `z[1]` the y pull GIVEN x.
-  The basis is a choice; the chi2 `Jpsi_bschi2 = z^T z` is not.
+  The basis is a choice; the chi2 `Jpsi_bschi2 = z^T z` is not. **This pair IS
+  the two CF functionals** (below), and `Jpsi_bslinv` carries `L^-1`.
 
-**The two CF FUNCTIONALS are the two GLOBAL components** `r_x` and `r_y`, each
-standardised by its OWN marginal `sqrt(Cov_kk)` -- not the Cholesky pair.
-Two reasons, and one consequence:
+**The two CF FUNCTIONALS are the WHITENED PAIR** `z = L^-1 r_bs`, not the two
+global components. `Cov(r_bs) = L L^T` with `L` lower triangular in the order
+(x, y), so `Cov(z) = I` by construction: each pull has UNIT variance -- the
+closure is `sum_b |a_b|^2 == 1` -- and the two are UNCORRELATED.
 
-* they stay in interpretable units, tied one-to-one to the beam-spot
-  parameters `x0` and `y0` (the mean term is then literally `-w[bs row x]`),
-  and to the projector identity `Jpsi_bsmeanbs == -P`, which is what makes the
-  gate analytic;
-* a Cholesky-basis functional would be a candidate-dependent mixture of the
-  two, so its influence weights could not be read as a response to a single
-  beam-spot parameter.
+The first pass used the two GLOBAL components `r_x` and `r_y`, each
+standardised by its own marginal `sqrt(Cov_kk)`, for interpretability: each
+was then tied one-to-one to a beam-spot parameter and the mean term was
+literally `-w[bs row x]`. The consequence was that **they are CORRELATED**
+(`Cov_xy` is not zero, the correlation is ~0.2), and multiplying their two
+likelihoods treats them as independent: `sandwich/quoted` for the `bs` channel
+alone came out at **1.385** against 0.918 for the vertex term. That is
+over-counting by construction, and it is why the pair is now whitened.
 
-The consequence is that **the two functionals are CORRELATED** (`Cov_xy` is
-not zero; on the smoke sample the correlation is ~0.20), so the two terms may
-not simply be multiplied and their QUOTED (Hessian) errors are optimistic.
-That is handled the way the vertex-mass joint already is: `fisher_vtx.py`
+What the whitening costs, stated: neither pull is the response to a SINGLE
+beam-spot parameter any more. `Jpsi_bslinv` (the packed `L^-1`) is exported so
+that any influence weight or mean response is one 2x2 multiply from the global
+basis, the raw pair `Jpsi_bsres` / `Jpsi_bscov` is still written, and the
+mean-term identity survives exactly in the form `Jpsi_bsmeanbs == -L^-1 P`
+(gate G6, 8.9e-11).
+
+The residual correlation is still measured rather than assumed: `fisher_vtx.py`
 sums the two terms' per-batch gradients over the SAME candidates, so `J`
 carries the within-candidate correlation and the SANDWICH
 `(H+P)^-1 J (H+P)^-1` is the variance the estimator actually has. Every error
-quoted from the beam channels is the sandwich one, and the
-`sandwich/quoted` ratio of the `bs` channel is exactly the over-counting
-diagnostic.
+quoted from the beam channels is the sandwich one, and the `sandwich/quoted`
+ratio of the `bs` channel is the over-counting diagnostic -- it is what the
+whitening had to move.
+
+**HOW `Cov(r_bs)` IS BUILT -- the "+" form, and why it matters.** With
+`A = C[7:10,7:10]` the fitted vertex covariance (rows in) and
+`M = covBS - A = Cov(rho_B)`,
+
+    C_{-B} = A + A M^-1 A            the rows-OFF vertex covariance
+    Cov(e) = C_{-B} + covBS          >= covBS, so positive definite always
+    e_B    = rho_B + A M^-1 rho_B    = x_v^{-B} - b0
+
+The same quantities are `covBS M^-1 covBS` and `covBS M^-1 rho_B`, which is how
+the first pass wrote them -- and those run the WHOLE answer through `M^-1`.
+`M` is a difference of two nearly equal covariances (it degenerates as the
+tracks stop constraining the vertex, `A -> covBS`; `Jpsi_bsmeig`, the smallest
+eigenvalue of `M` over `covBS`'s own scale, reaches **3e-5**) and `A` carries
+the numerical error of a large sparse solve, so the product could lose the
+leading order entirely and could return an INDEFINITE covariance. **That is
+what produced the 5 sigma tail of the first pass.** In the "+" form the
+leading order is explicit, only the correction is amplified, and `Cov(e)` can
+no longer come back indefinite. `A M^-1` is an `LLT` solve of `M`, not an
+explicit inverse, and `Jpsi_bscovlo` exports `C_{-B}` so the rows-OFF run can
+check it DIRECTLY (gate G7a).
 
 **Why one component is much worse measured than the other.** `Cov(r_bs)` is
 `C_{-B} + Sigma_{xy|z}`: the vertex covariance WITHOUT the beam rows plus the
@@ -1466,12 +1525,43 @@ candidate's selection.
 | `+ the two functionals` | 1440 s | 7.74 (**+62.6 %**) | 48.13 MB | 252.7 (**+75.3**) |
 
 **The rows are free; the two functionals are not.** The extra 62 % is two
-more `cvhcf::trackExponents` calls and two more per-block influence loops --
-and each influence loop redoes the `SelfAdjointEigenSolver` of every block's
-`dV_b` from scratch. The square root is a property of the BLOCK, not of the
-functional: caching it once per block would serve all four functionals and
-should remove most of the 62 %. (Not done here -- it changes the mass and
-vertex paths too, and this study is not the place to re-certify them.)
+more `cvhcf::trackExponents` calls and two more per-block influence loops.
+
+**THE `sqrt(dV_b)` CACHE, AND A CORRECTION.** `dV_b^{1/2}` is a property of the
+BLOCK, not of the functional, and it was being re-decomposed in each of the
+four influence loops (mass, vertex, beam-x, beam-y). It is now built ONCE per
+candidate (`ressqrtdV` / `resionidir`, the latter for the ionization-sign
+rule) and read by all four. The gate is bit-identity and it passes:
+**264/264 branches on the J/psi gun** (rows off) and **290/313 on DY with the
+rows ON**, the 23 movers being exactly the beam-functional outputs the
+whitening changes.
+
+But the first version of this section predicted that the cache "should remove
+most of the 62 %", and **that was wrong**. Measured (`run_timing_cache.sh`,
+400 events, one CPU, sequential):
+
+| configuration | wall |
+|---|---|
+| `old_off` (no cache, rows off) | 887 s |
+| `old_full` (no cache, rows + both functionals) | 1379 s (+55.5 %) |
+| `new_off` (cached, rows off) | **853 s** (**-3.8 %**, output BYTE-IDENTICAL) |
+| `new_rows` (cached, rows on, no functionals) | 830 s |
+| `new_full` (cached, rows + both functionals) | 1356 s (+59.0 % over `new_off`) |
+
+`old_off -> new_off` is the clean comparison -- ONE of two decomposition passes
+removed, everything else identical -- and it fixes the scale: **one pass over
+all blocks' `dV_b^{1/2}` is worth ~34 s per 400 events, ~4 % of the maker.**
+Four passes are therefore ~12 % of the +55 %, not most of it. **The cost of the
+two beam functionals is the two extra `cvhcf::trackExponents` calls**, and that
+is where any future saving has to come from. The cache is kept because it is
+free, bit-identical, and makes each FURTHER functional cheaper.
+
+A REPEAT of the five configurations on a second CPU is **not usable**: its
+walls rise monotonically through the sequence (1139, 1900, 1163, 1309, 2176 --
+`new_rows` 58 % above `new_off` while doing strictly more work), i.e. the node
+loaded up during the run. **Standing method note: a sequential A/B on a shared
+node is only valid if the load is stable across the whole sequence -- test it
+by repeating the FIRST configuration at the END, rather than assuming it.**
 
 At **7 M Z candidates**: the beam block costs **0.527 TB** of export and
 **~5.8 kh** of extra CPU over the rows-off configuration.
@@ -1557,7 +1647,7 @@ target and 56x the Z-mass one. `bsConstraint` is `False` in every cfi and
 every production, so nothing shipped carried it; but it could not have been
 turned on.
 
-#### 14.11 The nominal pulls, 1200-event leg (3157 candidates on the baseline)
+#### 14.11 The nominal pulls, 1200-event leg (3157 candidates on the baseline) -- FIRST PASS, superseded by 14.12
 
 | | mean | Var | trimmed Var | P(abs(z)>3) | P(abs(z)>5) |
 |---|---|---|---|---|---|
@@ -1576,14 +1666,14 @@ Family composition, nominal: **beam line 0.225 / 0.214, hit 0.604 / 0.613,
 MS 0.172 / 0.174, ionization 0.000** (x / y). The beam block carries
 **4.0 %** of `sigma_m^2` and **6.2 %** of `sigma_v^2`.
 
-#### 14.12 THE STUDY, 10 254 candidates (`dy_bs` 4000 ev x 6, against `dy_bsoff`)
+#### 14.12 THE STUDY, 10 254 candidates (`dy_bs_final` 4000 ev x 6, against `dy_bsoff`)
 
-##### The two pulls (`plot_vtx.py`, figures in `~/public_html/ZMass/cvh/260913_beamline/`)
+##### The two pulls (`plot_vtx.py`, figures in `~/public_html/ZMass/cvh/260913_bsfinal/`)
 
 | | N | mean | Var | skew | kurt | corr(sigma, z) |
 |---|---|---|---|---|---|---|
-| `z_bs,x` | 10254 | **+0.0128 +- 0.0107** | 1.1810 | +0.062 | 5.00 | +0.017 +- 0.010 |
-| `z_bs,y` | 10254 | **+0.0043 +- 0.0107** | 1.1810 | +0.011 | 4.92 | +0.009 +- 0.010 |
+| `z_1` (= the global x pull, identically) | 10254 | **+0.0128 +- 0.0107** | 1.1810 | +0.062 | 5.00 | +0.017 +- 0.010 |
+| `z_2` (the y pull GIVEN x) | 10254 | **+0.0004 +- 0.0104** | **1.1093** | +0.060 | 4.39 | +0.009 +- 0.010 |
 | `z_v` (for scale) | 10254 | +0.0078 +- 0.0104 | 1.1165 | -0.031 | 3.55 | +0.003 +- 0.010 |
 
 **The mean is zero and there is no skew** -- the two beam residuals are
@@ -1595,28 +1685,52 @@ Tails, data / model:
 
 | | 2 sigma | 3 sigma | 4 sigma | 5 sigma |
 |---|---|---|---|---|
-| `z_bs,x` CF | 1.35 | 3.57 | 10.9 | **16.0** |
-| `z_bs,x` Gaussian (variance-matched) | 1.34 | 4.33 | 54.4 | 2621 |
-| `z_bs,x` Gaussian (the fit's `Q`) | 1.37 | 4.59 | 60.1 | 3061 |
-| `z_v` CF (for scale) | 1.32 | 2.10 | 1.09 | -- |
+| `z_1` CF | 1.35 | 3.57 | 10.9 | **16.0** |
+| `z_1` Gaussian (variance-matched) | 1.34 | 4.33 | 54.4 | 2621 |
+| `z_1` Gaussian (the fit's `Q`) | 1.37 | 4.59 | 60.1 | 3061 |
+| **`z_2` CF** | 1.14 | 2.74 | 6.29 | **6.84** |
+| `z_2` Gaussian (the fit's `Q`) | 1.17 | 3.54 | 35.4 | 1156 |
+| `z_v` CF (for scale) | 1.32 | 2.10 | 1.09 | -- (no data beyond 5) |
 
-The CF beats the Gaussian by **160x at 5 sigma** and is still **16x short**.
-The vertex residual's CF closes at 5 sigma; the beam one does not. The tail
-is NOT the background (the displaced `otherdecay` class is 8 candidates and
-contributes 1e-4 of the 1.8e-3 total): it is candidates where
-`M = covBS - C_vtx` is nearly singular -- the back-to-back direction in which
-the two tracks barely constrain the vertex -- so the leave-one-out
-amplification `covBS M^-1` is large. That is a property of the construction
-and it is the one place where the beam term is worse described than the
-vertex term.
+The CF beats the Gaussian by **160x at 5 sigma** on `z_1` and is still **16x**
+short; on `z_2` it is 6.8x short. The vertex residual's CF closes at 5 sigma;
+the beam one does not.
+
+**WHAT THE TAIL IS NOT.** It is not the background (the displaced
+`otherdecay` class is 8 candidates and contributes 1e-4 of the 1.8e-3 total).
+And it is **NOT the conditioning**, which the first version of this section
+asserted ("candidates where `M = covBS - C_vtx` is nearly singular, so the
+leave-one-out amplification `covBS M^-1` is large"). `Jpsi_bsmeig` -- the
+smallest eigenvalue of `M` over `covBS`'s own scale -- was added precisely to
+test that, and it refutes it: over the sample it runs from **1.8e-7** (p1
+2.0e-4) to 0.58 with a median of 0.111, so the degenerate corner is real and
+is ~1 % of candidates, but the **26 candidates beyond 5 sigma have `bsmeig`
+median 0.244 -- BETTER conditioned than the sample median.**
+
+Rebuilding the innovation in the numerically safe "+" form
+(`C_{-B} = A + A M^-1 A`, `Cov(e) = C_{-B} + covBS`, `e_B = rho_B + A M^-1
+rho_B`) moved the tail by only ~20 % (`P(|z|>5)` 0.00156 -> 0.00127). It is
+kept because it is strictly better conditioned and can no longer return an
+indefinite covariance, not because it explained the tail.
+
+**The tail is an open item**, and the place to look next is the same place the
+vertex residual's tail turned out to live: the model of the innermost pixel
+hits, which carry 0.60 / 0.44 of these two functionals' variance.
 
 ##### Composition (median share)
 
 | | beam line | hit | MS | ionization |
 |---|---|---|---|---|
-| `z_bs,x` | **0.212** | 0.603 | 0.141 | 0.000 |
-| `z_bs,y` | 0.200 | 0.609 | 0.143 | 0.000 |
+| `z_1` | **0.212** | 0.603 | 0.141 | 0.000 |
+| `z_2` | **0.374** | 0.440 | 0.150 | 0.000 |
 | `z_v` | -- | 0.656 | 0.286 | 0.000 |
+
+The beam block's share RISES with the softer muon's `pT` -- 0.137 -> 0.266 for
+`z_1` and 0.280 -> 0.416 for `z_2` across the `pT` bins -- because a stiffer
+pair leaves the vertex less well determined by the tracks, so more of the
+residual's variance is the luminous region itself. `z_2` carries nearly twice
+the beam share of `z_1`: conditioning on x removes the best-determined
+direction and leaves the one the tracks constrain worst.
 
 Material: `bpix_support6` 0.067, `tib_support` 0.024, `bpix_services` 0.013,
 `fpix_support` 0.012, `bpix_active_L1` 0.009 -- the same INNER-tracker weight
@@ -1628,7 +1742,24 @@ residual sees the innermost pixel classes in BOTH local coordinates where the
 vertex residual sees local-x only: the DCA direction `n_hat` is one
 direction, the beam residual is two.
 
-The beam block carries **4.0 %** of `sigma_m^2` and **6.1 %** of `sigma_v^2`.
+The beam block carries **4.00 %** of `sigma_m^2` and **6.12 %** of `sigma_v^2`.
+
+##### THE CORRELATION BETWEEN THE TWO FUNCTIONALS -- measured, and it was never 0.2
+
+| | on 10 254 candidates |
+|---|---|
+| MODEL correlation `Cov_xy / sqrt(Cov_xx Cov_yy)` | median **-0.011**, mean -0.005 |
+| the GLOBAL pair `corr(z_x, z_y)` | **-0.0103 +- 0.0099** (1.0 sigma) |
+| the WHITENED pair `corr(z_1, z_2)` | **+0.0302 +- 0.0099** (3.1 sigma) |
+
+The "~0.20" quoted when the basis was chosen came from the **90-candidate
+smoke file**; on the real sample the two global components are already
+uncorrelated. Whitening is exact only when the covariance it whitens with is
+the TRUE one, and the fit's is ~18 % low (`Var(z) = 1.18`), so the Cholesky
+mixing `z_2 = (r_y - L_21 z_1)/L_22` *injects* a small correlation where none
+was. It is 0.03, i.e. negligible either way -- but it means **whitening is not
+the fix for whatever makes `sandwich/quoted` large**, because there was no
+correlation between the two functionals to remove.
 
 ##### Against gen truth (`bkg_bs.py`, classes from `genbkg.classify`)
 
@@ -1760,6 +1891,36 @@ Four fresh 700-event legs with the REBASED build (`rb_on`, `rb_off`,
 `logs_bs/gates_bs_rebased.log`. The `skipped[leghits<8]` counter fires 10
 times in 700 events of `rb_on/task_0000`, so the new default is active.
 
+##### THE MERGE (2026-09-12)
+`cvh-exports-clean-260911` was then **fast-forwarded** onto
+`beamline-260913` @ `0cb6c291354` -- verified a real fast-forward
+(`git merge-base --is-ancestor dbfe6e4b2c2 0cb6c291354` is true) -- and
+everything since (the per-channel defaults, the width floats, the whitened
+pair, the "+" form and the `sqrt(dV_b)` cache) is on the clean branch in dev2.
+
+The FINAL productions are `beamline/dy_bs_final` (6 x 4000 DY events, rows ON,
+all the new exports; **10 413 candidates, 10 254 on the baseline**) against
+`beamline/dy_bsoff` as the rows-OFF reference.  `dy_bsoff` is the FIRST pass's
+rows-OFF leg and it is the right reference: same six input files, same 4000
+events, same rows-OFF configuration, and the FIT is untouched by this pass --
+the gun gate below is 264/264 branches bit-identical between the two builds
+with the rows off.  (`beamline/dy_bsoff_final` re-measures it from scratch.)
+
+##### THE BIT-IDENTITY GATES on the merged build (`gate_cache.py`)
+| leg | matched | result |
+|---|---|---|
+| J/psi gun, 200 ev, rows OFF | 188 / 188 | **264 / 264 branches BIT-IDENTICAL** |
+| DY, 400 ev, rows ON | 179 / 179 | **290 / 313 bit-identical**; the 23 movers are EXACTLY the beam-functional outputs (`Jpsi_bsmean/bsv*`, `bsvarv`, `resinfbsv`, the 15 `cfbs_*`), plus 10 declared new-only branches |
+
+With the rows off the beam code never runs, so the gun leg certifies BOTH that
+the per-channel default left the J/psi alone and that the `sqrt(dV_b)` cache is
+bit-identical. The DY leg says the same with the beam code running: nothing
+outside the beam block moved.
+
+##### THE DEFAULTS GATE (`gate_defaults_cfg.py`)
+The producer PSet expanded in BOTH areas and compared against the wanted value:
+**all 8 channels correct, 0 wrong.**
+
 #### 14.14 The terms: cards, fits, the sandwich and the injections
 
 14 cards, every one fitted through `rabbit_fit.py` and certified by value AND
@@ -1778,39 +1939,48 @@ stage shares.
 
 ##### The sandwich (8000 shared candidates, 60 parameters, physical units)
 
-| channel | median sandwich/quoted, CF | gauss | gaussq |
-|---|---|---|---|
-| `vtx` alone | **0.918** | 1.001 | 1.014 |
-| `bs` (the two beam terms) | **1.385** | 1.462 | 1.460 |
-| `vtx + bs` | **1.321** | 1.434 | 1.434 |
-| `vtx + bs + mass` | 1.322 | 1.425 | 1.424 |
+| channel | median sandwich/quoted, CF | gauss | gaussq | CF, GLOBAL pair (superseded) |
+|---|---|---|---|---|
+| `vtx` alone | **0.919** | 1.000 | 1.013 | 0.918 |
+| `bs` (the two beam terms) | **1.138** | 1.264 | 1.256 | **1.385** |
+| `vtx + bs` | **1.196** | 1.273 | 1.274 | 1.321 |
+| `vtx + bs + mass` | **1.194** | 1.271 | 1.272 | 1.322 |
 
-`bootstrap/sandwich` is 0.995-1.007 everywhere, so the sandwich itself is
+`bootstrap/sandwich` is 0.990-1.003 everywhere, so the sandwich itself is
 right.
 
-**THE TWO BEAM TERMS OVER-COUNT, and by design.** `bs` alone is at **1.385**
-where the vertex term alone is at 0.918: the two beam functionals are the
-GLOBAL x and y components, which are correlated (`Cov_xy` is not zero, the
-correlation is ~0.2), and multiplying their two likelihoods treats them as
-independent. That is the price of the basis chosen for interpretability (see
-above), it was predicted, and the sandwich is exactly the diagnostic that
-shows it. **Every error quoted from a beam channel must be the sandwich one.**
-The fix, if the 32 % matters, is to make the two functionals the CHOLESKY
-pair -- uncorrelated by construction, `sigma = 1`, `Cov = I` -- at the cost
-that neither is then the response to a single beam-spot parameter.
+**THE TWO BEAM TERMS OVER-COUNT.** `bs` alone is at **1.138** where the vertex
+term alone is at 0.919. Making the two functionals the WHITENED (Cholesky)
+pair took the EXCESS over 1 from 0.385 to 0.138, a factor 2.8, and left `vtx`
+untouched at 0.919 as it must.
+
+**But not for the reason the first pass gave.** That reason was "the two
+beam functionals are the GLOBAL x and y components, which are correlated
+(`Cov_xy` is not zero, the correlation is ~0.2)". On the full sample the model
+correlation is **-0.011** and the measured `corr(z_x, z_y)` is
+**-0.0103 +- 0.0099** -- the 0.2 came from the 90-candidate smoke file. There
+was no correlation to remove. What the whitening removes is the shared
+INFORMATION: `z_2` is the y pull *given* x, so it no longer re-uses what `z_1`
+already said about the same hits and the same material. That is worth the
+factor 2.8.
+
+The remaining **0.138** is the two terms being evaluated on the SAME
+candidates with the SAME nuisance parameters, which no change of basis can
+undo. **Every error quoted from a beam channel must still be the sandwich
+one.**
 
 ##### What the beam residuals BUY, per hit class (CF, the ACTUAL / sandwich error)
 
 | class | `vtx` alone | `bs` alone | `vtx + bs` | gain over `vtx` |
 |---|---|---|---|---|
-| `pix_x_q1` | 0.0664 | 0.1168 | **0.0601** | 9.5 % |
-| `pix_x_q2` | 0.1063 | 0.1713 | **0.0984** | 7.4 % |
-| `pix_x_q3` | 0.1107 | 0.1941 | **0.1072** | 3.2 % |
-| `pix_x_q0` | 0.1977 | 0.3633 | **0.1828** | 7.5 % |
-| **`pix_y_q1`** | 0.2844 | **0.1039** | **0.1001** | **2.8x** |
-| **`pix_y_q2`** | 0.4643 | 0.2260 | **0.2044** | **2.3x** |
-| **`pix_y_q0`** | 0.5116 | 0.1860 | **0.1845** | **2.8x** |
-| `str_N3_lo` | 0.4600 | 0.2985 | 0.2772 | 1.7x |
+| `pix_x_q1` | 0.0661 | 0.1153 | **0.0581** | 12.1 % |
+| `pix_x_q2` | 0.1066 | 0.1564 | **0.0997** | 6.5 % |
+| `pix_x_q3` | 0.1125 | 0.1799 | **0.1021** | 9.2 % |
+| `pix_x_q0` | 0.2035 | 0.2607 | **0.1731** | 14.9 % |
+| **`pix_y_q1`** | 0.2880 | **0.1009** | **0.0980** | **2.9x** |
+| **`pix_y_q2`** | 0.4642 | 0.2456 | **0.2171** | **2.1x** |
+| **`pix_y_q0`** | 0.5133 | 0.1879 | **0.1834** | **2.8x** |
+| `str_N3_lo` | 0.4615 | 0.2864 | **0.2644** | 1.7x |
 
 **This is the result.** The vertex residual is ONE direction -- `n_hat`, the
 normal to the two momenta, which on a nearly back-to-back pair is essentially
@@ -1839,11 +2009,17 @@ of the injection, and the prior-corrected recovery is 0.86 / 0.93 / 0.92.
 
 | arm | baseline | injected | shift | recovery |
 |---|---|---|---|---|
-| `bs_cf` | 0.1228 | 0.0232 | **-0.0996** | **1.00** |
-| `vtx_cf` | 0.3488 | 0.2281 | -0.1206 | 1.21 |
-| `vtxbs_cf` | 0.2622 | 0.1485 | -0.1137 | 1.14 |
+| `bs_cf` | 0.0451 +- 0.1444 | -0.0482 +- 0.1316 | **-0.0933** | **0.93** |
+| `vtx_cf` | 0.3498 +- 0.1230 | 0.2291 +- 0.1120 | -0.1207 | 1.21 |
+| `vtxbs_cf` | 0.2534 +- 0.0925 | 0.1405 +- 0.0842 | -0.1130 | 1.13 |
 
-The BEAM channel recovers an innermost-pixel-class injection at **0.996**.
+The BEAM channel recovers an innermost-pixel-class injection at **0.93**, the
+joint one at 1.13 -- all three within ~+-0.2 of unity, and unchanged in
+character from the first pass (0.996 / 1.21 / 1.14).
+
+**The two width scales do not absorb a hit-class injection**: the largest
+leakage onto `beamwidth_x` / `beamwidth_y` is **-0.00 sigma**. They are
+orthogonal to the hit classes, which is what makes floating them safe.
 (`hitlik/recovery.py` prints `nan` in its `/truth` columns on these cards --
 `STATE.md` open item 5, a reader bug, not a fit one -- so the recoveries above
 are `|shift| / 0.10` computed here.)
@@ -1859,13 +2035,43 @@ are `|shift| / 0.10` computed here.)
    weight on the beam block's row, and `Jpsi_bsmean{mass,vtx,bs}` are exactly
    those weights (3 floats each, 0.04 kB/candidate). The slope response is the
    same weight times `(z_v - z0)`, and `Jpsi_bsvtx` carries `z_v`.
-2. **The beam WIDTHS as resolution parameters.** Family 16 is registered as a
-   resolution block with `dV = covBS`, so a scale `k_beam` on the luminous
-   region floats in the CF terms exactly as a hit class does, with
-   `resinfbsv` / `bsvarv` / `Jpsi_massvbs` / `Jpsi_vtxvbs` as its influence.
+2. **The beam WIDTHS as resolution parameters -- DONE, and they float.**
+   Family 16 is registered as a resolution block with `dV = covBS`, so a scale
+   on the luminous region floats in the CF terms exactly as a hit class does.
+   There are TWO of them, one per transverse direction, because
+   `sigma_x -> sqrt(k_x) sigma_x` sends `covBS -> D covBS D` with
+   `D = diag(sqrt(k_x), sqrt(k_y), 1)` and
+
+       v_b(k) = sum_ij w_i w_j C_ij d_i d_j ,   d = (sqrt(k_x), sqrt(k_y), 1)
+
+   whose derivative at `k = 1` is EXACTLY
+   `dv/dk_x = w_x^2 C_xx + w_x w_y C_xy + w_x w_z C_xz` -- each cross term
+   split half and half between the two directions. Those half-splits are what
+   the maker exports (`Jpsi_massvbsx/y`, `Jpsi_vtxvbsx/y`, `Jpsi_bsvbsx/y[2]`);
+   they sum to the block's total share IDENTICALLY, so they enter the
+   hit-class machinery as two extra classes with a **LINEAR variance scale**
+   (`--hit-mode linear`, the card value IS `eps`, physical `k = 1 + eps`).
+   The card parameters are `beamwidth_x` / `beamwidth_y`.
+
+   The first whitened pull's `y` share is IDENTICALLY zero
+   (`Jpsi_bsvbsx[0] == Jpsi_bsvbs[0]`, `Jpsi_bsvbsy[0] == 0`), which is the
+   Cholesky basis telling the truth about itself: `z_1` is the x pull and
+   cannot depend on `r_y`.
+
    It is not a cosmetic parameter: the record's transverse widths are 8-12 %
-   wider than the simulated luminous region on this MC (above), so on data
-   they should be floated rather than trusted.
+   wider than the simulated luminous region on this MC (section 14.3), so on
+   data they should be floated rather than trusted.
+
+   **THE RECORD'S OWN PRIOR IS TOO TIGHT TO BE USED ALONE.**
+   `Jpsi_bswidtherr` (`BeamWidthXError` / `YError`, now exported) is
+   **0.2904 um** on widths of 10.834 / 10.388 um, so the prior on a VARIANCE
+   scale is `2 err / width` = **0.0536 / 0.0559**. The value the fit must
+   return is `eps = (9.66/10.83)^2 - 1 = -0.204` and `(9.59/10.39)^2 - 1 =
+   -0.148`: the record's own error is FOUR TIMES smaller than the
+   record-vs-simulation mismatch. A fit with that prior measures the TENSION,
+   not the width. Both are therefore built and quoted -- `*_cf` with the record
+   prior, `*free_cf` with `--beamwidth-prior 0` (no prior at all) -- alongside
+   `nobw_bs_cf` with the widths fixed.
 3. **The residuals over-determine the mean parameters**, so floating them is
    free: `sigma(x0) = 25 um / sqrt(N)` from the beam pulls alone.
 4. **Only for a PROMPT resonance.** A B -> J/psi X decay has `c tau ~ 460 um`,
@@ -1873,9 +2079,13 @@ are `|shift| / 0.10` computed here.)
    constraint is a 20-30 sigma pull (`chi2` of several hundred) and the fit
    would drag the vertex onto the beam line and mis-measure both momenta. The
    DY MC shows the signature already: the `otherdecay` class -- a leg matched
-   to a muon from a different, displaced decay -- has 25 % of its candidates
-   beyond 3 sigma against the signal's 2.1 %. **The beam rows must stay OFF
-   for J/psi and Upsilon.**
+   to a muon from a different, displaced decay -- has **12.5 %** of its
+   candidates beyond 3 sigma against the signal's 2.1 %, and
+   `<chi2_bs> = 9.97` against 2.29. **The beam rows stay OFF for J/psi** --
+   and for every displaced channel. **They are ON for the Upsilon**: every
+   `Upsilon(nS)` is prompt (no b hadron is heavy enough to decay to one), so
+   there is no non-prompt component at all. Section 14.17 has the table and
+   the full argument.
 5. **The mass shift has to go through the calibration chain.** Turning the
    rows on moves the reconstructed Z mass by -8 +- 3.5 MeV (9e-5 relative);
    it is the resolution-proportional bias shrinking, and it is TOWARD the
@@ -1896,9 +2106,182 @@ are `|shift| / 0.10` computed here.)
   unbiased one is `e_B = covBS (covBS - C_vtx)^-1 rho_B`.
 * **Correlated functionals may not be multiplied and then quoted from the
   Hessian.** `bs` alone is at sandwich/quoted 1.385.
+* **A leave-one-out residual must be built in the "+" form.** `covBS M^-1 covBS`
+  and `A + A M^-1 A + covBS` are the same matrix and are NOT the same
+  computation: `M = covBS - A` is a difference of two nearly equal covariances,
+  so the first form runs the whole answer through the amplification and can
+  return an indefinite matrix, while the second has the leading order explicit
+  and is `>= covBS` by construction. Same for the residual itself:
+  `rho_B + A M^-1 rho_B`, never `covBS M^-1 rho_B`.
+* **Correlated functionals may not be multiplied and then quoted from the
+  Hessian.** The global x/y pair was at sandwich/quoted 1.385. Whitening them
+  (`z = L^-1 r`, `Cov(z) = I`) is the fix; the cost is that neither pull is
+  then the response to a single global parameter, so export `L^-1`.
+* **A block's `dV_b^{1/2}` belongs to the BLOCK, not to the functional.**
+  Recomputing its eigendecomposition once per functional is the whole cost of
+  adding functionals. Cache it once per candidate.
+* **A variance-scale parameter's prior must be checked against the mismatch it
+  is meant to absorb.** The beam-spot record's `BeamWidthError` is 0.29 um on a
+  10.8 um width, i.e. 0.054 on a variance scale, while the record-vs-simulation
+  mismatch is 0.20. A fit with that prior measures the TENSION, not the width;
+  quote the free fit alongside it.
 * **Never `cat X > X` across a shared filesystem.** `/work` is the same
   directory from every submit node; copying a remote log onto itself
   truncates it. (Cost here: `eff_*`, `fisher`, `recovery*` had to be re-run.)
+* **Build on a submit node.** A host scram does not recognise as el9 picks up
+  the wrong system headers and the build fails inside `<atomic>`; `/ceph` is
+  unreadable from there too.
+* **Never `scram b` in an area a production is reading.** The relink is the
+  same-second-segfault trap; check `ps` on every submit node first.
+* **A change of basis invalidates every normaliser downstream.** `gates_bs.py`
+  normalised `resinfbsv` by `Cov(r_bs)_kk`; with the whitened pair the
+  functional's variance is ONE, so that check read 1.5e5 instead of 1.7e-7.
+  `extract_vtx.py` had the same trap (the beam arm's `sigma` is now 1 and its
+  residual IS the pull). Both now key on the presence of `Jpsi_bslinv`, so they
+  still read the first pass's files correctly.
+* **A robust width estimator is not automatically an UNBIASED one.** A
+  1 %-trimmed standard deviation is 0.96164 of the true sigma for a Gaussian,
+  which is most of the "record is 8-12 % wider" of section 14.3 (section
+  14.18).
+
+#### 14.17 THE DEFAULTS, PER CHANNEL -- and why the Upsilon keeps the rows
+
+David, 2026-09-12:
+
+> "Yes merge them and switch them on by default for the Z and off for the
+> JPsi, for the Upsilon I'm not sure, what do we expect? I thought there are
+> only prompt upsilon no?"
+
+**Yes -- every `Upsilon(nS)` is prompt.** No b hadron is heavy enough to decay
+to an Upsilon, so unlike the J/psi there is NO non-prompt component at all, and
+the `chi_b` feed-down is at the primary vertex too. The only DISPLACED dimuons
+under the Upsilon peak are
+
+* the `b b-bar -> mu mu` continuum -- two muons from two DIFFERENT B vertices,
+  which is not one displaced vertex but no common vertex at all, and
+* cosmics,
+
+and the constraint REJECTS both rather than being confused by them. The DY MC
+shows exactly that signature already (section 14.12): the gen `otherdecay`
+class -- a leg matched to a muon from a different, displaced decay -- has 25 %
+of its candidates beyond 3 sigma against the signal's 2.1 %. So the Upsilon is
+in the same position as the Z and keeps the rows.
+
+| cfi / driver | default | the reason, written at the flag |
+|---|---|---|
+| `...TwoTrackZMuMuG4e_cfi` | **True** | the Z is PROMPT |
+| `...TwoTrackUpsilonMuMuG4e_cfi` | **True** | every Upsilon(nS) is prompt; the displaced dimuons under the peak are `bb -> mu mu` and cosmics, which the constraint REJECTS |
+| `...DiMuonG4e_cfi`, `runCvhDimuonMiniAOD.py` | **True** | the Z/DY MiniAOD channel: `diMuonTrackVertexCandidates` has a 50-150 GeV window |
+| `...TwoTrackJpsiMuMuG4e_cfi`, `runCvhJpsi.py`, `runCvhJpsiGenMC.py` | False | charmonium is NOT prompt: `B -> J/psi X` at `c*tau ~ 460 um` is a 20-30 sigma pull against an ~11 um constraint |
+| `...TwoTrackJpsiKMuMuG4e_cfi` | False | the B vertex is displaced by construction; the POINTING constraint is this channel's analogue |
+| `...TwoTrackPiPiG4e_cfi` (K_S) | False | displaced by construction |
+| `...TwoTrackKPiG4e_cfi` (D0 / V0) | False | displaced by construction |
+| `...TwoTrackProtonPiG4e_cfi` (Lambda) | False | displaced by construction |
+
+`runCvhJpsi.py` and `runCvhJpsiGenMC.py` had `bsConstraint` HARDCODED False;
+it is now a registered option (default False) so a prompt-J/psi study can turn
+it on deliberately.
+
+**THE TRAP, recorded in the cfi.** `ResidualGlobalCorrectionMakerDiMuonG4e_cfi`
+is RESONANCE-AGNOSTIC by design -- its own header says the same config serves
+Z / J/psi / Upsilon and the resonance is chosen only by the candidate
+producer's mass window. Turning the rows on by default there is right for the
+shipped window and WRONG for a charmonium clone, so a `*** TRAP ***` note sits
+at the flag. `PhysicsTools/NanoAOD/python/muons_cff.py` clones it bare
+(`trackrefitdimuon = ResidualGlobalCorrectionMakerDiMuonG4e.clone()`) with the
+Z window, so the NanoAOD `Dimuon` table now gets the rows -- which is the
+intent, and which is also why the mass shift of section 14.12 has to go
+through the calibration chain.
+
+GATE (`gate_defaults_cfg.py`, the producer PSet expanded in BOTH areas and
+compared against the wanted value): **all 8 channels correct, 0 wrong.**
+GATE (`gate_cache.py`, the J/psi gun, 200 events, rows off, dev3 against
+dev2): **188 / 188 candidates, 264 / 264 branches BIT-IDENTICAL** -- the J/psi
+sees no change at all.
+
+#### 14.18 THE LUMINOUS-REGION WIDTHS, FLOATED -- and what it took to make them come out
+
+David, 2026-09-12: *"Also float the widths"*.  `beamwidth_x` / `beamwidth_y`
+scale the family-16 block's variance share linearly (section 14.15 point 2 has
+the algebra and the exports).  Three things had to be got right before the
+answer was the simulation's.
+
+##### 1. The EXPECTATION was biased -- a correction to section 14.3
+The gen production vertex has heavy tails (rms **31.8 / 90.8 um** against a
+MAD of 10.08 / 9.93 um: 0.05 % of candidates carry a genuinely displaced gen
+vertex), so the width has to be estimated robustly.  Section 14.3 used a
+**1 %-trimmed standard deviation** and quoted 9.66 / 9.59 um.  **A trimmed
+standard deviation is biased LOW**: for a Gaussian trimmed at the 0.5/99.5
+percentiles the retained standard deviation is **0.96164** of the true sigma
+(computed exactly).  Corrected, the three robust estimators AGREE:
+
+| | 1 % trim (corrected) | 5 % trim (corrected) | MAD |
+|---|---|---|---|
+| `sigma_x` | 10.047 um | 10.070 um | 10.081 um |
+| `sigma_y` | 9.978 um | 9.973 um | 9.925 um |
+
+So the record (10.834 / 10.388 um) is **7.2 % / 4.1 % wider in sigma** --
+`eps = -0.140 / -0.077` -- not the -0.204 / -0.148 the uncorrected numbers
+give.  **"The record is 8-12 % wider" is really "the record is 4-7 % wider".**
+
+##### 2. The RECORD'S OWN PRIOR is too tight to be used alone
+`Jpsi_bswidtherr` is **0.2904 um** on both widths, so `2 err/width` = **0.054**
+on a variance scale -- smaller than the -0.14 effect it is supposed to absorb,
+and comparable to the statistical error.  A fit with that prior measures the
+TENSION, not the width, and it visibly pulls the answer.  **Float them FREE.**
+
+##### 3. It takes the VERTEX residual in the same channel
+| fit | EDM | `eps_x` | pull vs -0.140 | `eps_y` | pull vs -0.077 | implied `sigma_x` | implied `sigma_y` |
+|---|---|---|---|---|---|---|---|
+| `bs_cf` (beam only, record prior) | 7.2e-15 | -0.0099 +- 0.0445 | +2.93 | +0.0355 +- 0.0426 | +2.65 | 10.78 +- 0.24 | 10.57 +- 0.22 |
+| `bsfree_cf` (beam only, free) | 1.4e-14 | -0.0031 +- 0.0798 | +1.72 | +0.0899 +- 0.0728 | +2.30 | 10.82 +- 0.43 | 10.84 +- 0.36 |
+| `vtxbs_cf` (vtx + beam, record prior) | 4.9e-14 | -0.0567 +- 0.0422 | +1.97 | -0.0257 +- 0.0396 | +1.30 | 10.52 +- 0.24 | 10.25 +- 0.21 |
+| **`vtxbsfree_cf`** (vtx + beam, FREE) | **1.7e-15** | **-0.1394 +- 0.0638** | **+0.01** | **-0.0595 +- 0.0567** | **+0.32** | **10.05 +- 0.37 um** | **10.07 +- 0.30 um** |
+
+against a simulated **10.047 / 9.978 um**: a recovery at **0.01 sigma and
+0.32 sigma**, EDM-certified at 1.7e-15.  `corr(beamwidth_x, beamwidth_y)` is
++0.09 in that fit.
+
+**Why the beam-only channel cannot do it.**  `Cov(r_bs) = C_{-B} + Sigma_beam`
+and the beam block is only 0.21 / 0.37 of it; the rest is the fit's own vertex
+covariance, which is ~18 % LOW (`Var(z) = 1.18`).  With only the two beam
+terms a width scale and a deficit in `C_{-B}` are nearly degenerate, the 60
+material and hit-class parameters take the excess, and the widths sit at the
+record.  The VERTEX residual carries **no beam-block share at all** (it is the
+DCA direction), so it measures the `C_{-B}` mis-modelling independently; with
+that pinned, what is left in the beam terms is the luminous region.
+
+**THE RULE: float the luminous-region widths FREE, and only in a channel that
+also carries the vertex residual.**  A hit-class injection leaks onto them at
+**-0.00 sigma**, so they are orthogonal to the hit classes and floating them
+is safe.
+
+#### 14.19 WHAT IS STILL OPEN
+
+1. **The 5 sigma tail of `z_1`** (data/CF **16.0**). It is not the background,
+   it is not the conditioning (`Jpsi_bsmeig` refutes that directly -- the 26
+   candidates beyond 5 sigma are BETTER conditioned than the sample median),
+   and the "+" form only moved it 20 %. `z_2`, which conditions on x, is at
+   6.8. The place to look is the innermost pixel hit model: those classes
+   carry 0.60 / 0.44 of the two functionals' variance, and the vertex
+   residual -- whose CF closes at 5 sigma -- is one direction where these are
+   two.
+2. **`sandwich/quoted = 1.138` for the `bs` channel.** Whitening took the
+   excess from 0.385 to 0.138; the rest is the two terms living on the same
+   candidates with the same nuisances and cannot be removed by a change of
+   basis. Quote the sandwich.
+3. **The mass shift.** Turning the rows on still moves the reconstructed Z mass
+   by **-8 +- 3.5 MeV** (9e-5 relative, section 14.12) -- the
+   resolution-proportional bias shrinking with the resolution, toward the
+   truth, but nine times the Z-mass target. Now that the rows are ON BY
+   DEFAULT for Z / DY and Upsilon, this has to go through the calibration
+   chain rather than being noted.
+4. **The width floats need the vertex residual in the channel** (section
+   14.18). Any data fit of the luminous region must be set up that way, and
+   the widths must be FREE, not priored to the record.
+5. **`hitlik/recovery.py` prints `nan` in its `/truth` columns** on these
+   cards -- a reader bug, not a fit one. STATE open item 5, still open; the
+   recoveries in 14.14 are `|shift| / 0.10` computed by hand.
 
 ---
 

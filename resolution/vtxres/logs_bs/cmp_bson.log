@@ -1,4 +1,4 @@
-# ON 10655 candidates (6 files), OFF 10650 (6 files), matched 10648
+# ON 10413 candidates (6 files), OFF 10650 (6 files), matched 10413
 # selected on BOTH: 10237; of those Jpsi_bsok 100.000 %
 
 === ndof(ON) - ndof(OFF): 3 x10237
@@ -47,14 +47,14 @@
     mass, d y0 [rel]           mean -1.0585e-05 +- 1e-05    rms  0.0010153   mean|.| 0.00075108
     vertex r_v / sigma_v, d x0 mean  -0.0014949 +- 0.00081    rms    0.08196   mean|.|    0.05969
     vertex r_v / sigma_v, d y0 mean -0.00029743 +- 0.000817    rms   0.082704   mean|.|   0.060492
-    beam z_bs,x, d x0          mean     -0.1994 +- 0.000909    rms   0.091933   mean|.|     0.1994
-    beam z_bs,y, d y0          mean    -0.20325 +- 0.000935    rms   0.094647   mean|.|    0.20325
+    beam z_bs,x, d x0          mean     -96.428 +- 0.688    rms     69.636   mean|.|     96.428
+    beam z_bs,y, d y0          mean     -111.96 +- 0.714    rms      72.26   mean|.|     111.96
   a 1e-4 change of the SLOPE (response = the same weight x (z_v - z0))
     mass, d dxdz [MeV]         mean     -1.6336 +- 0.625 MeV   rms     63.188   mean|.|     37.918   [mean/sigma -0.001172, rms/sigma 0.047020]
     mass, d dydz [MeV]         mean    -0.72404 +- 0.663 MeV   rms     67.127   mean|.|     38.979   [mean/sigma -0.000479, rms/sigma 0.049027]
     mass, d dxdz [rel]         mean -1.8937e-05 +- 6.91e-06    rms 0.00069892   mean|.| 0.00042215
     vertex r_v / sigma_v, d dxdz mean -2.3954e-05 +- 0.000595    rms   0.060201   mean|.|   0.034588
-    beam z_bs,x, d dxdz        mean   -0.001797 +- 0.00155    rms    0.15656   mean|.|    0.11386
+    beam z_bs,x, d dxdz        mean     -0.9419 +- 0.838    rms     84.757   mean|.|     54.821
   <|z_v - z0|> = 2.8933 cm
   <sigma_m> = 1135.24 MeV, <sigma_bs,x> = 51.68 um, <sigma_bs,y> = 50.82 um
 
