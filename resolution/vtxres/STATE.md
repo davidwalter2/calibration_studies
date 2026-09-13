@@ -1434,18 +1434,27 @@ closure is `sum_b |a_b|^2 == 1` -- and the two are UNCORRELATED.
 The first pass used the two GLOBAL components `r_x` and `r_y`, each
 standardised by its own marginal `sqrt(Cov_kk)`, for interpretability: each
 was then tied one-to-one to a beam-spot parameter and the mean term was
-literally `-w[bs row x]`. The consequence was that **they are CORRELATED**
-(`Cov_xy` is not zero, the correlation is ~0.2), and multiplying their two
-likelihoods treats them as independent: `sandwich/quoted` for the `bs` channel
-alone came out at **1.385** against 0.918 for the vertex term. That is
-over-counting by construction, and it is why the pair is now whitened.
+literally `-w[bs row x]`. `sandwich/quoted` for the `bs` channel alone came out
+at **1.385** against 0.918 for the vertex term, and that was attributed to the
+two components being CORRELATED. **They are not**: on the full sample the model
+correlation `Cov_xy/sqrt(Cov_xx Cov_yy)` is **-0.011** and the measured
+`corr(z_x, z_y)` is **-0.010 +- 0.010** (the "~0.2" quoted at the time came
+from the 90-candidate smoke file; section 14.12). What the two terms DO share
+is INFORMATION -- the same hits and the same material seen twice -- and
+conditioning the second pull on the first removes that: whitening takes
+`sandwich/quoted` to **1.138**, an excess-over-1 smaller by a factor 2.8.
+
+Note what whitening can and cannot touch: the lower-Cholesky first row is the
+x marginal, so **`z_1` IS the first pass's global x functional, bit for bit**,
+and only the second changes (`Var` 1.1811 -> 1.1094, 5 sigma data/CF 16 ->
+6.8).
 
 What the whitening costs, stated: neither pull is the response to a SINGLE
 beam-spot parameter any more. `Jpsi_bslinv` (the packed `L^-1`) is exported so
 that any influence weight or mean response is one 2x2 multiply from the global
 basis, the raw pair `Jpsi_bsres` / `Jpsi_bscov` is still written, and the
 mean-term identity survives exactly in the form `Jpsi_bsmeanbs == -L^-1 P`
-(gate G6, 8.9e-11).
+(gate G6, 1.0e-10).
 
 The residual correlation is still measured rather than assumed: `fisher_vtx.py`
 sums the two terms' per-batch gradients over the SAME candidates, so `J`
