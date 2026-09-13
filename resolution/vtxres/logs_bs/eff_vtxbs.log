@@ -1,0 +1,42 @@
+============================================================================================================
+THE GAUSSIAN TERM'S ACTUAL ERROR (sandwich) vs THE ONE IT QUOTES
+   8000 tracks, components 'vtxbs', at MC truth, with the parmtype-15 tier priors and 1 on every hit class
+============================================================================================================
+   cf       H+P rank 60/60, eig +2.491e+00 .. 9.992e+03;  median sandwich/quoted over the informative parameters: 1.321   (bootstrap/sandwich 1.0036)
+   gauss    H+P rank 60/60, eig +3.138e+00 .. 9.993e+03;  median sandwich/quoted over the informative parameters: 1.434   (bootstrap/sandwich 0.9965)
+   gaussq   H+P rank 60/60, eig +3.237e+00 .. 9.993e+03;  median sandwich/quoted over the informative parameters: 1.434   (bootstrap/sandwich 0.9966)
+
+------------------------------------------------------------------------------------------------------------
+MATERIAL GROUPS the term constrains
+------------------------------------------------------------------------------------------------------------
+parameter                      cf quoted     cf ACTUAL    S/Q  gauss quoted  gauss ACTUAL    S/Q gaussq quoted gaussq ACTUAL    S/Q  EFF marg  EFF alone
+
+------------------------------------------------------------------------------------------------------------
+HIT CLASSES
+------------------------------------------------------------------------------------------------------------
+parameter                      cf quoted     cf ACTUAL    S/Q  gauss quoted  gauss ACTUAL    S/Q gaussq quoted gaussq ACTUAL    S/Q  EFF marg  EFF alone
+hitres_pix_x_q1                   0.0502        0.0601   1.20        0.0496        0.0617   1.24        0.0479        0.0594   1.24     0.978      0.988
+hitres_pix_x_q3                   0.0796        0.1072   1.35        0.0709        0.0970   1.37        0.0688        0.0944   1.37     0.774      0.840
+hitres_pix_y_q1                   0.0809        0.1001   1.24        0.0779        0.1093   1.40        0.0768        0.1077   1.40     1.156      1.163
+hitres_pix_x_q2                   0.0821        0.0984   1.20        0.0789        0.0976   1.24        0.0763        0.0944   1.24     0.921      0.968
+hitres_pix_y_q0                   0.1186        0.1845   1.56        0.1097        0.1776   1.62        0.1078        0.1747   1.62     0.896      0.899
+hitres_pix_x_q0                   0.1430        0.1828   1.28        0.1378        0.1801   1.31        0.1335        0.1739   1.30     0.905      0.920
+hitres_pix_y_q2                   0.1458        0.2044   1.40        0.1422        0.2654   1.87        0.1394        0.2594   1.86     1.611      1.498
+hitres_str_N2_lo                  0.1478        0.2211   1.50        0.1428        0.2092   1.46        0.1405        0.2061   1.47     0.869      0.918
+hitres_str_N1_lo                  0.1705        0.2208   1.29        0.1647        0.2423   1.47        0.1619        0.2380   1.47     1.162      1.178
+hitres_str_N3_lo                  0.1763        0.2772   1.57        0.1692        0.2875   1.70        0.1652        0.2800   1.69     1.020      1.055
+hitres_str_N3_hi                  0.1787        0.2652   1.48        0.1686        0.2694   1.60        0.1655        0.2642   1.60     0.993      0.946
+hitres_pix_y_q3                   0.1847        0.3146   1.70        0.1310        0.3363   2.57        0.1268        0.3200   2.52     1.035      0.975
+hitres_str_N2_hi                  0.2474        0.3539   1.43        0.2459        0.3690   1.50        0.2402        0.3596   1.50     1.033      1.017
+hitres_str_N4_lo                  0.3144        0.4044   1.29        0.3084        0.3976   1.29        0.3032        0.3914   1.29     0.937      0.956
+   EFFICIENCY sigma^2(Gauss, ACTUAL) / sigma^2(CF, actual):  median 0.985   16-84 % 0.889-1.070   min 0.774  max 1.611
+   PRIOR-FREE (standalone) efficiency:              median 0.962   16-84 % 0.882-1.085
+   (the QUOTED-vs-QUOTED ratio, i.e. what the Gaussian CLAIMS: median 0.889)
+   sandwich/quoted, PRIOR-FREE: CF 1.421 (1.000 = the model is right), Gaussian 1.494
+
+READING: EFFICIENCY > 1 means the full PDF constrains that parameter better,
+ by that factor in VARIANCE, than the Gaussian chi2 actually does -- as opposed
+ to the factor the Gaussian claims.  `S/Q` is each arm's own sandwich-over-quoted:
+ it is ~1 when the model describes the data and > 1 when it does not.
+
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs/eff_vtxbs.npz
