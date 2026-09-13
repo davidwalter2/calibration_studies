@@ -35,6 +35,7 @@ for _p in (_HERE, _RES, os.path.join(_RES, "matres"), os.path.join(_RES, "hitlik
         sys.path.insert(0, _p)
 
 import fisher_cmp as FC        # noqa: E402  (hessian, score_cov)
+import selection              # noqa: E402
 import make_vtx_card as MVC    # noqa: E402
 import groups as G             # noqa: E402
 
@@ -66,6 +67,12 @@ def main():
     p.add_argument("--chunk", type=int, default=4096)
     p.add_argument("--no-hessian", action="store_true")
     p.add_argument("--max-abs-z", type=float, default=40.0)
+    p.add_argument("--vtx-norm-window", type=float, default=None)
+    p.add_argument("--norm-classes", type=int, default=8)
+    p.add_argument("--norm-tpoints", type=int, default=2048)
+    p.add_argument("--alpha", action="store_true")
+    import selection as _sel
+    _sel.add_args(p)
     p.add_argument("--m-ref", type=float, default=None,
                    help="the mass channel's reference mass (GeV); 91.1876 for Z")
     p.add_argument("--m-window", type=float, default=0.5)
@@ -86,10 +93,19 @@ def main():
     import hitres_classes
     hparams = [f"hitres_{c}" for c in hitres_classes.CLASSES]
 
+    # EVERY attribute `make_vtx_card.build_term` reads has to be here: the
+    # namespace is a stub, so a new option in the card builder shows up as an
+    # AttributeError in the middle of a Fisher run rather than at parse time.
+    # `vtx_norm_window` / `norm_classes` / `norm_tpoints` are the truncated
+    # normalisation's; `alpha` the floor's.
     ba = _A(max_chi2_ndof=a.max_chi2_ndof, maxn=a.maxn, prune_frac=a.prune_frac,
             amount_mode="exp", hit_mode="linear", no_hits=a.no_hits,
             floor="softplus", chunk=a.chunk, vtx_window=0.0,
-            max_abs_z=a.max_abs_z)
+            max_abs_z=a.max_abs_z,
+            vtx_norm_window=a.vtx_norm_window, norm_classes=a.norm_classes,
+            norm_tpoints=a.norm_tpoints, alpha=a.alpha,
+            no_standard_selection=a.no_standard_selection,
+            max_abs_vtxz=a.max_abs_vtxz, min_leg_hits=a.min_leg_hits)
 
     res, params = {}, None
     idx = None
