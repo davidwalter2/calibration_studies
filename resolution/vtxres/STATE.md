@@ -2882,6 +2882,13 @@ for the excess chi2.  Three tests, all negative:
   unmodelled noise-scale spread from DY's 15 % towards the gun's 5 %** --
   it moves it by +0.3 % of itself, and in the wrong direction.
 
+A FULL-SIZE repeat (`dy_ideal`, 6 x 4000 events, launched at the same time)
+is still running; `finish_tail_ideal.sh` is detached on submit51 and will
+write `logs_tail/{extract_dy_ideal,ideal_full,mixture_ideal}.log` and
+`/ceph/.../tail/dy_ideal.npz` when it lands.  It is a confirmation with 5.4x
+the statistics, not the test -- the 1 878 matched pairs above already fix the
+spread to 0.1 %.
+
 **B is REFUTED, directly and not by inference.**  The DY refit does carry a
 realistic misalignment; it is simply not what the chi2 excess or the tail is
 made of.  (Figures `chi2ndof_ideal`, `chi2prob_dy_ideal`, `ladder_ideal`,
