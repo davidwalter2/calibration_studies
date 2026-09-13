@@ -666,6 +666,30 @@ formulation: it is the **conditioning of the 9-term Hessian**.
 `P2X`, and it is UNTESTED. Its validation, when run, is to require an already
 converged cell to reproduce to 0.01 MeV.
 
+**The preconditioner now exists and the job is prepared but NOT run.**
+`rabbit-vmass` carries it since the 2026-09-13 merge of `origin/main` (PRs
+#156/#157): `--precondition` whitens blocks of the parameter vector by a
+factorisation of a reference Hessian and logs the TRUE condition number
+before -> after, and `--preconditionTransform spectral` whitens by
+`|H| = Q|Lambda|Q^T` -- each eigendirection its own scale, the SIGN of the
+negative curvature kept, which is what a 14-orders-of-magnitude indefinite
+Hessian needs and what the `ridge` default cannot do. `precond_refit.sbatch`
+in this directory runs `SVs7P` (the certified K=7 rung, the 0.01 MeV control),
+`SVs9P` (the rung that failed) and `P2XP` on Engaging with those options; its
+header carries the submit lines, the numbers to reproduce and what the log
+should say. It must be staged by hand (`stage_native.sh code` syncs only
+`*.py`/`*.sh` out of `fullscale/`, so also
+`rsync -a fullscale/precond_refit.sbatch engaging:orcd/pool/zmass/engaging/`),
+and `stage_native.sh code` itself needs David's Duo login for `eng-master`.
+On the two small CPU fits it has already been tried on (`resolution/vtxres`
+`joint_cf`, `resolution/hitlik` `cf_c0`) the transform did what it claims --
+condition number 1.03e8 -> 1 and 7.78e7 -> 1 -- and an already-certified fit
+reproduced to the last printed digit with its EDM 4 orders better, so the
+control row is expected to pass; what it does to an INDEFINITE Hessian is the
+open question, and on those two fits the honest answer was that the minimiser
+then walks out along the negative-curvature direction to a boundary rather
+than finding an interior minimum.
+
 Related: the initial trust radius of 1.0 is in RAW parameter units on a card
 whose natural scales span 1e3 (`sigma(m_Z)` 2-9 MeV, `k ~ 1`, Legendre
 coefficients 0.002-0.08), so it is 0.48 sigma for `m_Z` and **227 sigma for

@@ -713,6 +713,30 @@ decision, applied identically to every arm and both regimes, and not a scale,
 a bound or a clip on anything measured. Everything below is quoted that way,
 and the free-regime table is re-quoted the same way beside it.
 
+**What the direction IS, settled with the trust-region preconditioner.** The
+negative curvature is a real feature of the likelihood, not a conditioning
+artefact. Re-fitting `joint_cf` ON with `hitres_str_N5_hi` FLOATING and
+rabbit's spectral preconditioner (`--precondition --preconditionParams '.*'
+--preconditionBlocks none --preconditionTransform spectral`, which whitens the
+60-parameter block from condition number **1.03e8 to 1** and, unlike `ridge`,
+keeps the sign of the negative curvature) the minimiser leaves the
+near-stationary point the unpreconditioned fit sits at (EDM 0.5028) and drives
+the parameter to **exactly -1.000000** — the boundary of
+`H(eps) = max(1 + eps, 0)`, i.e. the hit variance of the class driven to zero,
+beyond which the `max` has identically zero gradient. The postfit Cholesky then
+fails (`Hessian is not positive-definite`), so there is no EDM and no
+covariance at that point: there is **no interior minimum** in that direction,
+and no minimiser can produce one. The class simply carries too little
+information for the unit prior to create a stationary point before the
+boundary. Every other parameter moves by **less than 0.15 sigma** on the way
+out (`material_bpix_support6` 0.065 sigma, `hitres_pix_y_q1` 0.14 sigma), which
+is why dropping or freezing it costs nothing.
+
+The same options with the parameter FROZEN reproduce the certified row to every
+printed digit — NLL -42148.6599, `material_bpix_support6` +0.06699 +- 0.03849,
+`hitres_pix_y_q1` -0.39391 +- 0.13244 — with the EDM improved from 5.64e-12 to
+**2.13e-16**, so the preconditioner changes no answer.
+
 #### 12.6 The sandwich (8 000 candidates, 59 parameters, physical units)
 
 | | ON | OFF | published (60 par) |

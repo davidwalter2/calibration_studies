@@ -501,6 +501,18 @@ hit classes per (track, component) after pruning at 1e-3, rank-16 tau PCA):
    SEPARATELY.
 6. **A q/p-only card must freeze the hit classes.**  `cf_c0` does not converge
    (EDM 0.56): with `q/p` alone the 18 hit classes are nearly unconstrained.
+   It is an information deficit, not a conditioning one, and rabbit's
+   trust-region preconditioner settles it: `--precondition --preconditionParams
+   '.*' --preconditionBlocks none --preconditionTransform spectral` whitens the
+   60-parameter block from condition number **7.78e7 to 1** and buys EDM
+   0.563 -> 0.157 (`tf-trust-krylov`) or **0.101** (scipy `trust-exact`, at a
+   lower NLL, 8469.9285 against the unpreconditioned 8469.9422) -- still two
+   orders above the 1e-3 threshold. Adding `--stallRelTol 1e-4` makes it
+   restart four times, each rebuilding the transform where the fit has got to,
+   and it stops at 8469.9585 / EDM 0.579: no better. `--freezeParameters
+   'hitres_.*'` certifies the card immediately at **EDM 4.2e-20**
+   (NLLred 8477.3032, `k(material_tib_support)` -0.02287 +- 0.04089), which is
+   the fix.
 
 ### Standing rule — ONE unit convention, and no unit flags
 
