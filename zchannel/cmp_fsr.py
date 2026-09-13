@@ -287,7 +287,8 @@ def table(out, u, w, m_pre, norad, path):
           f"{a1*1e3:10.4f} {a2*1e3:10.4f} {mc/a1:8.4f} {mc/a2:8.4f}")
     A("")
     A(f"{'band':>12s} {'<1-z> MC':>11s} {'+-':>8s} {'exp1':>10s} {'exp2':>10s} "
-      f"{'MC/exp1':>8s} {'MC/exp2':>8s}")
+      f"{'MC/exp1':>8s} {'MC/exp2':>8s} {'<u^2> MC':>11s} {'+-':>9s}"
+      f" {'exp1':>10s} {'MC/exp1':>8s}")
     for lo, hi in BANDS:
         s = (m_pre >= lo) & (m_pre < hi)
         if s.sum() < 1000:
@@ -300,8 +301,12 @@ def table(out, u, w, m_pre, norad, path):
         er = half_split(lambda h: wmean(xx[h], ww[h]), half)
         a1 = FA.FSRKernel(mm, "exp1").moments()["x"]
         a2 = FA.FSRKernel(mm, "exp2").moments()["x"]
+        q = wmean(uu * uu, ww)
+        qe = half_split(lambda h: wmean(uu[h] * uu[h], ww[h]), half)
+        q1 = FA.FSRKernel(mm, "exp1").moments()["u2"]
         A(f"{lo:5.0f}-{hi:<6.0f} {mc*1e3:11.4f} {er*1e3:8.4f} "
-          f"{a1*1e3:10.4f} {a2*1e3:10.4f} {mc/a1:8.4f} {mc/a2:8.4f}")
+          f"{a1*1e3:10.4f} {a2*1e3:10.4f} {mc/a1:8.4f} {mc/a2:8.4f}"
+          f" {q*1e3:11.4f} {qe*1e3:9.4f} {q1*1e3:10.4f} {q/q1:8.4f}")
     A("")
     s = (m_pre >= 86) & (m_pre < 96)
     uu, ww = u[s], w[s]
