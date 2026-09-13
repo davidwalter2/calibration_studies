@@ -39,7 +39,7 @@ code)
       fi
       git -C rabbit-vmass log --oneline -1
     '"
-    rsync -a --include='*.py' --include='*.sh' --exclude='*' \
+    rsync -a --include='*.py' --include='*.sh' --include='*.sbatch' --exclude='*' \
           $FS/ $REMOTE/fullscale_native/
     rsync -a --include='*.py' --exclude='*' \
           $ZM/calibration_studies/zchannel/ $REMOTE/zchannel/
