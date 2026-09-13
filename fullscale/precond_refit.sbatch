@@ -83,11 +83,18 @@
 #   prior or a freeze, not a better minimiser (this is exactly what the
 #   preconditioner did to the vtxres `hitres_str_N5_hi` direction).
 set -uo pipefail
+ZMASS=$HOME/orcd/pool/zmass
+# SOURCE THE ENVIRONMENT BEFORE `set -f`, not after.  `setup_env_engaging.sh`
+# puts the CUDA wheel lib dirs on LD_LIBRARY_PATH with a glob, and under noglob
+# that loop matched nothing: TF then skipped registering the GPU (at a log
+# level TF_CPP_MIN_LOG_LEVEL=2 hides) and jobs 22679406/22679407 spent 4 h each
+# on an H200 they never touched, at ~1/100 the speed.  The env script is
+# noglob-safe as of 2026-09-13 as well, so this ordering is the second lock on
+# the same door.
+source $ZMASS/engaging/setup_env_engaging.sh
 # noglob: PRECOND is expanded UNQUOTED (it has to word-split into flags) and
 # carries the regex `.*`, which bash would otherwise expand against the cwd.
 set -f
-ZMASS=$HOME/orcd/pool/zmass
-source $ZMASS/engaging/setup_env_engaging.sh
 RABBIT=${RABBIT:-$ZMASS/rabbit-vmass}
 PYBASE=$ZMASS/fullscale:$ZMASS/zchannel:${PYTHONPATH:-}
 

@@ -106,6 +106,19 @@ export PATH="$ENGAGING_ENV/bin:$PATH"
 # what makes the GPU visible.  ptxas comes from the cuda_nvcc wheel and XLA
 # needs it on PATH.
 _SP="$ENGAGING_ENV/lib/python3.13/site-packages"
+# NOGLOB-SAFE, and it has to be.  A job script that expands an unquoted flag
+# carrying a regex (`PRECOND=--preconditionParams .*`) protects itself with
+# `set -f` and then sources THIS file: with globbing off the pattern below does
+# not expand, no lib dir is found, LD_LIBRARY_PATH is left without the CUDA
+# wheels, and TF then "Skipping registering GPU devices" at a log level
+# TF_CPP_MIN_LOG_LEVEL=2 suppresses -- the fit runs on the CPU at ~1/100 the
+# speed with no error anywhere (measured: jobs 22679406/22679407, two 4 h H200
+# allocations that never touched the GPU, 2026-09-13).  So turn globbing back
+# on for the loop and restore the caller's setting.
+case $- in
+  *f*) _NOGLOB=1; set +f ;;
+  *)   _NOGLOB=0 ;;
+esac
 if [ -d "$_SP/nvidia" ]; then
   for _d in "$_SP"/nvidia/*/lib; do
     [ -d "$_d" ] && LD_LIBRARY_PATH="$_d${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
@@ -113,7 +126,8 @@ if [ -d "$_SP/nvidia" ]; then
   export LD_LIBRARY_PATH
   [ -d "$_SP/nvidia/cuda_nvcc/bin" ] && export PATH="$_SP/nvidia/cuda_nvcc/bin:$PATH"
 fi
-unset _SP _d
+if [ "$_NOGLOB" = 1 ]; then set -f; fi
+unset _SP _d _NOGLOB
 export PYTHONPATH="$ZMASS/resolution:$ZMASS/rabbit${PYTHONPATH:+:$PYTHONPATH}"
 export TF_CPP_MIN_LOG_LEVEL=2
 # the CVH offline CF caches were produced with Kokoulin off; keep it that way
