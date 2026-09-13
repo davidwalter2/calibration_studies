@@ -1,0 +1,19 @@
+beam-width prior: the record carries no width errors, falling back to --hit-prior = 1
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789306661.644381   33801 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789306667.517764   33801 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  vtx: --keep-mask 'gen signal' keeps 10300/10402 (99.02 %) -- a STUDY selection, not the standard one
+  vtx: standard two-track selection on 10402 candidates
+  vtx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  vtx:     finite sigma_m, sigma_v        10402  (100.00 %, -0)
+  vtx:     min leg hits >= 8              10402  (100.00 %, -0)
+  vtx:     chi2/ndof < 10                 10348  ( 99.48 %, -54)
+  vtx:     |z_v| < 5                      10317  ( 99.18 %, -31)
+  vtx:     kept                           10317  ( 99.18 %)
+  norm classes: sigma 0.00186..0.00743, members 1284..1284
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789306676.591365   33801 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+vtx term: 10272 candidates, 230629 group rows (32885 pruned), 131965 hit rows, 60 parameters, arm 'cf'
+  vtx NLL(0) = -44099.333279, max|grad| = 1227
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/runs/cards/dy_vtx_c10.hdf5 (240.5 MB, 60 parameters)

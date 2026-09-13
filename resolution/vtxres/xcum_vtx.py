@@ -27,6 +27,11 @@ the mass one):
 """
 import argparse, glob, sys
 import numpy as np
+
+import os as _os, sys as _sys  # noqa: E402
+_sys.path.insert(0, _os.path.join(_os.path.dirname(
+    _os.path.dirname(_os.path.abspath(__file__))), "."))
+import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 import uproot
 
 BR = ["resinfvtxv", "resinfv", "resinfvarv", "vtxvarv", "reseigidx",
@@ -39,7 +44,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--files", required=True)
     p.add_argument("--max", type=int, default=20000)
-    p.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    p.add_argument("--max-chi2-ndof", type=float,
+                   default=_SEL.MAX_CHI2_NDOF)
     a = p.parse_args()
 
     files = sorted(glob.glob(a.files))

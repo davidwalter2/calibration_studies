@@ -1,0 +1,103 @@
+1 files
+cap 3000 tracks/file
+extraction 1142 s
+{
+ "files": 1,
+ "ntracks": 1999,
+ "ncomp": 5,
+ "nrows": 9995,
+ "nsel": 1999,
+ "ndrop": 1,
+ "ncut": 0,
+ "grp_mult_mean": 18.832416208104053,
+ "valmax": 0.0,
+ "argv": {
+  "files": "/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_mugun_ul16_260903x_m0/task_*/globalcor_resclosure_*.root",
+  "ntasks": 1,
+  "groups": "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt",
+  "ncomp": 5,
+  "hitmode": "class18",
+  "ioni_norm": "var",
+  "no_rad": false,
+  "no_delta": false,
+  "max_chi2_ndof": 0.0,
+  "max_hess": 100000000.0,
+  "max_grad": 1000000.0,
+  "max_cands": 3000,
+  "decimate": 4,
+  "tmax": 8.0,
+  "validate": false,
+  "jobs": 8,
+  "output": "/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_ref0.npz"
+ }
+}
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_ref0.npz: 1999 tracks x 5 components, nnz 188230
+covdev max 1.02e-02  median 4.00e-07
+1 files
+cap 3000 tracks/file
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 48, in mapstar
+    return list(map(*args))
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/extract_res5.py", line 573, in process_file
+    out["chi2ndof"].append(float(rchi2[ic]))
+NameError: name 'rchi2' is not defined
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/extract_res5.py", line 724, in <module>
+    main()
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/extract_res5.py", line 625, in main
+    parts = [r for r in p.map(process_file, fs) if r is not None]
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 364, in map
+    return self._map_async(func, iterable, mapstar, chunksize).get()
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 771, in get
+    raise self._value
+NameError: name 'rchi2' is not defined
+1 files
+cap 3000 tracks/file
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 48, in mapstar
+    return list(map(*args))
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/extract_res5.py", line 573, in process_file
+    out["chi2ndof"].append(float(rchi2[ic]))
+NameError: name 'rchi2' is not defined
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/extract_res5.py", line 724, in <module>
+    main()
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/hitlik/extract_res5.py", line 625, in main
+    parts = [r for r in p.map(process_file, fs) if r is not None]
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 364, in map
+    return self._map_async(func, iterable, mapstar, chunksize).get()
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 771, in get
+    raise self._value
+NameError: name 'rchi2' is not defined
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/cmp_outputs.py", line 84, in <module>
+    main()
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/cmp_outputs.py", line 53, in main
+    B, _hb = load(a.b)
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/cmp_outputs.py", line 29, in load
+    d = np.load(path, allow_pickle=True)
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_npyio_impl.py", line 455, in load
+    fid = stack.enter_context(open(os.fspath(file), "rb"))
+FileNotFoundError: [Errno 2] No such file or directory: '/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_new0.npz'
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+  File "<stdin>", line 3, in <genexpr>
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_npyio_impl.py", line 455, in load
+    fid = stack.enter_context(open(os.fspath(file), "rb"))
+FileNotFoundError: [Errno 2] No such file or directory: '/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_new0.npz'

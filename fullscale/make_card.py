@@ -98,7 +98,7 @@ def parse_args(argv=None):
     p.add_argument("--norm-tpoints", type=int, default=8192)
     p.add_argument("--fit-upsample", type=int, default=4)
     # ---- selection -------------------------------------------------------
-    p.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    # `--max-chi2-ndof` is the STANDARD SELECTION's (`resolution/selection.py`)
     p.add_argument("--max-sigma-rel", type=float, default=0.10,
                    help="drop candidates with sigma_m/m above this")
     p.add_argument("--residual-mode", action="store_true",
@@ -390,6 +390,11 @@ def selection_table(d, args, log=print):
     if isinstance(idx, tuple):
         idx = idx[0]
     tab = {cand: A[cand][idx] for cand in cols.values()}
+    # the chi2 columns come from the CACHE, always: `--selection-aux` supplies
+    # the two-track columns a v2 cache predates, not the fit's own chi2.
+    for k in ("chi2ndof", "chisqval", "ndof"):
+        if k in d.files:
+            tab[k] = np.asarray(d[k])
     log(f"  --selection-aux {os.path.basename(args.selection_aux)}: "
         f"joined {len(idx)} rows, columns {sorted(tab)}")
     return tab
@@ -431,11 +436,6 @@ def select(d, args, log=print):
     lo, hi = args.window
     keep &= (m >= lo) & (m <= hi)
     steps.append((f"m_obs in [{lo:g}, {hi:g}]", keep.copy()))
-    if args.max_chi2_ndof > 0 and "chisqval" in d.files:
-        keep &= (np.asarray(d["chisqval"], dtype=np.float64)
-                 / np.maximum(np.asarray(d["ndof"], dtype=np.float64), 1.0)
-                 ) < args.max_chi2_ndof
-        steps.append((f"chi2/ndof < {args.max_chi2_ndof:g}", keep.copy()))
     if args.max_sigma_rel > 0:
         keep &= srel < args.max_sigma_rel
         steps.append((f"sigma_m/m < {args.max_sigma_rel:g}", keep.copy()))

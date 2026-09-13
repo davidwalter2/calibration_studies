@@ -1,4 +1,9 @@
-"""THE STANDARD TWO-TRACK SELECTION, in one place.
+"""THE STANDARD CANDIDATE SELECTION, in one place.
+
+Four of its five cuts are two-track (the vertex block, the two legs, the
+vertex residual) and one -- `chi2/ndof` -- belongs to any fit.  A table that
+carries no column for a cut is told so and the cut is skipped, which is how a
+SINGLE-track extraction gets the chi2 cut and nothing else.
 
 David, 2026-09-12, on the two cuts the gen-truth study recommended
 (`vtxres/STATE.md` section 13, `Documents/Resolution/RESOLUTION.md` 2.6):
@@ -18,6 +23,18 @@ So the two cuts live in two DIFFERENT places, deliberately:
   the maker cannot bias anything downstream because the candidates it removes
   carry no usable resolution information at all.
 
+* **the cut on the two-track fit's own chi2 is DOWNSTREAM**, here, for the
+  same reason and with one difference.  `chi2/ndof < 3` removes 1.0 % of gen
+  SIGNAL on DY and 0.33 % on the J/psi gun, and EVERY gen-signal candidate it
+  removes has chi2 probability below 1e-3 (`STATE.md` 16.12) -- it is an
+  acceptance cut on the unmodelled-noise population, not a background veto.
+  Unlike `|z_v| < 5` it needs NO truncation factor: under the resolution model
+  `P(chi2/ndof > 3)` at `ndof ~ 30` is ~1e-7, so the model's own truncation
+  integral is 1 to seven digits.  Its whole effect is a change of sample
+  COMPOSITION, by candidates the model does not describe, and that effect is
+  MEASURED (`STATE.md` 15.8) rather than normalised away.  Before this it was
+  re-implemented in nine scripts with two different defaults (3.0 and 0).
+
 * **the cut on the vertex residual is DOWNSTREAM**, here.  `|z_v| < 5` removes
   0.24 % of gen SIGNAL, so it is a genuine acceptance cut on the resolution
   tail, and a term that cuts on a residual must NORMALISE ITS DENSITY OVER THE
@@ -29,10 +46,14 @@ So the two cuts live in two DIFFERENT places, deliberately:
 
 WHAT THE STANDARD SELECTION IS
 
-    |z_v| < 5              on `Jpsi_vtxz`, the vertex-constraint pull
-    weaker leg >= 8 hits   on `Mu{plus,minus}_nvalid`
     Jpsi_vtxok             the vertex block closed
     finite sigma_m, sigma_v, both > 0
+    weaker leg >= 8 hits   on `Mu{plus,minus}_nvalid`
+    chi2/ndof < 3          on `chisqval / ndof`, the fit's own chi2
+    |z_v| < 5              on `Jpsi_vtxz`, the vertex-constraint pull
+
+IN THAT ORDER, so a cut flow reads as a flow: the cheap validity cuts first,
+then the two acceptance cuts on populations the model does not describe.
 
 Every cut is SKIPPED, loudly, when its column is absent: the v2 J/psi and DY
 productions predate `exportVtxResidual`, so they carry no `Jpsi_vtxz` and the
@@ -57,8 +78,8 @@ NpzFile (its `.files` is honoured as well).
 
 import numpy as np
 
-__all__ = ["MAX_ABS_VTXZ", "MIN_LEG_HITS", "Summary", "standard",
-           "add_args", "from_args", "column", "merge"]
+__all__ = ["MAX_ABS_VTXZ", "MIN_LEG_HITS", "MAX_CHI2_NDOF", "Summary",
+           "standard", "add_args", "from_args", "column", "chi2ndof", "merge"]
 
 #: the standard cut on the vertex-constraint residual (units of sigma_v).
 #: `vtxres/STATE.md` 13.5: efficiency 0.9976 +- 0.0005 for a background
@@ -71,6 +92,16 @@ MAX_ABS_VTXZ = 5.0
 #: table read from an OLDER production gets the same selection.
 MIN_LEG_HITS = 8
 
+#: the standard cut on the two-track fit's OWN reduced chi2.  3.0 is the value
+#: every certified full-scale and vertex result was produced with.  `STATE.md`
+#: 16.12: it removes 1.0 % of gen SIGNAL on DY, 0.33 % on the J/psi gun, and
+#: every gen-signal candidate it removes has chi2 probability < 1e-3 -- the
+#: excess-chi2 population that carries the 5 sigma residual tails and a 4x
+#: larger resolution-proportional mass bias (+195 MeV against +51 MeV).  It
+#: needs no truncation factor: under the model `P(chi2/ndof > 3)` at
+#: `ndof ~ 30` is ~1e-7.
+MAX_CHI2_NDOF = 3.0
+
 # Column aliases.  The same quantity is called different things by the tree,
 # by `cf_inmaker`'s cache and by the aux caches; one map, so a caller never
 # has to rename its columns to be selectable.
@@ -81,6 +112,11 @@ ALIASES = {
     "nvp":    ("Muplus_nvalid", "nvp", "nv_p", "nvalid_plus"),
     "nvm":    ("Muminus_nvalid", "nvm", "nv_m", "nvalid_minus"),
     "sigmam": ("Jpsi_sigmamass", "sigmam", "sigma_m", "sigmamass"),
+    # the reduced chi2 itself, where a table already carries it ...
+    "chi2ndof": ("chi2ndof", "chi2n", "rchi2", "normchi2"),
+    # ... and the two branches it is built from, where it does not
+    "chisq": ("chisqval", "chisq", "chi2sum"),
+    "ndof": ("ndof",),
 }
 
 
@@ -104,6 +140,36 @@ def column(tab, name, keys=None):
         if cand in keys:
             return np.asarray(tab[cand])
     return None
+
+
+def chi2ndof(tab, keys=None):
+    """The candidate's reduced chi2, or None if the table cannot supply it.
+
+    A table may carry the ratio itself (`chi2ndof`, an extraction npz; a
+    pairs cache's `normchi2`) or the two branches it is built from
+    (`chisqval`, `ndof`).  Both roads lead here so that no consumer has to
+    decide, and so that the SAME convention is used everywhere:
+
+        ndof <= 0  ->  +inf, i.e. the candidate FAILS any finite cut.
+
+    A fit with no degrees of freedom has no chi2 to speak of; the maker's
+    `minNdof = 1` means this costs nothing in practice, and the gate in
+    `vtxres/STATE.md` 15.8 shows it removes zero candidates on every
+    production in this tree.  Stating it is the point: the alternative
+    convention in the older per-script copies, `chisq / max(ndof, 1)`, silently
+    ADMITS such a candidate.
+    """
+    keys = _keys(tab) if keys is None else keys
+    c = column(tab, "chi2ndof", keys)
+    if c is not None:
+        return np.asarray(c, np.float64)
+    q = column(tab, "chisq", keys)
+    nd = column(tab, "ndof", keys)
+    if q is None or nd is None:
+        return None
+    q = np.asarray(q, np.float64)
+    nd = np.asarray(nd, np.float64)
+    return np.where(nd > 0.0, q / np.maximum(nd, 1.0), np.inf)
 
 
 class Summary:
@@ -150,7 +216,7 @@ class Summary:
         if not self.enabled:
             return [f"standard selection DISABLED (--no-standard-selection); "
                     f"{self.n0} candidates kept"]
-        out = [f"standard two-track selection on {self.n0} candidates"]
+        out = [f"standard candidate selection on {self.n0} candidates"]
         prev = self.n0
         for label, k in self.steps:
             if k is None:
@@ -174,7 +240,7 @@ class Summary:
 
 
 def standard(tab, args=None, *, enabled=None, max_abs_vtxz=None,
-             min_leg_hits=None, n=None):
+             min_leg_hits=None, max_chi2_ndof=None, n=None):
     """Apply the standard two-track selection to a candidate table.
 
     Returns `(mask, summary)`.  `mask` is a boolean array over the rows of
@@ -190,10 +256,12 @@ def standard(tab, args=None, *, enabled=None, max_abs_vtxz=None,
         cfg["max_abs_vtxz"] = float(max_abs_vtxz)
     if min_leg_hits is not None:
         cfg["min_leg_hits"] = int(min_leg_hits)
+    if max_chi2_ndof is not None:
+        cfg["max_chi2_ndof"] = float(max_chi2_ndof)
 
     keys = _keys(tab)
     if n is None:
-        for probe in ("vtxz", "sigmam", "nvp"):
+        for probe in ("vtxz", "sigmam", "nvp", "chi2ndof", "chisq"):
             c = column(tab, probe, keys)
             if c is not None:
                 n = len(c)
@@ -247,7 +315,24 @@ def standard(tab, args=None, *, enabled=None, max_abs_vtxz=None,
                 (np.asarray(nvm, np.int64) >= cfg["min_leg_hits"])
         summ.add(lab_h, keep)
 
-    # 4. the vertex residual.  THE cut that truncates a density: any term
+    # 4. THE FIT'S OWN CHI2.  An acceptance cut on the population the
+    #    resolution model does not describe (`STATE.md` 16): every gen-signal
+    #    candidate it removes has chi2 probability < 1e-3, and those carry the
+    #    5 sigma residual tails and a 4x larger resolution-proportional mass
+    #    bias.  It needs NO truncation factor -- under the model
+    #    `P(chi2/ndof > 3)` at `ndof ~ 30` is ~1e-7 -- so unlike `|z_v| < 5`
+    #    the density a term fits is unchanged and only the SAMPLE moves.  Its
+    #    effect on every term is measured in `STATE.md` 15.8.
+    q = chi2ndof(tab, keys)
+    lab_q = (f"chi2/ndof < {cfg['max_chi2_ndof']:g}"
+             if cfg["max_chi2_ndof"] > 0 else "chi2/ndof (off)")
+    if cfg["max_chi2_ndof"] <= 0 or q is None:
+        summ.add(lab_q, why="off" if cfg["max_chi2_ndof"] <= 0 else "absent")
+    else:
+        keep &= q < cfg["max_chi2_ndof"]
+        summ.add(lab_q, keep)
+
+    # 5. the vertex residual.  THE cut that truncates a density: any term
     #    that consumes the survivors must normalise over this window.
     z = column(tab, "vtxz", keys)
     lab_z = (f"|z_v| < {cfg['max_abs_vtxz']:g}"
@@ -303,6 +388,18 @@ def add_args(p, prefix=""):
                         "in units of its own sigma. 0 disables it. THE TERM "
                         "THAT CONSUMES THE SURVIVORS MUST NORMALISE OVER THIS "
                         "WINDOW (default: %(default)g)")
+    g.add_argument(f"{d}max-chi2-ndof", type=float, default=MAX_CHI2_NDOF,
+                   help="the standard cut on the two-track fit's own reduced "
+                        "chi2 (`chisqval / ndof`). 0 disables it. It is an "
+                        "ACCEPTANCE cut on the excess-chi2 population -- "
+                        "1.0 %% of gen signal on DY, 0.33 %% on the J/psi "
+                        "gun, all of it at chi2 probability < 1e-3 -- and it "
+                        "needs no "
+                        "truncated normalisation, because under the model "
+                        "P(chi2/ndof > 3) at ndof ~ 30 is ~1e-7. It also "
+                        "removes the runaway fits whose Jacobians would "
+                        "otherwise own the summed gradient and Hessian "
+                        "(default: %(default)g)")
     g.add_argument(f"{d}min-leg-hits", type=int, default=MIN_LEG_HITS,
                    help="minimum valid hits on the WEAKER leg; the maker "
                         "default since cvh-exports-clean-260911, repeated "
@@ -320,4 +417,5 @@ def from_args(args, prefix=""):
         enabled=not get("no_standard_selection", False),
         max_abs_vtxz=float(get("max_abs_vtxz", MAX_ABS_VTXZ)),
         min_leg_hits=int(get("min_leg_hits", MIN_LEG_HITS)),
+        max_chi2_ndof=float(get("max_chi2_ndof", MAX_CHI2_NDOF)),
     )

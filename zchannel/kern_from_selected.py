@@ -36,6 +36,9 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resolution"))
+import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 import fit_gen as FG                                          # noqa: E402
 
 BANDS = [70.0, 80.0, 85.0, 88.0, 91.0, 94.0, 98.0, 105.0, 115.0, 130.0]
@@ -92,7 +95,8 @@ def main():
     ap.add_argument("--cache", required=True, help="the Z pairs cache")
     ap.add_argument("-o", "--output", required=True)
     ap.add_argument("--window", type=float, nargs=2, default=[60.0, 120.0])
-    ap.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    ap.add_argument("--max-chi2-ndof", type=float,
+                    default=_SEL.MAX_CHI2_NDOF)
     ap.add_argument("--max-sigma-rel", type=float, default=0.10)
     ap.add_argument("--sigma-cap", type=float, default=3.3e-4)
     ap.add_argument("--u-fine", type=float, default=2e-5)

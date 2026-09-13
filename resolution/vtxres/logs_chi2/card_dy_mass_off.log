@@ -1,0 +1,20 @@
+beam-width prior: the record carries no width errors, falling back to --hit-prior = 1
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789306506.947946   25333 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789306512.481174   25333 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  mass: --keep-mask 'gen signal' keeps 10300/10402 (99.02 %) -- a STUDY selection, not the standard one
+  mass: standard two-track selection on 10402 candidates
+  mass:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  mass:     finite sigma_m, sigma_v        10402  (100.00 %, -0)
+  mass:     min leg hits >= 8              10402  (100.00 %, -0)
+  mass:     chi2/ndof (off)                   --  (switched off: NOT APPLIED)
+  mass:     |z_v| < 5                      10325  ( 99.26 %, -77)
+  mass:     kept                           10325  ( 99.26 %)
+  mass: dropping 99 of 10276 candidates with |z| > 40 (the Gaussian arms' float64 underflow); max |z| kept 40.0
+  mass corrections ON (fluctuation form): a_res median 0.01437 max 0.48709; 1.5 s^2 median 2.1682e-04 -> 19.77 MeV
+[09:35:24] kernel CF tabulation (10177 samples) built in 2.1 s
+E0000 00:00:1789306524.258865   25333 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+mass term: 10177 candidates, 224579 group rows (36754 pruned), 130686 hit rows, 61 parameters, arm 'cf'
+  mass NLL(0) = 30233.803102, max|grad| = 63.24
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/runs/cards/dy_mass_off.hdf5 (232.2 MB, 61 parameters)

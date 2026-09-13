@@ -4,12 +4,20 @@ The baseline is `extract_vtx.py`'s `keep` mask reproduced EXACTLY, so that
 every number quoted here sits on the same 10 254 candidates the beam-line
 study published (`STATE.md` section 14.12) and not on a superset.
 """
+import os
+import sys
+
 import numpy as np
 
-MAX_CHI2_NDOF = 3.0     # extract_vtx.py --max-chi2-ndof
+_RES = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _RES not in sys.path:
+    sys.path.insert(0, _RES)
+import selection as _SEL  # noqa: E402
+
+MAX_CHI2_NDOF = _SEL.MAX_CHI2_NDOF      # the standard selection's one value
 MAX_VCHK = 1e-4         # extract_vtx.py --max-vchk
-MIN_LEG_HITS = 8        # resolution/selection.py
-MAX_ABS_VTXZ = 5.0
+MIN_LEG_HITS = _SEL.MIN_LEG_HITS
+MAX_ABS_VTXZ = _SEL.MAX_ABS_VTXZ
 
 
 def baseline(d, need_bs=True, chi2=MAX_CHI2_NDOF, vchk=MAX_VCHK,

@@ -103,6 +103,11 @@ import time
 
 import numpy as np
 
+_RES = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _RES not in sys.path:
+    sys.path.insert(0, _RES)
+import selection  # noqa: E402  (ONE value for the chi2 cut)
+
 MJPSI = 3.0969
 MWIN = 0.7
 FBKG = 0.005
@@ -175,11 +180,13 @@ def parse_args():
     m.add_argument(
         "--max-chi2-ndof",
         type=float,
-        default=0.0,
+        default=selection.MAX_CHI2_NDOF,
         help="drop mass-term candidates with chisqval/ndof above this (needs "
-        "the 'chi2ndof' array in the extraction). The median is ~0.95 but the "
-        "tail reaches 5e8, and a handful of runaway fits otherwise dominate "
-        "everything they enter.",
+        "the 'chi2ndof' array in the extraction). ONE value, "
+        "`resolution/selection.py`. The median is ~0.95 but the tail reaches "
+        "5e8, and a handful of runaway fits otherwise dominate everything "
+        "they enter; the extraction has normally applied it already, in which "
+        "case this is a no-op.",
     )
     m.add_argument("--maxk", type=int, default=0, help="use only N kernel samples")
     m.add_argument(

@@ -6,8 +6,12 @@ What the two cuts of the standard selection do to each gen class of
 IN THE ORDER THEY ARE APPLIED, so the table reads as a cut flow and not as a
 set of marginal efficiencies.
 
+The chi2/ndof cut is IN the flow, in its place: it is part of the standard
+selection (`resolution/selection.py`), applied after the leg-hit minimum and
+before `|z_v| < 5`.  `--max-chi2-ndof 0` takes it out again.
+
 usage:
-  python3 sel_dytable.py --npz <dy_vtxon_gen_vtx_all.npz> [--chi2 3]
+  python3 sel_dytable.py --npz <dy_vtxon_gen_vtx_all.npz> [--max-chi2-ndof 0]
 """
 import argparse
 import os
@@ -41,9 +45,6 @@ def wilson(k, n):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--npz", required=True)
-    ap.add_argument("--chi2", type=float, default=3.0,
-                    help="the extraction's chi2/ndof cut, applied FIRST so "
-                         "the flow matches what a card sees; 0 = off")
     selection.add_args(ap)
     a = ap.parse_args()
 
@@ -55,16 +56,18 @@ def main():
     cfg = selection.from_args(a)
     steps = [("all", np.ones(n0, bool))]
     keep = np.ones(n0, bool)
-    if a.chi2 > 0:
-        keep = keep & (np.asarray(d["chi2ndof"], float) < a.chi2)
-        steps.append((f"chi2/ndof < {a.chi2:g}", keep.copy()))
-    # the standard selection, cut by cut, in the order `selection.standard`
-    # applies them
-    for label, kw in (("Jpsi_vtxok + finite sigma",
-                       dict(max_abs_vtxz=0, min_leg_hits=0)),
-                      (f"min leg hits >= {cfg['min_leg_hits']}",
-                       dict(max_abs_vtxz=0)),
-                      (f"|z_v| < {cfg['max_abs_vtxz']:g}", {})):
+    # the standard selection, cut by cut, IN THE ORDER `selection.standard`
+    # applies them -- so the table reads as a cut flow and not as a set of
+    # marginal efficiencies.  `chi2/ndof` is one of its cuts now, in its place.
+    flow = [("Jpsi_vtxok + finite sigma",
+             dict(min_leg_hits=0, max_chi2_ndof=0, max_abs_vtxz=0)),
+            (f"min leg hits >= {cfg['min_leg_hits']}",
+             dict(max_chi2_ndof=0, max_abs_vtxz=0)),
+            (f"chi2/ndof < {cfg['max_chi2_ndof']:g}", dict(max_abs_vtxz=0)),
+            (f"|z_v| < {cfg['max_abs_vtxz']:g}", {})]
+    if cfg["max_chi2_ndof"] <= 0:
+        flow = [f for f in flow if not f[0].startswith("chi2/ndof")]
+    for label, kw in flow:
         m, _s = selection.standard(d, a, n=n0, **kw)
         keep = keep & m
         steps.append((label, keep.copy()))
@@ -79,9 +82,8 @@ def main():
         print(row)
         prev = m
     print()
-    # efficiency of the WHOLE standard selection per class, against the
-    # sample the chi2 cut leaves
-    base = steps[1][1] if a.chi2 > 0 else steps[0][1]
+    # efficiency of the WHOLE standard selection per class, against everything
+    base = steps[0][1]
     fin = steps[-1][1]
     print(f"{'class':12s} {'before':>8s} {'after':>8s} {'efficiency':>20s}")
     for i, c in enumerate(names):

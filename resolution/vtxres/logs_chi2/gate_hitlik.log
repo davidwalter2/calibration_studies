@@ -1,0 +1,130 @@
+1 files
+cap 400 tracks/file
+extraction 249 s
+{
+ "files": 1,
+ "ntracks": 400,
+ "ncomp": 5,
+ "nrows": 2000,
+ "nsel": 400,
+ "ndrop": 0,
+ "ncut": 0,
+ "grp_mult_mean": 18.8175,
+ "valmax": 0.0,
+ "argv": {
+  "files": "/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_mugun_ul16_260903x_m0/task_*/globalcor_resclosure_*.root",
+  "ntasks": 1,
+  "groups": "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt",
+  "ncomp": 5,
+  "hitmode": "class18",
+  "ioni_norm": "var",
+  "no_rad": false,
+  "no_delta": false,
+  "max_chi2_ndof": 0.0,
+  "max_hess": 100000000.0,
+  "max_grad": 1000000.0,
+  "max_cands": 400,
+  "decimate": 4,
+  "tmax": 8.0,
+  "validate": false,
+  "jobs": 8,
+  "output": "/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_ref0.npz"
+ }
+}
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_ref0.npz: 400 tracks x 5 components, nnz 37635
+covdev max 4.42e-03  median 3.59e-07
+1 files
+cap 400 tracks/file
+extraction 250 s
+standard candidate selection on 2000 candidates
+    Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+    finite sigma_m, sigma_v           --  (column absent: NOT APPLIED)
+    min leg hits >= 8                 --  (column absent: NOT APPLIED)
+    chi2/ndof (off)                   --  (switched off: NOT APPLIED)
+    |z_v| < 5                         --  (column absent: NOT APPLIED)
+    kept                            2000  (100.00 %)
+{
+ "files": 1,
+ "ntracks": 400,
+ "ncomp": 5,
+ "nrows": 2000,
+ "nsel": 400,
+ "ndrop": 0,
+ "ncut": 0,
+ "grp_mult_mean": 18.8175,
+ "valmax": 0.0,
+ "argv": {
+  "files": "/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_mugun_ul16_260903x_m0/task_*/globalcor_resclosure_*.root",
+  "ntasks": 1,
+  "groups": "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt",
+  "ncomp": 5,
+  "hitmode": "class18",
+  "ioni_norm": "var",
+  "no_rad": false,
+  "no_delta": false,
+  "max_hess": 100000000.0,
+  "max_grad": 1000000.0,
+  "max_cands": 400,
+  "decimate": 4,
+  "tmax": 8.0,
+  "validate": false,
+  "jobs": 8,
+  "output": "/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_new0.npz",
+  "no_standard_selection": false,
+  "max_abs_vtxz": 5.0,
+  "max_chi2_ndof": 0.0,
+  "min_leg_hits": 8
+ }
+}
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_new0.npz: 400 tracks x 5 components, nnz 37635
+covdev max 4.42e-03  median 3.59e-07
+1 files
+cap 400 tracks/file
+extraction 258 s
+standard candidate selection on 2000 candidates
+    Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+    finite sigma_m, sigma_v           --  (column absent: NOT APPLIED)
+    min leg hits >= 8                 --  (column absent: NOT APPLIED)
+    chi2/ndof < 3                   1989  ( 99.45 %, -11)
+    |z_v| < 5                         --  (column absent: NOT APPLIED)
+    kept                            1989  ( 99.45 %)
+{
+ "files": 1,
+ "ntracks": 400,
+ "ncomp": 5,
+ "nrows": 2000,
+ "nsel": 400,
+ "ndrop": 0,
+ "ncut": 3,
+ "grp_mult_mean": 18.815,
+ "valmax": 0.0,
+ "argv": {
+  "files": "/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_trackres_mugun_ul16_260903x_m0/task_*/globalcor_resclosure_*.root",
+  "ntasks": 1,
+  "groups": "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt",
+  "ncomp": 5,
+  "hitmode": "class18",
+  "ioni_norm": "var",
+  "no_rad": false,
+  "no_delta": false,
+  "max_hess": 100000000.0,
+  "max_grad": 1000000.0,
+  "max_cands": 400,
+  "decimate": 4,
+  "tmax": 8.0,
+  "validate": false,
+  "jobs": 8,
+  "output": "/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_new3.npz",
+  "no_standard_selection": false,
+  "max_abs_vtxz": 5.0,
+  "max_chi2_ndof": 3.0,
+  "min_leg_hits": 8
+ }
+}
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_new3.npz: 400 tracks x 5 components, nnz 37630
+covdev max 4.42e-03  median 3.59e-07
+/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_ref0.npz
+/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/hitlik_new0.npz
+  35 keys IDENTICAL, 0 differ, 1 skipped
+  BIT-IDENTICAL
+hitlik: chi2 off 400 tracks -> chi2/ndof < 3 400 tracks: 0 removed (0.000 %)

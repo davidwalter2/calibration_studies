@@ -1,0 +1,88 @@
+param models: --paramModel UnbinnedParams
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789324443.848576  399183 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789324449.747272  399183 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789324456.943542  399183 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+[33;21mWARNING:rabbit_fit.py: No GPU is visible to TensorFlow although it was built with CUDA: the fit will run on the CPU. If that is not intended, check CUDA_VISIBLE_DEVICES and that LD_LIBRARY_PATH carries the CUDA runtime (TF reports a failed dlopen only at a log level that TF_CPP_MIN_LOG_LEVEL usually hides).[0m
+calib_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: unbinned term 'mass': 20 of 10276 candidates (0.1946 %) have |c_i/sigma_i| above corr_coeff_max = 0.08; the quadratic coefficient is bounded there[0m
+[38;21mINFO:unbinned.py: Loaded unbinned term 'mass' (kind MaterialCF, channel jpsi): 10276 candidates, 1 chunk(s) of 10276, parameters ['alpha', 'material_other', 'material_beampipe', 'material_bpix_active_L1', 'material_bpix_active_L2', 'material_bpix_active_L3', 'material_bpix_services', 'material_bpix_support6', 'material_bpix_support7', 'material_fpix_active_D1', 'material_fpix_active_D2', 'material_fpix_support', 'material_tib_active_L1', 'material_tib_active_L2', 'material_tib_active_L3', 'material_tib_active_L4', 'material_tibtid_services', 'material_tib_support', 'material_tid_active_R1', 'material_tid_active_R2', 'material_tid_active_R3', 'material_tid_support', 'material_tob_active_L1', 'material_tob_active_L2', 'material_tob_active_L3', 'material_tob_active_L4', 'material_tob_active_L5', 'material_tob_active_L6', 'material_tob_services', 'material_tob_support', 'material_tec_active_R1', 'material_tec_active_R2', 'material_tec_active_R3', 'material_tec_active_R4', 'material_tec_active_R5', 'material_tec_active_R6', 'material_tec_active_R7', 'material_tec_services', 'material_tec_structure', 'material_thermal_screen', 'material_support_tube', 'material_pp1_cables', 'material_pixel_patch', 'hitres_pix_x_q0', 'hitres_pix_x_q1', 'hitres_pix_x_q2', 'hitres_pix_x_q3', 'hitres_pix_y_q0', 'hitres_pix_y_q1', 'hitres_pix_y_q2', 'hitres_pix_y_q3', 'hitres_str_N1_lo', 'hitres_str_N1_hi', 'hitres_str_N2_lo', 'hitres_str_N2_hi', 'hitres_str_N3_lo', 'hitres_str_N3_hi', 'hitres_str_N4_lo', 'hitres_str_N4_hi', 'hitres_str_N5_lo', 'hitres_str_N5_hi'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 61 POI(s) ['alpha', 'material_other', 'material_beampipe', 'material_bpix_active_L1', 'material_bpix_active_L2', 'material_bpix_active_L3', 'material_bpix_services', 'material_bpix_support6', 'material_bpix_support7', 'material_fpix_active_D1', 'material_fpix_active_D2', 'material_fpix_support', 'material_tib_active_L1', 'material_tib_active_L2', 'material_tib_active_L3', 'material_tib_active_L4', 'material_tibtid_services', 'material_tib_support', 'material_tid_active_R1', 'material_tid_active_R2', 'material_tid_active_R3', 'material_tid_support', 'material_tob_active_L1', 'material_tob_active_L2', 'material_tob_active_L3', 'material_tob_active_L4', 'material_tob_active_L5', 'material_tob_active_L6', 'material_tob_services', 'material_tob_support', 'material_tec_active_R1', 'material_tec_active_R2', 'material_tec_active_R3', 'material_tec_active_R4', 'material_tec_active_R5', 'material_tec_active_R6', 'material_tec_active_R7', 'material_tec_services', 'material_tec_structure', 'material_thermal_screen', 'material_support_tube', 'material_pp1_cables', 'material_pixel_patch', 'hitres_pix_x_q0', 'hitres_pix_x_q1', 'hitres_pix_x_q2', 'hitres_pix_x_q3', 'hitres_pix_y_q0', 'hitres_pix_y_q1', 'hitres_pix_y_q2', 'hitres_pix_y_q3', 'hitres_str_N1_lo', 'hitres_str_N1_hi', 'hitres_str_N2_lo', 'hitres_str_N2_hi', 'hitres_str_N3_lo', 'hitres_str_N3_hi', 'hitres_str_N4_lo', 'hitres_str_N4_hi', 'hitres_str_N5_lo', 'hitres_str_N5_hi'], 0 nuisance(s) [], 60 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 61 parameters: ['alpha', 'material_other', 'material_beampipe', 'material_bpix_active_L1', 'material_bpix_active_L2', 'material_bpix_active_L3', 'material_bpix_services', 'material_bpix_support6', 'material_bpix_support7', 'material_fpix_active_D1', 'material_fpix_active_D2', 'material_fpix_support', 'material_tib_active_L1', 'material_tib_active_L2', 'material_tib_active_L3', 'material_tib_active_L4', 'material_tibtid_services', 'material_tib_support', 'material_tid_active_R1', 'material_tid_active_R2', 'material_tid_active_R3', 'material_tid_support', 'material_tob_active_L1', 'material_tob_active_L2', 'material_tob_active_L3', 'material_tob_active_L4', 'material_tob_active_L5', 'material_tob_active_L6', 'material_tob_services', 'material_tob_support', 'material_tec_active_R1', 'material_tec_active_R2', 'material_tec_active_R3', 'material_tec_active_R4', 'material_tec_active_R5', 'material_tec_active_R6', 'material_tec_active_R7', 'material_tec_services', 'material_tec_structure', 'material_thermal_screen', 'material_support_tube', 'material_pp1_cables', 'material_pixel_patch', 'hitres_pix_x_q0', 'hitres_pix_x_q1', 'hitres_pix_x_q2', 'hitres_pix_x_q3', 'hitres_pix_y_q0', 'hitres_pix_y_q1', 'hitres_pix_y_q2', 'hitres_pix_y_q3', 'hitres_str_N1_lo', 'hitres_str_N1_hi', 'hitres_str_N2_lo', 'hitres_str_N2_hi', 'hitres_str_N3_lo', 'hitres_str_N3_hi', 'hitres_str_N4_lo', 'hitres_str_N4_hi', 'hitres_str_N5_lo', 'hitres_str_N5_hi'][0m
+[38;21mINFO:fitter.py: [paramPriors] applying Gaussian priors to 60/61 ParamModel params:[0m
+[38;21mINFO:fitter.py:     material_other: μ=0 σ=0.04[0m
+[38;21mINFO:fitter.py:     material_beampipe: μ=0 σ=0.0001[0m
+[38;21mINFO:fitter.py:     material_bpix_active_L1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_bpix_active_L2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_bpix_active_L3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_bpix_services: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_bpix_support6: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_bpix_support7: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_fpix_active_D1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_fpix_active_D2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_fpix_support: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_tib_active_L1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tib_active_L2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tib_active_L3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tib_active_L4: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tibtid_services: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_tib_support: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_tid_active_R1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tid_active_R2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tid_active_R3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tid_support: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_tob_active_L1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L4: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L5: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_active_L6: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tob_services: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_tob_support: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_tec_active_R1: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R2: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R3: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R4: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R5: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R6: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_active_R7: μ=0 σ=0.0004[0m
+[38;21mINFO:fitter.py:     material_tec_services: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_tec_structure: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_thermal_screen: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_support_tube: μ=0 σ=0.0025[0m
+[38;21mINFO:fitter.py:     material_pp1_cables: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     material_pixel_patch: μ=0 σ=0.01[0m
+[38;21mINFO:fitter.py:     hitres_pix_x_q0: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_x_q1: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_x_q2: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_x_q3: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_y_q0: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_y_q1: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_y_q2: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_pix_y_q3: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N1_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N1_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N2_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N2_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N3_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N3_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N4_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N4_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N5_lo: μ=0 σ=1[0m
+[38;21mINFO:fitter.py:     hitres_str_N5_hi: μ=0 σ=1[0m
+[38;21mINFO:fitter.py: unbinned term 'mass': 10276 candidates in 1 chunk(s) of 10276, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
+[38;21mINFO:fitter.py: Perform iterative fit[0m
+[38;21mINFO:fitter.py: [minimize] method=trust-krylov options={}[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 1.6151148833393234e-13[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute 30589.175587 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -60[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 1.66[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/work/submit/david_w/WRemnants_dev/wums/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/runs/fits/dy_mass_off/fitresults.hdf5
+[38;21mINFO:rabbit_fit.py: 420.90 seconds total time[0m

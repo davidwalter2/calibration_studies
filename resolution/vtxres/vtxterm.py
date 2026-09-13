@@ -7,7 +7,15 @@ Same three arms as `hitlik_term.py`:
   gauss   -1/2 kappa2 tau^2 with kappa2 read off the SAME arrays
   gaussq  the variance the FIT used (`Gvqms`, `Gvqio`), nothing radiative
 """
+import os
+import sys
+
 import numpy as np
+
+_RES = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _RES not in sys.path:
+    sys.path.insert(0, _RES)
+import selection  # noqa: E402  (ONE value for the chi2 cut, everywhere)
 
 FAMS = ("ms", "io_re", "io_im", "rad_re", "rad_im")
 ARMS = ("cf", "gauss", "gaussq")
@@ -18,7 +26,7 @@ def kappa2_from_grid(S, tgrid):
     return -(16.0 * S[:, 1] - S[:, 2]) / (6.0 * t1 * t1)
 
 
-def load(npz, maxn=None, max_chi2_ndof=3.0, keys=None):
+def load(npz, maxn=None, max_chi2_ndof=selection.MAX_CHI2_NDOF, keys=None):
     d = np.load(npz, allow_pickle=False)
     n_all = len(d["sigma"])
     keep = np.ones(n_all, bool)

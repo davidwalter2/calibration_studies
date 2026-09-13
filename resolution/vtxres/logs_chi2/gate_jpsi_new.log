@@ -1,0 +1,14 @@
+  selection on 7923460 cached candidates
+  standard two-track selection on 7923460 candidates
+      Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+      finite sigma_m, sigma_v           --  (column absent: NOT APPLIED)
+      min leg hits >= 8                 --  (column absent: NOT APPLIED)
+      chi2/ndof < 3                7853816  ( 99.12 %, -69644)
+      |z_v| < 5                         --  (column absent: NOT APPLIED)
+      kept                         7853816  ( 99.12 %)
+    finite m, sigma > 0            7923460  (100.00 %, -0)
+    standard two-track selection   7853816  ( 99.12 %, -69644)
+    m_obs in [2.9469, 3.2469]      7687891  ( 97.03 %, -165925)
+    sigma_m/m < 0.1                7687678  ( 97.02 %, -213)
+    SELECTION VARIABLE: the production cut 60 < Jpsitrk_mass < 120. in-sel 7746108, in-obs 7751481, sel&~obs 22996, obs&~sel 28369 (0.648 % disagree)
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/jpsisel_new.npz: 7687678 selected

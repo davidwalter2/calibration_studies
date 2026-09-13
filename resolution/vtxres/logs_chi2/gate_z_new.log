@@ -1,0 +1,32 @@
+[make_card] /work/submit/david_w/ZMass/calibration_studies/fullscale/runs/zpairs_dyv2.npz
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789307429.290749   44680 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789307434.984002   44680 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  selection on 3663056 cached candidates
+  standard two-track selection on 3663056 candidates
+      Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+      finite sigma_m, sigma_v           --  (column absent: NOT APPLIED)
+      min leg hits >= 8                 --  (column absent: NOT APPLIED)
+      chi2/ndof < 3                3635593  ( 99.25 %, -27463)
+      |z_v| < 5                         --  (column absent: NOT APPLIED)
+      kept                         3635593  ( 99.25 %)
+    finite m, sigma > 0            3663056  (100.00 %, -0)
+    standard two-track selection   3635593  ( 99.25 %, -27463)
+    m_obs in [60, 120]             3629660  ( 99.09 %, -5933)
+    sigma_m/m < 0.1                3613320  ( 98.64 %, -16340)
+    --maxn 300000 (seed 1234, random not head)
+    SELECTION VARIABLE: the production cut 60 < Jpsitrk_mass < 120. in-sel 3663056, in-obs 3656047, sel&~obs 7009, obs&~sel 0 (0.191 % disagree)
+  weights: modal |w| 2374.2, clipped 0 above 100x, 14207 negative (4.74 %), N_eff/N = 0.8163 -> sqrt(N/N_eff) = 1.1068 on every error
+  a_res: median 0.01474, q99 0.08401, 0 clipped at 0.5
+  jensen: f_ang median 7.875e-05 (q01 -9.089e-03, q99 1.021e-02) folded into s^2
+  jensen (exact): median 1.5 s^2 = 2.2630e-04 relative -> 20.64 MeV
+  300000 candidates, nt = 64, tau [0, 7.8926], families ['ms', 'ioni', 'rad'] + hit, upsample 4
+  sigma: min 0.3502 med 1.1036 max 11.1947 GeV -> tau needed 22.54 1/GeV
+  truncation normalisation on [60.0, 120.0], 64 class(es), 8192 t points
+  acceptance: /work/submit/david_w/ZMass/calibration_studies/zchannel/data/acc_loose_d8.json (bernstein, 9 coefficients)
+E0000 00:00:1789307471.609513   44680 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+  ZGammaLineshape(window=(50.0, 130.0), nm=8192, nfft=131072, dm=9.767 MeV, dtau=4.91e-03, ntau=8154, scheme='fixed', lumi='nnpdf31_nnlo_13tev') in 4.6 s; tau needed 22.54 1/GeV -> ok
+  parameters ['k_hit', 'k_ms', 'k_ioni', 'k_rad', 'm_Z', 'Gamma_Z', 'shape1', 'shape2', 'shape3', 'shape4', 'shape5']
+    POIs ['m_Z', 'Gamma_Z']
+  -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/z_new.hdf5 (0.30 GB) in 1.9 s

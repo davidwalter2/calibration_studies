@@ -1,0 +1,28 @@
+# 6 files, functional vtx
+[6/6] cumulative 10402 (2 s)
+standard two-track selection on 10652 candidates
+    Jpsi_vtxok                     10639  ( 99.88 %, -13)
+    finite sigma_m, sigma_v        10638  ( 99.87 %, -1)
+    min leg hits >= 8              10414  ( 97.77 %, -224)
+    chi2/ndof (off)                   --  (switched off: NOT APPLIED)
+    |z_v| cut (off)                   --  (switched off: NOT APPLIED)
+    kept                           10414  ( 97.77 %)
+
+=== vtx: 10402 candidates, 267024 group rows (25.67/cand), 12.84 hit rows/cand
+    exponent storage 32.09 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/runs/dy_vtx.npz (326.0 MB)
+# 6 files, functional mass
+[6/6] cumulative 10402 (2 s)
+standard two-track selection on 10652 candidates
+    Jpsi_vtxok                     10639  ( 99.88 %, -13)
+    finite sigma_m, sigma_v        10638  ( 99.87 %, -1)
+    min leg hits >= 8              10414  ( 97.77 %, -224)
+    chi2/ndof (off)                   --  (switched off: NOT APPLIED)
+    |z_v| cut (off)                   --  (switched off: NOT APPLIED)
+    kept                           10414  ( 97.77 %)
+
+=== mass: 10402 candidates, 267024 group rows (25.67/cand), 12.84 hit rows/cand
+    exponent storage 32.09 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/runs/dy_mass.npz (322.4 MB)

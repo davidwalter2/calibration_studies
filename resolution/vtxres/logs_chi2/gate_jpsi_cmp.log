@@ -1,0 +1,5 @@
+bytes differ -- comparing array by array
+/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/jpsisel_ref.npz
+/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/jpsisel_new.npz
+  5 keys IDENTICAL, 0 differ, 1 skipped
+  BIT-IDENTICAL

@@ -21,6 +21,7 @@ _RES = os.path.dirname(_HERE)
 for _p in (_HERE, _RES, os.path.join(_RES, "matres")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 
 from wums import logging  # noqa: E402
 import pubhtml  # noqa: E402
@@ -253,7 +254,8 @@ def main():
     p.add_argument("--npz", required=True, nargs="+")
     p.add_argument("--tags", nargs="+", default=None)
     p.add_argument("--maxn", type=int, default=0)
-    p.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    p.add_argument("--max-chi2-ndof", type=float,
+                   default=_SEL.MAX_CHI2_NDOF)
     p.add_argument("--arms", nargs="+", default=["cf", "gauss", "gaussq"])
     p.add_argument("--zrange", type=float, nargs=2, default=[-6.0, 6.0])
     p.add_argument("--nbins", type=int, default=60)

@@ -60,7 +60,7 @@ def main():
     p.add_argument("--channels", nargs="+", default=["vtx", "mass", "joint"])
     p.add_argument("--arms", nargs="+", default=["cf", "gauss", "gaussq"])
     p.add_argument("--maxn", type=int, default=8000)
-    p.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    # `--max-chi2-ndof` is the standard selection's (`_sel.add_args`, below)
     p.add_argument("--prune-frac", type=float, default=1e-3)
     p.add_argument("--no-hits", action="store_true")
     p.add_argument("--no-beamwidth", action="store_true")
@@ -99,7 +99,7 @@ def main():
     # AttributeError in the middle of a Fisher run rather than at parse time.
     # `vtx_norm_window` / `norm_classes` / `norm_tpoints` are the truncated
     # normalisation's; `alpha` the floor's.
-    ba = _A(max_chi2_ndof=a.max_chi2_ndof, maxn=a.maxn, prune_frac=a.prune_frac,
+    ba = _A(maxn=a.maxn, prune_frac=a.prune_frac,
             amount_mode="exp", hit_mode="linear", no_hits=a.no_hits,
             floor="softplus", chunk=a.chunk, vtx_window=0.0,
             max_abs_z=a.max_abs_z,
@@ -107,6 +107,7 @@ def main():
             norm_tpoints=a.norm_tpoints, alpha=a.alpha,
             no_standard_selection=a.no_standard_selection,
             max_abs_vtxz=a.max_abs_vtxz, min_leg_hits=a.min_leg_hits,
+            max_chi2_ndof=a.max_chi2_ndof,
             # the two LUMINOUS-REGION WIDTH scales float here too, so the
             # sandwich is computed over the SAME parameter vector the cards fit
             no_beamwidth=a.no_beamwidth)

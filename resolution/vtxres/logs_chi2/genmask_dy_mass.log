@@ -1,0 +1,7 @@
+/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/runs/dy_mass.npz: 10402 candidates
+  signal          10300  (99.019 %)   KEPT
+  dup                14  ( 0.135 %)
+  otherdecay         11  ( 0.106 %)
+  nonres              0  ( 0.000 %)
+  unmatched          77  ( 0.740 %)
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/runs/dy_mass_gensig.npz: 10300/10402 kept (99.019 %)

@@ -36,8 +36,11 @@ if _RES not in sys.path:
     sys.path.insert(0, _RES)
 import selection as stdsel  # noqa: E402  (the standard two-track selection)
 
+# the cuts THIS script owns; `chi2/ndof < 3` used to be among them and is now
+# the standard selection's (`resolution/selection.py`), applied below with the
+# rest of it so there is one cut in one place.
 SEL_CUTS = ('Jpsi_vtxok', 'cfmass_ok', 'sigma_v > 0', 'sigma_m > 0',
-            'chi2/ndof < 3', '|vtxvchk| < 1e-4')
+            '|vtxvchk| < 1e-4')
 
 SCAL = ['Jpsi_vtxres', 'Jpsi_vtxsig', 'Jpsi_vtxz', 'Jpsi_vtxok', 'Jpsi_vtxvchk',
         'Jpsi_mass', 'Jpsi_sigmamass', 'Jpsi_mass_unc', 'Jpsi_covmassvtx',
@@ -79,15 +82,11 @@ def selection(d, args=None):
     actually fitted on; `--no-standard-selection` reverts to the old flow.
     """
     n = len(d['run'])
-    ndof = np.asarray(d['ndof'], dtype=float)
-    c2 = np.where(ndof > 0, np.asarray(d['chisqval'], dtype=float)
-                  / np.maximum(ndof, 1), 1e9)
     masks = [np.asarray(d['Jpsi_vtxok'], dtype=bool),
              (np.asarray(d['cfmass_ok'], dtype=bool) if 'cfmass_ok' in d
               else np.ones(n, bool)),
              np.asarray(d['Jpsi_vtxsig'], dtype=float) > 0,
              np.asarray(d['Jpsi_sigmamass'], dtype=float) > 0,
-             c2 < 3.0,
              np.abs(np.asarray(d['Jpsi_vtxvchk'], dtype=float)) < 1e-4]
     keep = np.ones(n, bool)
     flow = []

@@ -24,6 +24,7 @@ import uproot
 _PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
+import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
 
 C_EFFZ, C_EFFA, C_XG, C_P, C_BETA, C_THP2, C_DOX0, C_ZZP1, C_LNSW, C_GRP = range(10)
@@ -157,7 +158,8 @@ def main():
     ap.add_argument("--group", type=int, default=36)
     ap.add_argument("--refgroup", type=int, default=37)
     ap.add_argument("--parmtypes", type=int, nargs="+", default=[14, 15])
-    ap.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    ap.add_argument("--max-chi2-ndof", type=float,
+                    default=_SEL.MAX_CHI2_NDOF)
     ap.add_argument("--max-grad", type=float, default=1e6)
     ap.add_argument("--max-hess", type=float, default=1e8)
     args = ap.parse_args()

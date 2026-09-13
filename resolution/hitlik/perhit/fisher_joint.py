@@ -52,6 +52,7 @@ _HL = os.path.dirname(_HERE)
 for _p in (_HERE, _HL, os.path.dirname(_HL), os.path.join(os.path.dirname(_HL), "matres")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 
 import fisher_cmp as FC          # noqa: E402  (hessian, score_cov)
 import make_hitlik_card as MK    # noqa: E402  (build_mass_term)
@@ -73,7 +74,8 @@ def main():
     p.add_argument("--mass-npz", default="/work/submit/david_w/ZMass/"
                    "calibration_studies/resolution/runs/matres/"
                    "gun_groups_probe.npz")
-    p.add_argument("--mass-max-chi2-ndof", type=float, default=3.0)
+    p.add_argument("--mass-max-chi2-ndof", type=float,
+                   default=_SEL.MAX_CHI2_NDOF)
     p.add_argument("--mass-max-cands", type=int, default=0)
     p.add_argument("--groups", default="/work/submit/david_w/ZMass/"
                    "CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/"

@@ -34,6 +34,7 @@ import uproot
 _PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
+import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 import prodfiles  # noqa: E402  (needs resolution/ on sys.path)
 
 _TRIU = {}
@@ -170,7 +171,8 @@ def main():
     ap.add_argument("--entries", type=int, default=0)
     ap.add_argument("--parmtypes", type=int, nargs="+", default=[14, 15])
     ap.add_argument("--watch-parmtype", type=int, default=15)
-    ap.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    ap.add_argument("--max-chi2-ndof", type=float,
+                    default=_SEL.MAX_CHI2_NDOF)
     ap.add_argument("--max-grad", type=float, default=1e6)
     ap.add_argument("--max-hess", type=float, default=1e8)
     ap.add_argument("--fr-cuts", type=float, nargs="*", default=[0.03, 0.01],

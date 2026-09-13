@@ -1,0 +1,71 @@
+
+=== gun_mass_c3 vs gun_mass_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  material_tib_support             -0.02122     -0.03151     -0.01029     0.04261    -0.24    -4.56
+  |shift| / sigma_own:  max 0.24   median 0.01   rms 0.06   > 0.2 sigma: 1/60
+  |shift| / sigma_dif:  max 5.66   median 0.43   rms 1.26
+
+=== gun_mass_c5 vs gun_mass_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_pix_y_q1                  -0.64363     -0.70659     -0.06296     0.84315    -0.07    -7.04
+  |shift| / sigma_own:  max 0.07   median 0.00   rms 0.02   > 0.2 sigma: 0/60
+  |shift| / sigma_dif:  max 7.04   median 0.28   rms 1.41
+
+=== gun_mass_c10 vs gun_mass_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  material_other                    0.02122      0.02122      0.00000     0.19767     0.00      nan
+  |shift| / sigma_own:  max 0.00   median 0.00   rms 0.00   > 0.2 sigma: 0/60
+
+=== gun_vtx_c3 vs gun_vtx_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_pix_y_q0                   0.21923      0.17385     -0.04538     0.15167    -0.30    -1.90
+  |shift| / sigma_own:  max 0.30   median 0.00   rms 0.07   > 0.2 sigma: 2/60
+  |shift| / sigma_dif:  max 2.38   median 0.18   rms 0.68
+
+=== gun_vtx_c5 vs gun_vtx_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_pix_y_q0                   0.21923      0.21150     -0.00773     0.15295    -0.05    -0.57
+  |shift| / sigma_own:  max 0.05   median 0.00   rms 0.01   > 0.2 sigma: 0/60
+  |shift| / sigma_dif:  max 2.75   median 0.08   rms 0.58
+
+=== gun_vtx_c10 vs gun_vtx_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_str_N5_lo                  0.17390      0.17390     -0.00000     0.85427    -0.00    -0.00
+  |shift| / sigma_own:  max 0.00   median 0.00   rms 0.00   > 0.2 sigma: 0/60
+  |shift| / sigma_dif:  max 0.14   median 0.00   rms 0.03
+
+=== dy_mass_c3 vs dy_mass_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_str_N1_lo                 -0.18536     -0.12959      0.05577     0.47892     0.12     0.60
+  |shift| / sigma_own:  max 0.12   median 0.00   rms 0.02   > 0.2 sigma: 0/60
+  |shift| / sigma_dif:  max 1.71   median 0.11   rms 0.42
+
+=== dy_mass_c5 vs dy_mass_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_str_N1_lo                 -0.18536     -0.16800      0.01736     0.47321     0.04     0.31
+  |shift| / sigma_own:  max 0.04   median 0.00   rms 0.01   > 0.2 sigma: 0/60
+  |shift| / sigma_dif:  max 0.59   median 0.05   rms 0.16
+
+=== dy_mass_c10 vs dy_mass_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_str_N2_lo                  0.08999      0.10932      0.01933     0.47620     0.04     0.29
+  |shift| / sigma_own:  max 0.04   median 0.00   rms 0.01   > 0.2 sigma: 0/60
+  |shift| / sigma_dif:  max 1.86   median 0.05   rms 0.29
+
+=== dy_vtx_c3 vs dy_vtx_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_pix_x_q1                  -0.18273     -0.19910     -0.01637     0.05731    -0.29    -1.89
+  |shift| / sigma_own:  max 0.29   median 0.00   rms 0.05   > 0.2 sigma: 2/60
+  |shift| / sigma_dif:  max 1.89   median 0.17   rms 0.57
+
+=== dy_vtx_c5 vs dy_vtx_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_pix_x_q1                  -0.18273     -0.18950     -0.00678     0.05772    -0.12    -1.30
+  |shift| / sigma_own:  max 0.12   median 0.00   rms 0.02   > 0.2 sigma: 0/60
+  |shift| / sigma_dif:  max 5.76   median 0.11   rms 0.91
+
+=== dy_vtx_c10 vs dy_vtx_off   (60 parameters)
+  parameter                               a            b          b-a     sigma_b    n_own    n_dif
+  hitres_pix_x_q1                  -0.18273     -0.18972     -0.00699     0.05771    -0.12    -1.30
+  |shift| / sigma_own:  max 0.12   median 0.00   rms 0.02   > 0.2 sigma: 0/60
+  |shift| / sigma_dif:  max 6.67   median 0.10   rms 0.94

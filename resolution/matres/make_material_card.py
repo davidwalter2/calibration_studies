@@ -58,6 +58,7 @@ for _p in (_HERE, _RES, _GF):
 
 import groups as G  # noqa: E402
 import make_global_term as MGT  # noqa: E402
+import selection  # noqa: E402  (ONE value for the chi2 cut)
 
 MJPSI = 3.0969
 
@@ -85,7 +86,10 @@ def parse_args():
                    help="ALSO add the old per-family k knobs (k_ms, k_ioni, "
                         "...) on top of the physical parameterisation, for the "
                         "comparison fits only")
-    p.add_argument("--max-chi2-ndof", type=float, default=0.0)
+    # ONE value for the cut (`resolution/selection.py`); the extraction has
+    # normally applied it already, in which case this is a no-op
+    p.add_argument("--max-chi2-ndof", type=float,
+                   default=selection.MAX_CHI2_NDOF)
     p.add_argument("--maxn", type=int, default=0, help="use only N candidates")
     p.add_argument("--prune-frac", type=float, default=0.0,
                    help="fold groups contributing less than this fraction of "

@@ -1,0 +1,29 @@
+# 160 files, functional vtx
+[10/160] cumulative 1300 (3 s)
+[20/160] cumulative 2600 (3 s)
+[30/160] cumulative 3900 (6 s)
+[40/160] cumulative 5200 (6 s)
+[50/160] cumulative 6500 (6 s)
+[60/160] cumulative 7800 (9 s)
+[70/160] cumulative 9100 (11 s)
+[80/160] cumulative 10400 (11 s)
+[90/160] cumulative 11700 (14 s)
+[100/160] cumulative 13000 (14 s)
+[110/160] cumulative 14300 (15 s)
+[120/160] cumulative 15600 (16 s)
+[130/160] cumulative 16900 (17 s)
+[140/160] cumulative 18200 (17 s)
+[150/160] cumulative 19500 (18 s)
+[160/160] cumulative 20800 (19 s)
+standard two-track selection on 300017 candidates
+    Jpsi_vtxok                    299450  ( 99.81 %, -567)
+    finite sigma_m, sigma_v       299374  ( 99.79 %, -76)
+    min leg hits >= 8             294111  ( 98.03 %, -5263)
+    chi2/ndof (off)                   --  (switched off: NOT APPLIED)
+    |z_v| cut (off)                   --  (switched off: NOT APPLIED)
+    kept                          294111  ( 98.03 %)
+
+=== vtx: 20800 candidates, 456107 group rows (21.93/cand), 12.34 hit rows/cand
+    exponent storage 27.41 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/runs/gun_vtx.npz (557.2 MB)

@@ -69,6 +69,7 @@ _MAT = os.path.join(_RES, "matres")
 for _p in (_HERE, _HL, _RES, _MAT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 
 import hitres_classes  # noqa: E402
 
@@ -317,7 +318,8 @@ def main():
     p.add_argument("--files", required=True)
     p.add_argument("-o", "--output", required=True)
     p.add_argument("-j", "--jobs", type=int, default=24)
-    p.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    p.add_argument("--max-chi2-ndof", type=float,
+                   default=_SEL.MAX_CHI2_NDOF)
     p.add_argument("--max-hess", type=float, default=1e8)
     p.add_argument("--max-grad", type=float, default=1e6)
     p.add_argument("--max-cands", type=int, default=0)

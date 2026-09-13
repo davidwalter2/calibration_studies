@@ -1,0 +1,89 @@
+prodfiles: 1 tasks / 1 files (1 streams per task)
+1 files
+D catalog: 92 global parameters [14, 15]
+CF primitives imported in 63 s
+tau grid: 64 of 448 points, max 7.8926
+[1/1] task_0000: 1835 sel, 0 drop, 40 cut -- cumulative 1835 (2616 s)
+
+=== summary ===
+standard two-track selection on 1875 candidates
+    Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+    finite sigma_m, sigma_v         1872  ( 99.84 %, -3)
+    min leg hits >= 8               1835  ( 97.87 %, -37)
+    |z_v| < 5                         --  (column absent: NOT APPLIED)
+    kept                            1835  ( 97.87 %)
+candidates          1835
+rad model           1
+groups/candidate    mean 21.89  median 21  p1 16  p99 32  max 36
+hit rows/candidate  0.00
+exponent storage    27.37 kB/candidate raw (5 families x 64 pts x float32)
+flat equivalent     1.25 kB/candidate
+ioni pairing        46803 blocks, min xg gap 1.03, max dropped-xg fraction 4.48e-05
+
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/matres_ref0.npz (52.3 MB, 1835 candidates)
+prodfiles: 1 tasks / 1 files (1 streams per task)
+1 files
+D catalog: 92 global parameters [14, 15]
+CF primitives imported in 93 s
+tau grid: 64 of 448 points, max 7.8926
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/matres/extract_groups.py", line 552, in process_file
+    out["chi2ndof"].append(float(rchi2[ic]))
+NameError: name 'rchi2' is not defined
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/matres/extract_groups.py", line 730, in <module>
+    main()
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/matres/extract_groups.py", line 645, in main
+    for i, r in enumerate(pool.imap_unordered(process_file, files)):
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 870, in next
+    raise value
+NameError: name 'rchi2' is not defined
+prodfiles: 1 tasks / 1 files (1 streams per task)
+1 files
+D catalog: 92 global parameters [14, 15]
+CF primitives imported in 43 s
+tau grid: 64 of 448 points, max 7.8926
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/matres/extract_groups.py", line 552, in process_file
+    out["chi2ndof"].append(float(rchi2[ic]))
+NameError: name 'rchi2' is not defined
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/matres/extract_groups.py", line 730, in <module>
+    main()
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/matres/extract_groups.py", line 645, in main
+    for i, r in enumerate(pool.imap_unordered(process_file, files)):
+  File "/usr/lib64/python3.9/multiprocessing/pool.py", line 870, in next
+    raise value
+NameError: name 'rchi2' is not defined
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/cmp_outputs.py", line 84, in <module>
+    main()
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/cmp_outputs.py", line 53, in main
+    B, _hb = load(a.b)
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/cmp_outputs.py", line 29, in load
+    d = np.load(path, allow_pickle=True)
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_npyio_impl.py", line 455, in load
+    fid = stack.enter_context(open(os.fspath(file), "rb"))
+FileNotFoundError: [Errno 2] No such file or directory: '/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/matres_new0.npz'
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+  File "<stdin>", line 3, in <genexpr>
+  File "/work/submit/david_w/ZMass/mfs/.venv/lib64/python3.9/site-packages/numpy/lib/_npyio_impl.py", line 455, in load
+    fid = stack.enter_context(open(os.fspath(file), "rb"))
+FileNotFoundError: [Errno 2] No such file or directory: '/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/matres_new0.npz'

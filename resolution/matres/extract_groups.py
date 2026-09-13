@@ -133,7 +133,6 @@ def parse_args():
     p.add_argument("--no-delta", action="store_true",
                    help="qop functional only: drop the delta-recoil family")
     p.add_argument("--no-jac", action="store_true", help="do not store the D rows")
-    p.add_argument("--max-chi2-ndof", type=float, default=0.0)
     p.add_argument("--max-hess", type=float, default=0.0)
     p.add_argument("--max-grad", type=float, default=0.0)
     p.add_argument("--max-cands", type=int, default=0,
@@ -269,19 +268,21 @@ def process_file(fname):
     a = t.arrays(want, library="np")
 
     nent = len(a[want[0]])
-    rchi2 = (np.asarray(a["chisqval"], np.float64)
-             / np.maximum(np.asarray(a["ndof"], np.float64), 1.0))
-    ok_cut = rchi2 < args.max_chi2_ndof if args.max_chi2_ndof > 0.0 else None
+    ok_cut = None
+    # the per-candidate reduced chi2, stored in the npz; the CUT on it is the
+    # standard selection's (`resolution/selection.py`), which builds the same
+    # quantity with the same convention
+    rchi2 = selection.chi2ndof(a, set(a))
     for br, cut in (("gradmax", args.max_grad), ("hessmax", args.max_hess)):
         if cut > 0.0 and br in a:
             m = np.abs(np.asarray(a[br], np.float64)) < cut
             ok_cut = m if ok_cut is None else (ok_cut & m)
-    # THE STANDARD TWO-TRACK SELECTION.  Only for the two-track (mass)
-    # functional -- a single track has no vertex residual and no second leg.
-    stdsumm = None
-    if ismass:
-        m, stdsumm = selection.standard(a, args, n=nent)
-        ok_cut = m if ok_cut is None else (ok_cut & m)
+    # THE STANDARD SELECTION (`resolution/selection.py`), which now owns
+    # `--max-chi2-ndof` as well.  The two-track cuts (`|z_v|`, the leg-hit
+    # minimum, `Jpsi_vtxok`) have no column on a SINGLE-track production and
+    # are reported absent there; the chi2 cut applies to both.
+    m, stdsumm = selection.standard(a, args, n=nent)
+    ok_cut = m if ok_cut is None else (ok_cut & m)
 
     store = G.GroupStore(fams, len(_TSEL))
     out = {k: [] for k in ("sigma", "vgf", "vg_other", "chi2ndof", "fioni")}

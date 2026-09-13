@@ -37,6 +37,7 @@ _RES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     "resolution")
 if _RES not in sys.path:
     sys.path.insert(0, _RES)
+import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 
 
 def parse_args(argv=None):
@@ -45,7 +46,8 @@ def parse_args(argv=None):
     p.add_argument("--track-cache", default=None, help="cf_trackres_* npz")
     p.add_argument("--ntasks", type=int, default=200)
     p.add_argument("--label", required=True)
-    p.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    p.add_argument("--max-chi2-ndof", type=float,
+                   default=_SEL.MAX_CHI2_NDOF)
     p.add_argument("--max-dr", type=float, default=0.01,
                    help="gen-match cone on Mu*gen_dr")
     p.add_argument("--pt-range", type=float, nargs=2, default=[15.0, 1e9])

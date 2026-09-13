@@ -108,6 +108,7 @@ for _p in (_HERE, _RES, _MAT):
 
 import groups as G  # noqa: E402
 import prodfiles  # noqa: E402
+import selection  # noqa: E402  (the standard selection owns --max-chi2-ndof)
 
 COVTOL = 5e-3
 FAMS = ("ms", "del", "io_re", "io_im", "rad_re", "rad_im")
@@ -148,7 +149,6 @@ def parse_args():
     p.add_argument("--ioni-norm", choices=["var", "raw"], default="var")
     p.add_argument("--no-rad", action="store_true")
     p.add_argument("--no-delta", action="store_true")
-    p.add_argument("--max-chi2-ndof", type=float, default=0.0)
     p.add_argument("--max-hess", type=float, default=0.0)
     p.add_argument("--max-grad", type=float, default=0.0)
     p.add_argument("--max-cands", type=int, default=0,
@@ -162,6 +162,10 @@ def parse_args():
                         "reproduces the established q/p one")
     p.add_argument("-j", "--jobs", type=int, default=8)
     p.add_argument("-o", "--output", required=True)
+    # THE STANDARD SELECTION owns `--max-chi2-ndof` (`resolution/selection.py`).
+    # This is a SINGLE-track extraction, so its two-track cuts have no column
+    # here and are reported absent; the chi2 cut is the one that applies.
+    selection.add_args(p)
     return p.parse_args()
 
 
@@ -267,9 +271,11 @@ def process_file(fname):
     a = t.arrays(want, library="np")
 
     nent = len(a["reseigidx"])
-    rchi2 = (np.asarray(a["chisqval"], np.float64)
-             / np.maximum(np.asarray(a["ndof"], np.float64), 1.0))
-    ok_cut = rchi2 < args.max_chi2_ndof if args.max_chi2_ndof > 0.0 else None
+    ok_cut, _stdsumm = selection.standard(a, args, n=nent)
+    # the per-candidate reduced chi2, stored in the npz; the CUT on it is the
+    # standard selection's (`resolution/selection.py`), which builds the same
+    # quantity with the same convention
+    rchi2 = selection.chi2ndof(a, set(a))
     for br, cut in (("gradmax", args.max_grad), ("hessmax", args.max_hess)):
         if cut > 0.0 and br in a:
             m = np.abs(np.asarray(a[br], np.float64)) < cut
@@ -595,7 +601,8 @@ def process_file(fname):
     res["rres"] = (np.stack(rres) if rres else np.zeros((0, 5)))
     res["inflat"] = (np.stack(infl_l).astype(np.float32) if infl_l
                      else np.zeros((0, 5), np.float32))
-    stats = dict(nsel=nsel, ndrop=ndrop, ncut=ncut, want_rad=int(want_rad),
+    stats = dict(nsel=nsel, ndrop=ndrop, ncut=ncut, sel=_stdsumm,
+                 want_rad=int(want_rad),
                  grp_mult=grp_mult, valmax=valmax)
     return fname, res, stats
 
@@ -700,6 +707,10 @@ def main():
                 grp_mult_mean=float(gm.mean()) if len(gm) else 0.0,
                 valmax=float(max(r[2]["valmax"] for r in parts)),
                 argv=vars(args))
+    # EVERY CALLER LOGS THE STANDARD SELECTION, cut by cut
+    _sel = selection.merge([r[2].get("sel") for r in parts])
+    if _sel is not None:
+        _sel.log(lambda l: print(l, flush=True))
     out["provenance"] = json.dumps(prov)
     os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".",
                 exist_ok=True)

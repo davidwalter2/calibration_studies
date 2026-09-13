@@ -140,19 +140,12 @@ def parse_args():
         action="store_true",
         help="build the mass inputs only (skip gradv / Hessian)",
     )
-    p.add_argument(
-        "--max-chi2-ndof",
-        type=float,
-        default=0.0,
-        help="drop candidates with chisqval/ndof above this (0 = no cut) from "
-        "BOTH the quadratic accumulation and the mass term. This is not "
-        "cosmetic: on the B -> J/psi X productions the median chi2/ndof is "
-        "0.95 but the tail reaches 5e8, and ~0.02%% of candidates carry "
-        "~99.997%% of the summed chi2 -- so without a cut the global "
-        "gradient and Hessian are the gradient and Hessian of a handful of "
-        "runaway fits. Same role as "
-        "fit_global_grads.py --max-chi2-per-hit / --censor-cut.",
-    )
+    # `--max-chi2-ndof` is the STANDARD SELECTION's (`resolution/selection.py`,
+    # default 3.0).  It is not cosmetic here: on the B -> J/psi X productions
+    # the median chi2/ndof is 0.95 but the tail reaches 5e8, and ~0.02 % of
+    # candidates carry ~99.997 % of the summed chi2 -- so without it the global
+    # gradient and Hessian are those of a handful of runaway fits.  Same role
+    # as fit_global_grads.py --max-chi2-per-hit / --censor-cut.
     p.add_argument(
         "--max-grad",
         type=float,
@@ -371,10 +364,11 @@ def process_file(fname):
     pt_all = _PARMTYPE
 
     nent = len(a["globalidxv"])
-    rchi2 = np.asarray(a["chisqval"], dtype=np.float64) / np.maximum(
-        np.asarray(a["ndof"], dtype=np.float64), 1.0
-    )
-    chi2ok = rchi2 < args.max_chi2_ndof if args.max_chi2_ndof > 0.0 else None
+    chi2ok = None
+    # the per-candidate reduced chi2, stored in the npz; the CUT on it is the
+    # standard selection's (`resolution/selection.py`), which builds the same
+    # quantity with the same convention
+    rchi2 = selection.chi2ndof(a, set(a))
     for br, cut in (("gradmax", args.max_grad), ("hessmax", args.max_hess)):
         if cut > 0.0 and br in a:
             ok = np.abs(np.asarray(a[br], dtype=np.float64)) < cut
@@ -390,12 +384,11 @@ def process_file(fname):
             fr = r if fr is None else np.maximum(fr, r)
         ok = fr < args.max_dEref_p
         chi2ok = ok if chi2ok is None else (chi2ok & ok)
-    # THE STANDARD TWO-TRACK SELECTION.  It applies to a two-track production
-    # only; a single-track one has no vertex residual and no second leg.
-    stdsumm = None
-    if istwotrack:
-        m, stdsumm = selection.standard(a, args, n=nent)
-        chi2ok = m if chi2ok is None else (chi2ok & m)
+    # THE STANDARD SELECTION, which owns `--max-chi2-ndof` as well.  Its
+    # two-track cuts have no column on a single-track production and are
+    # reported absent there; the chi2 cut applies to both.
+    m, stdsumm = selection.standard(a, args, n=nent)
+    chi2ok = m if chi2ok is None else (chi2ok & m)
     for ic in range(nent):
         if chi2ok is not None and not chi2ok[ic]:
             nchi2cut += 1

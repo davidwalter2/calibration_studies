@@ -1589,6 +1589,51 @@ two beam functionals is the two extra `cvhcf::trackExponents` calls**, and that
 is where any future saving has to come from. The cache is kept because it is
 free, bit-identical, and makes each FURTHER functional cheaper.
 
+**THE FOUR FUNCTIONALS NOW SHARE ONE EVALUATOR PASS -- AND IT IS FREE, NOT
+CHEAPER** (`run_taugrid_ab.sh`, `cmp_taugrid.py`, dev2 `f7fbef244c6`). Every
+`cvhcf` exponent primitive reads the weight only through the PRODUCT `w tau`
+(`phi_{aU}(tau) = phi_U(a tau)`), so the mass, vertex and two beam weight sets
+are the same primitive evaluated on the CONCATENATED argument list
+{ w_{b,k} tau_j }: one `cvhcf::trackExponents(in, nfunc, out)` instead of four
+calls, with the pooling by global index, the block gather, `sq2`, the Moliere
+step parameters and their `gshape_elec` rows, `delCarveFactor`,
+`makeRadSpectrum` and the per-group row selections built ONCE. The arguments
+are formed by the same expression, in the same association, the
+single-functional path forms them with, so it is not "exact to 1e-7", it is
+BITWISE: gun 188 candidates / 264 branches, DY-with-beam-rows 179 / 323,
+single-track 403 / 111 -- **zero values differ anywhere**, `Jpsi_vtxvchk`,
+`Jpsi_bsvchk` and the mass closures included, the ROOT files the same size.
+
+400 DY events, one pinned cpu, interleaved, first configuration repeated last:
+
+| functionals | old | new | |
+|---|---|---|---|
+| 1 (mass only) | 570 s | 563 s | **-1.2 %** -- the NULL, `nf = 1` is the same code |
+| 2 (+ the vertex DCA) | 911 s | 851 s | -6.6 % |
+| 4 (+ the two beam pulls) | 1367 s | 1366 s | -0.1 % |
+| 4, repeated at the end | 1359 s | 1347 s | -0.9 % |
+
+**-0.5 % on the full export, i.e. nothing**: the `nf = 1` null is -1.2 % and
+the `m4_old` drift over the sequence is 1367 -> 1359, so ~1 % is the noise.
+A second lane (cpu 5) decomposes it -- `exportCfExponents=False` runs the same
+job in **346 s** (old) / 350 s (new) against **1397 / 1401** with the exponents
+on, so the CF block is **1051 s, 75 % of the maker**, and merging four passes
+into one removed **none** of it. (That cfoff pair is itself a null this change
+cannot touch: 346 vs 350, +1.2 %.)
+
+**The setup was never the cost, so the paragraph above is half right.** The
+concatenated grid shares the weight-INDEPENDENT work; what the evaluator
+actually spends is per-(functional, tau) transcendentals -- `blockExponent`'s
+cos/sin per ionization step, `radBlock`'s `nsteps x nv x ntau` sines,
+`interpTau`'s binary search per Moliere step -- and those scale with the number
+of functionals however the arguments are grouped. `makeRadSpectrum` is 1/64 of
+the radiative channel it feeds; the `gshape_elec` row is comparable to a
+two-step block's tau loop, but multiple scattering is the small family. So the
+beam functionals' +55 % IS the extra `trackExponents` calls, and **a real
+saving has to come from the per-tau kernel or from fewer tau points, not from
+merging the passes.** The merge is kept because it is exact, bit-identical, one
+call site instead of four, and the right shape for a fifth functional.
+
 A REPEAT of the five configurations on a second CPU is **not usable**: its
 walls rise monotonically through the sequence (1139, 1900, 1163, 1309, 2176 --
 `new_rows` 58 % above `new_off` while doing strictly more work), i.e. the node
@@ -2372,11 +2417,13 @@ candidates instead of calling them unexplained.
 
 #### 15.2 The standard selection (`resolution/selection.py`)
 
-    |z_v| < 5              on `Jpsi_vtxz`, the vertex-constraint pull
-    weaker leg >= 8 hits   on `Mu{plus,minus}_nvalid`
     Jpsi_vtxok             the vertex block closed
     finite sigma_m, sigma_v, both > 0
+    weaker leg >= 8 hits   on `Mu{plus,minus}_nvalid`
+    chi2/ndof < 3          on `chisqval / ndof`  (added Sep 2026, 15.8)
+    |z_v| < 5              on `Jpsi_vtxz`, the vertex-constraint pull
 
+-- in that order, so a cut flow reads as a flow.
 `standard(table, args) -> (mask, Summary)`; the `Summary` is logged by every
 caller, cut by cut, and DISTINGUISHES a cut that removed nothing from one
 whose column is absent from one that was switched off.  `ALIASES` maps the
@@ -2385,8 +2432,9 @@ cache names, so no caller has to rename anything.  `--no-standard-selection`
 is the escape hatch, for studies OF the tail.
 
 Applied in `extract_vtx.py`, `make_vtx_card.py`, `cmp_vtxon.py`,
-`matres/extract_groups.py` (mass functional only), `globalfit/extract.py`
-(two-track productions only), `fullscale/make_card.py` and
+`matres/extract_groups.py`, `hitlik/extract_res5.py` (single-track: the
+two-track cuts report absent and only the chi2 one bites),
+`globalfit/extract.py`, `fullscale/make_card.py` and
 `make_joint_card.py` (which forwards the escape hatch and the aux to both
 legs).  `oddmoment/aux_gen.py` REPORTS it and does not cut -- its rows are
 joined row by row to a pairs cache -- and `cf_inmaker.py` caches the columns
@@ -2498,7 +2546,9 @@ flow, in the order the cuts are applied):
 signal efficiency **0.9961 +- 0.0006**, background rejection
 **0.847 +- 0.020**, purity **97.01 -> 99.50 %**.
 
-With the extraction's `chi2/ndof < 3` first the cut has less left to do
+(The flow WITH `chi2/ndof < 3` in its place, which is what the standard
+selection does now, is section 15.8.5b.)  With the extraction's
+`chi2/ndof < 3` first the cut has less left to do
 (10 350 -> 10 273; signal 0.9976 +- 0.0005, purity 99.09 -> 99.59 %).  In the
 FREE regime, where the tail lives, the same flow gives 10 628 -> 10 324
 (signal 0.9959 +- 0.0006, purity 97.08 -> 99.54 %) and with chi2 first
@@ -2541,6 +2591,318 @@ of its own error, with the 0.2 sigma marks).
 Inputs and outputs under
 `/ceph/.../runs_vtxres_260911/selection/` -- `gate_{gun,dy}/` (the maker
 gate), `runs/{vtx,mass}.npz`, `runs/cards/`, `runs/fits/`.
+
+
+### 15.8 THE OTHER ACCEPTANCE CUT: `chi2/ndof < 3`, MEASURED THE SAME WAY
+
+Section 16 showed that the two-track fit's own reduced chi2 is the variable
+the residual tails are made of, and that `chi2/ndof < 3` removes exactly the
+excess-chi2 population: **1.0 % of gen SIGNAL on DY, 0.33 % on the J/psi gun,
+and every single gen-signal candidate it removes has chi2 probability below
+1e-3** (16.12).  It is therefore the same KIND of object as `|z_v| < 5` -- an
+acceptance cut on a population the resolution model does not describe -- and
+it was owed the same two things: one place, and a measurement.  It had
+neither.  This section gives it both, on MC only (David: "for data there is a
+lot more going on, misalignment and miscalibration of B field and material
+etc., so maybe first focus on MC only").
+
+**Where it was.**  Re-implemented in nine scripts with TWO defaults: 3.0 in
+`fullscale/make_card.py`, `fullscale/make_joint_card.py` and
+`vtxres/extract_vtx.py`, 0 (no cut) in `matres/extract_groups.py` and
+`hitlik/extract_res5.py`, and again with its own literal in
+`globalfit/extract.py`, `globalfit/make_global_term.py`,
+`matres/make_material_card.py`, `hitlik/make_hitlik_card.py` (twice, with
+different values on its two tables) and a dozen plot and Fisher scripts.  What
+a card had been cut to depended on which script had built it.
+
+**Where it is.**  `resolution/selection.py`, cut 4 of 5, in the order
+
+    Jpsi_vtxok  ->  finite sigma  ->  leg hits >= 8  ->  chi2/ndof < 3  ->  |z_v| < 5
+
+with ONE default, `selection.MAX_CHI2_NDOF = 3.0`, the value every certified
+full-scale and vertex result was produced with.  `selection.chi2ndof(table)`
+takes the ratio where a table has it (`chi2ndof` in an extraction npz,
+`normchi2` in an aux cache) and builds it from `chisqval / ndof` where it does
+not, with ONE convention: **`ndof <= 0` is +inf, i.e. it FAILS any finite
+cut**.  A fit with no degrees of freedom has no chi2 to speak of; the older
+per-script copies' `chisq / max(ndof, 1)` silently admits it.  The maker's
+`minNdof = 1` means this costs nothing in practice, and the gates below show
+it removes zero candidates on every production in this tree.
+
+**The one difference from `|z_v| < 5`, and it matters.**  A cut on a residual
+obliges the term that consumes the survivors to normalise over the window it
+cut to (15.3).  This one does not, and not because it is being neglected:
+under the resolution model the candidate's reduced chi2 is `chi2_k/k` at
+`k ~ 29`, and `P(chi2/ndof > 3) = 6.6e-8`.  The model's own truncation factor
+is 1 to seven digits, so there is nothing to normalise.  **The cut's entire
+effect is a change of sample COMPOSITION, by candidates the model does not
+describe** -- which is why it has to be MEASURED and cannot be corrected for.
+
+#### 15.8.1 The callers, and what the cut removes in each
+
+`--max-chi2-ndof` is now `selection.add_args`'s flag everywhere (same name,
+`0` = off), and every caller logs the flow cut by cut.
+
+| caller | what changed | `chi2/ndof < 3` removes |
+|---|---|---|
+| `vtxres/extract_vtx.py` | own flag + own cut deleted; records `sel_max_chi2_ndof` in the npz | was already 3.0 |
+| `vtxres/make_vtx_card.py` | own flag + two own cuts deleted (single and joint index) | idempotent after the extraction |
+| `vtxres/cmp_vtxon.py` | `chi2/ndof < 3` left `SEL_CUTS` for the helper | -- |
+| `matres/extract_groups.py` | own flag deleted, helper applies it to BOTH functionals | default 0 -> 3.0 |
+| `hitlik/extract_res5.py` | own flag deleted, now calls `selection.standard` (single-track: the two-track cuts report absent) and LOGS it | default 0 -> 3.0 |
+| `hitlik/make_hitlik_card.py` | `--mass-max-chi2-ndof` + the per-hit `--max-chi2-ndof` take `selection.MAX_CHI2_NDOF`; the mass table goes through the helper | 0 -> 3.0 on the per-hit table |
+| `globalfit/extract.py` | own flag deleted; helper applies to two-track AND single-track | default 0 -> 3.0 |
+| `globalfit/make_global_term.py`, `matres/make_material_card.py` | default 0 -> `selection.MAX_CHI2_NDOF` | no-op on an npz already cut |
+| `fullscale/make_card.py` | own flag + own cut deleted; `selection_table` now also carries `chisqval`/`ndof` so the `--selection-aux` path does not lose the cut | was already 3.0 |
+| `fullscale/make_joint_card.py` | default from `selection.MAX_CHI2_NDOF`, still forwarded to both legs | was already 3.0 |
+| `vtxres/fisher_vtx.py`, `plot_vtx.py`, `xcum_vtx.py`, `vtxterm.load`, `tail_common`, `sel_dytable.py`, `sel_plots.py`, `qmsmodel/*`, `hitlik/perhit/*`, `fullscale/plot_inputs.py`, `qopbias.py`, `zchannel/kern_from_selected.py` | literal 3.0 -> `selection.MAX_CHI2_NDOF` | -- |
+
+`oddmoment/aux_gen.py` REPORTS and does not cut, as before; the chi2 line now
+appears in its report because the aux cache's `normchi2` is an alias.
+
+What the cut removes, measured (all MC):
+
+| sample | candidates | `chi2/ndof < 3` removes | `< 5` | `< 10` |
+|---|---|---|---|---|
+| J/psi gun `prod_vtxon` | 20 800 | **64 (0.308 %)** | 10 (0.048 %) | 0 |
+| DY `dy_vtxon_gen` | 10 402 | **120 (1.154 %)** | 62 (0.596 %) | 54 (0.519 %) |
+| full-scale J/psi v2 cache | 7 923 460 | **69 644 (0.879 %)** | -- | -- |
+| full-scale Z (DY v2), after the mass window | 3 656 047 | **26 387 (0.722 %)** | -- | -- |
+
+The two samples are not the same object: the gun's worst candidate has
+`chi2/ndof = 7.5`, DY's has **4.5e5**.  That is the runaway-fit population
+`globalfit/extract.py` has always warned about, and it is why the cut is not
+optional on a real production.
+
+#### 15.8.2 The bit-identity gates -- nothing a certified result rests on moved
+
+Same input, same cut value, HEAD code against the new code.  `cmp_outputs.py`
+compares array by array; `cmp` compares bytes.
+
+| gate | what | result |
+|---|---|---|
+| full-scale **Z** card | `zpairs_dyv2.npz`, `--maxn 300000`, `--max-chi2-ndof 3` (the value it always used) | **BYTE-IDENTICAL**, md5 `7a194db1...` both sides |
+| full-scale **J/psi** leg | `jpairs_v2_n600.npz`, cut 3.0; `make_joint_card.build_jpsi` calls `make_card.select` and builds its own term, so the SELECTION is the gate | **7 687 678 selected**, all five arrays (`idx`, `m`, `sigma`, `srel`, `w`) identical |
+| `matres/extract_groups.py` | `--max-chi2-ndof 0`, the OLD default | **BIT-IDENTICAL**, 28/28 arrays (`provenance` carries the argv and is skipped) |
+| `hitlik/extract_res5.py` | `--max-chi2-ndof 0`, the OLD default | **BIT-IDENTICAL**, 35/35 arrays |
+
+And what 3.0 removes in the two that used to default to 0, quoted rather than
+assumed: on the J/psi-gun two-track production `matres` keeps
+**1 830 of 1 835** (5 removed, 0.27 %; `P(chi2/ndof > 3)` = 0.25 %,
+median 0.926, max 5.83), and on the single-muon-gun track production `hitlik`
+removes **0 of 400** tracks.  Neither is a large number, which is the point:
+the two extractions had been running with no cut at all and nobody could say
+what that was worth.
+
+Two conventions were checked while doing it.  `ndof <= 0 -> +inf` removes
+**zero** candidates on every production here (the maker's `minNdof = 1`), so
+the change of convention is free.  And `fullscale/make_card.py
+--selection-aux` would have LOST the chi2 cut when the aux table replaced the
+cache table; `selection_table` now carries `chisqval`/`ndof` through, which is
+why the Z gate is byte-identical rather than nearly so.
+
+#### 15.8.3 The MASS term on the J/psi gun (pure signal, 20 800 candidates)
+
+One extraction with the cut OFF, four cards that differ only by the cut value,
+`|z_v| < 5` and the rest of the standard selection in force on all of them,
+`alpha` FREE and **both mandatory mass-term corrections ON**
+(`--mass-corrections`; the self-consistent resolution `a_res` and the exact
+Jensen map -- `f_ang` is not exported by `extract_vtx.py`, so `s^2` is the
+isotropic `(sigma/m)^2`).  Every fit through `rabbit_fit.py`, certified by
+rabbit's EDM.
+
+| arm | candidates | NLL(min) | EDM | `alpha` [1e-3] | mass scale [MeV] |
+|---|---|---|---|---|---|
+| no chi2 cut | 20 769 | -41 953.322056 | 2.9e-14 | +0.0238 +- 0.0615 | +0.074 +- 0.190 |
+| `chi2/ndof < 3` | 20 710 | -41 961.613116 | 1.3e-17 | +0.0231 +- 0.0614 | +0.072 |
+| `chi2/ndof < 5` | 20 761 | -41 984.006918 | 1.2e-15 | +0.0225 +- 0.0615 | +0.070 |
+| `chi2/ndof < 10` | 20 769 | -41 953.322056 | 2.9e-14 | +0.0238 +- 0.0615 | +0.074 |
+
+`< 10` removes NOTHING on the gun (the worst candidate is at 7.46), and its
+fit reproduces the no-cut one to the last printed digit of the NLL and of
+every parameter -- the null test of the whole machinery.
+
+**Every shift is small.**  Over the 61 parameters, no-cut -> cut:
+
+| arm | max \|shift\|/sigma_own | median | rms | > 0.2 sigma | `alpha` shift |
+|---|---|---|---|---|---|
+| `< 3` | **0.24** (`material_tib_support`) | 0.01 | 0.06 | **1/61** | -0.0007 = -0.01 sigma, **-0.002 MeV** |
+| `< 5` | 0.07 (`hitres_pix_y_q1`) | 0.00 | 0.02 | 0/61 | -0.0014 = -0.02 sigma, -0.004 MeV |
+| `< 10` | 0.00 | 0.00 | 0.00 | 0/61 | 0.0000, 0.000 MeV |
+
+ONE parameter crosses 0.2 sigma at the standard cut, and it is a material
+group, not `alpha`: `material_tib_support` -0.0212 -> -0.0315 against its own
+error 0.0426, i.e. **0.24 sigma_own** -- and 4.6 sigma of the error on the
+DIFFERENCE, so it is a real pull from the 59 removed candidates and not a
+fluctuation.  **Said plainly: at `chi2/ndof < 3` the cut is a 0.24 sigma
+systematic on one TIB material amount.**  Its mass-scale consequence is the
+number in the table: the momentum scale moves by **0.002 MeV on a J/psi**,
+0.01 of `alpha`'s own error, because the material groups that move are not
+the ones `alpha` is correlated with.  At `< 5` nothing crosses 0.2 at all.
+
+#### 15.8.4 The VERTEX term on the gun -- the three-way, where the two cuts meet
+
+`|z_v| < 5` truncates the density and is normalised for (15.3); `chi2/ndof < 3`
+truncates nothing the model can see.  The three arms are therefore
+
+    (a)  chi2/ndof < 3  +  |z_v| < 5  + truncated normalisation   20 710
+    (b)  no chi2 cut    +  |z_v| < 5  + truncated normalisation   20 769
+    (c)  both off, untruncated likelihood                         20 800
+
+| arm | NLL(min) | EDM |
+|---|---|---|
+| (a) | -68 673.046814 | 7.9e-15 |
+| (b) | -68 831.724374 | 7.5e-14 |
+| (c) | -68 669.452528 | 2.0e-13 |
+| chi2 < 5 + (b) | -68 811.988361 | 1.0e-11 |
+| chi2 < 10 + (b) | -68 831.724374 | 1.4e-12 |
+
+| comparison | max \|shift\|/sigma_own | median | rms | > 0.2 sigma |
+|---|---|---|---|---|
+| (b) -> (a), i.e. the chi2 cut alone | **0.30** (`hitres_pix_y_q0`) | 0.00 | 0.07 | **2/60** |
+| (b) -> chi2 < 5 | 0.05 | 0.00 | 0.01 | 0/60 |
+| (b) -> chi2 < 10 | 0.00 | 0.00 | 0.00 | 0/60 |
+| (c) -> (b), i.e. the `\|z_v\|` cut with its normalisation | 0.14 (`material_bpix_support6`) | 0.01 | 0.02 | 0/60 |
+| (c) -> (a), both cuts | 0.29 | 0.01 | 0.07 | **3/60** |
+
+The two cuts do not fight each other: (c) -> (a) is (c) -> (b) plus
+(b) -> (a) to within a hundredth of a sigma on every parameter.  The chi2 cut
+moves **pixel hit-resolution classes** (`hitres_pix_y_q0` -0.30,
+`hitres_pix_x_q1` -0.22) and not the material, which is what section 16.13
+predicts: the excess-chi2 candidates are the ones carrying an outlying
+MEASUREMENT, so what they inform is the hit-noise model.  **Two classes cross
+0.2 sigma, so on the vertex term the cut IS a systematic at that size**, and
+the honest statement is that the hit-class scales are not measured to better
+than 0.3 of their error until the excess-chi2 population is MODELLED rather
+than cut (16.12's route 2).
+
+#### 15.8.5 DY MC, gen SIGNAL only -- the number the mass measurement would see
+
+`bkg/dy_vtxon_gen` (6 x 4000 events), the vertex constraint ON, the gen-signal
+mask from `genbkg.classify` applied identically to every arm
+(`gensig_mask.py`, **10 300 of 10 402**), so the comparison is about the
+physics and not about the background the cut also happens to take.  The mass
+channel has `m_ref = 91.1876`, a WIDE kernel (the gen Z mass, rms 6.9 GeV
+against `sigma_m` = 1.08 GeV), both corrections ON in the FLUCTUATION form,
+and `alpha` free.
+
+| arm | candidates | NLL(min) | EDM | `alpha` [1e-3] | mass scale [MeV] |
+|---|---|---|---|---|---|
+| no chi2 cut | 10 276 | +30 590.004805 | 1.6e-13 | +1.0024 +- 0.3121 | **+91.410 +- 28.5** |
+| `chi2/ndof < 3` | 10 228 | +30 457.670460 | 3.8e-18 | +1.0029 +- 0.3131 | **+91.452** |
+| `chi2/ndof < 5` | 10 271 | +30 578.451793 | 4.2e-15 | +1.0009 +- 0.3123 | +91.266 |
+| `chi2/ndof < 10` | 10 272 | +30 580.383561 | 8.5e-19 | +1.0026 +- 0.3122 | +91.421 |
+
+**THE ANSWER TO THE QUESTION THIS STUDY WAS ASKED.**  The cut that removes the
+population carrying a +195 MeV resolution-proportional bias (16.11) moves the
+FITTED mass scale by **+0.043 MeV**, which is 0.001 of the arm's own
+statistical error (28.5 MeV) and 0.02 of the error on the difference.  At `<5`
+it is -0.144 MeV and at `<10` +0.011 MeV.  **The chi2 cut is not hiding a
+model deficiency that the mass measurement would otherwise see**, at this
+statistics and in this likelihood -- not because the excess-chi2 candidates
+are harmless, but because the mass term already carries the two corrections
+that make the bias proportional to the candidate's own `sigma_m^2`, and the
+excess-chi2 candidates enter with their own larger `sigma_m`.  (The +91 MeV
+scale itself is a separate matter and is NOT the +57 MeV trimmed MEAN of
+16.11: a 61-parameter likelihood with the two corrections is not the sample
+mean, and the two are not comparable.)
+
+Over the 61 parameters the mass term moves by at most **0.12 sigma_own**
+(`hitres_str_N1_lo`, median 0.00, rms 0.02, **0/61** above 0.2) at `< 3`, and
+at most 0.04 at `< 5` and `< 10`.  **Nothing on the DY mass term crosses
+0.2 sigma.**
+
+The DY VERTEX term, the same three-way:
+
+| comparison | max \|shift\|/sigma_own | median | rms | > 0.2 sigma |
+|---|---|---|---|---|
+| (b) -> (a), the chi2 cut alone | **0.29** (`hitres_pix_x_q1`) | 0.00 | 0.05 | **2/60** |
+| (b) -> chi2 < 5 | 0.12 | 0.00 | 0.02 | 0/60 |
+| (b) -> chi2 < 10 | 0.12 | 0.00 | 0.02 | 0/60 |
+| (c) -> (b), the `\|z_v\|` cut with its normalisation | **1.06** (`hitres_pix_y_q3`) | 0.00 | 0.17 | **7/60** |
+| (c) -> (a), both | 1.06 | 0.01 | 0.18 | **8/60** |
+
+Read this the right way round: on DY it is **the `|z_v|` cut, not the chi2
+cut**, that dominates the vertex term -- 7 of 60 parameters above 0.2 sigma
+and one at 1.06 -- because DY's vertex-residual tail is far heavier than the
+gun's (16.1: slope 0.49 against 0.14).  The chi2 cut adds one more parameter
+above the threshold.  Both are hit-resolution classes again.
+
+#### 15.8.5b The DY gen-class table, with the chi2 cut in its place
+
+`bkg/runs/dy_vtxon_gen_vtx_all.npz`, nothing pre-applied, the full flow in the
+order `selection.standard` applies it (`sel_dytable.py`):
+
+| cut | total | signal | dup | otherdecay | unmatched |
+|---|---|---|---|---|---|
+| all | 10 638 | 10 320 | 89 | 11 | 218 |
+| `Jpsi_vtxok` + finite sigma | 10 638 | 10 320 | 89 | 11 | 218 |
+| min leg hits >= 8 | 10 414 | 10 304 | 15 | 11 | 84 |
+| **`chi2/ndof < 3`** | **10 286** | **10 241** | **2** | 9 | **34** |
+| `\|z_v\| < 5` | 10 273 | 10 231 | 2 | 9 | 31 |
+
+Signal efficiency of the WHOLE selection **99.14 +- 0.09 %**, purity
+**97.01 -> 99.59 %**.  In its place in the flow the chi2 cut costs **63 of
+10 304 signal (0.61 %)** -- less than the 1.0 % of 16.12, because the leg-hit
+minimum has already taken some of the same candidates -- and removes **63 of
+110 remaining background** (13 `dup`, 50 `unmatched`), so at this point in the
+flow it is as much a background veto as an acceptance cut.  `|z_v| < 5` then
+costs 10 more signal and 3 more background.
+
+The two samples' chi2 spectra are not the same object at all:
+
+| | median `chi2/ndof` | p99 | max | P(> 3) | P(> 5) | P(> 10) |
+|---|---|---|---|---|---|---|
+| J/psi gun (20 800) | 0.911 | 2.27 | **7.5** | 0.308 % | 0.048 % | 0 |
+| DY (10 402) | 0.966 | 3.17 | **4.5e5** | 1.154 % | 0.596 % | 0.519 % |
+| the MODEL, `chi2_k/k` at `k = 29` | 1.00 | 1.52 | -- | **6.6e-8** | 2e-15 | -- |
+
+The model's `P(chi2/ndof > 3)` is **6.6e-8**: seven orders of magnitude below
+what is measured, and the reason the cut needs no truncation factor while the
+population it removes is entirely real.
+
+#### 15.8.6 Two defects found on the way
+
+1. **`make_vtx_card.py --max-abs-z 40` is a RESOLUTION-pull guard and was
+   cutting the Z LINESHAPE.**  It exists because the `gauss`/`gaussq` arms'
+   density underflows float64 beyond |z| ~ 40, and on a delta-kernel J/psi
+   channel `|m - m_ref|/sigma_m` IS a resolution pull, where it costs 2 in
+   16 000.  On a DY MASS channel the same quantity is `(m - 91.1876)/1.08`,
+   i.e. the Z lineshape: it dropped **99 of 10 276** gen-signal candidates
+   (1 %) on the observable being fitted.  The DY mass cards here are built
+   with `--max-abs-z 0`; the `cf` arm's density carries the kernel and does
+   not underflow.  (The DY VERTEX channel keeps the guard -- there `z` is a
+   pull -- and it removes 3 of 10 300, only in the untruncated arm.)
+2. **rabbit's `auto` correction form reads `term.kernel`, which
+   `make_vtx_card.py` never sets.**  The card passes its physics kernel as a
+   tabulated `phik` and leaves `kernel` at the default `DeltaKernel`, so
+   `Fitter` moved the DY mass term to the RESIDUAL form -- exact at a delta
+   kernel, and wrong at a wide one, where it would evaluate the width at the
+   candidate's distance from `m_ref` (the lineshape, +-10 GeV) instead of at
+   its resolution fluctuation.  On the gun the default is the truth (every
+   candidate has the same gen mass).  The DY mass fits are therefore run with
+   `rabbit_fit.py --unbinnedDeltaKernelForm fluctuation`, which `run_chi2.sh`
+   applies by card name; `make_vtx_card.py --corr-form` sets the card's own
+   declaration.
+
+#### 15.8.7 Running it, and the figures
+
+    ./run_chi2.sh extract|extract-dy|genmask|cards|cards-dy|fits|report
+    ./run_chi2_gates.sh z|jpsi|matres|hitlik        (the bit-identity gates)
+    python3 gensig_mask.py --npz <dy npz> -o <mask npz>     (gen signal only)
+    python3 sel_dytable.py --npz <dy gen npz>               (the class flow)
+    ./run_tf.sh python3 chi2_plots.py --gun ... --dy ... --fits ... --groups ...
+
+Inputs and outputs under
+`/ceph/.../runs_vtxres_260911/chi2cut/` -- `runs/{gun,dy}_{vtx,mass}.npz`,
+`runs/cards/`, `runs/fits/`, `gates/`.
+Figures `~/public_html/ZMass/cvh/260913_chi2cut/`, one file per panel with a
+PNG twin: `chi2_spectrum_{gun,dy}` (the measured reduced chi2 against the
+`chi2_k/k` the model implies, with the three cut values marked),
+`chi2_cutflow_dy` (the gen-class composition with the chi2 cut in its place),
+`chi2_shift_<sample>_<channel>_<arm>` (every parameter's shift in units of its
+own error) and `chi2_alpha` (the fitted mass scale against the cut value, in
+MeV).
 
 
 ### 16. THE NON-BACKGROUND TAIL OF THE CONSTRAINT RESIDUALS -- IT IS THE FIT'S OWN CHI2

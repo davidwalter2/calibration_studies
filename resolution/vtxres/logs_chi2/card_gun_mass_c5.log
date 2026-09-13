@@ -1,0 +1,18 @@
+beam-width prior: the record carries no width errors, falling back to --hit-prior = 1
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789306627.945336   32373 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789306633.496385   32373 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  mass: standard two-track selection on 20800 candidates
+  mass:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  mass:     finite sigma_m, sigma_v        20800  (100.00 %, -0)
+  mass:     min leg hits >= 8              20800  (100.00 %, -0)
+  mass:     chi2/ndof < 5                  20790  ( 99.95 %, -10)
+  mass:     |z_v| < 5                      20761  ( 99.81 %, -29)
+  mass:     kept                           20761  ( 99.81 %)
+  mass corrections ON (residual form): a_res median 0.01122 max 0.32681; 1.5 s^2 median 1.6017e-04 -> 0.50 MeV
+[09:37:24] kernel CF tabulation (20761 samples) built in 1.8 s
+E0000 00:00:1789306644.944240   32373 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+mass term: 20761 candidates, 432910 group rows (22328 pruned), 256185 hit rows, 61 parameters, arm 'cf'
+  mass NLL(0) = -41978.190417, max|grad| = 569.5
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/runs/cards/gun_mass_c5.hdf5 (446.0 MB, 61 parameters)

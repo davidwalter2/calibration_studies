@@ -7,7 +7,8 @@ One file per panel, a PNG twin beside every PDF (`resolution/pubhtml.savefig`),
 Panels
   `zv_spectrum_<tag>`      the `|z_v|` spectrum with the cut marked, and the
                            fraction beyond it -- what the truncation removes
-  `cutflow_dy`             the gen-class composition through the cut flow
+  `cutflow_dy`             the gen-class composition through the cut flow,
+                           `chi2/ndof < 3` in its place
   `shift_<comparison>`     every parameter's shift in units of its own error,
                            for (a) vs (b), (c) vs (b) and the mass term
 
@@ -76,8 +77,11 @@ def cutflow_dy(npz, outdir, args):
     cls, names, _ = genbkg.classify(d)
     steps, keep = [], np.ones(n0, bool)
     steps.append(("all", keep.copy()))
-    for label, kw in (("vtxok +\nfinite", dict(max_abs_vtxz=0, min_leg_hits=0)),
-                      ("leg hits\n$\\geq 8$", dict(max_abs_vtxz=0)),
+    for label, kw in (("vtxok +\nfinite",
+                       dict(max_abs_vtxz=0, min_leg_hits=0, max_chi2_ndof=0)),
+                      ("leg hits\n$\\geq 8$",
+                       dict(max_abs_vtxz=0, max_chi2_ndof=0)),
+                      ("$\\chi^2/\\mathrm{ndof} < 3$", dict(max_abs_vtxz=0)),
                       ("$|z_v| < 5$", {})):
         m, _s = selection.standard(d, args, n=n0, **kw)
         keep = keep & m

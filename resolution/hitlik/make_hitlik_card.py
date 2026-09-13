@@ -39,6 +39,7 @@ for _p in (_HERE, _RES, _GF, _MAT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import selection  # noqa: E402  (the standard selection owns the cut values)
 import hitlik_term as HT  # noqa: E402
 import make_global_term as MGT  # noqa: E402
 
@@ -62,7 +63,11 @@ def parse_args():
                         "--max-tracks this cuts a DISJOINT subsample, which is "
                         "how the empirical (resampling) check of the "
                         "estimator's actual spread is run")
-    p.add_argument("--max-chi2-ndof", type=float, default=0.0)
+    # the PER-HIT track table's chi2 cut.  `resolution/selection.py` owns the
+    # value; the extraction (`extract_res5.py`) has normally applied it
+    # already, in which case re-applying it here is a no-op.
+    p.add_argument("--max-chi2-ndof", type=float,
+                   default=selection.MAX_CHI2_NDOF)
     p.add_argument("--max-inflat", type=float, default=1e4,
                    help="drop tracks whose Cholesky variance inflation "
                         "V_kk/d_k exceeds this in any used component -- a "
@@ -98,7 +103,10 @@ def parse_args():
                    help="a matres/extract_groups.py --functional mass npz: "
                         "adds the J/psi-gun MASS term on the SAME material "
                         "parameters (step 4's joint test)")
-    p.add_argument("--mass-max-chi2-ndof", type=float, default=3.0)
+    # the TWO-TRACK mass table's, separately nameable because the two tables
+    # are different objects; same one value (`resolution/selection.py`)
+    p.add_argument("--mass-max-chi2-ndof", type=float,
+                   default=selection.MAX_CHI2_NDOF)
     p.add_argument("--mass-max-cands", type=int, default=0)
     p.add_argument("--with-alpha", action="store_true")
     return p.parse_args()
@@ -124,9 +132,13 @@ def build_mass_term(args, groups_file, ngroups, group_units, gparams_grp,
     keys = set(d.files)
     fams = [str(x) for x in d["families"]]
     n_all = len(d["sigma"])
-    keep = np.ones(n_all, bool)
-    if args.mass_max_chi2_ndof > 0.0:
-        keep = d["chi2ndof"] < args.mass_max_chi2_ndof
+    # ONLY the chi2 cut here: `extract_groups.py` has already applied the
+    # two-track cuts of the standard selection to this npz, and re-deriving
+    # them from an extraction's summary columns is not this card's job.
+    keep, _s = selection.standard(d, None, n=n_all,
+                                  max_chi2_ndof=args.mass_max_chi2_ndof,
+                                  max_abs_vtxz=0, min_leg_hits=0)
+    _s.log(lambda l: log("  mass: " + l))
     idx = np.where(keep)[0]
     if args.mass_max_cands and args.mass_max_cands < len(idx):
         idx = idx[: args.mass_max_cands]

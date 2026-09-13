@@ -1,0 +1,77 @@
+prodfiles: 1 tasks / 1 files (1 streams per task)
+1 files
+D catalog: 92 global parameters [14, 15]
+CF primitives imported in 133 s
+tau grid: 64 of 448 points, max 7.8926
+[1/1] task_0000: 400 sel, 0 drop, 6 cut -- cumulative 400 (564 s)
+
+=== summary ===
+standard two-track selection on 1875 candidates
+    Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+    finite sigma_m, sigma_v         1872  ( 99.84 %, -3)
+    min leg hits >= 8               1835  ( 97.87 %, -37)
+    |z_v| < 5                         --  (column absent: NOT APPLIED)
+    kept                            1835  ( 97.87 %)
+candidates          400
+rad model           1
+groups/candidate    mean 21.94  median 21  p1 16  p99 32  max 36
+hit rows/candidate  0.00
+exponent storage    27.42 kB/candidate raw (5 families x 64 pts x float32)
+flat equivalent     1.25 kB/candidate
+ioni pairing        10218 blocks, min xg gap 1.26, max dropped-xg fraction 4.23e-05
+
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/matres_ref0.npz (11.4 MB, 400 candidates)
+prodfiles: 1 tasks / 1 files (1 streams per task)
+1 files
+D catalog: 92 global parameters [14, 15]
+CF primitives imported in 93 s
+tau grid: 64 of 448 points, max 7.8926
+[1/1] task_0000: 400 sel, 0 drop, 6 cut -- cumulative 400 (649 s)
+
+=== summary ===
+standard candidate selection on 1875 candidates
+    Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+    finite sigma_m, sigma_v         1872  ( 99.84 %, -3)
+    min leg hits >= 8               1835  ( 97.87 %, -37)
+    chi2/ndof (off)                   --  (switched off: NOT APPLIED)
+    |z_v| < 5                         --  (column absent: NOT APPLIED)
+    kept                            1835  ( 97.87 %)
+candidates          400
+rad model           1
+groups/candidate    mean 21.94  median 21  p1 16  p99 32  max 36
+hit rows/candidate  0.00
+exponent storage    27.42 kB/candidate raw (5 families x 64 pts x float32)
+flat equivalent     1.25 kB/candidate
+ioni pairing        10218 blocks, min xg gap 1.26, max dropped-xg fraction 4.23e-05
+
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/matres_new0.npz (11.4 MB, 400 candidates)
+prodfiles: 1 tasks / 1 files (1 streams per task)
+1 files
+D catalog: 92 global parameters [14, 15]
+CF primitives imported in 112 s
+tau grid: 64 of 448 points, max 7.8926
+[1/1] task_0000: 400 sel, 0 drop, 7 cut -- cumulative 400 (658 s)
+
+=== summary ===
+standard candidate selection on 1875 candidates
+    Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+    finite sigma_m, sigma_v         1872  ( 99.84 %, -3)
+    min leg hits >= 8               1835  ( 97.87 %, -37)
+    chi2/ndof < 3                   1830  ( 97.60 %, -5)
+    |z_v| < 5                         --  (column absent: NOT APPLIED)
+    kept                            1830  ( 97.60 %)
+candidates          400
+rad model           1
+groups/candidate    mean 21.91  median 21  p1 16  p99 32  max 36
+hit rows/candidate  0.00
+exponent storage    27.39 kB/candidate raw (5 families x 64 pts x float32)
+flat equivalent     1.25 kB/candidate
+ioni pairing        10216 blocks, min xg gap 1.26, max dropped-xg fraction 4.23e-05
+
+wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/matres_new3.npz (11.4 MB, 400 candidates)
+/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/matres_ref0.npz
+/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/chi2cut/gates/matres_new0.npz
+  28 keys IDENTICAL, 0 differ, 1 skipped
+  BIT-IDENTICAL
+matres mass: chi2 off 400 candidates -> chi2/ndof < 3 400: 0 removed (0.000 %)
+  chi2/ndof: median 0.9258  p99 2.2037  max 5.828;  P(>3) = 0.250 %

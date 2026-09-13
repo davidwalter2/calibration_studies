@@ -11,6 +11,11 @@ import os
 import matplotlib.pyplot as plt
 import mplhep as hep
 import numpy as np
+
+import os as _os, sys as _sys  # noqa: E402
+_sys.path.insert(0, _os.path.join(_os.path.dirname(
+    _os.path.dirname(_os.path.abspath(__file__))), "resolution"))
+import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 from matplotlib.gridspec import GridSpec
 
 from wums import logging, output_tools, plot_tools
@@ -30,7 +35,8 @@ def parse_args():
     p.add_argument("--subtitle", default="work in progress")
     p.add_argument("--titlePos", type=int, default=2)
     p.add_argument("--max-sigma-rel", type=float, default=0.10)
-    p.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    p.add_argument("--max-chi2-ndof", type=float,
+                   default=_SEL.MAX_CHI2_NDOF)
     p.add_argument("--window", type=float, nargs=2, default=[60.0, 120.0])
     return p.parse_args()
 

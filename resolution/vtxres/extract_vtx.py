@@ -32,7 +32,7 @@ usage:
   source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
   python3 extract_vtx.py --files '<prod>/task_*/globalcor_*.root' \
       --functional vtx --groups .../materialGroups50.txt -j 24 \
-      --max-chi2-ndof 3 -o out.npz
+      -o out.npz
 """
 import argparse, glob, os, sys, time
 from multiprocessing import Pool
@@ -187,15 +187,14 @@ def process_file(fn):
     keep &= np.asarray(d["cfmass_ok"], bool) if "cfmass_ok" in d else True
     keep &= np.asarray(d["Jpsi_vtxsig"], np.float64) > 0
     keep &= np.asarray(d["Jpsi_sigmamass"], np.float64) > 0
-    if a.max_chi2_ndof > 0:
-        keep &= chi2n < a.max_chi2_ndof
     if "Jpsi_vtxvchk" in d and a.max_vchk > 0:
         keep &= np.abs(np.asarray(d["Jpsi_vtxvchk"], np.float64)) < a.max_vchk
-    # THE STANDARD TWO-TRACK SELECTION (`resolution/selection.py`): |z_v| < 5,
-    # weaker leg >= 8 valid hits, `Jpsi_vtxok`, finite sigma.  The vertex cut
-    # TRUNCATES the residual density, so a card built from this npz must be
-    # built with the matching normalisation (`make_vtx_card.py --vtx-window`,
-    # which defaults to the same number).
+    # THE STANDARD TWO-TRACK SELECTION (`resolution/selection.py`):
+    # `Jpsi_vtxok`, finite sigma, weaker leg >= 8 valid hits,
+    # `chi2/ndof < 3`, `|z_v| < 5`, in that order.  The vertex cut TRUNCATES
+    # the residual density, so a card built from this npz must be built with
+    # the matching normalisation (`make_vtx_card.py --vtx-window`, which
+    # defaults to the same number); the chi2 cut does not (STATE.md 15.8).
     stdmask, stdsumm = selection.standard(d, a, n=n0)
     keep &= stdmask
     idx = np.flatnonzero(keep)
@@ -340,7 +339,6 @@ def main():
                     default="vtx")
     ap.add_argument("--groups", required=True)
     ap.add_argument("-j", "--jobs", type=int, default=16)
-    ap.add_argument("--max-chi2-ndof", type=float, default=3.0)
     ap.add_argument("--max-vchk", type=float, default=1e-4,
                     help="cut on the maker's own closure figure -- a cut on "
                          "the FIT'S arithmetic, not on the residual")
@@ -386,7 +384,7 @@ def main():
     # the counts are AFTER this script's own chi2/vchk cuts, which run first.
     tot = selection.merge([st.get("sel") for st in stats])
     _selcfg = selection.from_args(a)
-    _selw, _selh = 0.0, 0
+    _selw, _selh, _selq = 0.0, 0, 0.0
     if tot is not None:
         tot.steps = [tuple(x) for x in tot.steps]
         tot.log(print)
@@ -398,6 +396,8 @@ def main():
                 _selw = float(_selcfg["max_abs_vtxz"])
             if tot.applied(f"min leg hits >= {_selcfg['min_leg_hits']}"):
                 _selh = int(_selcfg["min_leg_hits"])
+            if tot.applied(f"chi2/ndof < {_selcfg['max_chi2_ndof']:g}"):
+                _selq = float(_selcfg["max_chi2_ndof"])
 
     # the group catalog: names only, from the tier file
     gmap, _gp = G.read_groups(a.groups)
@@ -413,6 +413,7 @@ def main():
            # key as the default of `--vtx-norm-window`); 0 = untruncated.
            "sel_max_abs_vtxz": np.array(_selw),
            "sel_min_leg_hits": np.array(_selh),
+           "sel_max_chi2_ndof": np.array(_selq),
            "amount_convention": np.array("exp(k_g) per group, weights frozen")}
     scalars = [k for k in parts[0]
                if k not in ("tgrid", "grp_ptr", "hit_ptr", "grp_id", "hit_cls",

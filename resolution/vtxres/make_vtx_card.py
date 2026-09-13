@@ -166,6 +166,33 @@ def _vtx_norm_block(args, wnorm, sigma, tg, nt, ngroups, seg, gid, drop, arrs,
 BWPRIOR = [-1.0]
 
 
+def _keep_mask(args, n, name, log=print):
+    """`--keep-mask`, as a boolean over the extraction's rows (all-True if none).
+
+    A TRUTH-level or otherwise external restriction of the sample -- gen
+    signal only, say.  It is a SELECTION UNDER STUDY, not part of the standard
+    one, so it is applied here and said out loud rather than folded into
+    `selection.standard`.
+    """
+    fn = getattr(args, "keep_mask", None)
+    if not fn:
+        return np.ones(int(n), bool)
+    with np.load(fn, allow_pickle=False) as fh:
+        if "keep" in fh.files:
+            m = np.asarray(fh["keep"], bool)
+        elif "idx" in fh.files:
+            m = np.zeros(int(n), bool)
+            m[np.asarray(fh["idx"], np.int64)] = True
+        else:
+            raise SystemExit(f"{fn}: no `keep` and no `idx`")
+        lab = str(fh["label"]) if "label" in fh.files else "keep-mask"
+    if len(m) != int(n):
+        raise SystemExit(f"{fn}: mask of {len(m)} rows against {n} candidates")
+    log(f"  {name}: --keep-mask '{lab}' keeps {int(m.sum())}/{int(n)} "
+        f"({100.0*m.mean():.2f} %) -- a STUDY selection, not the standard one")
+    return m
+
+
 def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
                inj_groups, inj_hits, idx=None):
     """One MaterialCFTerm from an `extract_vtx.py` npz."""
@@ -175,13 +202,13 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     keys = set(d.files)
     n_all = len(d["sigma"])
     keep = np.ones(n_all, bool)
-    if args.max_chi2_ndof > 0:
-        keep &= d["chi2ndof"] < args.max_chi2_ndof
-    # THE STANDARD TWO-TRACK SELECTION on the npz, so the cut and the window
-    # it is normalised over are set in ONE place (`resolution/selection.py`).
-    # The extraction may already have applied it -- it is idempotent.
+    # THE STANDARD TWO-TRACK SELECTION on the npz -- `chi2/ndof < 3` and
+    # `|z_v| < 5` included -- so the cuts, and the window one of them is
+    # normalised over, are set in ONE place (`resolution/selection.py`).
+    # The extraction may already have applied it; it is idempotent.
     _m, _s = selection.standard(d, args, n=n_all)
     keep &= _m
+    keep &= _keep_mask(args, n_all, name, log)
     if idx is None:
         _s.log(lambda l: log("  " + name + ": " + l))
         idx = np.where(keep)[0]
@@ -445,6 +472,32 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
             log(f"  truncation normalisation on [-{wnorm:g}, {wnorm:g}] sigma, "
                 f"{len(norm['sigma'])} class(es), {args.norm_tpoints} t points")
     else:
+        # THE TWO MANDATORY MASS-TERM CORRECTIONS (RESOLUTION.md 2.1).  Off by
+        # default because this card was written to measure the RESOLUTION on a
+        # delta kernel, where they are small; ON whenever the fitted `alpha`
+        # is to be read as a momentum scale, because both are proportional to
+        # `sigma_m^2` and it is exactly the resolution the material parameters
+        # are moving.
+        #   1. the self-consistent resolution: `a_i = (1 + f_hit,i) sigma_i/m_i`
+        #      from `d ln sigma_m / d ln m = 1 + f_hit` (the `- f_ioni` part is
+        #      1.1e-3 and is dropped, as in `fullscale/make_card.py`);
+        #   2. the exact Jensen map, `s^2 = (sigma_i/m_i)^2`.  The angular fold
+        #      `f_ang` is NOT exported by `extract_vtx.py`, so `s^2` here is
+        #      the isotropic one -- stated, not hidden: with `f_ang` the term
+        #      would be `(1.5 - f_ang)/1.5` times this.
+        if args.mass_corrections:
+            mreco = np.abs(d["m0"][idx].astype(np.float64))
+            ares = (1.0 + vgf) * sigma / np.maximum(mreco, 1e-9)
+            js2 = (sigma / np.maximum(mreco, 1e-9)) ** 2
+            data["a_res"] = ares
+            data["jensen_s2"] = js2
+            kw.update(a_res=ares, self_consistent_sigma=True,
+                      jensen_s2=js2, jensen_mode="exact",
+                      corr_form=args.corr_form)
+            log(f"  mass corrections ON ({args.corr_form} form): "
+                f"a_res median {np.median(ares):.5f} max {np.abs(ares).max():.5f}; "
+                f"1.5 s^2 median {1.5*np.median(js2):.4e} "
+                f"-> {1.5*np.median(js2)*MREF[0]*1e3:.2f} MeV")
         dm = d["mgen"][idx] - MREF[0]
         tabs, phik = MGT.build_phik_table(dm, tg[-1] / max(sigma.min(), 1e-12), 4096)
         data["phik_t"] = tabs
@@ -496,10 +549,9 @@ def common_index(npz_list, args):
     for name, npz in npz_list:
         d = np.load(npz, allow_pickle=False)
         k = np.ones(len(d["sigma"]), bool)
-        if args.max_chi2_ndof > 0:
-            k &= d["chi2ndof"] < args.max_chi2_ndof
         _m, _s = selection.standard(d, args, n=len(k))
         k &= _m
+        k &= _keep_mask(args, len(k), name, log)
         _s.log(lambda l: log("  " + name + ": " + l))
         if args.max_abs_z > 0:
             mref0 = MREF[0] if name == "mass" else 0.0
@@ -545,7 +597,6 @@ def main():
     p.add_argument("--amount-mode", choices=["exp", "linear"], default="exp")
     p.add_argument("--hit-mode", choices=["exp", "linear"], default="linear")
     p.add_argument("--no-hits", action="store_true")
-    p.add_argument("--max-chi2-ndof", type=float, default=3.0)
     p.add_argument("--maxn", type=int, default=0)
     p.add_argument("--prune-frac", type=float, default=1e-3)
     p.add_argument("--hit-prior", type=float, default=1.0)
@@ -577,6 +628,22 @@ def main():
                    help="drop candidates beyond this pull: the Gaussian arms' "
                         "density underflows float64 there, so no arm could be "
                         "compared with them in. Applied to every arm alike.")
+    p.add_argument("--mass-corrections", action="store_true",
+                   help="switch the mass term's TWO mandatory corrections on "
+                        "(the self-consistent resolution `a_res` and the exact "
+                        "Jensen map). Required whenever `alpha` is read as a "
+                        "momentum scale")
+    p.add_argument("--corr-form", choices=["residual", "fluctuation"],
+                   default="residual",
+                   help="WHERE the two corrections act. `residual` is exact at "
+                        "a DELTA kernel (the J/psi gun, whose kernel is the "
+                        "gen mass); `fluctuation` is the one defined for a "
+                        "WIDE kernel (a Z, whose gen mass spans the window)")
+    p.add_argument("--keep-mask", default=None,
+                   help="npz carrying a boolean `keep` (or an integer `idx`) "
+                        "over the EXTRACTION's rows, ANDed into the selection. "
+                        "For a TRUTH-level restriction -- gen signal only -- "
+                        "which is a study selection and is logged as one")
     p.add_argument("--alpha", action="store_true",
                    help="float the MOMENTUM SCALE `alpha` (units 1e-3) on the "
                         "mass channel. Free, no prior; the vertex channels "

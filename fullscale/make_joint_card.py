@@ -193,6 +193,8 @@ for _p in (HERE, _RES, _GF):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import selection  # noqa: E402  (the standard selection owns the cut values)
+
 MJPSI = 3.0969
 MZ_REF = 91.1876
 
@@ -262,7 +264,10 @@ def parse_args(argv=None):
                    help="abort if the group block would exceed this many CSR "
                         "rows (a guard against building a 100 GB card by "
                         "accident). 0 = no limit.")
-    p.add_argument("--max-chi2-ndof", type=float, default=3.0)
+    # forwarded to BOTH legs' `make_card` (and there it is the standard
+    # selection's own flag -- `resolution/selection.py`, one default)
+    p.add_argument("--max-chi2-ndof", type=float,
+                   default=selection.MAX_CHI2_NDOF)
     p.add_argument("--max-sigma-rel", type=float, default=0.10)
     p.add_argument("--chunk", type=int, default=32768,
                    help="candidates per accumulation chunk. CHOOSE IT HERE, "
