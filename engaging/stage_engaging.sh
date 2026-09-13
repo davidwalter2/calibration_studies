@@ -20,22 +20,21 @@ mkdir -p "$TMP"; trap 'rm -rf "$TMP"' EXIT
 eng-master   # 8 h multiplexed master; may need a human Duo touch (see README)
 
 if [ "$STAGE" = code ] || [ "$STAGE" = all ]; then
-  echo "=== rabbit (branch unbinned-mass-term) via git bundle"
+  echo "=== rabbit (branch vmass-conditioning) via git bundle"
   # A bundle keeps the transfer to one 6 MB file and does not depend on
   # Engaging being able to reach github.com.
-  git -C "$ZM/rabbit" bundle create "$TMP/rabbit.bundle" \
-      unbinned-mass-term global-term-card main
+  git -C "$ZM/rabbit-vmass" bundle create "$TMP/rabbit.bundle" vmass-conditioning
   rsync -a "$TMP/rabbit.bundle" $DEST/
   eng 'bash -lc "
     cd ~/orcd/pool/zmass
     if [ -d rabbit/.git ]; then
       git -C rabbit fetch -f ../rabbit.bundle \
-          unbinned-mass-term:unbinned-mass-term global-term-card:global-term-card main:main
+          vmass-conditioning:vmass-conditioning
     else
-      git clone -b unbinned-mass-term rabbit.bundle rabbit
+      git clone -b vmass-conditioning rabbit.bundle rabbit
       git -C rabbit remote set-url origin https://github.com/WMass/rabbit
     fi
-    git -C rabbit checkout -q unbinned-mass-term && git -C rabbit log --oneline -1
+    git -C rabbit checkout -q vmass-conditioning && git -C rabbit log --oneline -1
   "'
 
   echo "=== resolution scripts"

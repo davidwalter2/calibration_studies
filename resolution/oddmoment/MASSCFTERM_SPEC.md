@@ -15,8 +15,7 @@ matters, and each produces a deterministic per-candidate location shift:
 They have opposite signs and partially cancel, so neither may be put in alone.
 
 **Status.** Both are implemented in rabbit (`MassCFTerm`, worktree
-`/work/submit/david_w/ZMass/rabbit-material`, branch `material-resolution` and
-its descendants `material-resolution-native`, `vmass-conditioning`) in the
+`/work/submit/david_w/ZMass/rabbit-vmass`, branch `vmass-conditioning`) in the
 **fluctuation form** of section 4, which is the form to use; `jensen_mode`
 defaults to `exact`. The offline reference implementation is
 `calibration_studies/resolution/oddmoment/masslik_np.py`. This file is the
@@ -364,7 +363,7 @@ B -> J/psi X v3. Sources: `oddmoment/out/{toyfits,realfits,jensenfits}.txt`.
 
 ### The fluctuation form
 
-Unit tests (`rabbit-material/tests/test_fluctuation.py`, 7/7): no correction is
+Unit tests (`rabbit-vmass/tests/test_fluctuation.py`, 7/7): no correction is
 bit-identical in either form; the density sampled on a mass grid normalises to
 1.0000000000 and its mean equals the closed form to 1e-10 in all three arms; at
 a DELTA kernel the two forms' corrections agree to 0.0007e-3; over a +-27 sigma

@@ -10,7 +10,7 @@ map, export list and the full defect list are in `production/PRODUCTIONS.md`.
 | output | `/ceph/submit/data/user/d/david_w/ZMass/cvh/dymc_8p5M_260906_v2/task_XXXX/globalcor_<0..3>.root` |
 | chunks | `production/chunks_dymc_8p5M_260905.txt` — **380** tasks, 104 files, 8 502 597 events |
 | result | **380/380**, 4 stream files + `.complete` each, **3 799 624 candidates** (0.447/event; 6 104 fit failures = 0.16 %: `prop` 3 594, `kinfit` 2 301, `ndof` 208, `nan` 1), **267 GB** |
-| CMSSW | `CMSSW_15_0_19_patch2_dev2` @ `fab515e` (`cvh-exports-260906`) |
+| CMSSW | `CMSSW_15_0_19_patch2_dev2` @ `fab515e` (then `cvh-exports-260906`, merged into `cvh-exports-clean-260911` and deleted 2026-09-13; the SHA still resolves) |
 | driver | `Analysis/HitAnalyzer/test/runCvhDimuonMiniAOD.py` |
 | exports | the 260905 set + `exportCfGroupExponents=True exportMaterialNoise=True exportVarianceGrads=True varianceGradFamilies=15` |
 | resources | **4 threads**, `request_memory = 5000` MB, `request_disk = 4 000 000` KB, `max_retries = 3` |

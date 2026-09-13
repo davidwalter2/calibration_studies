@@ -6,8 +6,8 @@ against a resonance of known, essentially zero-width mass. The Z channel fits
 directory is that channel: the FSR kernel, the acceptance, the datacard builder,
 the fit driver, a systematics scan and the generator-level closure.
 
-Everything downstream of `MassCFTerm` lives on the rabbit branch
-`z-lineshape-kernel` (worktree `/work/submit/david_w/ZMass/rabbit-zlineshape`):
+Everything downstream of `MassCFTerm` lives on the rabbit working branch
+`vmass-conditioning` (worktree `/work/submit/david_w/ZMass/rabbit-vmass`):
 the `ZGammaLineshape` provider, `TabulatedLineshapeKernel`, and the truncated
 likelihood (`norm_window`) this channel needs.
 
@@ -187,7 +187,7 @@ environment:
 
 ```bash
 IMG=/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/bendavid/cmswmassdocker/wmassdevrolling:latest
-export APPTAINERENV_PYTHONPATH=/work/submit/david_w/ZMass/rabbit-zlineshape:\
+export APPTAINERENV_PYTHONPATH=/work/submit/david_w/ZMass/rabbit-vmass:\
 /work/submit/david_w/WRemnants_dev/wums:\
 /work/submit/david_w/ZMass/calibration_studies/env_tf/pypath
 singularity exec -B /work/submit,/home/submit,/scratch/submit,/tmp,/ceph/submit "$IMG" python ...

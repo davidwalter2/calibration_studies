@@ -83,7 +83,7 @@ deactivate
 
 run_tf.sh python3 make_global_term.py -i $RUNS/extract_quadonly.npz \
         --parmtypes 14 --groups $GRP --no-mass --whiten -o $RUNS/cards/quad.hdf5
-run_tf.sh bash -c 'PATH=/work/submit/david_w/ZMass/rabbit/bin:$PATH \
+run_tf.sh bash -c 'PATH=/work/submit/david_w/ZMass/rabbit-vmass/bin:$PATH \
         rabbit_fit.py '$RUNS'/cards/quad.hdf5 -o '$RUNS'/fits/quad -t 0 --unblind \
         --minimizerMethod trust-exact --paramModel ExternalParams bundle:global_params'
 run_tf.sh python3 compare_fit.py --fit $RUNS/fits/quad/fitresults.hdf5 --ref $RUNS/reference.npz
@@ -118,12 +118,14 @@ At production scale the same entry point builds the full-scale cards, e.g.
 
 ## Results
 
-### rabbit branch `global-term-card` — all six unit checks PASS
+### rabbit — all six unit checks PASS
 
-`/work/submit/david_w/ZMass/rabbit`, branch `global-term-card` (5 commits on
-`unbinned-mass-term`): `371954b` `ExternalParams`, `a3e1065` the XLA
-empty-block guard, `6067d74` the joint test + CLAUDE.md section, `44c9142` the
-freeze/injection fixes, `4bb47e6` the quadratic-only recipe.
+`/work/submit/david_w/ZMass/rabbit-vmass`, branch `vmass-conditioning`. The
+five commits this section was written against — `371954b` `ExternalParams`,
+`a3e1065` the XLA empty-block guard, `6067d74` the joint test + CLAUDE.md
+section, `44c9142` the freeze/injection fixes, `4bb47e6` the quadratic-only
+recipe — were carried on the since-deleted `global-term-card` and are now
+ancestors of the working branch.
 `OMP_NUM_THREADS=8`, ~8 min:
 
 | check | result |

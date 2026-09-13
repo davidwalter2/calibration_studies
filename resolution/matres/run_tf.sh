@@ -1,11 +1,11 @@
 #!/bin/bash
-# Run a python script in the rabbit TensorFlow environment, against the
-# `material-resolution` rabbit worktree.  Same image and shims as
+# Run a python script in the rabbit TensorFlow environment, against the ONE
+# rabbit worktree (`rabbit-vmass`, branch `vmass-conditioning`).  Same image and shims as
 # calibration_studies/env_tf/run_tf.sh; /ceph/submit is bound only when it is
 # actually mounted (submit82's ceph is evicted and an unmounted bind aborts
 # the container).
 IMG=/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/bendavid/cmswmassdocker/wmassdevrolling:latest
-RABBIT=/work/submit/david_w/ZMass/rabbit-material
+RABBIT=/work/submit/david_w/ZMass/rabbit-vmass
 CS=/work/submit/david_w/ZMass/calibration_studies
 export APPTAINERENV_PYTHONPATH=$RABBIT:/work/submit/david_w/WRemnants_dev/wums:$CS/resolution:$CS/resolution/matres
 export APPTAINERENV_TF_CPP_MIN_LOG_LEVEL=2

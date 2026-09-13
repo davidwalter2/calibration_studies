@@ -546,10 +546,11 @@ THREADS=24 $FS/run_tf.sh python3 -u $FS/gate_fluct_gun.py \
 `./collect.sh --summary` is the one command to run first on any fresh session.
 
 **The fit code** is `/work/submit/david_w/ZMass/rabbit-vmass`, branch
-`vmass-conditioning` — `material-resolution` + `z-lineshape-kernel` +
+`vmass-conditioning` — the material CF term + the Z lineshape kernel +
 the native-minimiser PRs (#153 native TF trust-region minimizers, #154
-multi-device, #155 snapshots) + the `vpow` change of variable. It is not on
-any remote.
+multi-device, #155 snapshots) + the `vpow` change of variable, all merged
+into this ONE branch (2026-09-13); it is the only rabbit branch and the only
+rabbit worktree. It is not on any remote.
 
 **Tools.** `make_card.py`, `make_joint_card.py` (`--material` for phase 3),
 `gate_fd.py`, `gate_fluct_gun.py`, `gate_nanstep.py`, `certtable.py`,

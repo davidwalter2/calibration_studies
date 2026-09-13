@@ -39,8 +39,8 @@ Batch jobs are unaffected by this; only the control channel is.
 | path | what |
 |---|---|
 | `~/orcd/pool/env/tf` | conda env: python 3.13, TF 2.21 + CUDA wheels (~5.6 GB) |
-| `~/orcd/pool/zmass/rabbit` | rabbit checkout, branch `unbinned-mass-term` |
-| `~/orcd/pool/zmass/rabbit_native` | rabbit checkout, branch `material-resolution-native` (kept separate so a stage cannot change the code under a running fit) |
+| `~/orcd/pool/zmass/rabbit-vmass` | rabbit checkout, branch `vmass-conditioning` — **the working branch**, what `rabbit_vmass*.sbatch`, `fullscale_gpu_vmass.sbatch`, `build_phase3.sbatch` and `nanstep.sbatch` read; staged by `stage_native.sh` |
+| `~/orcd/pool/zmass/rabbit` | a second checkout of the SAME branch, staged by `stage_engaging.sh` / `stage_eng.sh` (kept separate so a stage cannot change the code under a running fit) |
 | `~/orcd/pool/zmass/resolution` | `cf_*.py` + `runs/` npz caches |
 | `~/orcd/pool/zmass/fullscale`, `fullscale_native` | the full-scale drivers |
 | `~/orcd/pool/zmass/zchannel/data` | Z kernels / acceptance |
@@ -65,10 +65,10 @@ Always push from submit; Engaging can pull nothing itself.
 
 ```bash
 cd /work/submit/david_w/ZMass/calibration_studies/engaging
-./stage_engaging.sh code      # rabbit bundle (unbinned-mass-term) + cf_*.py + wums + these scripts
+./stage_engaging.sh code      # rabbit bundle (vmass-conditioning) + cf_*.py + wums + these scripts
 ./stage_engaging.sh caches    # the npz caches, 4 parallel rsync streams
 ./stage_engaging.sh           # both
-./stage_native.sh code        # the rabbit-native sandbox only (touches no shared dir)
+./stage_native.sh code        # the working branch into rabbit-vmass only (touches no shared dir)
 ./stage_native.sh card <path> # one datacard into the shared cards/ (append only)
 ./stage_phase3.sh             # the phase-3 inputs, so the ~36 GB card is BUILT there
 ```
@@ -84,7 +84,7 @@ Measured submit → Engaging over the `eng` master, 4 parallel rsync streams:
 A single stream is per-stream limited near 50–90 MB/s, so parallelising is worth
 it. rsync skips identical files, so re-running after a code edit costs seconds.
 
-rabbit travels as a **`git bundle`** rather than a working-tree copy: one file,
+rabbit travels as a **`git bundle`** of `vmass-conditioning` rather than a working-tree copy: one file,
 full history, and it does not depend on Engaging reaching github.com. On the far
 side it is `git clone`d and `origin` repointed at
 `https://github.com/WMass/rabbit`.
@@ -216,7 +216,7 @@ is an `H5PickleProxy` that needs `.get()` before `.axes` / `.values()`.
 | file | what |
 |---|---|
 | `setup_env_engaging.sh` | build (`--install`) / activate the env |
-| `stage_engaging.sh`, `stage_native.sh`, `stage_phase3.sh` | push code / caches / phase-3 inputs from submit |
+| `stage_engaging.sh`, `stage_native.sh`, `stage_phase3.sh` | push code / caches / phase-3 inputs from submit (all three bundle the ONE branch, `vmass-conditioning`) |
 | `masslik_fit_gpu.sbatch` | GPU: bench + the two mass fits + rabbit (`STAGES=`) |
 | `rabbit_cpu.sbatch`, `rabbit_native.sbatch`, `rabbit_vmass*.sbatch` | `rabbit_fit.py` on host memory / through the native TF minimiser / in the v-form, and a batch of certified rows on one GPU |
 | `fullscale_gpu.sbatch`, `fullscale_gpu_native.sbatch`, `fullscale_gpu_vmass.sbatch` | the full-scale Z fit (scipy / native `tf-trust-krylov` / v-form) |

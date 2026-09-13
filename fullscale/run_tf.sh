@@ -1,17 +1,16 @@
 #!/bin/bash
 # Run a python script of `fullscale/` in the rabbit TF environment, with the
-# MERGED rabbit worktree first on PYTHONPATH.
+# rabbit worktree first on PYTHONPATH.
 #
-# The merged branch is `material-resolution` after `z-lineshape-kernel` was
-# merged into it: the corrections and MaterialCFTerm of the first, the
-# provider/norm_window/upsample of the second. Neither parent alone can build
-# this card.
+# That is `rabbit-vmass`, branch `vmass-conditioning` — the ONE branch, which
+# carries both the corrections + MaterialCFTerm and the
+# provider/norm_window/upsample this card needs.
 #
 #   RABBIT=<path>   override the worktree (e.g. the merge sandbox)
 #   THREADS=<n>     intra-op threads (default 32)
 #   --ceph          add the /ceph bind (only the pairs extraction needs it)
 IMG=/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/bendavid/cmswmassdocker/wmassdevrolling:latest
-RABBIT=${RABBIT:-/work/submit/david_w/ZMass/rabbit-material}
+RABBIT=${RABBIT:-/work/submit/david_w/ZMass/rabbit-vmass}
 THREADS=${THREADS:-32}
 BINDS="/work/submit,/home/submit,/scratch/submit,/tmp,/cvmfs"
 if [ "${1:-}" = "--ceph" ]; then BINDS="$BINDS,/ceph/submit"; shift; fi

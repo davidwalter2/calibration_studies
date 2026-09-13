@@ -12,7 +12,7 @@ condor leg is a grid job, the payload/routing/stage-out contract) are in
 | output | `/ceph/submit/data/user/d/david_w/ZMass/cvh/jpsimc_20M_260906_v2/task_XXXX/globalcor_<0..3>.root` |
 | chunks | `chunks_jpsimc_20M_260906_v2.txt` — **1645** tasks, 410 files, 21 750 740 events |
 | result | **1645/1645**, 4 stream files + `.complete` each, **21 678 062 candidates** (0.9967/event, 0.0067 % fit failures), **1.5 TB** |
-| CMSSW | `CMSSW_15_0_19_patch2_dev2` @ `fab515e` (`cvh-exports-260906`); the 20 recovered tasks @ `ca6058d` |
+| CMSSW | `CMSSW_15_0_19_patch2_dev2` @ `fab515e` (then `cvh-exports-260906`, merged into `cvh-exports-clean-260911` and deleted 2026-09-13; the SHA still resolves); the 20 recovered tasks @ `ca6058d` |
 | driver | `Analysis/HitAnalyzer/test/runCvhJpsiGenMC.py` |
 | exports | the 260905 set + `exportCfGroupExponents=True exportMaterialNoise=True exportVarianceGrads=True varianceGradFamilies=15` |
 | resources | **4 threads**, `request_memory = 5000` MB, `request_disk = 6 000 000` KB, `max_retries = 3` |

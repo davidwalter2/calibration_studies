@@ -813,9 +813,9 @@ def build(args, log=print):
         background = unbinned.BernsteinBackground(
             (lo, hi), [f"bkg_c{i}" for i in range(args.bernstein_degree + 1)])
 
-    # The two corrections live on `material-resolution` (a_res) and this
-    # file's Jensen patch; the provider lives on `z-lineshape-kernel`. A rabbit
-    # that has only one of them must FAIL here, not silently write a card
+    # The two corrections (a_res, and this file's Jensen patch) and the
+    # lineshape provider all live on the working branch `vmass-conditioning`.
+    # A rabbit that has only one of them must FAIL here, not silently write a card
     # without the correction: an unmarked missing 20 MeV is the worst possible
     # outcome.
     import inspect
@@ -825,7 +825,7 @@ def build(args, log=print):
         if "a_res" not in sig:
             raise SystemExit(
                 "this rabbit's MassCFTerm has no `a_res`: it is not the "
-                "material-resolution branch (or its merge). Re-run with "
+                "`vmass-conditioning` working branch. Re-run with "
                 "--ares off only if you really want the uncorrected card.")
         kw2.update(a_res=a_res, self_consistent_sigma=(args.ares == "on"))
     if args.jensen != "off":

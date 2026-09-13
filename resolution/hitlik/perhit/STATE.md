@@ -123,8 +123,9 @@ SAME tracks.  With `genParms[4]` fixed in the maker, all five are usable.
 ### The maker
 
 Area `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2`, branch
-`perhit-residual-cf-260910`, commits **`d1d10985cc9`** (the export) and
-**`86380e52d35`** (the whitener and the sign).  Config switches on
+`cvh-exports-clean-260911` (the ONE working branch), commits **`d1d10985cc9`**
+(the export) and **`86380e52d35`** (the whitener and the sign) — written on the
+since-deleted `perhit-residual-cf-260910`, now ancestors of the working branch.  Config switches on
 `Analysis/HitAnalyzer/test/runCvhResClosure.py`, all off/neutral by default:
 `exportPerHitResidual` (False), `perHitCfGroups` (True), `perHitRefComponents`
 (True), `perHitShareMin` (0.0).

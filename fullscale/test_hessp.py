@@ -2,7 +2,7 @@
 import os, sys, time
 import numpy as np, tensorflow as tf
 sys.path.insert(0, "/work/submit/david_w/ZMass/calibration_studies/fullscale")
-sys.path.insert(0, "/work/submit/david_w/ZMass/rabbit-material")
+sys.path.insert(0, "/work/submit/david_w/ZMass/rabbit-vmass")
 import h5py
 from rabbit import unbinned
 from chunkfit import ChunkedObjective

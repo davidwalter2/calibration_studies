@@ -9,7 +9,7 @@ Two logical CPU devices stand in for two GPUs when no GPU is present -- the
 placement, the per-shard tapes and the cross-device add are all exercised;
 only the bandwidth is different.
 
-    RABBIT=../../rabbit-native ./run_tf.sh python3 -u test_shardobj.py \
+    RABBIT=../../rabbit-vmass ./run_tf.sh python3 -u test_shardobj.py \
         --card cards/smoke_zls.hdf5 --chunk 4096 --shards 1 2 3
 """
 import argparse

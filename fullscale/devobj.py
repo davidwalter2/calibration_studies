@@ -75,9 +75,9 @@ class DeviceChunkedObjective(ChunkedObjective):
             from rabbit.unbinned import ChunkTable  # noqa: F401
         except ImportError:
             raise ImportError(
-                "the device chunk loop needs rabbit.unbinned.ChunkTable (the "
-                "native-minimizer merge, branch material-resolution-native); "
-                "point RABBIT= at that worktree or use ChunkedObjective"
+                "the device chunk loop needs rabbit.unbinned.ChunkTable (on the "
+                "working branch `vmass-conditioning`); point RABBIT= at "
+                "rabbit-vmass or use ChunkedObjective"
             )
         super().__init__(terms, free=free, hess_mode="hvp", chunk=chunk, log=log)
         bad = [

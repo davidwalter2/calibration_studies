@@ -5,13 +5,13 @@
 #SBATCH --time=05:30:00
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=120G
-# Full-scale Z fit on a GPU through the NATIVE TF minimiser (rabbit-native,
-# branch vmass-conditioning (cut FROM material-resolution-native, so it has the
-# native minimiser too): `--method tf-trust-krylov` implies
+# Full-scale Z fit on a GPU through the NATIVE TF minimiser (rabbit-vmass,
+# branch vmass-conditioning (it carries the native minimiser too):
+# `--method tf-trust-krylov` implies
 # `--engine device`, measured 16x the scipy trust-exact default on the full
 # card -- 1206 s against 19 600 s, parameters agreeing to 9.8e-7 relative).
 # It needs `rabbit.unbinned.ChunkTable`, which is ONLY on that branch, so the
-# PYTHONPATH points at `$ZMASS/rabbit-native` and not `$ZMASS/rabbit`.
+# PYTHONPATH points at `$ZMASS/rabbit-vmass` and not `$ZMASS/rabbit`.
 #
 # Submit with:
 #   sbatch -A mit_general -G h200:1 -p mit_normal_gpu \

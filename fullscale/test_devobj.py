@@ -4,7 +4,7 @@ reproduce scipy, on a real card.
 
 Run as a script (not pytest), like the other fullscale checks::
 
-    RABBIT=../../rabbit-native ./run_tf.sh python3 -u test_devobj.py \
+    RABBIT=../../rabbit-vmass ./run_tf.sh python3 -u test_devobj.py \
         --card cards/smoke_zls.hdf5 --chunk 8192
 
 Checks

@@ -25,9 +25,9 @@ This checks, on a real card:
    and its EDM.
 
 usage:
-    RABBIT=../../rabbit-native ./run_tf.sh python3 -u test_rabbit_path.py \
+    RABBIT=../../rabbit-vmass ./run_tf.sh python3 -u test_rabbit_path.py \
         --card cards/z_n300k.hdf5
-    RABBIT=../../rabbit-native ./run_tf.sh python3 -u test_rabbit_path.py \
+    RABBIT=../../rabbit-vmass ./run_tf.sh python3 -u test_rabbit_path.py \
         --card cards/joint_smoke.hdf5 \
         --model "ExternalParams bundle:global_params"
 """

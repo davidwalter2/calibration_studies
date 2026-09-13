@@ -43,7 +43,7 @@ resolution closures (`cvh/hitres*`), and the 2016 DATA calibration productions
 
 | | |
 |---|---|
-| CMSSW area | `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2`, branch **`cvh-exports-260906`** |
+| CMSSW area | `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2`, branch **`cvh-exports-clean-260911`** (the one working branch since 2026-09-13; `cvh-exports-260906` was merged into it and deleted) |
 | spare | `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev`, branch `WmassNanoProd_15_0_19_patch2_dev`, fast-forwarded to the same commit and rebuilt — identical tree, built |
 | release / arch | `CMSSW_15_0_19_patch2`, `el9_amd64_gcc12` (runs natively on submit; no container) |
 | drivers | J/psi: `Analysis/HitAnalyzer/test/runCvhJpsiGenMC.py`  ·  Z: `runCvhDimuonMiniAOD.py` |
@@ -53,8 +53,8 @@ Every live script (`condor_{jpsimc,dymc}_v2/config_*.sh`, `array_jpsimc_v2.sbatc
 `array_dymc_dev2.sbatch`, `threadscan/run_scan.sh`, `repack_fix_260907/*`)
 defaults to **dev2**.
 
-**Keeping the two areas in step:** commit on `cvh-exports-260906` in dev2; when
-validated, `git merge --ff-only cvh-exports-260906` in dev and rebuild. If that
+**Keeping the two areas in step:** commit on `cvh-exports-clean-260911` in dev2;
+when validated, `git merge --ff-only cvh-exports-clean-260911` in dev and rebuild. If that
 merge is ever *not* a fast-forward the two have diverged and the divergence must
 be understood before either runs a production. Sparse-checkout files are
 **per worktree** (`.git/info/` vs `.git/worktrees/src/info/`), so a pattern added

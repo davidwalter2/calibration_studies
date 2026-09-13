@@ -18,21 +18,20 @@ eng-master
 
 case "${1:-code}" in
 code)
-  echo "=== merged rabbit (branch material-resolution) via git bundle"
-  git -C "$ZM/rabbit" bundle create "$TMP/rabbit_material.bundle" \
-      material-resolution z-lineshape-kernel unbinned-mass-term main
-  rsync -a "$TMP/rabbit_material.bundle" $DEST/
+  echo "=== rabbit (branch vmass-conditioning) via git bundle"
+  git -C "$ZM/rabbit-vmass" bundle create "$TMP/rabbit_vmass.bundle" vmass-conditioning
+  rsync -a "$TMP/rabbit_vmass.bundle" $DEST/
   # git refuses to fetch into a CHECKED-OUT branch, so detach first
   eng 'bash -lc "
     cd ~/orcd/pool/zmass
     if [ -d rabbit/.git ]; then
       git -C rabbit checkout -q --detach
-      git -C rabbit fetch -f ../rabbit_material.bundle \
-          material-resolution:material-resolution
+      git -C rabbit fetch -f ../rabbit_vmass.bundle \
+          vmass-conditioning:vmass-conditioning
     else
-      git clone -b material-resolution rabbit_material.bundle rabbit
+      git clone -b vmass-conditioning rabbit_vmass.bundle rabbit
     fi
-    git -C rabbit checkout -q material-resolution && git -C rabbit log --oneline -1
+    git -C rabbit checkout -q vmass-conditioning && git -C rabbit log --oneline -1
   "'
   echo "=== fullscale scripts"
   rsync -a --include='*.py' --include='*.sh' --exclude='*' "$FS/" $DEST/fullscale/

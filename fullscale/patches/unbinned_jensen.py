@@ -7,7 +7,7 @@ has a nonzero mean, 1/2 tr(H Sigma)/m = (3A + B)/8 = 1.5 (sigma_m/m)^2 for
 m ~ (kappa1 kappa2)^{-1/2} with uncorrelated legs. At Z resolutions that is
 15-43 MeV -- see MASSCFTERM_SPEC.md sec. 4b.
 
-The branch `material-resolution` ships the three HOOKS this needs
+The working branch `vmass-conditioning` ships the three HOOKS this needs
 (`_chunk_mean_shift`, `_chunk_residual`, `_chunk_logjac`) and no
 implementation. This is the implementation, transcribed from the validated
 offline reference `resolution/oddmoment/masslik_np.py` (`_delta`, `_chunk_L`),
@@ -60,7 +60,7 @@ def patch(path):
     m = re.search(r"\n(        self_consistent_sigma=True,\n)", s)
     if m is None:
         raise SystemExit("the self_consistent_sigma keyword was not found -- "
-                         "this file is not the material-resolution MassCFTerm")
+                         "this file is not the working-branch MassCFTerm")
     s = (s[: m.end(1)]
          + "        jensen_s2=None,\n"
            "        jensen_mode=\"exact\",\n"

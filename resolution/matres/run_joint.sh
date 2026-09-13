@@ -32,7 +32,7 @@ case $step in
               # a joint card declares everything through the unbinned term.
               MODELS=$(./run_tf.sh python3 pick_models.py $RUNS/cards/$name.hdf5 2>/dev/null | tail -1)
               echo "param models: $MODELS"
-              ./run_tf.sh bash -c "PATH=/work/submit/david_w/ZMass/rabbit-material/bin:\$PATH \
+              ./run_tf.sh bash -c "PATH=/work/submit/david_w/ZMass/rabbit-vmass/bin:\$PATH \
                  rabbit_fit.py $RUNS/cards/$name.hdf5 -o $RUNS/fits/$name -t 0 --unblind \
                  $MODELS $*" ;;
   report)     ./run_tf.sh python3 -u report_fit.py "$@" ;;
