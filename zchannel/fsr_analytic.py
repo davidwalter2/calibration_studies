@@ -965,10 +965,13 @@ def _dilog(z):
     z = np.asarray(z, float)
     lo = np.minimum(z, 0.5)
     d_lo = -dilog_neg(lo / (1.0 - lo)) - 0.5 * np.log1p(-lo) ** 2
-    hi = np.maximum(1.0 - z, 1e-300)
+    # the z <= 1/2 branch is the one used there; clamp the other so that the
+    # unselected half of the `where` does not raise on z -> 0
+    hi = np.clip(1.0 - z, 1e-300, 0.5)
     d_hi_1mz = -dilog_neg(hi / (1.0 - hi)) - 0.5 * np.log1p(-hi) ** 2
     with np.errstate(divide="ignore", invalid="ignore"):
-        d_hi = (math.pi**2 / 6.0 - np.log(np.maximum(z, 1e-300)) * np.log(hi)
+        d_hi = (math.pi**2 / 6.0
+                - np.log(np.maximum(z, 1e-300)) * np.log(np.maximum(1.0 - z, 1e-300))
                 - d_hi_1mz)
     return np.where(z <= 0.5, d_lo, d_hi)
 
