@@ -27,7 +27,7 @@ generator-level validation it rests on.
 | `run_gen_dump.sh` | shard `dump_gen_fsr.py` over the full DY MiniAOD filelist |
 | `merge_gen.py` | merge the per-file gen dumps into one compact npz |
 | `zfsr_kernel.py` | those samples → the empirical FSR kernel CF `phi_K(t)`, plus diagnostics |
-| `fsr_analytic.py` | the **analytic** QED FSR kernel: exact O(α) + exponentiation + O(α²)LL + pair emission, and the exact matrix element it is validated against |
+| `fsr_analytic.py` | the **analytic** QED FSR kernel: exact O(α) + exponentiation + O(α²)LL+NLL + the exact O(α²) pair radiator, and the exact matrix elements both are validated against |
 | `cmp_fsr.py` | the analytic kernel against the Photos++ generator record (figures + moment tables) |
 | `fit_gen.py` | **generator-level closure**: FSR kernel, acceptance, and the fit |
 | `kern_from_selected.py` | rebuild the kernel *and* `A(m)` from the gen record of the SELECTED reconstructed candidates |
@@ -38,6 +38,7 @@ generator-level validation it rests on.
 | `check_tgrid.py` | is the in-maker's 64-point τ grid fine enough? (no — see below) |
 | `make_lumi_scale.py` | parton-luminosity tables at μ_F = k Q (scale systematic) |
 | `plot_gen.py` | the closure figures |
+| `plot_pairs.py` | the pair-emission figures: exact vs eikonal vs leading log vs Photos |
 | `run_tf_z.sh` | run a script in the rabbit TF image with this branch on the path |
 | `data/generator_settings_*.md` | **the generator's own parameters** (committed) |
 | `data/` | gen dumps, kernels, acceptances, caches, cards — all regenerable, git-ignored |
@@ -709,32 +710,130 @@ numerical rescale anywhere. `G = P1T/2 + A - (pi^2/3 - 5/4)(1+z)`, built from:
 **Scheme.** The abelian kernel above is the complete *photonic* two-loop
 splitting function of QED: `C_F C_A` has no QED analogue, and the `n_f T_F`
 terms need a real fermion pair. Those belong to the pair sector, which the
-kernel treats separately through `beta_pair` at leading log — nothing is double
-counted, and the pair sector's own O(alpha^2 L) terms stay inside the ~1/L = 8 %
-uncertainty `beta_pair` already carries (8 % of 1.4 % of the radiator).
+kernel carries **exactly at O(α²)** through `pair_radiator` — nothing is double
+counted, and the `n_f` sector is then complete to the same order as the
+photonic one.
 
 **`oalpha`**, fixed-order O(alpha) with a soft cutoff `x_cut`: a delta at `z = 1`
 carrying `1 - P(x > x_cut)` plus (1) above it. Not a model — it measures the
 size of the exponentiation.
 
-**Pair emission.** A virtual photon of mass² `q^2` radiated off the muon
-converts to a pair; the pair removes the same energy a photon would, so at
-leading log the `z` dependence is the photon one and only the coefficient
-changes, with the collinear log cut off at `q^2` instead of `m_mu^2`:
+**Pair emission.** A virtual photon of mass² `q^2` radiated off the muon line
+converts to a fermion pair. The photon propagator with one self-energy
+insertion, cut, is exactly a dispersive integral over the emission of a **vector
+of mass² `q^2`** carrying the same coupling `e`:
 
 ```
-beta_pair = (2 alpha/pi) int_{q2_thr}^{s} (dq^2/q^2) rho(q^2) [ln(s/q^2) - 1] (4)
-rho_lepton = (alpha/3pi)(1 + 2 m_l^2/q^2) sqrt(1 - 4 m_l^2/q^2)
-rho_had    = (alpha/3pi) R(q^2),  R ~ 2 above 1 GeV^2
+R_pair(z; s) = int (dq^2/q^2) rho(q^2) R_gamma*(z; q^2, s)                  (4)
+rho_lepton   = (alpha/3pi) (1 + 2 m_l^2/q^2) sqrt(1 - 4 m_l^2/q^2)
+rho_had      = (alpha/3pi) R(q^2)
 ```
 
-At `m = 91.19` GeV this gives `beta_pair` = 8.31e−4 (e⁺e⁻), 1.32e−3 (e, mu, tau
-and hadrons together), i.e. **1.43 % and 2.26 % of the photonic `beta`**. The
-soft part is exponentiated with the photon (`beta -> beta + beta_pair`) and the
-hard remainder `-(beta_pair/2)(1+z)` is added to `h`; virtual pairs cancel the
-soft part of (4) and otherwise change only the overall rate, so they do not
-enter a normalised kernel. (4) is LL; the `-1` and the upper limit carry ~1/L =
-8 % on `beta_pair`.
+(Kniehl, Krawczyk, Kühn, Stuart, Phys. Lett. B209 (1988) 337; the same
+statement in a form that can actually be read is Hoang and Teubner,
+Nucl. Phys. B519 (1998) 285, hep-ph/9707496 eq. (37), and Hoang, Kühn and
+Teubner, hep-ph/9505262 eq. (1).) `R_gamma*` is
+the **exact** spin-summed matrix element of `V* -> mu+ mu- gamma*(q^2)` — both
+attachments and their interference, exact `m_mu`, photon polarisation sum `-g`,
+which equals `-g + kk/q^2` because the muon emission current is conserved
+(checked to 1e−15) — evaluated with the same Dirac-trace machinery as (1) and
+reproducing it to 6e−12 as `q^2 -> 0`. (4) is therefore exact at O(α²) for
+everything except the *singlet* channel, in which the observed muon pair is not
+the one the current produced; that is a background to the dimuon spectrum, not
+FSR, and its rate with the pair mass inside a 60-120 GeV window is **~6e−9 per
+event**.
+
+The mass loss of a pair of mass `q` and energy fraction `x = 2E/sqrt(s)` is
+`1 - z = x - q^2/s`, and the massive-photon phase space closes at
+`q^2 < s (1 - sqrt z)^2`, so the pair spectrum has a hard threshold at
+`1 - sqrt z = 2 m_l/m` and **no soft singularity at all**. It is therefore not
+exponentiated; the kernel is the convolution
+
+```
+K = K_photonic (x) [ (1 - N_pair) delta(1-z) + R_pair(z) ]                  (5)
+```
+
+carried out on the atoms, so mean mass losses add exactly and the photon-pair
+cross term (worth 17 % of the pair `<u>`) is kept.
+
+At `m` = 91.19 GeV, with `<u>` the *unconditional* mean mass loss per event:
+
+| species | `N_pair` | `<u>` | % of the photonic radiator |
+|---|---|---|---|
+| `e⁺e⁻` | 2.530e−3 | 2.899e−4 | +1.10 % |
+| `μ⁺μ⁻` | 3.309e−4 | 8.015e−5 | +0.30 % |
+| `τ⁺τ⁻` | 3.209e−5 | 1.413e−5 | +0.05 % |
+| hadrons | 6.472e−4 | 1.826e−4 | +0.69 % |
+| **all** | **3.541e−3** | **5.668e−4** | **+2.15 %** |
+
+**The dispersive leading log is 46 % too high for `e⁺e⁻`** (34 % for `μ⁺μ⁻`,
+71 % for `τ⁺τ⁻`, and 36 % *too low* for hadrons, where its crude `R` dominates
+the error). Replacing `R_gamma*` by
+`(alpha/pi) (1+z^2)/(1-z) [ln(s/q^2) - 1]` — the photon radiator with its
+collinear log moved from `m_mu^2` to `q^2`, which is what `beta_pair_ll` still
+computes as the reference — gives `<u>` = 4.239e−4 (`e`), 1.073e−4 (`μ`),
+2.412e−5 (`τ`) against the exact 2.898e−4 / 8.015e−5 / 1.413e−5. Three things
+are wrong with it, in order of size:
+
+* for `q^2 < m_mu^2` — most of the `dq^2/q^2` range of an `e⁺e⁻` pair — the
+  collinear log is cut off by the **muon** mass and saturates at `L`. In ladder
+  language the photon's transverse momentum must exceed `m_mu^2` before the
+  conversion can happen, so the double log is `(Y^2 - Δ^2)/2` with
+  `Y = ln(s/4m_e^2)` and `Δ = ln(m_mu^2/4m_e^2)`, not `Y^2/2`: **−18 %**;
+* it has no `ln z`, the non-logarithmic hard remainder the photon radiator (1)
+  carries (and which alone is worth −10 % there too): **−10 %**;
+* it ignores the massive-photon phase-space limit, which removes the whole
+  `z -> 1` region: **−7 %**.
+
+The first item is the one the literature hides. The standard O(α²) pair
+radiator is written with a single log `L_l = ln(s/m_l^2)` of the *emitted* pair,
+because in `e+e-` annihilation the emitted pair (`mu`, `tau`, hadrons) is always
+heavier than the radiator. Here it is the other way round, and the correct
+leading log carries both masses,
+
+```
+(L_l^2 - Delta^2)/2 = L_R L_l - L_R^2/2 ,
+L_R = ln(s/m_mu^2) ,   Delta = L_l - L_R = ln(m_mu^2/m_l^2)
+```
+
+— one log from the photon emission off the muon, one from the conversion, minus
+the region `q^2 < m_mu^2` where the emission log is quenched. Hoang, Kühn and
+Teubner (Nucl. Phys. B452 (1995) 173, hep-ph/9505262) computed exactly this
+configuration — a light pair radiated off a *heavy* fermion, and the formula
+ZFITTER uses for final-state pair corrections — and their leading logs are
+`rho^R = (L_l^3 - Delta^3)/18` real and `-(L_l^3 - Delta^3)/36` virtual, whose
+`Delta = 0` case is the familiar Burgers `-(1/36) L^3` that the general-purpose
+codes carry. At the Z the naive `L_l^2/2` overstates the `e+e-` term by 24 %
+and the `tau+tau-` term by a factor 2.
+
+`R(q^2)` matters as much as any of these, and in the other direction: the old
+step model (`R = 2` above 1 GeV²) is half of the true `int R dln q^2`, so the
+old hadronic term was 26 % *low* even before the three errors above. The model
+here is the PDG parton-model continuum `3 sum Q_q^2 (1 + alpha_s/pi)` with the
+**physical** open-flavour thresholds (`2 m_D0` = 3.73 GeV and `2 m_B` =
+10.56 GeV; using `2 m_q` instead overshoots by 2.4 %), a flat `R = 3.40` across
+the open-charm region, a linear ramp onto the non-resonant plateau between 1 and
+1.5 GeV, and the nine narrow vector resonances (`rho`, `omega`, `phi`, `J/psi`,
+`psi(2S)`, `Y(1S-4S)`) as discrete `q^2` nodes of weight
+`(9 pi/alpha^2) Gamma_ee/M`, which is exact for `Gamma << M` and follows from
+`int sigma_had ds = 12 pi^2 Gamma_ee/M`. That gives `int R dln q^2` = **36.0**,
+against **35.6 ± 0.2** implied by `Delta alpha_had^(5)(m_Z^2)` = 0.02766 ±
+0.00007 — the dispersion kernel `s_0/(s_0-s)` differs from a plain `dln s`
+measure by only 0.09 % once the integral is truncated at `s = m_Z^2`, the 12 %
+enhancement below the Z cancelling what the truncation drops above it. The
+residual +1 % is the vacuum-polarisation-dressed `Gamma_ee` of the resonances
+and the narrow-width formula applied to the `rho`; it is the dominant
+uncertainty of the hadronic pair term. (PDG *Quantum Chromodynamics* review
+eqs. (9.7)-(9.9) for the continuum, KNT19 arXiv:1911.00367 and DHMZ19
+arXiv:1908.00921 for the sub-2 GeV region.)
+
+The exact `R_pair(z; m)` costs a few hundred ms per `z`, so the kernel reads a
+table of `B(u; m) = R_pair(z) / [(alpha/pi)(1+z^2)/(1-z)]` — 13 masses ×
+200 log-spaced `u` × 4 species, linear in `ln m` — built once by
+`fsr_analytic.py pairtable`. Dividing out the Altarelli-Parisi pole is what
+makes the interpolation accurate at both ends; `fsr_analytic.py pair` checks
+the table's rate and first moment against a direct quadrature done in the other
+order (over the emitted energy at fixed `q^2`) and closes to 1e−4.
 
 ### Discretisation
 
@@ -892,10 +991,12 @@ shape terms, `nm = 8192`; offsets from the generator's own
 | analytic exp. O(α) + O(α²)LL, single band | +0.70 ± 0.54 | +2.65 ± 1.13 |
 | … `β` frozen at `m_Z` | +0.86 ± 0.54 | +2.52 ± 1.13 |
 | … `L` instead of `L−1` in `β` (+8.0 % on `β`) | +5.60 ± 0.55 | −24.27 ± 1.13 |
-| … + `e⁺e⁻` pairs | +1.72 ± 0.54 | −2.02 ± 1.13 |
-| … + `e`, `μ`, `τ`, hadron pairs | +2.28 ± 0.54 | −4.86 ± 1.13 |
 | analytic exp. O(α) + O(α²)LL **+ O(α²)NLL**, banded | +1.17 ± 0.54 | +2.34 ± 1.13 |
-| **… + `e`, `μ`, `τ`, hadron pairs** | **+2.35 ± 0.54** | **−5.16 ± 1.13** |
+| … + exact `e⁺e⁻` pairs | +1.79 ± 0.54 | −0.28 ± 1.13 |
+| … + exact `e`, `μ` pairs | +1.63 ± 0.54 | −0.51 ± 1.13 |
+| **… + exact `e`, `μ`, `τ`, hadron pairs** | **+1.38 ± 0.54** | **−1.04 ± 1.13** |
+| … + `e`, `μ` pairs in the **eikonal** limit (= Photos) | +1.69 ± 0.54 | −0.93 ± 1.13 |
+| … + `e`, `μ`, `τ`, hadron pairs, dispersive **leading log** | +2.35 ± 0.54 | −5.16 ± 1.13 |
 | O(α), **no exponentiation**, `x_cut` = 1e−7 | +24.94 ± 0.54 | −39.12 ± 1.13 |
 
 Kernel-to-kernel **differences** are far more precise than the rows themselves —
@@ -925,8 +1026,10 @@ What each ingredient is worth on `m_Z`:
 | exponentiation vs fixed order O(α) | **23.7** | −45.5 |
 | O(α²) LL | −0.18 | −3.67 |
 | the mass dependence of `β` | 0.21 | 0.15 |
-| `e⁺e⁻` pairs | 0.65 | −4.7 |
-| all pairs (`e`, `μ`, `τ`, hadrons) | 1.21 | −7.5 |
+| exact `e⁺e⁻` pairs | 0.62 | −2.6 |
+| exact pairs, all species | 0.21 | −3.4 |
+| … as the dispersive leading log instead | 1.18 | −7.5 |
+| … in the eikonal limit instead (`e`, `μ`; = Photos) | 0.52 | −3.3 |
 | ±1 % on `β` (from the `L` vs `L−1` slope) | **0.57** | −3.3 |
 | O(α²) NLL | **+0.103 ± 0.003** | **−0.332 ± 0.003** |
 | … its additive-vs-exponentiated O(α³) ambiguity | 0.004 | 0.011 |
@@ -949,7 +1052,11 @@ Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
 python3 fsr_analytic.py validate                       # exact ME vs eq. (1)
 python3 fsr_analytic.py nll                            # every O(alpha^2) check
 python3 fsr_analytic.py moments --u-cut 0.113013       # inclusive + windowed
-python3 fsr_analytic.py kernel -o data/fsr/kan_exp2nll_pair_all.npz \
+python3 fsr_analytic.py pairtable --procs 40           # the exact pair table
+python3 fsr_analytic.py pairtable --procs 40 --eikonal \
+        -o data/fsr/pairkern_eik.npz                   # what Photos generates
+python3 fsr_analytic.py pair                           # every pair check
+python3 fsr_analytic.py kernel -o data/fsr/kan_exp2nll_pairx_all.npz \
         --variant exp2nll --pair e mu tau had          # the recommended kernel
 python3 fsr_analytic.py kernel -o data/fsr/kan_exp2nll.npz --variant exp2nll
 ./run_tf_z.sh python3 -u fit_gen.py fit --gen data/genmerged_full.npz \
@@ -993,8 +1100,9 @@ fitted against radiates (`../fullscale/SUMMARY.md`, open item 2).
   complete through O(α²) NLL, and its mass dependence is exact, which the
   tabulated kernel's cannot be.
 * Quote as theory systematics: the O(α³) truncation (~`β/2` of the O(α²) terms,
-  i.e. ≲0.1 MeV on `m_Z`), the pair term's own 8 % LL uncertainty (0.1 MeV), and
-  the additive-vs-exponentiated O(α³) ambiguity of the NLL term (0.004 MeV). The
+  i.e. ≲0.1 MeV on `m_Z`), the hadronic pair term's `R(q^2)` model (4 % of the
+  hadronic `<u>`, 0.01 MeV on `m_Z` and 0.1 MeV on `Γ_Z`), and the
+  additive-vs-exponentiated O(α³) ambiguity of the NLL term (0.004 MeV). The
   `L` vs `L−1` row is a **sensitivity slope, not an uncertainty**: `β` is known
   exactly at O(α).
 * Do **not** take the +0.5 MeV difference against the Photos kernel as a
@@ -1205,32 +1313,59 @@ the shape: the ME piece grows with `u` and turns over, the pair piece does not.
 
 Photos 3.61 emits **`e+e-` and `mu+mu-` pairs only** — `PHOPAR(..., 11,
 0.000511, ...)` and `PHOPAR(..., 13, 0.1057, ...)` in `photosC.cxx`, called once
-before and once after the photons with `STRENG = 0.5`. No `tau`, no hadrons. The
-matching analytic species set is therefore `("e", "mu")`,
-`beta_pair` = 1.041e−3 at the Z (against 8.31e−4 for `e` alone and 1.317e−3 for
-all species).
+before and once after the photons with `STRENG = 0.5`. No `tau`, no hadrons, so
+the matching analytic species set is `("e", "mu")`.
 
-Running Photos with `setPhotonEmission(false)` isolates the pair kernel
-(`04_pair_only`). In the peak band:
+`setPhotonEmission(false)` isolates the pair kernel. Photos's pair matrix
+element is eq. (1) of Jadach, Skrzypek and Ward, Phys. Rev. D49 (1994) 1178 —
+the **soft** pair current `J = p_-/(p_-.k) - p_+/(p_+.k)` contracted with the
+pair tensor `(4 k_1^mu k_2^nu - q^2 g^{mu nu})/2q^4` — of which its own authors
+write that it is "valid for the soft pairs emissions but is applied, at present,
+in PHOTOS Monte Carlo algorithm over the entire phase space" (Antropov, Arbuzov,
+Sadykov, Wąs, Acta Phys. Polon. B48 (2017) 1469, arXiv:1706.05571, sec. 2). The
+Altarelli-Parisi hard factor sits in `pairs.cxx` one line below it, commented
+out. Against the exact O(α²) pair radiator and against that **eikonal limit** —
+the same dispersive integral (4) with the exact matrix element replaced by
+`T_born x (-J^2)`, which is what `YOT1` computes — at a fixed `m` = 91.1876 GeV,
+1e9 standalone events:
 
-| | Photos | analytic `e`+`mu` | ratio |
-|---|---|---|---|
-| `<u>` | 2.518e−4 | 5.311e−4 | **0.474** |
-| `P(u > 1e-2)` | 1.820e−3 | 3.319e−3 | 0.549 |
-| `P(u > 5e-2)` | 1.082e−3 | 1.764e−3 | 0.613 |
-| `P(u > 0.5)` | 8.68e−5 | 2.511e−4 | 0.346 |
-| `P(emitted nothing)` | 0.997273 | 0.984124 | |
+| | Photos | eikonal | Photos/eik | exact | Photos/exact |
+|---|---|---|---|---|---|
+| `e⁺e⁻` rate | 2.41855e−3 | 2.41811e−3 | **1.0002** | 2.53055e−3 | 0.956 |
+| `e⁺e⁻` `<u>` | 1.95999e−4 | 1.95676e−4 | **1.0016** | 2.89912e−4 | 0.676 |
+| `μ⁺μ⁻` rate | 3.12600e−4 | 3.13249e−4 | **0.9979** | 3.30929e−4 | 0.945 |
+| `μ⁺μ⁻` `<u>` | 5.68119e−5 | 5.68428e−5 | **0.9995** | 8.01532e−5 | 0.709 |
 
-The rates are not comparable at small `u` and the shapes differ by construction:
-the analytic term *exponentiates* `beta_pair`, so it has a soft singularity at
-`u -> 0`, while Photos generates **real** pairs above `2 m_l` with a
-triple-log crude probability and an ME rejection — its spectrum turns over below
-`u ~ 1e-4` and its total rate is 2.73e−3. The IR-safe statement is the mean mass
-loss: **Photos's pair emission removes 47 % of what the dispersive leading-log
-estimate gives for the same two species, and 38 % of the all-species value.**
-Pairs are therefore the one place where Photos is not merely incomplete in
-species but also soft in shape, and the `data` configuration takes the analytic
-term instead.
+**Photos is the soft limit of the pair matrix element, and nothing else.** The
+eikonal calculation reproduces it to 0.2 % in rate and in mass loss, over the
+whole `u` spectrum (`01_pair_uspec`) and over four decades of pair-mass cut
+(`03_rate_vs_qcut`). Its normalisation is therefore correct — including the
+`WT = YOT1*YOT2*YOT3/8/FREJECT` line the author flagged with "origin must be
+understood": the `8` is the physics constant, not an uncompensated envelope,
+even though it also happens to bound the weight (`sup(YOT1 YOT2 YOT3)` = 7.92).
+The bookkeeping is clean too, checked with an instrumented build of the upstream
+source: all four `trypar` calls per species fire every event (two blocks × two
+charged legs), the `STRENG -> STRENG/(1-PRHARD)` veto compensation makes the
+crude probability exactly additive (4.6177e−2/event measured against 4.6178e−2
+ideal), the `0.5` marked "for 1-leg only" is exactly what the two-leg
+multichannel sum needs, the two legs radiate equally (`05_per_leg`), and **no
+rate is lost to weight truncation** (`sup(WT)` = 0.495, overweight fraction 0).
+
+What Photos misses is **hard** pair emission: the eikonal current has no
+Altarelli-Parisi numerator, so it falls below the exact spectrum for
+`u > 0.2` (`01_pair_uspec`) and its mean mass loss is **32 % low**. This is the
+same conclusion its authors reach from their own exact-phase-space evaluation of
+the same soft matrix element, which "reproduce[s] well results of PHOTOS" and
+leaves differences "dominated ... by non leading terms and of rather hard pair
+emission" (arXiv:1706.05571, secs. 4 and 6). Adding the
+`tau` and hadronic species it does not generate at all, the total is
+2.528e−4 against the exact 5.422e−4, i.e. **47 %**.
+
+The dispersive leading-log term the kernel used before is wrong the other way —
+**+46 %** on `<u>` for the same species, for the three reasons listed under
+"Pair emission" above. The factor two between Photos and that term was two
+independent errors of comparable size in opposite directions; neither number was
+right.
 
 ### Fit level
 
@@ -1250,21 +1385,34 @@ shape terms, `nm = 8192`, offsets from the generator's own
 | analytic exp. O(α), banded 2 GeV | +1.25 ± 0.54 | +6.34 ± 1.13 |
 | analytic + O(α²)LL | +1.07 ± 0.54 | +2.67 ± 1.13 |
 | analytic + O(α²)LL + NLL | +1.17 ± 0.54 | +2.34 ± 1.13 |
-| analytic + O(α²)LL + all pairs | +2.28 ± 0.54 | −4.86 ± 1.13 |
-| **`data`: analytic + O(α²)LL+NLL + all pairs** | **+2.35 ± 0.54** | **−5.16 ± 1.13** |
+| analytic + O(α²)LL + NLL + `e`, `μ` pairs, eikonal (= Photos) | +1.69 ± 0.54 | −0.93 ± 1.13 |
+| **`data`: analytic + O(α²)LL+NLL + exact pairs, all species** | **+1.38 ± 0.54** | **−1.04 ± 1.13** |
+| … with the dispersive leading-log pair term instead | +2.35 ± 0.54 | −5.16 ± 1.13 |
 
 The standalone kernel and the sample's own agree to **0.5 MeV on `m_Z` and
 1.0 MeV on `Γ_Z`** — below the statistical error of the closure and below the
 empirical kernel's own ±0.7 MeV `sigma_cap` quadrature bias. Applying the ME
 correction to every event instead of the measured 39 % moves `m_Z` by 0.34 MeV,
 so the mixture is a refinement inside the closure precision, not a requirement.
-Pair emission is worth **−2.9 to −3.3 MeV on `Γ_Z`** and +0.04 to +0.18 MeV on
-`m_Z`; the ME correction, applied to every event, at most 0.4 MeV on `Γ_Z` and
-0.3 MeV on `m_Z`.
+Exact pair emission is worth **−3.4 MeV on `Γ_Z`** and +0.21 MeV on `m_Z`
+(against −7.5 / +1.18 for the dispersive leading-log term it replaces, and
+−3.3 / +0.52 for the eikonal limit Photos generates); the ME correction, applied
+to every event, at most 0.4 MeV on `Γ_Z` and 0.3 MeV on `m_Z`.
 
-The +1.9 MeV between the `mc` and `data` kernels on `m_Z` and −5.0 MeV on `Γ_Z`
+With 5 floating shape terms the fit does **not** respond to the pair term
+through `<u>` alone. A uniform rescaling of the radiator by `ε` moves `m_Z` by
+`ε × 57` MeV and `Γ_Z` by `ε × 337` MeV, and the old leading-log pair term —
+implemented as `beta -> beta + beta_pair`, i.e. exactly such a rescaling —
+follows that rule (2.5 % → +1.4 / −8.6 MeV predicted, +1.18 / −7.5 measured).
+The exact term does not: it is 2.15 % of the radiator but moves the fit by only
++0.21 / −3.4 MeV, because its shape (a threshold at `u = 2 m_e/m`, no soft
+singularity, a harder tail) is not a rescaling and the smooth `K(m)` absorbs
+more of it. Most of the +4.1 MeV change on `Γ_Z` from the old `data` kernel to
+the new one is therefore the *shape*, not the −16 % on the normalisation.
+
+The +0.97 MeV between the `mc` and `data` kernels on `m_Z` and −0.8 MeV on `Γ_Z`
 is the physics Photos leaves out: the O(α²) leading and next-to-leading logs,
-`tau` and hadronic pairs, and the factor two on the leptonic pair mass loss.
+`tau` and hadronic pairs, and the hard half of the leptonic pair spectrum.
 
 ### The two configurations
 
@@ -1279,9 +1427,10 @@ kernel`), banded at 2 GeV over 50–200 GeV.
   MC. It is **not** the best description of nature.
 * **`data`** — `data/kern_cfg_data_vb6e-10.npz`. The analytic radiator of
   `fsr_analytic.py`: `DATA_VARIANT` = `exp2nll` (exponentiated exact O(α) plus
-  the O(α²) leading log and its NLL term) with `DATA_PAIRS` =
-  `("e", "mu", "tau", "had")`. First-principles throughout, exact mass
-  dependence, and it supplies the three things Photos does not.
+  the O(α²) leading log and its NLL term) convoluted with the exact O(α²) pair
+  radiator for `DATA_PAIRS` = `("e", "mu", "tau", "had")`. First-principles
+  throughout, exact mass dependence, and it supplies the three things Photos
+  does not.
 
 ### Reproducing
 
@@ -1296,8 +1445,11 @@ NPROC=240 photos_standalone/run.sh pair 12 2200000 --me=0 --pairs=1 --fint=8
 python3 photos_standalone/mix.py --run data/photos/gen_mcB.npz \
         --run data/photos/gen_pair.npz --frac-file data/photos/f_me.json \
         -o data/photos/gen_mcMix.npz
+NPROC=240 photos_standalone/run.sh paironly 12 2200000 --me=0 --pairs=1 --phot=0
+photos_standalone/photos_pairdiag --n=1e9 --out=pd.bin   # pair kinematics
 python3 fsr_config.py --config mc   -o data/kern_cfg_mc_sc3.3e-4.npz
 python3 fsr_config.py --config data -o data/kern_cfg_data_vb6e-10.npz
+./run_tf_z.sh python3 -u plot_pairs.py            # the pair-emission figures
 ./run_tf_z.sh python3 -u cmp_photos.py --runs "mcMix=Photos, sample cfg" ...
 ```
 

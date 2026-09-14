@@ -12,9 +12,10 @@ r"""The two FSR kernel configurations of the Z channel.
 ``data``
     the best available QED: the analytic radiator of `fsr_analytic.py` -
     exponentiated exact O(alpha) through the O(alpha^2) leading log and its
-    NLL term (`DATA_VARIANT`) - with real lepton- and hadron-pair emission
-    added for every species the muon line can produce (`DATA_PAIRS`).  First-principles throughout, no
-    fitted constant, and its dependence on the fitted mass is exact.
+    NLL term (`DATA_VARIANT`) - convoluted with the exact O(alpha^2) real
+    pair radiator for every species the muon line can produce (`DATA_PAIRS`).
+    First-principles throughout, no fitted constant, and its dependence on the
+    fitted mass is exact.
 
 Both are written as ``(r, w, m_lo, m_hi)`` atom files for the
 ``rabbit.lineshapes.zgamma`` provider, banded in ``m_pre``.
@@ -33,8 +34,10 @@ import fsr_analytic as FA
 #: `fsr_analytic` settings of the ``data`` configuration.  One constant, so
 #: that adding a variant to `fsr_analytic` is a one-line change here.
 DATA_VARIANT = "exp2nll"
-#: every species whose pair emission the muon line can produce.  The photonic
-#: radiator is 1.43 % (e) / 2.26 % (all) larger with these included.
+#: every species whose pair emission the muon line can produce.  At the Z the
+#: exact pair radiator adds N_pair = 3.54e-3 emissions and 2.15 % to the mean
+#: mass loss (1.10 % for e+e- alone, 1.40 % for e and mu, the species Photos
+#: generates).  Requires the table `fsr_analytic.PAIR_TABLE`.
 DATA_PAIRS = ("e", "mu", "tau", "had")
 
 #: the standalone Photos run that reproduces the sample.  The UL16 DY production
@@ -226,9 +229,10 @@ def main():
     print("  " + json.dumps(meta))
     for i in (0, len(info) // 2, len(info) - 1):
         d = info[i]
+        extra = (f"P(norad) = {d['p_norad']:.5f}" if "p_norad" in d
+                 else f"N_pair = {d.get('pair_rate', 0.0):.4e}")
         print(f"  band {i:3d} [{d['lo']:.1f}, {d['hi']}): "
-              f"{d['natoms']} atoms, P(norad) = {d['p_norad']:.5f}, "
-              f"<u> = {d['mean_u']:.6e}")
+              f"{d['natoms']} atoms, {extra}, <u> = {d['mean_u']:.6e}")
 
 
 if __name__ == "__main__":

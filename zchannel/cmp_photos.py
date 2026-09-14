@@ -136,33 +136,44 @@ def mean_u(b):
     return b["mom"][1] / b["n"]
 
 
-class PairOnly(FA.FSRKernel):
-    """The analytic radiator with the *photon* switched off.
+class PairOnly:
+    """The exact O(alpha^2) real-pair kernel with the photon switched off.
 
-    Same exponentiated form as ``exp1`` but carrying only ``beta_pair``: the
-    soft factor is ``C beta_p (1-z)^{beta_p-1}`` and the hard remainder is
-    ``-(beta_p/2)(1+z)``, which is what `fsr_analytic` adds on top of the
-    photon radiator for pair emission.  Photos 3.61 emits e+e- and mu+mu-
-    pairs only (photosC.cxx: ``PHOPAR(..., 11, 0.000511, ...)`` and
+    ``K_u(u) = 2 z R_pair(z)`` from `fsr_analytic.pair_radiator`, the object a
+    pair-only Photos run measures.  Photos 3.61 emits e+e- and mu+mu- pairs
+    only (photosC.cxx: ``PHOPAR(..., 11, 0.000511, ...)`` and
     ``PHOPAR(..., 13, 0.1057, ...)``), so the matching species set is
-    ``("e", "mu")``.
+    ``("e", "mu")``; ``table`` selects the exact or the eikonal (= what Photos
+    generates) matrix element.
     """
 
-    def __init__(self, m, species=("e", "mu")):
-        FA.FSRKernel.__init__(self, m, variant="exp1", pair=species)
-        self.beta_gam = 0.0
-        self.beta = self.beta_pair
-        self._C = 1.0 - self.int_h()
+    def __init__(self, m, species=("e", "mu"), table=None):
+        self.m, self.species, self.table = float(m), tuple(species), table
+        k = FA.FSRKernel(m, variant="born", pair=species, pair_table=table)
+        self._c = k.pair_cells(n=2000)
+        self._e = np.geomspace(k._pair._u[0],
+                               min(k._pair._u[-1], k._u_max()), 2001)
+        self.rate = float(self._c[0].sum())
+        self.mean_u = float(self._c[1].sum())
 
-    def h(self, z, x=None):
-        z = np.asarray(z, float)
-        return -0.5 * self.beta * (1.0 + z)
+    def pdf_u(self, u):
+        return FA.pair_pdf_u(self.m, u, self.species, path=self.table)
 
-    def int_h(self):
-        return -0.75 * self.beta
+    def tail(self, u0):
+        """``P(u > u0)``: the pair kernel puts no weight at ``u = 0``."""
+        u0 = np.atleast_1d(np.asarray(u0, float))
+        cum = np.concatenate([np.cumsum(self._c[0][::-1])[::-1], [0.0]])
+        j = np.clip(np.searchsorted(self._e, u0) - 1, 0, len(self._c[0]) - 1)
+        frac = np.clip((np.log(self._e[j + 1]) - np.log(np.maximum(u0, 1e-300)))
+                       / (np.log(self._e[j + 1]) - np.log(self._e[j])), 0, 1)
+        return cum[j + 1] + frac * self._c[0][j]
+
+    def p_norad(self, u0=1e-5):
+        return 1.0 - float(self.tail(u0)[0])
 
 
-def pair_table(runs, fh, tag_paironly="paironly"):
+def pair_table(runs, fh, tag_paironly="paironly",
+               eik_table="data/fsr/pairkern_eik.npz"):
     def w(s=""):
         print(s)
         fh.write(s + "\n")
@@ -172,32 +183,39 @@ def pair_table(runs, fh, tag_paironly="paironly"):
     r = r[0]
     w()
     w("Pair emission alone (Photos with photon emission switched off) against "
-      "the\nanalytic dispersive leading-log pair radiator.")
-    w("%-9s %10s %12s %12s %9s %11s %11s %9s" % (
-        "band", "<m_pre>", "beta_p(e,mu)", "<u> Photos", "+-", "<u> analytic",
-        "P(none) Ph", "analytic"))
+      "the exact\nO(alpha^2) pair radiator and against its EIKONAL limit, "
+      "which is the matrix\nelement Photos actually uses (pairs.cxx YOT1).")
+    w("%-9s %10s %12s %9s %12s %9s %12s %9s" % (
+        "band", "<m_pre>", "<u> Photos", "+-", "<u> eikonal", "Ph/eik",
+        "<u> exact", "Ph/exact"))
     for lo, hi in BANDS:
         b = r.band(lo, hi)
         m = b["mpre_s1"] / b["n"]
-        k = PairOnly(m)
+        ke, kx = PairOnly(m, table=eik_table), PairOnly(m)
         sd = math.sqrt(max(b["mom"][2] / b["n"] - mean_u(b) ** 2, 0))
-        w("%-9s %10.4f %12.5e %12.5e %9.1e %11.5e %11.6f %9.6f" % (
-            f"{lo}-{hi}", m, k.beta_pair, mean_u(b), sd / math.sqrt(b["N"]),
-            k.moments()["u"], b["p0"], k.p_norad()))
+        w("%-9s %10.4f %12.5e %9.1e %12.5e %9.4f %12.5e %9.4f" % (
+            f"{lo}-{hi}", m, mean_u(b), sd / math.sqrt(b["N"]),
+            ke.mean_u, mean_u(b) / ke.mean_u,
+            kx.mean_u, mean_u(b) / kx.mean_u))
     w()
     b = r.band(86, 96)
     m = b["mpre_s1"] / b["n"]
-    w(f"Tail of the pair-only kernel, m_pre in [86,96), <m> = {m:.4f}:")
-    w("%9s %12s %12s %9s" % ("u0", "Photos", "analytic", "ratio"))
+    w(f"Pair rate and mass loss by species, m_pre in [86,96), <m> = {m:.4f}:")
+    w("%-26s %12s %12s %12s" % ("species", "N_pair", "<u>", "<u> eikonal"))
     for sp in (("e",), ("e", "mu"), ("e", "mu", "tau", "had")):
-        kk = PairOnly(m, sp)
-        w("   species %-24s beta_pair = %.5e  <u> = %.5e"
-          % (str(sp), kk.beta_pair, kk.moments()["u"]))
-    k = PairOnly(m)
+        kx, ke = PairOnly(m, sp), PairOnly(m, sp, table=eik_table)
+        w("%-26s %12.5e %12.5e %12.5e"
+          % ("/".join(sp), kx.rate, kx.mean_u, ke.mean_u))
+    w()
+    w(f"Tail of the pair-only kernel, m_pre in [86,96), <m> = {m:.4f}:")
+    w("%9s %12s %12s %9s %12s %9s" % ("u0", "Photos", "eikonal", "Ph/eik",
+                                      "exact", "Ph/exact"))
+    ke, kx = PairOnly(m, table=eik_table), PairOnly(m)
     for u0 in [1e-5, 1e-4, 1e-3, 1e-2, 5e-2, 0.2, 0.5]:
         p = tail_at(b, u0)
-        a = float(k.tail(u0)[0])
-        w("%9.1e %12.6e %12.6e %9.4f" % (u0, p, a, p / a if a > 0 else 0))
+        a, x = float(ke.tail(u0)[0]), float(kx.tail(u0)[0])
+        w("%9.1e %12.6e %12.6e %9.4f %12.6e %9.4f"
+          % (u0, p, a, p / a if a > 0 else 0, x, p / x if x > 0 else 0))
     w()
     w("Mean number of pair particles per event (2 per pair): %.5f"
       % (b.get("npair", 0.0) / b["n"]))
@@ -507,7 +525,7 @@ def fig_pair(runs, out, band=(86, 96), tag="paironly"):
         y = ratiopanel.bin_average(k.pdf_u(e[:-1]), k.pdf_u(c), k.pdf_u(e[1:]))
         mods[lab] = (y, col, ls)
         ax.plot(c, y, color=col, ls=ls, lw=1.8,
-                label=lab + r", $\beta_p$=" + f"{k.beta_pair:.3e}")
+                label=lab + r", $N_p$=" + f"{k.rate:.3e}")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_ylabel(r"$(1/N)\,\mathrm{d}N/\mathrm{d}u$")

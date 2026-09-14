@@ -177,9 +177,8 @@ is z- and m-independent and therefore drops out of the normalised kernel.
     **Scheme.**  The abelian kernel is the complete *photonic* two-loop
     splitting function of QED: C_F C_A has no QED analogue, and the ``n_f T_F``
     terms need a real fermion pair.  Those belong to the pair sector, which this
-    kernel treats separately through `beta_pair` at leading log; nothing is
-    double counted, and the pair sector's own O(alpha^2 L) terms stay inside the
-    ~1/L = 8 % uncertainty `beta_pair` already carries.
+    kernel carries *exactly* at O(alpha^2) through `pair_radiator`; nothing is
+    double counted.
 
     **Where the fixed order stops working.**  ``G`` carries ``-(7/4) ln^2 z`` at
     small ``z`` and ``(alpha/pi) L ln z = -0.36`` at ``z = 1e-5``: NLL is not
@@ -199,10 +198,18 @@ is z- and m-independent and therefore drops out of the normalised kernel.
     ``z = 1`` carrying ``1 - P(x > x_cut)`` plus (1) above the cutoff.  Not a
     model - it exists to show the size of the exponentiation.
 
-``pair`` suffixes add **real lepton/hadron pair emission** from the muon line
-    (see `beta_pair`), which Photos does not generate: the soft part is
-    exponentiated together with the photon (``beta -> beta + beta_pair``) and
-    the hard remainder ``-(beta_pair/2)(1+z)`` is added to `h`.
+``pair`` selects the species of **real lepton/hadron pair emission** off the
+    muon line.  The spectrum is the exact O(alpha^2) `pair_radiator`
+    ``R_pair(z)`` and the kernel is the convolution
+
+        K = K_photonic (x) [ (1 - N_pair) delta(1-z) + R_pair(z) ] ,
+
+    done on the atoms (`atoms`), so the two mean mass losses add exactly and
+    the photon-pair cross term - 17 % of the pair ``<u>`` at the Z - is kept.
+    The pair term is *not* exponentiated: a real pair of mass ``q`` cannot be
+    softer than ``1 - z = 2q/sqrt(s)``, and the massive-photon phase space
+    closes at ``q^2 = s (1 - sqrt z)^2``, so the pair spectrum has a threshold
+    at ``1 - sqrt z = 2 m_l/m`` and no soft singularity to resum.
 
 Discretisation
 --------------
@@ -213,7 +220,11 @@ at their *exact* conditional mean, so the residual of a group is
 exceeds ``--var-budget`` (or the group sd exceeds ``--sigma-cap``).  Both the
 weights and the conditional moments are computed by Gauss-Legendre quadrature
 in ``t = (1-z)^beta``, the substitution that removes the ``(1-z)^{beta-1}``
-endpoint singularity exactly (``dt = beta (1-z)^{beta-1} dz``).
+endpoint singularity exactly (``dt = beta (1-z)^{beta-1} dz``).  The pair
+convolution keeps the full photonic cell grid under the ``delta(1-z)`` branch
+and multiplies a coarse photonic discretisation - budget relaxed by
+``1/N_pair``, which is where its error is weighted - by the pair cells; the
+atom count grows by ~1 %.
 
 Banding in ``m_pre`` is free for an analytic kernel: one kernel per band with
 its own ``beta(m)``, written as per-atom ``m_lo``/``m_hi`` for
@@ -222,6 +233,7 @@ its own ``beta(m)``, written as per-atom ``m_lo``/``m_hi`` for
 import argparse
 import json
 import math
+import os
 
 import numpy as np
 
@@ -232,6 +244,8 @@ ALPHA = 1.0 / 137.035999            # on-shell (Thomson) fine-structure constant
 M_MU = 0.1056583745                 # PDG muon mass [GeV]
 M_E = 0.51099895e-3                 # PDG electron mass [GeV]
 M_TAU = 1.77686                     # PDG tau mass [GeV]
+M_PI_CH = 0.13957039                # PDG charged pion mass [GeV]
+M_C, M_B = 1.27, 4.18               # PDG MS-bar quark masses [GeV]
 A_PI = ALPHA / math.pi
 
 #: int_0^1 (1+z^2) ln z / (1-z) dz = 5/4 - pi^2/3
@@ -378,70 +392,158 @@ def beta_fsr(m, minus_one=True):
 
 
 # --------------------------------------------------------------------------
-# pair emission
+# real pair emission: the spectral densities
 # --------------------------------------------------------------------------
-def _rho_lepton(q2, ml):
-    """Im Pi(q^2)/pi for a lepton pair: (alpha/3pi)(1 + 2 m^2/q^2) beta_l."""
+# A virtual photon of mass^2 q^2 radiated off the muon line converts to a
+# fermion pair.  The photon propagator with one self-energy insertion, cut, is
+# exactly a dispersive integral over the massive-photon emission cross section:
+#
+#     dSigma_pair = int (dq^2/q^2) rho(q^2) dSigma_{gamma*}(q^2) ,           (P1)
+#     rho(q^2) = Im Pi(q^2)/pi ,
+#
+# with ``dSigma_{gamma*}`` the emission of a VECTOR OF MASS^2 q^2 with the same
+# coupling e and the polarisation sum ``-g + q q/q^2`` (equal to ``-g`` here,
+# because the muon emission current is conserved).  (P1) is exact for the
+# non-singlet channel - both attachments and their interference are inside
+# ``dSigma_{gamma*}`` - so the only O(alpha^2) real-pair terms it misses are the
+# singlet ones, in which the observed muon pair is not the one the current
+# produced; those are a background to the dimuon spectrum, not FSR, and their
+# rate inside a 60-120 GeV window is below 1e-7 (`pair` prints it).
+#
+#     rho_lepton = (alpha/3pi) (1 + 2 m_l^2/q^2) beta_l ,
+#     rho_had    = (alpha/3pi) R(q^2) .
+#
+# Kniehl, Krawczyk, Kuhn, Stuart, Phys. Lett. B209 (1988) 337.
+
+
+def rho_lepton(q2, ml):
+    """``Im Pi(q^2)/pi`` for a lepton pair: ``(alpha/3pi)(1+2m^2/q^2) beta_l``."""
     q2 = np.asarray(q2, float)
     b = np.sqrt(np.maximum(1.0 - 4.0 * ml * ml / q2, 0.0))
     return (ALPHA / (3.0 * math.pi)) * (1.0 + 2.0 * ml * ml / q2) * b
 
 
-def _rho_had(q2, r_had=2.0, q2_min=1.0):
-    """Im Pi(q^2)/pi for hadrons: (alpha/3pi) R(q^2), R ~ const above 1 GeV^2.
+#: ``1 + alpha_s/pi`` in each open-flavour region, ``alpha_s`` at a
+#: representative scale of the region (2, 7 and 30 GeV).  The ``alpha_s^2`` and
+#: ``alpha_s^3`` terms of the PDG QCD review eq. (9.7) add 0.2 % to
+#: ``int R dln q^2`` and are dropped.
+R_QCD = (1.093, 1.062, 1.045)
+#: open-flavour thresholds: the physical ones, ``2 m_D0`` and ``2 m_B``, not
+#: ``2 m_q``.  Using the quark masses instead overshoots ``int R dln q^2`` by
+#: 2.4 %.
+Q2_CHARM, Q2_BOTTOM = 3.7300**2, 10.5590**2
+#: narrow vector resonances: ``(name, M [GeV], Gamma_ee [keV])`` (PDG).  A
+#: resonance contributes ``int R dln q^2 = (9 pi/alpha^2) Gamma_ee/M`` at
+#: ``q^2 = M^2`` - derived from ``int sigma_had ds = 12 pi^2 Gamma_ee/M`` and
+#: ``sigma_pt = 4 pi alpha^2/3s`` - and is carried as a discrete node of the
+#: ``q^2`` quadrature, which is exact for ``Gamma << M``.  ``Gamma_ee`` is the
+#: PDG (vacuum-polarisation-dressed) value; undressing it, as the ``Delta
+#: alpha_had`` compilations do, would lower each by 3-5 %, and the narrow
+#: formula is itself 5 % high for the ``rho``.
+R_RESONANCES = (("rho", 0.77526, 7.04), ("omega", 0.78266, 0.63),
+                ("phi", 1.019461, 1.27), ("Jpsi", 3.096900, 5.53),
+                ("psi2S", 3.68610, 2.33), ("Y1S", 9.46040, 1.340),
+                ("Y2S", 10.02326, 0.612), ("Y3S", 10.3552, 0.443),
+                ("Y4S", 10.5794, 0.272))
 
-    A deliberately crude R: the hadronic pair term is 0.4 % of the photonic
-    radiator, so a 20 % error on R is 1e-3 of it.
+
+def r_had_cont(q2):
+    """Continuum ``R(q^2) = sigma(hadrons)/sigma(mu mu)``, resonances excluded.
+
+    Zero below 1 GeV, where the cross section *is* the ``rho``/``omega``/``phi``
+    of `R_RESONANCES`; a linear ramp in ``sqrt(q^2)`` from 1 to 1.5 GeV onto the
+    non-resonant plateau; then the parton model ``3 sum Q_q^2`` with the QCD
+    factor and the physical open-flavour thresholds, and a flat 3.40 across the
+    open-charm region 3.73-5 GeV where the data sit above the parton model.
+    PDG "Quantum Chromodynamics" review eqs. (9.7)-(9.9); the sub-2 GeV
+    normalisation follows KNT19 (arXiv:1911.00367) and DHMZ19 (arXiv:1908.00921).
     """
     q2 = np.asarray(q2, float)
-    return np.where(q2 >= q2_min, (ALPHA / (3.0 * math.pi)) * r_had, 0.0)
+    e = np.sqrt(np.maximum(q2, 0.0))
+    R = np.clip((e - 1.0) / 0.5, 0.0, 1.0) * 2.0 * R_QCD[0]
+    R = np.where(q2 > Q2_CHARM, 3.40, R)
+    R = np.where(q2 > 25.0, (10.0 / 3.0) * R_QCD[1], R)
+    R = np.where(q2 > Q2_BOTTOM, (11.0 / 3.0) * R_QCD[2], R)
+    return R
 
 
-def beta_pair(m, species=("e",), r_had=2.0, ngauss=400):
-    r"""Soft exponent of real pair emission off the final-state muon line.
+def r_resonance_weights():
+    """``(M^2, int R dln q^2)`` of the narrow resonances of `R_RESONANCES`."""
+    q2 = np.array([m * m for _, m, _ in R_RESONANCES])
+    a = np.array([(9.0 * math.pi / ALPHA**2) * (g * 1e-6) / m
+                  for _, m, g in R_RESONANCES])
+    return q2, a
 
-    A virtual photon of mass^2 ``q^2`` radiated off the muon converts to a
-    pair; the pair removes the same energy as a photon would, so at leading
-    log the ``z`` dependence is the photon one and only the coefficient
-    changes.  The collinear logarithm is cut off at ``q^2`` instead of
-    ``m_mu^2``, so
+
+#: lowest ``q^2`` at which each species can be produced
+PAIR_Q2LO = {"e": 4 * M_E**2, "mu": 4 * M_MU**2, "tau": 4 * M_TAU**2,
+             "had": 4 * M_PI_CH**2}
+PAIR_SPECIES = tuple(PAIR_Q2LO)
+
+
+def beta_pair_ll(m, species=("e",), ngauss=400):
+    r"""Dispersive LEADING-LOG soft exponent, kept as the reference of `pair`.
 
         beta_pair = (2 alpha/pi) int_{q2_thr}^{s} (dq^2/q^2) rho(q^2)
-                                 [ ln(s/q^2) - 1 ]                              (4)
+                                 [ ln(s/q^2) - 1 ]
 
-    with ``rho = Im Pi/pi`` the vacuum-polarisation spectral density.  This is
-    the leading-log (alpha^2 L^2) pair correction; the ``-1`` and the upper
-    limit are NLL and carry a ~1/L = 8 % relative uncertainty on (4).
-
-    Virtual pairs (the vacuum-polarisation insertion in the one-loop vertex)
-    cancel the soft part of (4) and otherwise change only the overall rate, so
-    they do not enter a normalised kernel.
+    i.e. the photon radiator with its collinear log moved from ``m_mu^2`` to
+    ``q^2``.  It overestimates the mass loss by 46 %: for ``q^2 < m_mu^2`` -
+    most of the ``dq^2/q^2`` range of an ``e+e-`` pair - the collinear log is
+    cut off by the MUON mass and saturates at ``L``, it has no ``ln z``, and it
+    ignores the massive-photon phase space ``q^2 < s (1-sqrt z)^2``.  The
+    kernel uses the exact `pair_radiator` instead.
     """
     s = float(m) ** 2
     out = 0.0
+    x, wq = np.polynomial.legendre.leggauss(ngauss)
     for sp in species:
-        if sp in ("e", "mu", "tau"):
-            ml = {"e": M_E, "mu": M_MU, "tau": M_TAU}[sp]
-            q2lo, rho = 4.0 * ml * ml, (lambda q2, ml=ml: _rho_lepton(q2, ml))
-        elif sp == "had":
-            q2lo, rho = 1.0, (lambda q2: _rho_had(q2, r_had))
-        else:
-            raise ValueError(f"unknown pair species {sp!r}")
+        q2lo = PAIR_Q2LO[sp]
         if q2lo >= s:
             continue
-        # log-spaced Gauss-Legendre in y = ln(q^2)
         ylo, yhi = math.log(q2lo), math.log(s)
-        x, wq = np.polynomial.legendre.leggauss(ngauss)
         y = 0.5 * (yhi - ylo) * (x + 1.0) + ylo
         w = 0.5 * (yhi - ylo) * wq
         q2 = np.exp(y)
-        out += float(np.sum(w * rho(q2) * (np.log(s / q2) - 1.0)))
+        if sp == "had":
+            rho = (ALPHA / (3.0 * math.pi)) * np.where(q2 >= 1.0, 2.0, 0.0)
+        else:
+            rho = rho_lepton(q2, {"e": M_E, "mu": M_MU, "tau": M_TAU}[sp])
+        out += float(np.sum(w * rho * (np.log(s / q2) - 1.0)))
     return 2.0 * A_PI * out
 
 
 # --------------------------------------------------------------------------
 # the kernel
 # --------------------------------------------------------------------------
+def _merge_cells(c, var_budget=None, sigma_cap=None):
+    """Merge ordered cells ``(w, int u, int u^2)`` into point masses ``(u, w)``.
+
+    Groups grow while ``w Var(u|group)`` stays below ``var_budget`` (or the
+    group sd below ``sigma_cap``); each atom sits at the exact conditional
+    mean of ``u``, which makes the provider's midpoint fold first-order exact.
+    """
+    w, m1, m2 = c
+    uj, wj = [], []
+    a0 = a1 = a2 = 0.0
+    for i in range(len(w)):
+        b0, b1, b2 = a0 + w[i], a1 + m1[i], a2 + m2[i]
+        if b0 <= 0.0:
+            continue
+        mu = b1 / b0
+        var = max(b2 / b0 - mu * mu, 0.0)
+        too_wide = (math.sqrt(var) > sigma_cap if sigma_cap
+                    else b0 * var > var_budget)
+        if too_wide and a0 > 0.0:
+            uj.append(a1 / a0); wj.append(a0)
+            a0, a1, a2 = w[i], m1[i], m2[i]
+        else:
+            a0, a1, a2 = b0, b1, b2
+    if a0 > 0.0:
+        uj.append(a1 / a0); wj.append(a0)
+    return np.asarray(uj), np.asarray(wj)
+
+
 VARIANTS = ("exp1", "exp2", "exp2nll", "oalpha", "born")
 #: variants whose soft end is exponentiated as C beta (1-z)^{beta-1}
 EXP_VARIANTS = ("exp1", "exp2", "exp2nll")
@@ -467,7 +569,7 @@ class FSRKernel:
     """
 
     def __init__(self, m, variant="exp1", pair=(), minus_one=True,
-                 x_cut=1e-7, zmin=None, beta_at=None):
+                 x_cut=1e-7, zmin=None, beta_at=None, pair_table=None):
         self.m = float(m)
         self.variant = variant
         if variant not in VARIANTS:
@@ -475,14 +577,16 @@ class FSRKernel:
         mb = self.m if beta_at is None else float(beta_at)
         self.beta_at = beta_at
         self.L = float(coll_log(mb))
-        self.beta_gam = float(beta_fsr(mb, minus_one))
-        self.beta_pair = float(beta_pair(mb, pair)) if pair else 0.0
+        self.beta = self.beta_gam = float(beta_fsr(mb, minus_one))
         self.pair = tuple(pair)
-        self.beta = self.beta_gam + self.beta_pair
+        #: R_pair(z), the exact O(alpha^2) real-pair spectrum, added to the
+        #: kernel with its integral taken out of the delta(1-z)
+        self._pair = PairTerm(mb, pair, path=pair_table)
         self.x_cut = float(x_cut)
         self.zmin = float(zmin) if zmin is not None else 4.0 * M_MU**2 / self.m**2
+        self.pair_rate = self.int_pair()
         #: (alpha/pi)^2 L, the prefactor of the O(alpha^2) NLL remainder (8).
-        #: Photonic only - the pair sector is `beta_pair`, at leading log.
+        #: Photonic only - the n_f sector is the exact `pair_radiator`.
         self._c_nll = A_PI**2 * self.L if variant == "exp2nll" else 0.0
         self._C = (1.0 - self.int_h()
                    - (self.int_q2() if variant in ("exp2", "exp2nll") else 0.0)
@@ -536,11 +640,29 @@ class FSRKernel:
         """
         return -self._c_nll * G_DELTA
 
+    def int_pair(self, n=4000):
+        """``N_pair = int_0^1 R_pair dz``, the real-pair rate.
+
+        Integrated as ``int 2 z R_pair(z) du`` on a log-spaced ``u`` ladder,
+        the variable the table is smooth in.
+        """
+        if self._pair.B is None:
+            return 0.0
+        u = np.geomspace(self._pair._u[0], min(self._pair._u[-1],
+                                               self._u_max()), n)
+        z = np.exp(-2.0 * u)
+        f = 2.0 * z * self._pair(z, -np.expm1(-2.0 * u)) * u   # d u -> d ln u
+        lu = np.log(u)
+        return float(np.trapezoid(f, lu) if hasattr(np, "trapezoid")
+                     else np.trapz(f, lu))
+
     # -- the density -------------------------------------------------------
     def pdf_z(self, z, x=None):
         """K(z) for z < 1.  ``x = 1-z`` may be supplied at full precision.
 
-        The delta at z = 1 of the ``oalpha`` variant is not included here.
+        The **photonic** kernel: the pair term is a separate factor, carried by
+        `pair_cells` and folded in by `atoms` and `moments`.  The delta at
+        z = 1 of the ``oalpha`` variant is not included here either.
         """
         z = np.asarray(z, float)
         x = (1.0 - z) if x is None else np.asarray(x, float)
@@ -624,14 +746,23 @@ class FSRKernel:
                          (w * x).sum(1)])
 
     def moments(self, u_max=None, n=4000, ng=16):
-        """(norm, <u>, <u^2>, <1-z>) of the normalised kernel."""
+        """(norm, <u>, <u^2>, <1-z>) of the normalised kernel.
+
+        Includes the pair term through the convolution: ``u`` is additive, so
+        the means add, and ``1 - z`` combines as ``x_p + x_q - x_p x_q``.
+        """
         c = self._cells(self._fine_grid(u_max, n), ng).sum(axis=1)
         n0 = max(c[0], 1.0) if self.variant == "oalpha" else c[0]
-        return dict(norm=float(c[0]), u=float(c[1] / n0), u2=float(c[2] / n0),
-                    x=float(c[3] / n0))
+        u, u2, x = float(c[1] / n0), float(c[2] / n0), float(c[3] / n0)
+        if self._pair.B is not None:
+            p = self.pair_cells(u_max=u_max, with_x=True).sum(axis=1)
+            u2 = u2 + 2.0 * u * p[1] + p[2]
+            x = x + p[3] - x * p[3]
+            u = u + p[1]
+        return dict(norm=float(c[0]), u=u, u2=u2, x=x)
 
     def tail(self, u0, n=4000, ng=16):
-        """P(u > u0) of the normalised kernel."""
+        """P(u > u0) of the normalised PHOTONIC kernel (see `pdf_z`)."""
         u0 = np.atleast_1d(np.asarray(u0, float))
         tg = self._fine_grid(None, n)
         c = self._cells(tg, ng)[0]
@@ -674,6 +805,37 @@ class FSRKernel:
         x = -np.expm1(-2.0 * u)
         return 2.0 * (1.0 - x) * self.pdf_z(1.0 - x, x)
 
+    # -- the pair kernel ---------------------------------------------------
+    def pair_cells(self, n=400, ng=8, u_max=None, with_x=False):
+        """``(w, int u R, int u^2 R)`` of ``R_pair`` on a log-``u`` ladder.
+
+        Excludes the ``delta(1-z)``; ``sum w = N_pair``.  ``with_x`` appends
+        ``int (1-z) R``.
+        """
+        if self._pair.B is None:
+            return np.zeros((4 if with_x else 3, 0))
+        u_max = self._u_max() if u_max is None else float(u_max)
+        e = np.geomspace(self._pair._u[0], min(self._pair._u[-1], u_max), n + 1)
+        g, wg = np.polynomial.legendre.leggauss(ng)
+        a, b = np.log(e[:-1])[:, None], np.log(e[1:])[:, None]
+        lu = 0.5 * (b - a) * (g[None, :] + 1.0) + a
+        w = 0.5 * (b - a) * wg[None, :]
+        u = np.exp(lu)
+        z = np.exp(-2.0 * u)
+        x = -np.expm1(-2.0 * u)
+        f = w * u * 2.0 * z * self._pair(z, x)                    # K_u(u) u dlnu
+        out = [f.sum(1), (f * u).sum(1), (f * u * u).sum(1)]
+        if with_x:
+            out.append((f * x).sum(1))
+        return np.stack(out)
+
+    def pair_atoms(self, var_budget=6e-10, **kw):
+        """Merge `pair_cells` into point masses ``(u_k, w_k)``, no ``delta``."""
+        c = self.pair_cells(**kw)
+        if c.shape[1] == 0:
+            return np.zeros(0), np.zeros(0)
+        return _merge_cells(c, var_budget)
+
     # -- atoms -------------------------------------------------------------
     def atoms(self, u_max=None, var_budget=6e-10, sigma_cap=None,
               n_fine=4000, ng=16):
@@ -686,27 +848,27 @@ class FSRKernel:
         ``w_j Var_j m^2 |p''| / 2`` per atom.
         """
         w, m1, m2, _ = self._cells(self._fine_grid(u_max, n_fine), ng)
-        rj, wj = [], []
-        a0 = a1 = a2 = 0.0
-        for i in range(len(w)):
-            b0, b1, b2 = a0 + w[i], a1 + m1[i], a2 + m2[i]
-            if b0 <= 0.0:
-                continue
-            mu = b1 / b0
-            var = max(b2 / b0 - mu * mu, 0.0)
-            too_wide = (math.sqrt(var) > sigma_cap if sigma_cap
-                        else b0 * var > var_budget)
-            if too_wide and a0 > 0.0:
-                rj.append(math.exp(-a1 / a0))
-                wj.append(a0)
-                a0, a1, a2 = w[i], m1[i], m2[i]
-            else:
-                a0, a1, a2 = b0, b1, b2
-        if a0 > 0.0:
-            rj.append(math.exp(-a1 / a0))
-            wj.append(a0)
-        rj = np.asarray(rj)
-        wj = np.asarray(wj)
+        if self._pair.B is not None:
+            # K = K_phot (x) [ (1 - N) delta(1-z) + R_pair ]: the delta branch
+            # keeps the full photonic cell grid, the pair branch multiplies a
+            # COARSE photonic discretisation (its error is weighted by N, so
+            # the budget there is relaxed by 1/N) with the pair cells.
+            N = float(self.pair_rate)
+            uk, wk = self.pair_atoms(
+                var_budget=(var_budget / max(N, 1e-12) if var_budget else 1e-6),
+                u_max=u_max)
+            bud = (var_budget / max(N, 1e-12)) if var_budget else None
+            uc, wc = _merge_cells(np.stack([w, m1, m2]), bud,
+                                  None if bud else (sigma_cap or 1e-2) * 30.0)
+            uu = (uc[:, None] + uk[None, :]).ravel()
+            ww = (wc[:, None] * wk[None, :]).ravel()
+            w = np.concatenate([(1.0 - N) * w, ww])
+            m1 = np.concatenate([(1.0 - N) * m1, ww * uu])
+            m2 = np.concatenate([(1.0 - N) * m2, ww * uu * uu])
+            o = np.argsort(np.where(w > 0, m1 / np.maximum(w, 1e-300), 0.0))
+            w, m1, m2 = w[o], m1[o], m2[o]
+        uj, wj = _merge_cells(np.stack([w, m1, m2]), var_budget, sigma_cap)
+        rj = np.exp(-uj)
         if self.variant == "oalpha":
             rj = np.concatenate([[1.0], rj])
             wj = np.concatenate([[max(1.0 - wj.sum(), 0.0)], wj])
@@ -725,7 +887,7 @@ def band_edges(lo, hi, width):
 
 
 def build_banded(edges, variant="exp1", pair=(), minus_one=True,
-                 beta_at=None, u_max=None, **kw):
+                 beta_at=None, u_max=None, pair_table=None, **kw):
     """One kernel per ``m_pre`` band -> flat ``(r, w, m_lo, m_hi)`` arrays.
 
     The outermost bands are opened to ``0`` and ``inf`` so every pre-FSR mass
@@ -739,7 +901,7 @@ def build_banded(edges, variant="exp1", pair=(), minus_one=True,
         lo, hi = edges[i], edges[i + 1]
         mc = 0.5 * (lo + hi)
         k = FSRKernel(mc, variant=variant, pair=pair, minus_one=minus_one,
-                      beta_at=beta_at)
+                      beta_at=beta_at, pair_table=pair_table)
         r, w, tot = k.atoms(u_max=u_max, **kw)
         blo = 0.0 if i == 0 else lo
         bhi = np.inf if i == n - 1 else hi
@@ -748,7 +910,7 @@ def build_banded(edges, variant="exp1", pair=(), minus_one=True,
         LO.append(np.full(len(r), blo))
         HI.append(np.full(len(r), bhi))
         info.append(dict(m=mc, lo=blo, hi=float(bhi) if np.isfinite(bhi) else None,
-                         beta=k.beta, beta_pair=k.beta_pair, natoms=len(r),
+                         beta=k.beta, pair_rate=k.pair_rate, natoms=len(r),
                          captured=tot, mean_u=-float(np.sum(w * np.log(r)))))
     return (dict(r=np.concatenate(R), w=np.concatenate(W),
                  m_lo=np.concatenate(LO), m_hi=np.concatenate(HI)), info)
@@ -868,6 +1030,370 @@ def r1_exact(z, m, mmu=M_MU, va=(1.0, 0.0), ng=120):
 
 
 # --------------------------------------------------------------------------
+# exact O(alpha^2) real pair emission
+# --------------------------------------------------------------------------
+# The same Dirac-trace machinery with a MASSIVE emitted vector: ``k`` is given
+# mass^2 = q2, the propagator denominators become ``2 p.k + q2``, and the
+# photon index is still contracted with ``-g`` (``k_nu M^{mu nu} = 0`` makes
+# the ``k k/q^2`` piece vanish - checked below at the 1e-15 level).  The
+# massless limit reproduces `r1_exact` to 6e-12.
+#
+# ``eikonal=True`` replaces the matrix element by its soft limit
+# ``T_born x (-J^2)`` with ``J = p_-/(p_-.k) - p_+/(p_+.k)``.  That is exactly
+# what Photos++ 3.61 generates (`pairs.cxx`, ``YOT1``), and it reproduces the
+# standalone Photos pair rate and mass loss to 0.2 %.
+
+
+def _T_pair(s, z, q2, c, mmu=M_MU, va=(1.0, 0.0), eikonal=False):
+    """Spin-summed ``|M|^2`` (without ``e^2``) for ``V* -> mu+ mu- gamma*(q2)``.
+
+    ``z``, ``q2``, ``c`` are equal-length arrays; ``c = cos theta*`` is the
+    muon direction in the ``mu mu`` rest frame, with the ``gamma*`` along +z.
+    """
+    v, a = va
+    z = np.asarray(z, float); q2 = np.asarray(q2, float); c = np.asarray(c, float)
+    sp = z * s
+    E = 0.5 * np.sqrt(sp)
+    bm = np.sqrt(np.maximum(1.0 - 4.0 * mmu * mmu / sp, 0.0))
+    pq = E * bm
+    w = (s - sp - q2) / (2.0 * np.sqrt(sp))
+    kk = np.sqrt(np.maximum(w * w - q2, 0.0))
+    if eikonal:
+        pmk = E * w - pq * kk * c            # p_- . k
+        ppk = E * w + pq * kk * c            # p_+ . k
+        pmpp = E * E + pq * pq               # p_- . p_+
+        return _T_born(s, mmu, va) * (2.0 * pmpp / (pmk * ppk)
+                                      - mmu**2 / pmk**2 - mmu**2 / ppk**2)
+    st = np.sqrt(np.maximum(1.0 - c * c, 0.0))
+    zer = np.zeros_like(c)
+    pm = np.stack([E, pq * st, zer, pq * c], -1)
+    pp = np.stack([E, -pq * st, zer, -pq * c], -1)
+    k = np.stack([w, zer, zer, kk], -1)
+    Q = pm + pp + k
+    I4 = np.eye(4)
+    Gam = v * _GAMMA + a * np.einsum('mij,jk->mik', _GAMMA, _G5)
+    num1 = _slash(pm) + _slash(k) + mmu * I4
+    num2 = mmu * I4 - _slash(pp) - _slash(k)
+    dot = lambda x, y: (x[..., 0] * y[..., 0] - x[..., 1] * y[..., 1]
+                        - x[..., 2] * y[..., 2] - x[..., 3] * y[..., 3])
+    d1 = (2.0 * dot(pm, k) + q2)[:, None, None, None, None]
+    d2 = (2.0 * dot(pp, k) + q2)[:, None, None, None, None]
+    A = np.einsum('nij,pjk->pnik', _GAMMA, num1)
+    X = np.einsum('pnij,mjk->pnmik', A, Gam) / d1
+    B = np.einsum('mij,pjk->pmik', Gam, num2)
+    X += np.einsum('pmij,njk->pnmik', B, _GAMMA) / d2
+    L = _slash(pm) + mmu * I4
+    R = _slash(pp) - mmu * I4
+    # P_{m M} = -g + Qt Qt/s.  In this frame Q = (Q0, 0, 0, Q3) with Q^2 = s,
+    # so P is the two transverse unit vectors (eigenvalue 1) plus ONE direction
+    # in the (0, 3) plane with eigenvalue 1 + 2 Q3^2/s: rank 3, no eigenvalue
+    # decomposition needed at run time.
+    Q3, Q0 = Q[:, 3], Q[:, 0]
+    aa = Q3 * Q3 / s
+    bb = -Q0 * Q3 / s
+    nrm = np.sqrt(aa * aa + bb * bb)
+    small = nrm < 1e-300
+    nrm = np.where(small, 1.0, nrm)
+    vv = np.zeros_like(Q)
+    vv[:, 0] = np.where(small, 1.0, aa / nrm)
+    vv[:, 3] = np.where(small, 0.0, bb / nrm)
+    lam3 = 1.0 + 2.0 * Q3 * Q3 / s
+    Y = np.stack([X[:, :, 1], X[:, :, 2],
+                  np.einsum('pm,pnmij->pnij', vv, X)], axis=2)
+    wa = np.stack([np.ones_like(lam3), np.ones_like(lam3), lam3], axis=-1)
+    LY = np.einsum('pij,pnajk->pnaik', L, Y)
+    RY = np.einsum('pij,pnajk->pnaik', R, _bar(Y))
+    tr = np.einsum('pnaij,pnaji->pna', LY, RY).real
+    g = np.array([-1.0, 1.0, 1.0, 1.0])
+    return np.einsum('n,pa,pna->p', g, wa, tr) / 3.0
+
+
+def spec_gammastar(m, z, q2, mmu=M_MU, va=(1.0, 0.0), ng=24, chunk=20000,
+                   eikonal=False):
+    """``(1/Gamma_0) dGamma/dx`` for ``V*(m) -> mu+ mu- gamma*(q2)``.
+
+    ``x = 2 E_gamma*/sqrt(s) = 1 - z + q2/s`` is the emitted energy fraction;
+    the mass loss is ``1 - z = x - q2/s``.  The muon angular integral uses
+    ``1 -+ beta_mu beta_k cos = (1 - beta_mu beta_k) e^t``, which resolves both
+    quasi-collinear poles exactly.  ``ng = 24`` converges to 1e-13.
+    """
+    s = m * m
+    z = np.asarray(z, float); q2 = np.asarray(q2, float)
+    out = np.zeros(np.broadcast(z, q2).shape)
+    z, q2 = np.broadcast_arrays(z, q2)
+    z = np.ascontiguousarray(z); q2 = np.ascontiguousarray(q2)
+    sp = z * s
+    x = 1.0 - z + q2 / s
+    lam2 = x * x - 4.0 * q2 / s
+    ok = (sp > 4.0 * mmu * mmu) & (lam2 > 0.0)
+    if not ok.any():
+        return out
+    idx = np.nonzero(ok.ravel())[0]
+    zo = z.ravel()[idx]; qo = q2.ravel()[idx]
+    spo = zo * s
+    bm = np.sqrt(1.0 - 4.0 * mmu * mmu / spo)
+    bm0 = math.sqrt(1.0 - 4.0 * mmu * mmu / s)
+    w = 0.5 * (s - spo - qo) / np.sqrt(spo)
+    bk = np.sqrt(np.maximum(w * w - qo, 0.0)) / w
+    aa = np.clip(bm * bk, 1e-300, 1.0 - 1e-16)
+    tA = -np.log1p(-aa)
+    gq, wq = np.polynomial.legendre.leggauss(ng)
+    t = 0.5 * tA[:, None] * (gq[None, :] + 1.0)
+    wt = 0.5 * tA[:, None] * wq[None, :] * (1.0 - aa)[:, None] / aa[:, None] * np.exp(t)
+    cA = (1.0 - (1.0 - aa)[:, None] * np.exp(t)) / aa[:, None]
+    C = np.concatenate([cA, -cA], axis=1)
+    W = np.concatenate([wt, wt], axis=1)
+    n = C.shape[1]
+    zf = np.repeat(zo, n); qf = np.repeat(qo, n); cf = C.ravel()
+    T = np.empty(zf.size)
+    for i0 in range(0, zf.size, chunk):
+        sl = slice(i0, min(i0 + chunk, zf.size))
+        T[sl] = _T_pair(s, zf[sl], qf[sl], cf[sl], mmu, va, eikonal)
+    T = T.reshape(-1, n)
+    o = out.ravel()
+    o[idx] = (ALPHA * s * np.sqrt(lam2.ravel()[idx]) / (4.0 * math.pi)
+              * (bm / bm0) * 0.5 * np.sum(W * T, axis=1) / _T_born(s, mmu, va))
+    return out
+
+
+def _pair_q2_nodes(m, z, species, nq=16):
+    """``(q2, w)`` of the ``q^2`` quadrature at fixed ``z``, ``w`` = rho dln q^2.
+
+    The range is ``4 m_thr^2 < q^2 < s (1 - sqrt z)^2`` - the massive-photon
+    phase-space limit.  Log-spaced Gauss panels split at every species
+    threshold, plus a top panel in ``v = sqrt(q2max - q2)`` that resolves the
+    square-root edge, plus one discrete node per narrow vector resonance.
+    """
+    s = m * m
+    q2hi = s * (1.0 - math.sqrt(z)) ** 2
+    q2lo = min(PAIR_Q2LO[sp] for sp in species)
+    if q2hi <= q2lo:
+        return np.zeros(0), np.zeros(0)
+    g, wg = np.polynomial.legendre.leggauss(nq)
+    edges = [q2lo, 4 * M_MU**2, 4 * M_PI_CH**2, 1.0, 2.25, 3.24, Q2_CHARM,
+             25.0, 4 * M_TAU**2, Q2_BOTTOM]
+    edges = sorted(set([e for e in edges if q2lo <= e < 0.5 * q2hi] + [q2lo, 0.5 * q2hi]))
+    Q, W = [], []
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        a, b = math.log(lo), math.log(hi)
+        y = 0.5 * (b - a) * (g + 1.0) + a
+        Q.append(np.exp(y)); W.append(0.5 * (b - a) * wg)
+    vmax = math.sqrt(0.5 * q2hi)
+    v = 0.5 * vmax * (g + 1.0)
+    q2t = q2hi - v * v
+    Q.append(q2t); W.append(0.5 * vmax * wg * 2.0 * v / q2t)
+    q2 = np.concatenate(Q); dl = np.concatenate(W)
+    rho = np.zeros_like(q2)
+    for sp in species:
+        if sp == "had":
+            rho += (ALPHA / (3.0 * math.pi)) * r_had_cont(q2)
+        else:
+            rho += rho_lepton(q2, {"e": M_E, "mu": M_MU, "tau": M_TAU}[sp]) \
+                * (q2 >= PAIR_Q2LO[sp])
+    w = rho * dl
+    if "had" in species:
+        rq2, ra = r_resonance_weights()
+        keep = rq2 < q2hi
+        q2 = np.concatenate([q2, rq2[keep]])
+        w = np.concatenate([w, (ALPHA / (3.0 * math.pi)) * ra[keep]])
+    return q2, w
+
+
+def pair_radiator(m, z, species=PAIR_SPECIES, nq=16, ng=24, eikonal=False):
+    """``R_pair(z)``, the exact O(alpha^2) real-pair spectrum, eq. (P1).
+
+    A density in ``z = (m'/m)^2`` per unit ``z``, to be ADDED to the photonic
+    kernel with ``int R_pair dz`` removed from the ``delta(1-z)``: to O(alpha^2)
+    that is the product of the photonic kernel with the pair kernel
+    ``(1 - N_pair) delta(1-z) + R_pair(z)``.
+    """
+    z = np.atleast_1d(np.asarray(z, float))
+    out = np.zeros_like(z)
+    for i, zz in enumerate(z):
+        if not (0.0 < zz < 1.0):
+            continue
+        q2, w = _pair_q2_nodes(m, float(zz), species, nq)
+        if q2.size == 0:
+            continue
+        f = spec_gammastar(m, np.full_like(q2, zz), q2, ng=ng, eikonal=eikonal)
+        out[i] = float(np.sum(w * f))
+    return out
+
+
+def pair_moments(m, species=PAIR_SPECIES, nq=12, nth=48, npan=3, ng=24,
+                 eikonal=False, q2lo=None):
+    """``(rate, <u> rate, <u^2> rate)`` of real pair emission.
+
+    Integrated the other way round - over the emitted energy at fixed ``q^2``,
+    with ``x = 2 sqrt(q^2/s) cosh(theta)`` removing the square-root edge - so
+    it is an independent check of `pair_radiator`.  ``qcut`` restricts to pair
+    masses ``q > qcut``.
+    """
+    s = m * m
+    per = {}
+    q2, wq, dl = _moment_q2_grid(m, species, nq, q2lo)
+    N = np.zeros(len(q2)); U = np.zeros(len(q2)); U2 = np.zeros(len(q2))
+    g, wg = np.polynomial.legendre.leggauss(nth)
+    for i, qq in enumerate(q2):
+        r = qq / s
+        xmax = 1.0 + r - 4.0 * M_MU**2 / s
+        x0 = 2.0 * math.sqrt(r)
+        if x0 >= xmax:
+            continue
+        thmax = math.acosh(xmax / x0)
+        e = np.linspace(0.0, thmax, npan + 1)
+        th = np.concatenate([0.5 * (b - a) * (g + 1.0) + a
+                             for a, b in zip(e[:-1], e[1:])])
+        wth = np.concatenate([0.5 * (b - a) * wg for a, b in zip(e[:-1], e[1:])])
+        x = x0 * np.cosh(th)
+        wx = wth * x0 * np.sinh(th)
+        z = 1.0 - x + r
+        f = spec_gammastar(m, z, np.full_like(z, qq), ng=ng, eikonal=eikonal)
+        u = -0.5 * np.log(np.maximum(z, 1e-300))
+        N[i] = np.sum(wx * f); U[i] = np.sum(wx * f * u)
+        U2[i] = np.sum(wx * f * u * u)
+    for sp in species:
+        w = wq[sp]
+        per[sp] = (float(np.sum(w * N)), float(np.sum(w * U)),
+                   float(np.sum(w * U2)))
+    return per
+
+
+def _moment_q2_grid(m, species, nq, q2lo=None):
+    """Shared ``q^2`` nodes for `pair_moments` with per-species rho weights."""
+    s = m * m
+    g, wg = np.polynomial.legendre.leggauss(nq)
+    lo = 4 * M_E**2 if q2lo is None else float(q2lo)
+    edges = sorted(set([lo, 4 * M_E**2, 4 * M_MU**2, 4 * M_PI_CH**2, 1.0,
+                        2.25, 3.24, Q2_CHARM, 25.0, 4 * M_TAU**2, Q2_BOTTOM,
+                        0.25 * s, s]))
+    edges = [e for e in edges if lo <= e <= s]
+    Q, W = [], []
+    for e0, e1 in zip(edges[:-1], edges[1:]):
+        a, b = math.log(e0), math.log(e1)
+        Q.append(np.exp(0.5 * (b - a) * (g + 1.0) + a))
+        W.append(0.5 * (b - a) * wg)
+    q2 = np.concatenate(Q); dl = np.concatenate(W)
+    rq2, ra = r_resonance_weights()
+    keep = rq2 >= lo
+    rq2, ra = rq2[keep], ra[keep]
+    q2 = np.concatenate([q2, rq2]); dl = np.concatenate([dl, np.zeros(len(rq2))])
+    wq = {}
+    for sp in species:
+        if sp == "had":
+            w = (ALPHA / (3.0 * math.pi)) * r_had_cont(q2) * dl
+            if len(rq2):
+                w[-len(rq2):] = (ALPHA / (3.0 * math.pi)) * ra
+        else:
+            w = rho_lepton(q2, {"e": M_E, "mu": M_MU, "tau": M_TAU}[sp]) \
+                * (q2 >= PAIR_Q2LO[sp]) * dl
+        wq[sp] = w
+    return q2, wq, dl
+
+
+# --------------------------------------------------------------------------
+# the pair table
+# --------------------------------------------------------------------------
+# `pair_radiator` costs a few hundred ms per ``z``, so the kernel reads a
+# precomputed table of
+#
+#     B(u; m) = R_pair(z) / [ (alpha/pi) (1+z^2)/(1-z) ] ,   u = -(1/2) ln z ,
+#
+# one column per species, log-spaced in ``u`` and linearly interpolated in
+# ``ln m``.  ``B`` is O(0.1) and smooth in ``ln u``; dividing out the
+# Altarelli-Parisi pole is what makes the interpolation accurate at both ends.
+# Rebuild with ``fsr_analytic.py pairtable``.
+PAIR_TABLE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "data", "fsr", "pairkern.npz")
+_PAIR_CACHE = {}
+
+
+def _pair_table_cell(arg):
+    mm, sp, z, nq, ng, eik = arg
+    P = (1.0 + z * z) / (1.0 - z)
+    return pair_radiator(mm, z, (sp,), nq=nq, ng=ng, eikonal=eik) / (A_PI * P)
+
+
+def build_pair_table(masses=None, nu=200, u_lo=1e-6, u_hi=7.0,
+                     species=PAIR_SPECIES, nq=16, ng=24, procs=1,
+                     eikonal=False):
+    """Tabulate ``B(u; m)`` for every species; returns a dict for ``np.savez``."""
+    if masses is None:
+        masses = np.geomspace(40.0, 260.0, 13)
+    masses = np.asarray(masses, float)
+    u = np.geomspace(u_lo, u_hi, nu)
+    z = np.exp(-2.0 * u)
+    jobs = [(float(mm), sp, z, nq, ng, eikonal)
+            for sp in species for mm in masses]
+    if procs > 1:
+        import multiprocessing as mp
+        with mp.Pool(procs) as pool:
+            res = pool.map(_pair_table_cell, jobs, chunksize=1)
+    else:
+        res = [_pair_table_cell(j) for j in jobs]
+    out = dict(u=u, m=masses, species=np.array(list(species)))
+    for i, sp in enumerate(species):
+        out["B_" + sp] = np.stack(res[i * len(masses):(i + 1) * len(masses)])
+    return out
+
+
+def pair_pdf_u(m, u, species=PAIR_SPECIES, path=None):
+    """``K_u(u) = 2 z R_pair(z)``: the pair kernel's density in ``u``.
+
+    The full pair kernel is ``(1 - N_pair) delta(u) + K_u(u)``; this is its
+    continuous part, which is what a pair-only Photos run measures away from
+    ``u = 0``.
+    """
+    u = np.asarray(u, float)
+    z = np.exp(-2.0 * u)
+    return 2.0 * z * PairTerm(m, species, path=path)(z, -np.expm1(-2.0 * u))
+
+
+class PairTerm:
+    """``R_pair(z)`` for a species set, from `PAIR_TABLE`, at one mass."""
+
+    def __init__(self, m, species, path=None):
+        self.species = tuple(species)
+        self.m = float(m)
+        if not self.species:
+            self.B = None
+            self.rate = self.mean_u = 0.0
+            return
+        path = PAIR_TABLE if path is None else path
+        d = _PAIR_CACHE.get(path)
+        if d is None:
+            if not os.path.exists(path):
+                raise FileNotFoundError(
+                    f"pair table {path} missing; build it with "
+                    f"`python3 fsr_analytic.py pairtable -o {path}`")
+            d = {k: v for k, v in np.load(path, allow_pickle=True).items()}
+            _PAIR_CACHE[path] = d
+        self._u = d["u"]
+        mg = d["m"]
+        lm = math.log(self.m)
+        j = int(np.clip(np.searchsorted(np.log(mg), lm) - 1, 0, len(mg) - 2))
+        f = (lm - math.log(mg[j])) / (math.log(mg[j + 1]) - math.log(mg[j]))
+        f = min(max(f, 0.0), 1.0)
+        B = np.zeros_like(self._u)
+        for sp in self.species:
+            Bs = d["B_" + sp]
+            B = B + (1.0 - f) * Bs[j] + f * Bs[j + 1]
+        self.B = B
+        self._lnu = np.log(self._u)
+
+    def __call__(self, z, x=None):
+        """``R_pair(z)``; ``x = 1-z`` may be supplied at full precision."""
+        z = np.asarray(z, float)
+        x = (1.0 - z) if x is None else np.asarray(x, float)
+        if self.B is None:
+            return np.zeros_like(z)
+        u = -0.5 * np.log1p(-x)
+        B = np.interp(np.log(np.maximum(u, 1e-300)), self._lnu, self.B,
+                      left=0.0, right=0.0)
+        return A_PI * (1.0 + z * z) / x * B
+
+
+# --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
 def _kernel_cmd(args):
@@ -879,11 +1405,13 @@ def _kernel_cmd(args):
     ker, info = build_banded(
         edges, variant=args.variant, pair=pair, minus_one=not args.no_minus_one,
         beta_at=args.freeze_beta_at, u_max=args.u_max,
+        pair_table=args.pair_table,
         var_budget=(None if args.sigma_cap else args.var_budget),
         sigma_cap=args.sigma_cap, n_fine=args.n_fine, ng=args.ng)
     meta = dict(kind="analytic", variant=args.variant, pair=list(pair),
                 minus_one=not args.no_minus_one,
                 freeze_beta_at=args.freeze_beta_at, alpha=ALPHA, m_mu=M_MU,
+                pair_table=args.pair_table,
                 band_lo=args.band_lo, band_hi=args.band_hi,
                 band_width=args.band_width, u_max=args.u_max,
                 var_budget=args.var_budget, sigma_cap=args.sigma_cap,
@@ -894,7 +1422,7 @@ def _kernel_cmd(args):
           f"{len(edges)-1} bands, {len(ker['r'])} atoms -> {args.output}")
     for b in info[:: max(1, len(info) // 8)]:
         print(f"    m = {b['m']:7.2f}  beta = {b['beta']:.6f}"
-              f"  beta_pair = {b['beta_pair']:.3e}  atoms = {b['natoms']:4d}"
+              f"  pair = {b['pair_rate']:.3e}  atoms = {b['natoms']:4d}"
               f"  <u> = {b['mean_u']*1e3:8.4f}e-3")
 
 
@@ -1202,6 +1730,81 @@ def _nll_cmd(args):
               f" relative, alpha^3/alpha = {ALPHA/math.pi*(coll_log(m)-1)*2:.3f})")
 
 
+def _pairtable_cmd(args):
+    t = build_pair_table(masses=args.masses, nu=args.nu, u_lo=args.u_lo,
+                         u_hi=args.u_hi, nq=args.nq, ng=args.ng,
+                         procs=args.procs, eikonal=args.eikonal)
+    meta = dict(kind="pairtable", alpha=ALPHA, m_mu=M_MU, m_e=M_E, m_tau=M_TAU,
+                nu=args.nu, u_lo=args.u_lo, u_hi=args.u_hi, nq=args.nq,
+                ng=args.ng, masses=list(map(float, t["m"])),
+                eikonal=bool(args.eikonal),
+                r_qcd=R_QCD, resonances=[list(r) for r in R_RESONANCES])
+    os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
+    np.savez(args.output, provenance=np.array([json.dumps(meta)]), **t)
+    print(f"[pairtable] {len(t['m'])} masses x {args.nu} u x "
+          f"{len(PAIR_SPECIES)} species -> {args.output}")
+    for sp in PAIR_SPECIES:
+        i = int(np.argmin(np.abs(t["m"] - 91.1876)))
+        print(f"    {sp:>4s}: max B = {t['B_' + sp][i].max():.5f} at m = "
+              f"{t['m'][i]:.2f}")
+
+
+def _pair_cmd(args):
+    """Exact O(alpha^2) pair emission: closure, the LL error, and Photos."""
+    m = args.mass
+    print(f"Real pair emission off the muon line, m = {m} GeV\n")
+    print("1. massive-photon matrix element")
+    for z, q2 in ((0.9, 1e-12), (0.5, 1e-12), (0.1, 1e-12)):
+        ex = r1_exact(z, m)
+        mv = float(spec_gammastar(m, np.array([z]), np.array([q2]))[0])
+        print(f"   q2 -> 0, z = {z:4.2f}: massive/massless - 1 = {mv / ex - 1:+.2e}")
+    for z, q2 in ((0.9, 1e-4), (0.5, 1.0), (0.1, 100.0)):
+        a = float(spec_gammastar(m, np.array([z]), np.array([q2]),
+                                 va=(1.0, 0.0))[0])
+        print(f"   current conservation at z = {z:4.2f}, q2 = {q2:8.1e}: "
+              f"R = {a:.6e}")
+    print("\n2. rate and mass loss, exact vs the dispersive leading log")
+    print(f"{'species':>8s}{'rate':>13s}{'<u> N':>13s}{'<u2> N':>13s}"
+          f"{'LL <u> N':>13s}{'exact/LL':>10s}")
+    per = pair_moments(m)
+    tot = [0.0, 0.0, 0.0]
+    for sp in PAIR_SPECIES:
+        v = per[sp]
+        ll = beta_pair_ll(m, (sp,)) * 0.5099671
+        print(f"{sp:>8s}{v[0]:13.5e}{v[1]:13.5e}{v[2]:13.5e}{ll:13.5e}"
+              f"{v[1] / ll:10.4f}")
+        for i in range(3):
+            tot[i] += v[i]
+    llall = beta_pair_ll(m, PAIR_SPECIES) * 0.5099671
+    print(f"{'TOTAL':>8s}{tot[0]:13.5e}{tot[1]:13.5e}{tot[2]:13.5e}"
+          f"{llall:13.5e}{tot[1] / llall:10.4f}")
+    print("\n3. the eikonal limit = Photos++ 3.61 (`pairs.cxx` YOT1)")
+    pe = pair_moments(m, species=("e", "mu"), eikonal=True)
+    ph = {"e": (2.41855e-3, 1.95999e-4), "mu": (3.12600e-4, 5.68119e-5)}
+    print(f"{'species':>8s}{'eik rate':>13s}{'Photos':>13s}{'ratio':>9s}"
+          f"{'eik <u>N':>13s}{'Photos':>13s}{'ratio':>9s}")
+    for sp in ("e", "mu"):
+        v = pe[sp]
+        print(f"{sp:>8s}{v[0]:13.5e}{ph[sp][0]:13.5e}{ph[sp][0] / v[0]:9.4f}"
+              f"{v[1]:13.5e}{ph[sp][1]:13.5e}{ph[sp][1] / v[1]:9.4f}")
+    print("   (Photos: 1e9 standalone events at this mass, photons off)")
+    print("\n4. table closure: int R_pair dz and int u R_pair dz")
+    k = FSRKernel(m, variant="exp2nll", pair=PAIR_SPECIES)
+    k0 = FSRKernel(m, variant="exp2nll")
+    (r, w, t1), (r0, w0, t0) = k.atoms(), k0.atoms()
+    du = -float(np.sum(w * np.log(r))) + float(np.sum(w0 * np.log(r0)))
+    print(f"   table rate = {k.pair_rate:.5e}   quadrature = {tot[0]:.5e}"
+          f"   ratio = {k.pair_rate / tot[0]:.4f}")
+    print(f"   atoms {len(r0)} -> {len(r)};  d<u> = {du:.6e}"
+          f"   quadrature = {tot[1]:.6e}   ratio = {du / tot[1]:.5f}")
+    print(f"   captured weight = {t1:.9f} (no pairs {t0:.9f})")
+    print("\n5. singlet background: pairs with q inside a 60-120 GeV window")
+    if m > 60.0:
+        pc = pair_moments(m, species=("e", "mu"), q2lo=3600.0)
+        print(f"   rate(q > 60 GeV) = {sum(v[0] for v in pc.values()):.3e} "
+              f"per event")
+
+
 def _moments_cmd(args):
     for m in args.mass:
         if args.u_cut:
@@ -1221,7 +1824,7 @@ def _moments_cmd(args):
                 d = k.moments()
                 tag = v + ("+pair:" + "/".join(pair) if pair else "")
                 print(f"  {tag:<24s} beta = {k.beta:.6f}"
-                      f"  (pair {k.beta_pair:.3e})"
+                      f"  (pair {k.pair_rate:.3e})"
                       f"  <u> = {d['u']*1e3:8.4f}e-3  <1-z> = {d['x']*1e3:8.4f}e-3"
                       f"  P(u>0.01) = {float(k.tail([0.01])[0]):.6f}"
                       f"  P0(1e-7) = {k.p_norad(1e-7):.6f}")
@@ -1242,6 +1845,8 @@ def main():
                    choices=["e", "mu", "tau", "had"])
     k.add_argument("--no-minus-one", action="store_true",
                    help="use L instead of L-1 in beta (NLL sensitivity bound)")
+    k.add_argument("--pair-table", default=None,
+                   help="pair table npz; default data/fsr/pairkern.npz")
     k.add_argument("--freeze-beta-at", type=float, default=None,
                    help="evaluate beta at this mass in every band")
     k.add_argument("--band-lo", type=float, default=50.0)
@@ -1262,6 +1867,23 @@ def main():
     nl = sub.add_parser("nll", help="validate the O(alpha^2) NLL term")
     nl.add_argument("--mass", nargs="*", type=float, default=[91.1876])
     nl.set_defaults(func=_nll_cmd)
+
+    pt = sub.add_parser("pairtable", help="build the exact pair-emission table")
+    pt.add_argument("-o", "--output", default=PAIR_TABLE)
+    pt.add_argument("--nu", type=int, default=200)
+    pt.add_argument("--u-lo", type=float, default=1e-6)
+    pt.add_argument("--u-hi", type=float, default=7.0)
+    pt.add_argument("--masses", nargs="*", type=float, default=None)
+    pt.add_argument("--nq", type=int, default=16)
+    pt.add_argument("--ng", type=int, default=24)
+    pt.add_argument("--procs", type=int, default=1)
+    pt.add_argument("--eikonal", action="store_true",
+                    help="soft-limit matrix element = what Photos generates")
+    pt.set_defaults(func=_pairtable_cmd)
+
+    pr = sub.add_parser("pair", help="validate the exact pair term")
+    pr.add_argument("--mass", type=float, default=91.1876)
+    pr.set_defaults(func=_pair_cmd)
 
     m = sub.add_parser("moments", help="analytic moments at a few masses")
     m.add_argument("--mass", nargs="*", type=float,
