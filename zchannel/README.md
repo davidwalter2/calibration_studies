@@ -625,6 +625,94 @@ exactly, and the `3 beta/4` in `C` already supplies `(3 beta^2/4)[1/(1-z)]_+`,
 matching `(beta^2/8) x 6` exactly. The `delta` coefficient follows from
 `int K = 1`.
 
+**`exp2nll`, `exp2` + the O(alpha^2) next-to-leading log** — every term of order
+`alpha^2 L` (`alpha^2 L^2` is already in `exp2`). The pair-mass fraction
+factorises, `z = z_+ z_-`, so in Mellin space the kernel is the *square* of the
+muon's **time-like (fragmentation) QED structure function** `D(z; L)`, which
+evolves with `a = alpha/2pi` as `dD/dL = a P0 (x) D + a^2 P1T (x) D` from
+`D(z; 0) = delta(1-z) + a C1 + ...`. Solving to O(a^2) and squaring,
+
+```
+K~(n) = exp[ (alpha/pi)(L g0 + c1) + (alpha/pi)^2 (L/2) g1 ] + NNLL        (5)
+```
+
+(lower case = Mellin moment of the corresponding capital). The O(alpha) term of
+(5) *is* the exact spectrum (1), which therefore **defines** the O(alpha)
+coefficient function: with `p(z) = (1+z^2)/(1-z)` and
+`P0 = [p]_+ = 2[1/(1-z)]_+ - (1+z) + (3/2) delta(1-z)`,
+
+```
+C1(z)   = [ p(z) (ln z - 1) ]_+ = Chat(z) - P0(z)                          (6)
+Chat(z) = p(z) ln z + (pi^2/3 - 5/4) delta(1-z)
+```
+
+and the O(alpha^2) term of (5) is
+`(alpha/pi)^2 { (L^2/2) P0 (x) P0 + L [ P1T/2 + P0 (x) C1 ] }`. `exp2` already
+carries the **whole** `L^2` coefficient and part of the `L` one: its O(alpha^2)
+content is exactly
+`(beta^2/8) P0 (x) P0 + (alpha/pi) beta (pi^2/3 - 5/4) [1/(1-z)]_+`, and because
+`beta = (2 alpha/pi)(L-1)` the `(L-1)^2` of the first piece supplies
+`-(alpha/pi)^2 L P0 (x) P0`, which is precisely the `-P0 (x) P0` inside
+`P0 (x) C1`. The remainder — the whole of `exp2nll` — is
+
+```
+Delta K(z) = (alpha/pi)^2 L [ G(z) + g_delta delta(1-z) ]                  (7)
+G(z) = 3 p(z) ln z ln(1-z) + [ 9/(2(1-z)) - 5 - 2z ] ln z
+     + [ (11/4)(1+z) - 4/(1-z) ] ln^2 z - (5/2)(1-z)
+     - (pi^2/3 - 5/4)(1+z) - p(-z) S_2(z)
+g_delta = P1_delta/2 + (3/2)(pi^2/3 - 5/4) = 3 zeta_3 + pi^2/4 - 27/16
+        = 4.386072 = - int_0^1 G dz
+```
+
+so `int Delta K dz = 0` analytically and the normalisation is untouched — no
+numerical rescale anywhere. `G = P1T/2 + A - (pi^2/3 - 5/4)(1+z)`, built from:
+
+* **`P1T`, the two-loop time-like non-singlet splitting function in its abelian
+  part** (`C_F^2 -> 1`, `C_A = 0`, `n_f = 0`), normalised as
+  `P = a P0 + a^2 P1`:
+
+  ```
+  P1T(z) = 2 p ln z ln(1-z) + [ 3/(1-z) - 7 - 5z ] ln z
+         + [ (5/2)(1+z) - 4/(1-z) ] ln^2 z - 9(1-z) - 2 p(-z) S_2(z)
+         + (3/8 - pi^2/2 + 6 zeta_3) delta(1-z)                            (8)
+  p(-z) = 2/(1+z) - 1 + z
+  S_2(z) = ln^2 z/2 - pi^2/6 - 2 Li_2(-z) - 2 ln z ln(1+z),  S_2(1) = 0
+  ```
+
+  It is the **valence (C-odd) combination** `P_NS,- = P_qq,V - P_qqbar,V`: the Z
+  couples to the C-odd vector current and what is counted on the `mu-` leg is
+  `mu - mubar`, and only this combination obeys `int P dz = 0`, i.e. muon-number
+  conservation, which the photonic sector must satisfy exactly. The `S_2(z)`
+  term is the **crossed-photon** interference in `mu -> mu gamma gamma`
+  (`T^a T^b T^a T^b = C_F(C_F - C_A/2) -> 1` in QED), not a pair effect. The
+  space-like kernel is Curci-Furmanski-Petronzio (Nucl. Phys. B175 (1980) 27)
+  and Floratos-Kounnas-Lacaze (Nucl. Phys. B192 (1981) 417); its QED form is
+  de Florian-Sborlini-Rodrigo, JHEP 10 (2016) 056, eqs. (57), (58), (63), (64).
+  The time-like difference is the Drell-Levy-Yan / Gribov-Lipatov-violating term
+
+  ```
+  P1T - P1S = 2 [ ln z P0 ] (x) P0                                         (9)
+  ```
+
+  (Curci-Furmanski-Petronzio; Mitov-Moch-Vogt, Phys. Lett. B638 (2006) 61, whose
+  `tlike-ns.h` gives `diffP1ns` = 4 x (9) in the `alpha_s/4pi` normalisation).
+
+* **`A(z) = (P0 (x) Chat_reg)(z)`**, the convolution needed for `P0 (x) C1`, is
+  the *same* object: `Chat_reg = p ln z`, so `A = ([p]_+ (x) [p ln]) =
+  (P1T - P1S)/2`, and its closed form is
+
+  ```
+  A(z) = 2 p ln z ln(1-z) + (3/2) p ln z - p ln^2 z
+       + (z-1) ln z + (1+z) ln^2 z / 2                                    (10)
+  ```
+
+**Scheme.** The abelian kernel above is the complete *photonic* two-loop
+splitting function of QED: `C_F C_A` has no QED analogue, and the `n_f T_F`
+terms need a real fermion pair. Those belong to the pair sector, which the
+kernel treats separately through `beta_pair` at leading log — nothing is double
+counted, and the pair sector's own O(alpha^2 L) terms stay inside the ~1/L = 8 %
+uncertainty `beta_pair` already carries (8 % of 1.4 % of the radiator).
+
 **`oalpha`**, fixed-order O(alpha) with a soft cutoff `x_cut`: a delta at `z = 1`
 carrying `1 - P(x > x_cut)` plus (1) above it. Not a model — it measures the
 size of the exponentiation.
@@ -664,6 +752,70 @@ panel count (500…8000) and the Gauss order (8…32).
 
 Banding in `m_pre` is free for an analytic kernel: 75 bands of 2 GeV over
 50-200 GeV, each with its own `beta(m)`, ~32 k atoms.
+
+### Validation of the O(alpha^2) NLL term
+
+`fsr_analytic.py nll` prints every check below; figures
+`~/public_html/ZMass/cvh/260913_fsr_nll/`.
+
+| check | residual |
+|---|---|
+| Mitov-Moch-Vogt `diffP1ns` (HPLs, with `Li_2`) vs `8 A(z)` of (10) | 1.4e−13 |
+| `A(z)` vs a direct numerical `([p]_+ (x) [p ln])(z)`, z = 1e−5…0.9 | 1.0e−14 |
+| `int P1S dz + delta` and `int P1T dz + delta` (muon number, NS_−) | 3.6e−15 |
+| `int A dz`, `int G dz + g_delta` | 1.8e−15 |
+| `M[P1S](n) + gamma^(1)_{NS,−}(n)/4`, n = 1…8 (harmonic sums) | 8.4e−15 |
+| `L^2` coefficient of `int z^{n-1} K dz` − `g0(n)^2/2`, n = 1…8 | 5.3e−15 |
+| `L` coefficient − `[ g1(n)/2 + g0(n) c1(n) ]`, n = 1…8 | 1.4e−14 |
+| `int K dz − 1` at `m_Z`, unclipped quadrature | 8.8e−8 |
+| `<u>` of the atoms, `n_fine` 4000→16000, `ng` 16→32 | 1.2e−12 |
+
+The Mellin check is the decisive one: the `L^2` coefficient of the **full**
+kernel reproduces `P0 (x) P0 / 2` and the `L` coefficient reproduces the
+complete NLL combination `P1T/2 + P0 (x) C1`, moment by moment, to 1e−14. The
+anomalous-dimension row is against `gamma^(1)_{NS,−}` of Moch-Vermaseren-Vogt
+(Nucl. Phys. B688 (2004) 101) eq. (3.6) in harmonic-sum form, which fixes the
+`delta(1-z)` coefficient `3/8 − pi^2/2 + 6 zeta_3` independently of the sum rule.
+`(1-z) P1T -> 7e−7` at `1-z = 1e−8`: the **abelian two-loop cusp is zero**, so
+the NLL term has no `[1/(1-z)]_+` at all.
+
+Its only exponentiable piece is therefore the `delta(1-z)`, and (7) puts it
+inside `C`, i.e. under the exponentiated soft factor. Adding it as an explicit
+atom at `z = 1` instead changes the kernel by
+`c_nll g_delta [ beta (1-z)^{beta-1} - delta(1-z) ] = c_nll g_delta beta
+[1/(1-z)]_+ + O(alpha^4)` — **O(alpha^3)**, the same O(alpha^2) expansion, worth
+−5.6e−4 on `<u>`, i.e. 3.4 % of the NLL term's own effect.
+
+### What the NLL term does
+
+`c_nll = (alpha/pi)^2 L = 7.29e−5` at the Z. Ratios `exp2nll / exp2`
+(`00_nll.txt`):
+
+| `m_pre` band | 50-60 | 70-80 | 86-96 | 110-130 | 150-200 |
+|---|---|---|---|---|---|
+| `<u>` | 0.98325 | 0.98342 | 0.98351 | 0.98363 | 0.98379 |
+| `<u^2>` | 0.94936 | 0.95017 | 0.95061 | 0.95120 | 0.95199 |
+| `<1-z>` | 0.99154 | 0.99162 | 0.99167 | 0.99172 | 0.99180 |
+
+| `u` | 1e−4 | 1e−3 | 1e−2 | 0.05 | 0.1 | 0.2 | 0.5 | 1.0 | 2.0 |
+|---|---|---|---|---|---|---|---|---|---|
+| density ratio, peak band | 1.00032 | 1.00041 | 1.00076 | 1.00105 | 1.00065 | 0.99894 | 0.99192 | 0.97723 | 0.91264 |
+| `P(u > u_0)` ratio | 0.99946 | 0.99916 | 0.99830 | 0.99613 | 0.99379 | 0.98935 | 0.97621 | 0.94895 | — |
+
+**The NLL term is a +0.3…+1.1e−3 effect on the density where the fit lives**
+(`u < 0.1`, i.e. `m_post > 0.9 m_pre`) and a few-per-cent one in the hard tail;
+the unradiated fraction moves by +3.1e−4 and the mass-dependence handle
+`<u>(110-150)/<u>(60-80)` by 3e−4 (1.11062 → 1.11095), so it does not touch what
+the `beta(m)` banding is for. `<u>` moves by −1.65 % only because `<u>` is
+dominated by the tail; restricted to `u < 2` the shift is −1.12 %.
+
+**Where the fixed order stops working.** `G(z)` carries `-(7/4) ln^2 z` at small
+`z`, and `(α/π) L ln z = −0.36` at `z = 1e−5`: the NLL truncation is not sufficient
+once the effective collinear log `ln(z m^2/m_mu^2)` closes, and the `alpha^2 L^2`
+term of `exp2` is no better there (it doubles the kernel at the two-muon
+threshold). `exp2nll` goes negative for `u > 4.85` at the Z (`z < 6.2e−5`) and is
+clipped to zero; that region carries `P = 5.5e−7` of the kernel and the clipping
+costs 1.9e−7 of the norm.
 
 ### Validation against Photos++
 
@@ -736,13 +888,25 @@ shape terms, `nm = 8192`; offsets from the generator's own
 | empirical, banded 5 GeV | +0.60 ± 0.55 | −0.21 ± 1.13 |
 | analytic exp. O(α), banded 2 GeV | +1.25 ± 0.54 | +6.35 ± 1.13 |
 | analytic exp. O(α), single band | +0.89 ± 0.54 | +6.33 ± 1.13 |
-| **analytic exp. O(α) + O(α²)LL, banded** | **+1.07 ± 0.54** | **+2.67 ± 1.13** |
+| analytic exp. O(α) + O(α²)LL, banded | +1.07 ± 0.54 | +2.67 ± 1.13 |
 | analytic exp. O(α) + O(α²)LL, single band | +0.70 ± 0.54 | +2.65 ± 1.13 |
 | … `β` frozen at `m_Z` | +0.86 ± 0.54 | +2.52 ± 1.13 |
 | … `L` instead of `L−1` in `β` (+8.0 % on `β`) | +5.60 ± 0.55 | −24.27 ± 1.13 |
 | … + `e⁺e⁻` pairs | +1.72 ± 0.54 | −2.02 ± 1.13 |
 | … + `e`, `μ`, `τ`, hadron pairs | +2.28 ± 0.54 | −4.86 ± 1.13 |
+| analytic exp. O(α) + O(α²)LL **+ O(α²)NLL**, banded | +1.17 ± 0.54 | +2.34 ± 1.13 |
+| **… + `e`, `μ`, `τ`, hadron pairs** | **+2.35 ± 0.54** | **−5.16 ± 1.13** |
 | O(α), **no exponentiation**, `x_cut` = 1e−7 | +24.94 ± 0.54 | −39.12 ± 1.13 |
+
+Kernel-to-kernel **differences** are far more precise than the rows themselves —
+same events, same nuisances, so the statistical fluctuation cancels. Repeating
+the whole comparison on half the sample and taking `|Δ_half − Δ_full|` (whose
+variance is exactly the variance of `Δ_full`) gives:
+
+| O(α²) NLL, on top of | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| `exp2`, no pairs | **+0.103 ± 0.003** | **−0.332 ± 0.003** |
+| `exp2` + `e`, `μ`, `τ`, hadron pairs | +0.074 ± 0.002 | −0.299 ± 0.002 |
 
 Read like for like — banded analytic against banded empirical, single-band
 analytic against inclusive empirical — **the analytic kernel reproduces the
@@ -764,7 +928,8 @@ What each ingredient is worth on `m_Z`:
 | `e⁺e⁻` pairs | 0.65 | −4.7 |
 | all pairs (`e`, `μ`, `τ`, hadrons) | 1.21 | −7.5 |
 | ±1 % on `β` (from the `L` vs `L−1` slope) | **0.57** | −3.3 |
-| O(α²) NLL, not included (`α/2π` of `β`) | 0.07 | −0.4 |
+| O(α²) NLL | **+0.103 ± 0.003** | **−0.332 ± 0.003** |
+| … its additive-vs-exponentiated O(α³) ambiguity | 0.004 | 0.011 |
 
 **A relative error `ε` on the radiative strength moves `m_Z` by `ε × 57` MeV,
 not `ε × 250` MeV**: the floating 5-term smooth `K(m)` absorbs most of a uniform
@@ -782,13 +947,21 @@ below the statistical error of the closure.
 ```bash
 Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
 python3 fsr_analytic.py validate                       # exact ME vs eq. (1)
+python3 fsr_analytic.py nll                            # every O(alpha^2) check
 python3 fsr_analytic.py moments --u-cut 0.113013       # inclusive + windowed
-python3 fsr_analytic.py kernel -o data/fsr/kan_exp2_pair_all.npz \
-        --variant exp2 --pair e mu tau had             # the recommended kernel
+python3 fsr_analytic.py kernel -o data/fsr/kan_exp2nll_pair_all.npz \
+        --variant exp2nll --pair e mu tau had          # the recommended kernel
+python3 fsr_analytic.py kernel -o data/fsr/kan_exp2nll.npz --variant exp2nll
 ./run_tf_z.sh python3 -u fit_gen.py fit --gen data/genmerged_full.npz \
         --suite postfsr --kernel data/kern_incl_sc3.3e-4.npz --nm 8192 \
         --kernel-alt data/fsr/kan_*.npz -o data/fsr/fit_postfsr_analytic.json
+./run_tf_z.sh python3 -u fit_gen.py fit --gen data/genmerged_full.npz \
+        --suite postfsr --kernel data/fsr/kan_exp2.npz --nm 8192 \
+        --kernel-alt data/fsr/kan_exp2.npz data/fsr/kan_exp2nll.npz \
+        data/fsr/kan_exp2nll_pair_all.npz data/fsr/kan_exp2_pair_all.npz \
+        -o data/fsr/fit_nll.json          # add --nmax 14637131 for the half
 ./run_tf_z.sh python3 -u cmp_fsr.py --gen data/genmerged_full.npz
+./run_tf_z.sh python3 -u cmp_fsr.py --nll              # the NLL figures
 ```
 
 ### Narrow resonances
@@ -815,12 +988,13 @@ fitted against radiates (`../fullscale/SUMMARY.md`, open item 2).
 
 ### Recommendation for the data likelihood
 
-* Use `exp2` + pair emission (`e`, `mu`, `tau`, hadrons), banded at 2 GeV. It is
-  first-principles throughout — no fitted constant, no scale factor — and its
-  mass dependence is exact, which the tabulated kernel's cannot be.
-* Quote as theory systematics: the O(α²)LL term (0.18 MeV on `m_Z`, 3.7 MeV on
-  `Γ_Z`, with the next order ~`β/2` of that), the pair term's own 8 % LL
-  uncertainty (0.1 MeV), and the O(α²) NLL truncation (0.07 MeV). The
+* Use `exp2nll` + pair emission (`e`, `mu`, `tau`, hadrons), banded at 2 GeV. It
+  is first-principles throughout — no fitted constant, no scale factor — it is
+  complete through O(α²) NLL, and its mass dependence is exact, which the
+  tabulated kernel's cannot be.
+* Quote as theory systematics: the O(α³) truncation (~`β/2` of the O(α²) terms,
+  i.e. ≲0.1 MeV on `m_Z`), the pair term's own 8 % LL uncertainty (0.1 MeV), and
+  the additive-vs-exponentiated O(α³) ambiguity of the NLL term (0.004 MeV). The
   `L` vs `L−1` row is a **sensitivity slope, not an uncertainty**: `β` is known
   exactly at O(α).
 * Do **not** take the +0.5 MeV difference against the Photos kernel as a
