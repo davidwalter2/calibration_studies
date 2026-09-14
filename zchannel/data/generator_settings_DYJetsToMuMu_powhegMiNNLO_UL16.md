@@ -142,10 +142,41 @@ SpaceShower:dipoleRecoil = 1
 ExternalDecays = PSet( Photospp = untracked PSet( parameterSets = vstring() ),
                        parameterSets = vstring('Photospp') )
 ```
-i.e. the CMS `PhotosppInterface` with **no overrides**: Photos++ defaults
-(exponentiated multi-photon emission, default infrared cut-off). Combined with
-`TimeShower:QEDshowerByL = off`, **all** muon FSR in this sample comes from
-Photos++. The interface keeps the un-radiated muon copies at `status == 746`.
+
+The provenance is **silent**, not empty: the `Photospp` PSet is a
+`cms.untracked.PSet` (`ExternalDecayDriver` fetches it with
+`getUntrackedParameter`) and untracked parameters are not stored in EDM
+provenance. The configuration is the GEN request's fragment
+(`SMP-RunIISummer20UL16wmLHEGEN-00496`, CMSSW_10_6_30_patch1, which
+`edmProvDump`'s processing history on this file matches), and every non-default
+switch in it is confirmed in the generated events:
+
+| switch | value | Photos 3.61 default | evidence in the gen record |
+|---|---|---|---|
+| `setExponentiation` | True | True | photon multiplicity under the Z reaches 7; 5.9 % of events have ≥ 3 |
+| `setInfraredCutOff` | **1e-7** | 0.01 | minimum photon energy in the Z rest frame 2.6e−6 GeV; 75.4 % of photons below the default cutoff |
+| `setMeCorrectionWtForW` | **True** | False | (the W samples carry a byte-identical block) |
+| `setMeCorrectionWtForZ` | **True** | False | standalone closure, `../README.md` |
+| `setMomentumConservationThreshold` | 0.1 | 0.1 | |
+| `setPairEmission` | **True** | False | 2.430e−3 of events carry exactly two status-1 `e±` under the Z (never one) and 3.066e−4 exactly four muons (never three), with masses starting at 1.028 and 216.5 MeV against `2m_e` = 1.022 and `2m_mu` = 211.3 |
+| `setPhotonEmission` | True | True | |
+| `setStopAtCriticalError` | False | True | |
+| `suppressAll` + `forceBremForDecay(23, ±24)` | on | off | 100.00 % of the status-746 Photos history entries sit under the Z branch |
+
+Combined with `TimeShower:QEDshowerByL = off`, **all** muon FSR in this sample
+comes from Photos++. The interface keeps the un-radiated muon copies at
+`status == 746`, and writes them whenever Photos touched the muons — by a
+photon *or* by a pair — so `npre == 0` is "Photos emitted nothing at all".
+
+Two consequences for the FSR kernel, both quantified in
+`../README.md`, "Photos++ standalone and the two kernel configurations":
+
+* the exact Z matrix-element correction is switched on but only **fires** on the
+  38.9 % of events whose Z has two opposite-sign fermion mothers — the
+  gluon-initiated Born of POWHEG `Zj` + MiNNLO kills it on the rest;
+* `dump_gen_fsr.py` requires exactly two hard-process status-1 muons, so the
+  3.07e−4 of events in which Photos emitted a `mu+ mu-` pair are dropped. The
+  loss is biased against the largest non-photon energy loss.
 
 ## 4. Event weights
 

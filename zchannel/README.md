@@ -1015,6 +1015,266 @@ fitted against radiates (`../fullscale/SUMMARY.md`, open item 2).
 
 ---
 
+## Photos++ standalone and the two kernel configurations
+
+`photos_standalone/` runs **Photos++ 3.61 outside CMSSW** — the same build
+`CMSSW_10_6_26` links,
+`/cvmfs/cms.cern.ch/slc7_amd64_gcc700/external/photospp/3.61-pafccj` — on
+`q qbar -> Z -> mu+ mu-` events generated at the sample's own `m_pre`
+distribution. It answers what the sample alone cannot: what Photos does at
+unlimited statistics, and what each of its switches is worth. `cmp_photos.py`
+is the comparison; figures `~/public_html/ZMass/cvh/260913_fsr_photos/`.
+
+### What the sample actually ran
+
+The EDM provenance shows only `parameterSets = {'Photospp'}` because the
+`Photospp` PSet is a `cms.untracked.PSet` and untracked parameters are not
+stored — **not** because the configuration was left at the Photos defaults.
+The configuration is the GEN request's fragment
+(`SMP-RunIISummer20UL16wmLHEGEN-00496`), and every non-default switch in it is
+visible in the generated events:
+
+| switch | sample | Photos 3.61 default | evidence in the sample's gen record |
+|---|---|---|---|
+| `setExponentiation` | True | True | photon multiplicity under the Z reaches 7; 5.9 % of events have ≥ 3 |
+| `setInfraredCutOff` | **1e-7** | 0.01 | minimum photon energy in the Z rest frame 2.6e−6 GeV; 75.4 % of photons below the default cutoff `0.01·m_Z/2` |
+| `setMeCorrectionWtForZ` | **True** | False | the closure below |
+| `setPairEmission` | **True** | False | 2.430e−3 of events carry **exactly two** status-1 `e±` under the Z (never one) and 3.066e−4 **exactly four** muons (never three); the pair masses start at 1.028 and 216.5 MeV against `2m_e` = 1.022 and `2m_mu` = 211.3 |
+| `setPhotonEmission` | True | True | |
+| `setStopAtCriticalError` | False | True | |
+| `suppressAll` + `forceBremForDecay(23, ±24)` | on | off | 100.00 % of the status-746 Photos history entries sit under the Z branch |
+
+`setMomentumConservationThreshold(0.1)` is a HepMC-only knob; on the HEPEVT path
+the tolerance is hard-coded at 1e−4.
+
+Four traps in the Photos 3.61 API, all read out of the upstream source
+(`PHOTOS.3.61`; `cmsdist` applies no patches, so upstream == the cvmfs build):
+
+* **`Photos::initialize()` overwrites settings.** It re-applies
+  `setExponentiation(true)` — which resets `xphcut` to 1e−7, `isec`/`itre` to 0
+  and the kinematic corrections to `PHCORK(5)` — and unconditionally re-applies
+  `maxWtInterference(2.0)`. Anything it touches has to be set **after** it.
+* **`phokey.fint` is an envelope, not physics.** The crude emission probability
+  is multiplied by it (`photosC.cxx:1928`) and the accept/reject weight divided
+  by it (`photosC.cxx:2328`); Photos aborts when the ratio still exceeds 1,
+  which the Z matrix-element correction (weight up to 2.12) and pair emission
+  (2.04) do at the default 2.0. `--fint=8` clears both, and the kernel is
+  independent of it to 0.07 %, below its 0.09 % statistical error.
+* `Photos::iniInfo()` prints *"emission of photons is inactive"* when photon
+  emission is **active** — `if(IfPhot)` where `initialize()` correctly has
+  `if(!IfPhot)`. A display bug; ignore the line.
+* Photos is a static singleton and is not thread safe: parallelism is by
+  separate processes.
+
+### The exact-ME correction fires on 39 % of the sample, not all of it
+
+`HEPEVT_struct::check_ME_channel()` applies the Z correction only when the
+decaying particle has **exactly two mothers, of opposite sign, both with
+`|pdgId|` in 1–6 or 11–16**. The mothers come from
+`PhotosParticle::findProductionMothers()`, which walks up through Z self-copies
+to the two status-21 incoming hard-process partons. A gluon on either leg kills
+it — and the sample is POWHEG-BOX `Zj` + MiNNLO, whose underlying Born is Z + 1
+parton. Measured in 1.35 M events of the sample's own gen record (100 % return
+exactly two status-21 mothers, so no pruning ambiguity):
+
+| initial state | fraction | ME correction |
+|---|---|---|
+| `q qbar` | 0.3528 | **fires** |
+| `q g` | 0.5710 | no |
+| `g g` | 0.0358 | no |
+| `q q` same sign | 0.0404 | no |
+
+Weighted by the MiNNLO weight — which is what a kernel histogram carries, and
+which differs because 7.6 % of events have negative weights concentrated in the
+non-`q qbar` channels — the ME-corrected fraction is **f_ME = 0.3886 ± 0.0008**
+in the peak band, rising monotonically from 0.357 at 50–60 GeV to 0.477 at
+150–200 GeV (`data/photos/f_me.json`). The sample's kernel is therefore a
+*mixture* of Photos-with-ME and Photos-without-ME at that measured, unfitted
+weight, and `mix.py` builds it.
+
+### The generator
+
+`photos_gen.cc` builds `q qbar -> Z -> mu+ mu-` with the quarks as the Z's
+mothers (which is what the ME channel test needs), the muons distributed as the
+Born `(1+cos²θ) + 2R cosθ` with `R` from the standard γ*/Z couplings at that
+mass, and `m_pre` drawn from the sample's own conditional distribution inside
+each band on a 1 MeV grid (`prep_input.py`). Generation is **flat in band
+index** — every band's kernel is normalised on its own, so band populations
+never enter — and a band is recombined into a wider one with the sample's
+weights, which reproduces `<m_pre>` per band to 1e−6. It accumulates the same
+`(s0, s1, s2)` fine-`u` sums at 2e−5 that `fit_gen.build_kernel` merges, so the
+same atom builder runs on the sample and on any standalone run.
+
+**Nothing in the kernel depends on the production model.** Varying it, at 5.1e8
+events per variation (peak band, `05_syst_*`):
+
+| variation | `<u>` ratio | `P(u>1e-3)` | `P(u>0.1)` | `P(u>0.5)` |
+|---|---|---|---|---|
+| flat `cosθ` | 0.9991 ± 0.0009 | 0.9998 | 0.9991 | 0.9971 |
+| `(1+cosθ)²` | 0.9991 ± 0.0009 | 0.9998 | 0.9991 | 0.9971 |
+| up quarks only | 0.9992 ± 0.0009 | 1.0002 | 0.9998 | 0.9977 |
+| down quarks only | 0.9988 ± 0.0009 | 1.0001 | 1.0004 | 0.9969 |
+| Z boosted to the sample's `(p_T, y)` | 1.0004 ± 0.0009 | 1.0002 | 0.9997 | 1.0009 |
+| `fint` 2 → 8 | 1.0007 ± 0.0009 | 1.0007 | 0.9999 | 1.0004 |
+
+With the ME correction **on** the same variations move `<u>` by at most 0.25 %
+and `P(u>0.5)` by 0.6 % — Photos's per-event ME weight is a ratio of matrix
+elements at the generated production angle, so it is production-dependent,
+while the switched-off kernel is not, as the exact O(α) result integrated over
+angles requires.
+
+### Validation gate
+
+2.06e9 events per configuration. Peak band, `<m_pre>` = 91.105 GeV; the
+sample's errors are `sqrt(p(1-p)/N_eff)` with `N_eff` = 1.63e7 from the clipped
+MiNNLO weights.
+
+**P(Photos emitted nothing at all)** — the sample's `npre == 0`, i.e. no
+status-746 pre-Photos muon copy, which Photos writes whenever it touched the
+muons, by a photon *or* by a pair. A parameter-free test of the emission rate:
+
+| | 50-60 | 70-80 | **86-96** | 110-130 | 150-200 |
+|---|---|---|---|---|---|
+| sample | 0.442541 | 0.421723 | **0.410287 ± 0.00012** | 0.395140 | 0.375510 |
+| **Photos, sample cfg** | 0.441076 | 0.420804 | **0.409836 (−3.6σ)** | 0.394908 | 0.374904 |
+| ME on for 100 % | 0.441657 | 0.421291 | 0.410543 (+2.0σ) | 0.395169 | 0.375077 |
+| ME on for 0 % | 0.440751 | 0.420510 | 0.409386 (−7.0σ) | 0.394723 | 0.374749 |
+| ME off, pairs off | 0.441810 | 0.421725 | 0.410657 (+3.1σ) | 0.395859 | 0.376026 |
+| ME on, pairs off | 0.442712 | 0.422416 | 0.411712 (+12σ) | 0.396387 | 0.376317 |
+
+**Tail `P(u > u0)`**, standalone / sample in the peak band:
+
+| `u0` | Photos, sample cfg | ME on 100 % | ME on 0 % | ME off, pairs off | ME on, pairs off |
+|---|---|---|---|---|---|
+| 1e−4 | 1.0016 (+4.7σ) | 0.9996 (−1.1σ) | 1.0029 (+8.2σ) | 0.9980 (−5.8σ) | 0.9950 (−15σ) |
+| 1e−3 | 1.0021 (+5.1σ) | 0.9995 (−1.2σ) | 1.0038 (+8.8σ) | 0.9971 (−6.9σ) | 0.9929 (−17σ) |
+| 1e−2 | 1.0028 (+4.9σ) | 0.9985 (−2.5σ) | 1.0054 (+9.3σ) | 0.9962 (−6.5σ) | 0.9893 (−18σ) |
+| 5e−2 | 1.0036 (+4.5σ) | 0.9957 (−5.2σ) | 1.0085 (+10σ) | 0.9976 (−2.9σ) | 0.9849 (−19σ) |
+| 0.1 | 1.0034 (+3.4σ) | 0.9922 (−7.7σ) | 1.0105 (+10σ) | 0.9990 (−1.0σ) | 0.9810 (−19σ) |
+| 0.2 | 1.0045 (+3.5σ) | 0.9868 (−9.8σ) | 1.0158 (+12σ) | 1.0048 (+3.6σ) | 0.9764 (−18σ) |
+| 0.5 | 1.0067 (+3.0σ) | 0.9727 (−12σ) | 1.0283 (+12σ) | 1.0213 (+9.2σ) | 0.9652 (−15σ) |
+| 1.0 | 1.0082 (+1.9σ) | 0.9563 (−10σ) | 1.0412 (+9.4σ) | 1.0385 (+8.7σ) | 0.9531 (−11σ) |
+
+The sample's configuration reproduces its own kernel **to 0.3 % everywhere and
+to 0.2 % below `u` = 1e−2**, and it is the only configuration that does: with
+pair emission off the kernel is 0.3–1.1 % low in the soft half and 2–4 % high in
+the hard tail; with the ME correction applied to every event it is 1–4 % low
+above `u` = 0.1; with it applied to none, 0.3–4 % high throughout. The residual
+of the mixture is a uniform +0.2 % of radiative strength, of the same size as
+the 0.4 % on the pair rate, and it is partly the sample's own dumper: it
+requires exactly two hard-process status-1 muons, so the 3.07e−4 of events in
+which Photos emitted a `mu+ mu-` pair are dropped, biased against the largest
+energy loss and worth about half of it.
+
+The **pair rate** is an independent confirmation that this is the right
+configuration: standalone Photos gives 2.727e−3 pairs per event against
+2.737e−3 counted in the sample's gen record, agreeing to 0.4 %.
+
+### Pair emission against the analytic pair term
+
+Photos 3.61 emits **`e+e-` and `mu+mu-` pairs only** — `PHOPAR(..., 11,
+0.000511, ...)` and `PHOPAR(..., 13, 0.1057, ...)` in `photosC.cxx`, called once
+before and once after the photons with `STRENG = 0.5`. No `tau`, no hadrons. The
+matching analytic species set is therefore `("e", "mu")`,
+`beta_pair` = 1.041e−3 at the Z (against 8.31e−4 for `e` alone and 1.317e−3 for
+all species).
+
+Running Photos with `setPhotonEmission(false)` isolates the pair kernel
+(`04_pair_only`). In the peak band:
+
+| | Photos | analytic `e`+`mu` | ratio |
+|---|---|---|---|
+| `<u>` | 2.518e−4 | 5.311e−4 | **0.474** |
+| `P(u > 1e-2)` | 1.820e−3 | 3.319e−3 | 0.549 |
+| `P(u > 5e-2)` | 1.082e−3 | 1.764e−3 | 0.613 |
+| `P(u > 0.5)` | 8.68e−5 | 2.511e−4 | 0.346 |
+| `P(emitted nothing)` | 0.997273 | 0.984124 | |
+
+The rates are not comparable at small `u` and the shapes differ by construction:
+the analytic term *exponentiates* `beta_pair`, so it has a soft singularity at
+`u -> 0`, while Photos generates **real** pairs above `2 m_l` with a
+triple-log crude probability and an ME rejection — its spectrum turns over below
+`u ~ 1e-4` and its total rate is 2.73e−3. The IR-safe statement is the mean mass
+loss: **Photos's pair emission removes 47 % of what the dispersive leading-log
+estimate gives for the same two species, and 38 % of the all-species value.**
+Pairs are therefore the one place where Photos is not merely incomplete in
+species but also soft in shape, and the `data` configuration takes the analytic
+term instead.
+
+### Fit level
+
+`fit_gen.py fit --suite postfsr`, 27.7 M gen events in 60–120 GeV, 5 Legendre
+shape terms, `nm = 8192`, offsets from the generator's own
+`m_Z` = 91.153510, `Gamma_Z` = 2.493202. Read banded against banded.
+
+| kernel | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| **empirical, the sample's own, banded 2 GeV** | **+0.91 ± 0.54** | **+0.74 ± 1.13** |
+| empirical, inclusive (`kern_incl_sc3.3e-4.npz`) | +0.15 ± 0.56 | +1.31 ± 1.14 |
+| **`mc`: Photos standalone, sample cfg** | **+0.41 ± 0.56** | **−0.21 ± 1.14** |
+| … ME correction applied to every event | +0.75 ± 0.56 | −0.02 ± 1.14 |
+| … ME correction applied to no event | +0.48 ± 0.56 | −0.15 ± 1.14 |
+| Photos, ME off, pairs off | +0.44 ± 0.55 | +3.19 ± 1.14 |
+| Photos, ME on, pairs off | +0.57 ± 0.55 | +2.84 ± 1.14 |
+| analytic exp. O(α), banded 2 GeV | +1.25 ± 0.54 | +6.34 ± 1.13 |
+| analytic + O(α²)LL | +1.07 ± 0.54 | +2.67 ± 1.13 |
+| analytic + O(α²)LL + NLL | +1.17 ± 0.54 | +2.34 ± 1.13 |
+| analytic + O(α²)LL + all pairs | +2.28 ± 0.54 | −4.86 ± 1.13 |
+| **`data`: analytic + O(α²)LL+NLL + all pairs** | **+2.35 ± 0.54** | **−5.16 ± 1.13** |
+
+The standalone kernel and the sample's own agree to **0.5 MeV on `m_Z` and
+1.0 MeV on `Γ_Z`** — below the statistical error of the closure and below the
+empirical kernel's own ±0.7 MeV `sigma_cap` quadrature bias. Applying the ME
+correction to every event instead of the measured 39 % moves `m_Z` by 0.34 MeV,
+so the mixture is a refinement inside the closure precision, not a requirement.
+Pair emission is worth **−2.9 to −3.3 MeV on `Γ_Z`** and +0.04 to +0.18 MeV on
+`m_Z`; the ME correction, applied to every event, at most 0.4 MeV on `Γ_Z` and
+0.3 MeV on `m_Z`.
+
+The +1.9 MeV between the `mc` and `data` kernels on `m_Z` and −5.0 MeV on `Γ_Z`
+is the physics Photos leaves out: the O(α²) leading and next-to-leading logs,
+`tau` and hadronic pairs, and the factor two on the leptonic pair mass loss.
+
+### The two configurations
+
+`fsr_config.py --config mc|data` builds both; the discretisation of each matches
+the control it is read against (`sigma_cap` = 3.3e−4 for `mc`, as for the
+empirical kernels; `var_budget` = 6e−10 for `data`, as for `fsr_analytic.py
+kernel`), banded at 2 GeV over 50–200 GeV.
+
+* **`mc`** — `data/kern_cfg_mc_sc3.3e-4.npz`. The sample's Photos physics at
+  unlimited statistics: standalone Photos++ 3.61 with the sample's switches,
+  mixed at the measured `f_ME(m)`. Use it to close the likelihood against this
+  MC. It is **not** the best description of nature.
+* **`data`** — `data/kern_cfg_data_vb6e-10.npz`. The analytic radiator of
+  `fsr_analytic.py`: `DATA_VARIANT` = `exp2nll` (exponentiated exact O(α) plus
+  the O(α²) leading log and its NLL term) with `DATA_PAIRS` =
+  `("e", "mu", "tau", "had")`. First-principles throughout, exact mass
+  dependence, and it supplies the three things Photos does not.
+
+### Reproducing
+
+```bash
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+cd $Z
+cmssw-el7 --command-to-run photos_standalone/build.sh     # plain g++, no scram
+python3 photos_standalone/prep_input.py                   # m_pre bands, boost sample
+python3 photos_standalone/mcref.py --half                 # the sample, same binning
+NPROC=240 photos_standalone/run.sh mcB  12 2200000 --me=1 --pairs=1 --fint=8
+NPROC=240 photos_standalone/run.sh pair 12 2200000 --me=0 --pairs=1 --fint=8
+python3 photos_standalone/mix.py --run data/photos/gen_mcB.npz \
+        --run data/photos/gen_pair.npz --frac-file data/photos/f_me.json \
+        -o data/photos/gen_mcMix.npz
+python3 fsr_config.py --config mc   -o data/kern_cfg_mc_sc3.3e-4.npz
+python3 fsr_config.py --config data -o data/kern_cfg_data_vb6e-10.npz
+./run_tf_z.sh python3 -u cmp_photos.py --runs "mcMix=Photos, sample cfg" ...
+```
+
+2.06e9 events take 80 s on 240 cores (Photos runs at 1.1e5 events/s/core); the
+binary runs outside the container once built.
+
+---
+
 ## What is still missing for a *data* Z channel
 
 * **The LO→MiNNLO `K(m)`, and its truncation.** The card must float a smooth
