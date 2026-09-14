@@ -1170,6 +1170,37 @@ The **pair rate** is an independent confirmation that this is the right
 configuration: standalone Photos gives 2.727e−3 pairs per event against
 2.737e−3 counted in the sample's gen record, agreeing to 0.4 %.
 
+### Where the Photos-minus-analytic residual comes from
+
+The generator sits 1.5–1.9 % above the exponentiated exact O(α) in the tail
+(`MC/exp1` in `../260913_fsr_analytic/00_moments.txt`). Switching Photos's
+pieces on and off one at a time decomposes it. Peak band, `P(u > u0)` relative
+to the analytic `exp1`:
+
+| `u0` | Photos, photons only, no ME | + exact-ME on every event | + pairs instead | **the sample** |
+|---|---|---|---|---|
+| 1e−3 | +0.70 % | +0.28 % | +1.38 % | +1.00 % |
+| 1e−2 | +1.17 % | +0.47 % | +2.11 % | +1.56 % |
+| 5e−2 | +1.65 % | +0.35 % | +2.76 % | +1.89 % |
+| 0.2 | +1.75 % | −1.13 % | +2.86 % | +1.26 % |
+
+So:
+
+* **Photos's own exponentiated shower is +1.7 % above the exponentiated exact
+  O(α)** at `u` = 0.05 when the exact matrix-element correction is off, and
+  **+0.35 % when it is applied to every event.** The correction is worth −1.3 %,
+  and with it Photos and the analytic form agree to a few per mille over four
+  decades in `u` — which is the check that the analytic radiator is right and
+  that the crude Photos kernel is what is high.
+* The sample *has* the correction switched on, but it fires on only 39 % of
+  events, so its photonic part keeps about +1.1 % of that excess.
+* **Real pair emission supplies the rest, +1.1 %.** `exp1`/`exp2` have no pair
+  term; the `data` configuration does.
+
+The two effects are the same size and the same sign, which is why a single
+"missing exact-ME correction" explanation fitted the inclusive number but not
+the shape: the ME piece grows with `u` and turns over, the pair piece does not.
+
 ### Pair emission against the analytic pair term
 
 Photos 3.61 emits **`e+e-` and `mu+mu-` pairs only** — `PHOPAR(..., 11,
