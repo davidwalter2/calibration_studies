@@ -38,6 +38,26 @@ ALT=(
  "inclusive empirical kernel=data/kern_incl_sc3.3e-4.npz"
 )
 OUT=data/fit_perleg_machinery.json
+elif [ "$WHICH" = "corr" ]; then
+# The correlated two-leg density: the exact O(alpha) recoil sharing replaces
+# D(x_+) D(x_-) at fixed z, with K(z) untouched.  The `cond:` rows are the same
+# references the machinery benchmark uses, so the residual is read off the same
+# target; `collinear selection` is the model's own target, because the model
+# takes the pT decision on x pT^pre.
+ALT=(
+ "corr, mc K=data/kern_corr_mc_1gev.npz:data/acc_corr_mc_1gev.json"
+ "corr, data K=data/kern_corr_data_1gev.npz:data/acc_corr_data_1gev.json"
+ "corr, mc K, matched u_c 0.03=data/kern_corr_mc_uc003.npz:data/acc_corr_mc_uc003.json"
+ "corr, mc K, matched u_c 0.01=data/kern_corr_mc_uc001.npz:data/acc_corr_mc_uc001.json"
+ "corr, mc K, matched u_c 0.003=data/kern_corr_mc_uc0003.npz:data/acc_corr_mc_uc0003.json"
+ "per-leg, mc D=data/kern_perleg_mc_1gev.npz:data/acc_perleg_mc_1gev.json"
+ "per-leg, analytic D (data cfg)=data/kern_perleg_data_1gev.npz:data/acc_perleg_1gev.json"
+ "cond: true mass, true selection=data/kern_cond_true.npz:data/acc_cond_true.json"
+ "cond: collinear selection=data/kern_cond_collsel.npz:data/acc_cond_collsel.json"
+ "cond: collinear mass + selection=data/kern_cond_coll.npz:data/acc_cond_coll.json"
+ "MC-conditional, banded=data/kern_fid_band3.3e-4.npz"
+)
+OUT=data/fit_perleg_corr.json
 else
 ALT=(
  "per-leg, 1 GeV bands=data/kern_perleg_data_1gev.npz:data/acc_perleg_1gev.json"

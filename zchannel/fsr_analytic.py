@@ -837,15 +837,14 @@ class FSRKernel:
         return _merge_cells(c, var_budget)
 
     # -- atoms -------------------------------------------------------------
-    def atoms(self, u_max=None, var_budget=6e-10, sigma_cap=None,
+    def cells(self, u_max=None, var_budget=6e-10, sigma_cap=None,
               n_fine=4000, ng=16):
-        """Discretise into ``(r_j, w_j)`` with the first moment of u exact.
+        """Fine cells ``(w, int u K, int u^2 K)`` of the full kernel, u-ordered.
 
-        Panels of the fine grid are merged while ``w Var(u|group)`` stays below
-        ``var_budget`` (or the group sd below ``sigma_cap``); each atom sits at
-        the exact conditional mean of ``u``, which makes the provider's
-        midpoint fold first-order exact and leaves a residual
-        ``w_j Var_j m^2 |p''| / 2`` per atom.
+        The photonic ladder with the pair branch folded in; `atoms` is
+        `_merge_cells` of this, and anything that has to reweight the kernel
+        *before* the merge -- the selection-conditional construction of
+        `fsr_perleg` -- needs the cells rather than the atoms.
         """
         w, m1, m2, _ = self._cells(self._fine_grid(u_max, n_fine), ng)
         if self._pair.B is not None:
@@ -867,7 +866,20 @@ class FSRKernel:
             m2 = np.concatenate([(1.0 - N) * m2, ww * uu * uu])
             o = np.argsort(np.where(w > 0, m1 / np.maximum(w, 1e-300), 0.0))
             w, m1, m2 = w[o], m1[o], m2[o]
-        uj, wj = _merge_cells(np.stack([w, m1, m2]), var_budget, sigma_cap)
+        return np.stack([w, m1, m2])
+
+    def atoms(self, u_max=None, var_budget=6e-10, sigma_cap=None,
+              n_fine=4000, ng=16):
+        """Discretise into ``(r_j, w_j)`` with the first moment of u exact.
+
+        Panels of the fine grid are merged while ``w Var(u|group)`` stays below
+        ``var_budget`` (or the group sd below ``sigma_cap``); each atom sits at
+        the exact conditional mean of ``u``, which makes the provider's
+        midpoint fold first-order exact and leaves a residual
+        ``w_j Var_j m^2 |p''| / 2`` per atom.
+        """
+        uj, wj = _merge_cells(self.cells(u_max, var_budget, sigma_cap,
+                                         n_fine, ng), var_budget, sigma_cap)
         rj = np.exp(-uj)
         if self.variant == "oalpha":
             rj = np.concatenate([[1.0], rj])
@@ -1027,6 +1039,122 @@ def r1_exact(z, m, mmu=M_MU, va=(1.0, 0.0), ng=120):
     T = _T_rad(s, z, c, mmu, va)
     return (ALPHA * s * (1.0 - z) / (4.0 * math.pi) * (bm / bm0)
             * 0.5 * float(np.sum(w * T)) / _T_born(s, mmu, va))
+
+
+# --------------------------------------------------------------------------
+# the exact O(alpha) energy sharing between the two legs
+# --------------------------------------------------------------------------
+# At O(alpha) with ONE photon, in the V*(m) rest frame,
+#
+#     m'^2 = (Q - k)^2 = m^2 (1 - 2 E_gamma/m)  =  z m^2            (exact)
+#     E_+ + E_- + E_gamma = m   ->   x_+ + x_- = 1 + z              (exact)
+#
+# with x_q = 2 E'_q/m the muon energy fractions.  The two are therefore on a
+# LINE, not on the collinear hyperbola x_+ x_- = z, and one number fixes where:
+#
+#     x_+ = 1 - (1 - z) f ,   x_- = 1 - (1 - z)(1 - f) ,   f = (1 - beta_mu c)/2
+#
+# with ``c = cos theta*`` the angle of the ``mu-`` to the photon in the mu-mu
+# rest frame -- the variable `_T_rad`/`_T_pair` use.  ``f = 0`` is the photon
+# collinear with ``mu-`` (that leg takes the whole loss), ``f = 1`` collinear
+# with ``mu+``, and the ~1/L of the rate in between is the recoil sharing the
+# collinear factorisation has no room for.
+#
+# The sharing density at fixed z is the exact spin-summed matrix element,
+# normalised:  p(f|z) df = T(s, z, c) dc / int T dc, whose ``c`` integral is
+# `r1_exact` by construction.  It is EXACTLY symmetric under f -> 1 - f (C
+# invariance of a neutral current; checked at 1e-16), so only the half branch
+# is tabulated.
+#
+# ``T (1 - beta_mu^2 c^2)^2`` is a quadratic in ``c^2`` -- the amplitude has the
+# two propagators ``2 p_-.k = s(1-x_+)`` and ``2 p_+.k = s(1-x_-)``, both linear
+# in ``c``, and the numerators are quadratic -- so three evaluations of
+# `_T_pair` per ``z`` give the closed form exactly (verified against direct
+# evaluation at the 1e-14 level from ``z`` = 1 - 1e-6 down to the ``2 m_mu``
+# threshold).  In the massless limit it collapses to the textbook
+# ``(x_+^2 + x_-^2)/((1-x_+)(1-x_-)) = 2 (1 + zeta c^2)/((1-c^2) (1-z)^2/(1+z)^2)``
+# with ``zeta = ((1-z)/(1+z))^2``.
+#: the three ``cos theta*`` at which ``_T_pair`` is sampled for `share_coeffs`
+SHARE_C = (0.0, 0.6, 0.9)
+
+
+def share_coeffs(m, z, mmu=M_MU, va=(1.0, 0.0)):
+    """``(A, beta_mu)`` with ``T (1 - beta_mu^2 c^2)^2 = A0 + A1 c^2 + A2 c^4``."""
+    s = m * m
+    z = np.atleast_1d(np.asarray(z, float))
+    bm = np.sqrt(np.maximum(1.0 - 4.0 * mmu * mmu / (z * s), 0.0))
+    cc = np.asarray(SHARE_C, float)
+    zf = np.repeat(z, len(cc))
+    cf = np.tile(cc, len(z))
+    T = _T_pair(s, zf, np.zeros_like(zf), cf, mmu, va).reshape(len(z), len(cc))
+    F = T * (1.0 - np.outer(bm * bm, cc * cc)) ** 2
+    return np.linalg.solve(np.vander(cc * cc, 3, increasing=True), F.T).T, bm
+
+
+def r1_fast(m, z, npanel=64, ng=8, mmu=M_MU, va=(1.0, 0.0), chunk=4000):
+    """`r1_exact` for an ARRAY of ``z``, through the closed form of `share_coeffs`.
+
+    Three `_T_pair` evaluations per ``z`` instead of ``2 ng`` of them; the
+    ``cos theta*`` integral is then arithmetic.  Agrees with `r1_exact` to
+    1e-11.
+    """
+    z = np.atleast_1d(np.asarray(z, float))
+    s = m * m
+    out = np.zeros(len(z))
+    ok = z * s > 4.0 * mmu * mmu
+    if not ok.any():
+        return out
+    _, w = share_nodes(m, z[ok], npanel, ng, mmu, va, chunk, raw=True)
+    bm0 = math.sqrt(1.0 - 4.0 * mmu * mmu / s)
+    bm = np.sqrt(1.0 - 4.0 * mmu * mmu / (z[ok] * s))
+    out[ok] = (ALPHA * s * (1.0 - z[ok]) / (4.0 * math.pi) * (bm / bm0)
+               * 0.5 * 2.0 * w.sum(1) / _T_born(s, mmu, va))
+    return out
+
+
+def share_nodes(m, z, npanel=64, ng=8, mmu=M_MU, va=(1.0, 0.0), chunk=4000,
+                raw=False):
+    """``(f, w)`` of the exact O(alpha) sharing density, half branch ``f <= 1/2``.
+
+    ``f`` has shape ``(len(z), npanel*ng)`` and ``w`` sums to **1/2** per row:
+    the density is exactly symmetric under ``f -> 1 - f``, so the other half is
+    the mirror image with the same weights.
+
+    The quasi-collinear pole ``p ~ 1/f`` is resolved by the substitution
+    ``1 - beta_mu c = (1 - beta_mu) e^t``, i.e. ``f = (1 - beta_mu) e^t/2``:
+    the nodes are uniform in ``ln f`` over the ``L = ln(z m^2/m_mu^2)`` e-folds
+    between the mass regulator ``f_min = (1 - beta_mu)/2`` and ``1/2``, which is
+    where the rate is.  ``t`` is covered by ``npanel`` Gauss-Legendre panels of
+    ``ng`` nodes.  ``raw`` returns the unnormalised ``T |dc/dt| dt`` instead,
+    whose row sum doubled is the ``cos theta*`` integral `r1_fast` needs.
+    """
+    z = np.atleast_1d(np.asarray(z, float))
+    g, wg = np.polynomial.legendre.leggauss(ng)
+    e = np.linspace(0.0, 1.0, npanel + 1)
+    tt = (0.5 * (e[1:] - e[:-1])[:, None] * (g[None, :] + 1.0)
+          + e[:-1][:, None]).ravel()
+    ww = (0.5 * (e[1:] - e[:-1])[:, None] * wg[None, :]).ravel()
+    F = np.empty((len(z), len(tt)))
+    W = np.empty_like(F)
+    for i0 in range(0, len(z), chunk):
+        sl = slice(i0, min(i0 + chunk, len(z)))
+        A, bm = share_coeffs(m, z[sl], mmu, va)
+        # at the 2 m_mu threshold the muons are at rest in the mu-mu frame and
+        # the sharing collapses to f = 1/2; there is no t range to integrate
+        dead = bm <= 0.0
+        bs = np.where(dead, 1.0, bm)
+        tA = np.where(dead, 0.0, -np.log1p(-bs))
+        om = (1.0 - bs)[:, None] * np.exp(tA[:, None] * tt[None, :])
+        y = ((1.0 - om) / bs[:, None]) ** 2
+        T = ((A[:, 0:1] + A[:, 1:2] * y + A[:, 2:3] * y * y)
+             / (1.0 - (bs * bs)[:, None] * y) ** 2)
+        w = T * (tA[:, None] * ww[None, :]) * om / bs[:, None]
+        f = 0.5 * om
+        f[dead] = 0.5
+        w[dead] = 1.0
+        F[sl] = f
+        W[sl] = w if raw else 0.5 * w / w.sum(1, keepdims=True)
+    return F, W
 
 
 # --------------------------------------------------------------------------

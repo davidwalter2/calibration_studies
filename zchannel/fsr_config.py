@@ -20,11 +20,20 @@ r"""The two FSR kernel configurations of the Z channel.
 Both are written as ``(r, w, m_lo, m_hi)`` atom files for the
 ``rabbit.lineshapes.zgamma`` provider, banded in ``m_pre``.
 
-Both also have a **per-leg** form, the radiator ``D`` with ``D (x) D = K`` that
-`fsr_perleg` needs under a lepton ``p_T`` cut: for ``data`` it is the closed
-form `fsr_perleg.LegRadiator`, for ``mc`` the numerical convolution square root
-of the tabulated kernel (``fsr_perleg.py legsqrt --run`` on the same
-`MC_RUN`, then ``kernel --mc-leg``).
+Under a lepton ``p_T`` cut the kernel has to be resolved **leg by leg**, which
+is `fsr_perleg`.  The selection-conditional form of either configuration is
+``fsr_perleg.py corr``: the pair variable ``z`` keeps the kernel below
+untouched and the two muons' energy fractions are drawn from the exact O(alpha)
+recoil sharing at fixed ``z``, so that
+
+    K_sel(u | m) = K(u | m) Gbar(u | m) ,
+
+with ``Gbar`` the selection weight of the boson-kinematics table.  ``data``
+hands it the closed form, ``mc`` the tabulated histograms of `MC_RUN`
+(``corr --run``).  The collinear product ``D (x) D`` with ``D`` the convolution
+square root -- `fsr_perleg.LegRadiator` for ``data``, ``legsqrt`` for ``mc`` --
+is the superseded form; it treats the two legs as independent and costs
+-2.5 MeV on ``Gamma_Z``.
 
     python3 fsr_config.py --config mc   -o data/kern_cfg_mc.npz
     python3 fsr_config.py --config data -o data/kern_cfg_data.npz

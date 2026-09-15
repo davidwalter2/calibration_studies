@@ -159,6 +159,208 @@ def fig_leg_corr(out, g, band=PEAK):
     plt.close(fig)
 
 
+def one_photon(g):
+    """``k^2 ~ 0``: the events whose whole FSR is a single photon.
+
+    The photon system is ``k = Q_pre - p'_+ - p'_-`` and its invariant mass
+    vanishes for one photon (and only then, up to the float32 storage of the
+    record, which is what sets the 1e-8 s threshold).
+    """
+    def p4(pt, eta, phi, e):
+        return np.stack([e, pt * np.cos(phi), pt * np.sin(phi),
+                         pt * np.sinh(eta)], 0)
+    Q = (p4(g["ptp_pre"], g["etap_pre"], g["phip_pre"], g["ep_pre"])
+         + p4(g["ptm_pre"], g["etam_pre"], g["phim_pre"], g["em_pre"]))
+    K = (Q - p4(g["ptp"], g["etap"], g["phip"], g["ep"])
+         - p4(g["ptm"], g["etam"], g["phim"], g["em"]))
+    sq = K[0] ** 2 - K[1] ** 2 - K[2] ** 2 - K[3] ** 2
+    m = g["m_pre"].astype(np.float64)
+    rad = g["m_post"].astype(np.float64) < m * (1.0 - 1e-6)
+    return rad & (np.abs(sq) < 1e-8 * m * m)
+
+
+def fig_share(out, g, band=PEAK, slices=((1e-2, 5e-2), (5e-2, 0.2))):
+    """The exact O(alpha) sharing density against the MC's single-photon events.
+
+    ``f = (1 - x_+)/(1 - z)`` is where on the line ``x_+ + x_- = 1 + z`` the
+    event sits: ``0`` and ``1`` are the collinear end points, the middle is the
+    recoil the collinear factorisation has no room for.
+    """
+    w = g["weight"]
+    m = g["m_pre"].astype(np.float64)
+    z = (g["m_post"].astype(np.float64) / m) ** 2
+    u = -0.5 * np.log(np.maximum(z, 1e-300))
+    f = (1.0 - g["xp"]) / np.maximum(1.0 - z, 1e-300)
+    one = one_photon(g)
+    e = np.geomspace(1e-6, 0.5, 25)
+    e = np.unique(np.concatenate([e, 1.0 - e[::-1]]))
+    c = np.sqrt(e[:-1] * np.where(e[1:] < 0.5, e[1:], e[1:]))
+    c = 0.5 * (e[:-1] + e[1:])
+    fig, ax, rax = ratiopanel.make_ratio_fig()
+    for i, (lo, hi) in enumerate(slices):
+        s = (m >= band[0]) & (m < band[1]) & (u > lo) & (u < hi) & one
+        ww = w[s]
+        ff = np.clip(f[s], e[0] * 1.001, e[-1] * 0.999)
+        j = np.clip(np.searchsorted(e, ff, "right") - 1, 0, len(e) - 2)
+        h = np.bincount(j, ww, len(e) - 1)
+        n = np.bincount(j, np.ones_like(ww), len(e) - 1)
+        h = h / h.sum()
+        zb = float(np.sum(ww * z[s]) / ww.sum())
+        mb = float(np.sum(ww * m[s]) / ww.sum())
+        fm, wm = FA.share_nodes(mb, np.array([zb]), npanel=256, ng=8)
+        fa = np.concatenate([fm[0], 1.0 - fm[0]])
+        wa = np.concatenate([wm[0], wm[0]])
+        k = np.clip(np.searchsorted(e, fa, "right") - 1, 0, len(e) - 2)
+        hm = np.bincount(k, wa, len(e) - 1)
+        col = f"C{i}"
+        # the outermost bins are the clipped overflow, not a density
+        h[0] = h[-1] = np.nan
+        hm[0] = hm[-1] = np.nan
+        ax.step(e[:-1], h, where="post", color=col, lw=1.6,
+                label=rf"MC, 1$\gamma$, $u\in[{lo:g},{hi:g})$")
+        ax.step(e[:-1], hm, where="post", color=col, lw=1.6, ls="--",
+                label=rf"exact O($\alpha$), $\bar z = {zb:.4f}$")
+        ok = (n > 30) & (hm > 0) & np.isfinite(h) & np.isfinite(hm)
+        rax.errorbar(c[ok], (h / hm)[ok], (h / np.sqrt(n))[ok] / hm[ok],
+                     fmt="o", ms=3.0, color=col)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_ylabel("fraction of events per bin")
+    ax.legend(fontsize=11, loc="lower center", ncol=2)
+    ax.set_title("the exact matrix element's energy sharing, against the "
+                 "generator's own single-photon events", fontsize=13, loc="left")
+    ax.grid(alpha=0.25)
+    rax.axhline(1.0, color="grey", lw=1.0, ls="--")
+    rax.set_ylim(0.6, 1.4)
+    rax.set_xlabel(r"$f = (1-x_+)/(1-z)$")
+    rax.set_ylabel("MC / exact")
+    rax.grid(alpha=0.25)
+    pubhtml.savefig(fig, os.path.join(out, "12_share.pdf"))
+    plt.close(fig)
+
+
+def fig_share_u(out, g, kernels, band=PEAK):
+    """How much of the loss the *other* leg takes, against the total loss.
+
+    ``P(0.01 < f < 0.99)`` is the weight away from the two collinear end points.
+    The collinear product puts it at the ``beta_D`` power law's own value, the
+    exact single-photon sharing at the matrix element's, and the generator
+    above both -- the excess is emissions that are not one photon.
+    """
+    w = g["weight"]
+    m = g["m_pre"].astype(np.float64)
+    z = (g["m_post"].astype(np.float64) / m) ** 2
+    u = -0.5 * np.log(np.maximum(z, 1e-300))
+    f = (1.0 - g["xp"]) / np.maximum(1.0 - z, 1e-300)
+    one = one_photon(g)
+    sel = (m >= band[0]) & (m < band[1])
+    e = np.geomspace(6e-4, 0.8, 15)
+    cen = np.sqrt(e[:-1] * e[1:])
+    mb = float(np.sum(w[sel] * m[sel]) / w[sel].sum())
+
+    def prof(mask):
+        s = sel & mask
+        j = np.clip(np.searchsorted(e, u[s], "right") - 1, 0, len(e) - 2)
+        tot = np.bincount(j, w[s], len(e) - 1)
+        mid = np.bincount(j, w[s] * ((f[s] > 0.01) & (f[s] < 0.99)),
+                          len(e) - 1)
+        n = np.bincount(j, np.ones(int(s.sum())), len(e) - 1)
+        # bin 0 is the clipped underflow and holds the unradiated events, for
+        # which the sharing is not defined
+        tot[0] = np.nan
+        with np.errstate(invalid="ignore", divide="ignore"):
+            return mid / tot, n
+
+    all_, nall = prof(np.ones(len(u), bool))
+    one_, none = prof(one)
+    # the exact single-photon sharing at the same z
+    zc = np.exp(-2.0 * cen)
+    fm, wm = FA.share_nodes(mb, zc, npanel=256, ng=8)
+    mod = 2.0 * np.sum(wm * ((fm > 0.01) & (fm < 0.99)), axis=1)
+    # the collinear product D (x) D at the same total u
+    D = PL.LegRadiator(mb, variant=DVAR, pair=DPAIR)
+    ue = PL.leg_u_edges(D, n=1500)
+    ul, wl = PL.leg_atoms(PL.leg_cells(D, ue), ue)
+    wl = wl / wl.sum()
+    U = 0.5 * (ul[:, None] + ul[None, :])
+    W = wl[:, None] * wl[None, :]
+    F = np.where(U > 0, 0.5 + 0.25 * (ul[:, None] - ul[None, :]) / np.maximum(U, 1e-300), 0.5)
+    j = np.clip(np.searchsorted(e, U.ravel(), "right") - 1, 0, len(e) - 2)
+    tot = np.bincount(j, W.ravel(), len(e) - 1)
+    mid = np.bincount(j, (W * ((F > 0.01) & (F < 0.99))).ravel(), len(e) - 1)
+    tot[0] = np.nan
+    with np.errstate(invalid="ignore", divide="ignore"):
+        coll = mid / tot
+
+    fig, ax = plt.subplots(figsize=(9.0, 6.6))
+    ax.errorbar(cen, all_, all_ / np.sqrt(np.maximum(nall, 1)), fmt="o",
+                ms=4.0, color="k", label="MC, all")
+    ax.errorbar(cen, one_, one_ / np.sqrt(np.maximum(none, 1)), fmt="s",
+                ms=4.0, mfc="none", color="C3", label=r"MC, one photon")
+    ax.plot(cen, mod, color="C0", lw=2.0,
+            label=r"exact O($\alpha$) sharing (the model)")
+    ax.plot(cen, coll, color="C2", lw=2.0, ls=":",
+            label=r"collinear product $D\otimes D$")
+    ax.set_xscale("log")
+    ax.set_ylim(0.0, 0.6)
+    ax.set_xlabel(r"$u = -\ln(m'/m)$")
+    ax.set_ylabel(r"$P(0.01 < f < 0.99 \;|\; u)$")
+    ax.set_title(f"how often both legs lose, {band[0]:.0f}-{band[1]:.0f} GeV",
+                 fontsize=13, loc="left")
+    ax.legend(fontsize=11, loc="upper left")
+    ax.grid(alpha=0.25)
+    pubhtml.savefig(fig, os.path.join(out, "13_share_u.pdf"))
+    plt.close(fig)
+
+
+def fig_joint(out, g, band=PEAK):
+    """The joint leg tail of the correlated model against the generator's.
+
+    The model's legs are drawn from the exact sharing at fixed ``z``, so its
+    joint tail is *not* the product of its marginals; the collinear product's
+    is, by construction.
+    """
+    w = g["weight"]
+    m = g["m_pre"].astype(np.float64)
+    s = (m >= band[0]) & (m < band[1])
+    ww = w[s] / w[s].sum()
+    a = -np.log(np.maximum(g["xp"][s], 1e-300))
+    b = -np.log(np.maximum(g["xm"][s], 1e-300))
+    mb = float(np.sum(ww * m[s]))
+    K = FA.FSRKernel(mb, variant=DVAR, pair=DPAIR)
+    r, wk, _ = K.atoms(var_budget=6e-11)
+    z = r * r
+    fm, wm = FA.share_nodes(mb, z, npanel=128, ng=8)
+    xp, xm = PL.share_x(z, fm)
+    UP = -np.log(np.maximum(xp, 1e-300))
+    UM = -np.log(np.maximum(xm, 1e-300))
+    W = wk[:, None] * wm
+    t = np.geomspace(1e-5, 0.5, 30)
+    rm, rd = [], []
+    for x in t:
+        pa = float(np.sum(ww * (a > x)))
+        pb = float(np.sum(ww * (b > x)))
+        rd.append(float(np.sum(ww * ((a > x) & (b > x)))) / (pa * pb))
+        pM = float(np.sum(W * ((UP > x).astype(float) + (UM > x))))
+        jM = 2.0 * float(np.sum(W * ((UP > x) & (UM > x))))
+        rm.append(jM / pM ** 2)
+    fig, ax = plt.subplots(figsize=(9.0, 6.6))
+    ax.plot(t, rd, color="k", lw=2.0, label="MC")
+    ax.plot(t, rm, color="C0", lw=2.0, ls="--",
+            label=r"exact O($\alpha$) sharing (the model)")
+    ax.axhline(1.0, color="C2", lw=2.0, ls=":",
+               label=r"collinear product $D\otimes D$")
+    ax.set_xscale("log")
+    ax.set_xlabel(r"$t$")
+    ax.set_ylabel(r"$P(u_+>t,\,u_->t)\,/\,P(u_+>t)P(u_->t)$")
+    ax.set_title("the leg correlation the sharing puts back, "
+                 f"{band[0]:.0f}-{band[1]:.0f} GeV", fontsize=13, loc="left")
+    ax.legend(fontsize=11, loc="upper left")
+    ax.grid(alpha=0.25)
+    pubhtml.savefig(fig, os.path.join(out, "14_joint.pdf"))
+    plt.close(fig)
+
+
 def fig_z_vs_xx(out, g, band=PEAK):
     """(d) ``z = x_+ x_-``: the pair mass loss against the collinear product."""
     w = g["weight"]
@@ -455,6 +657,79 @@ def fig_meanu(out, gen, kernels, mb, umc, neff, pt_cut, eta_cut):
     plt.close(fig)
 
 
+def corr_table(out, g, path, band=PEAK):
+    """The correlated two-leg law against the generator, in one file.
+
+    The marginal identity, the one-photon validation of the sharing density,
+    the joint leg tail, and the per-leg marginals -- everything the correlated
+    construction has to get right that the collinear product cannot.
+    """
+    w = g["weight"]
+    m = g["m_pre"].astype(np.float64)
+    s = (m >= band[0]) & (m < band[1])
+    ww = w[s] / w[s].sum()
+    mb = float(np.sum(ww * m[s]))
+    z = (g["m_post"].astype(np.float64) / m) ** 2
+    u = -0.5 * np.log(np.maximum(z, 1e-300))
+    f = (1.0 - g["xp"]) / np.maximum(1.0 - z, 1e-300)
+    one = one_photon(g)
+    a = -np.log(np.maximum(g["xp"][s], 1e-300))
+    b = -np.log(np.maximum(g["xm"][s], 1e-300))
+
+    L = ["the correlated two-leg density against the generator record",
+         f"  band {band[0]:.0f}-{band[1]:.0f} GeV, m_bar = {mb:.3f} GeV\n",
+         "1. the marginal identity  int dc p_1(z, c) = R_1(z)",
+         f"   {'z':>10s} {'quadrature / r1_exact - 1':>28s}"]
+    for zz in (0.999, 0.99, 0.9, 0.5, 0.05):
+        L.append(f"   {zz:10.4g} {FA.r1_fast(mb, np.array([zz]))[0] / FA.r1_exact(zz, mb) - 1:28.2e}")
+    L += ["", "2. the sharing density against the MC's single-photon events",
+          f"   {'u range':>16s} {'P(0.01<f<0.99)':>15s} {'model':>9s} "
+          f"{'MC/model':>9s} {'MC, all':>9s} {'all/1gam':>9s}"]
+    for lo, hi in ((1e-3, 1e-2), (1e-2, 0.05), (0.05, 0.2), (0.2, 0.6)):
+        q = s & (u > lo) & (u < hi)
+        for tag, sel in (("1", q & one), ("a", q)):
+            wq = w[sel]
+            p = float(np.sum(wq * ((f[sel] > 0.01) & (f[sel] < 0.99))) / wq.sum())
+            if tag == "1":
+                p1 = p
+                zb = float(np.sum(wq * z[sel]) / wq.sum())
+                fm, wm = FA.share_nodes(mb, np.array([zb]), npanel=256, ng=8)
+                pm = 2.0 * float(np.sum(wm[0][(fm[0] > 0.01) & (fm[0] < 0.99)]))
+            else:
+                L.append(f"   [{lo:7.0e},{hi:6.0e}) {p1:15.4f} {pm:9.4f}"
+                         f" {p1/pm:9.4f} {p:9.4f} {p/p1:9.4f}")
+    K = FA.FSRKernel(mb, variant=DVAR, pair=DPAIR)
+    r, wk, _ = K.atoms(var_budget=6e-11)
+    zk = r * r
+    fm, wm = FA.share_nodes(mb, zk, npanel=128, ng=8)
+    xp, xm = PL.share_x(zk, fm)
+    UP = -np.log(np.maximum(xp, 1e-300))
+    UM = -np.log(np.maximum(xm, 1e-300))
+    W = wk[:, None] * wm
+    D = PL.LegRadiator(mb, variant=DVAR, pair=DPAIR)
+    ue = PL.leg_u_edges(D, n=4000)
+    ul, wl = PL.leg_atoms(PL.leg_cells(D, ue), ue)
+    wl = wl / wl.sum()
+    L += ["", "3. the leg law: marginal tail and the joint against the product",
+          f"   {'t':>8s} {'P(u>t) MC':>11s} {'model':>10s} {'D':>10s}"
+          f" {'joint/prod MC':>14s} {'model':>9s} {'D(x)D':>7s}"]
+    for t in (1e-5, 1e-4, 1e-3, 1e-2, 0.05, 0.2):
+        pm = 0.5 * (float(np.sum(ww * (a > t))) + float(np.sum(ww * (b > t))))
+        jm = float(np.sum(ww * ((a > t) & (b > t))))
+        pM = float(np.sum(W * ((UP > t).astype(float) + (UM > t))))
+        jM = 2.0 * float(np.sum(W * ((UP > t) & (UM > t))))
+        pD = float(np.sum(wl * (ul > t)))
+        L.append(f"   {t:8.0e} {pm:11.6f} {pM:10.6f} {pD:10.6f}"
+                 f" {jm/pm**2:14.4f} {jM/pM**2:9.4f} {1.0:7.4f}")
+    L += ["", f"   <u_leg>:  MC {0.5*float(np.sum(ww*(a+b))):.6e}"
+          f"   model {float(np.sum(W*(UP+UM))):.6e}"
+          f"   D {float(np.sum(wl*ul)):.6e}"]
+    txt = "\n".join(L) + "\n"
+    with open(path, "w") as fh:
+        fh.write(txt)
+    print(txt)
+
+
 def band_table(out, gen, kernels, path, pt_cut=25.0, eta_cut=2.4,
                edges=(60, 70, 80, 86, 90, 92, 96, 105, 120, 140)):
     """``A(m)`` and the selected ``<u|m>`` of every model against the MC's own."""
@@ -724,6 +999,11 @@ def main():
     fig_leg_x(out, g)
     fig_leg_corr(out, g)
     fig_z_vs_xx(out, g)
+    fig_share(out, g)
+    fig_share_u(out, g, kernels)
+    fig_joint(out, g)
+    if not args.no_table:
+        corr_table(out, g, os.path.join(out, "00_corr.txt"))
     fig_dconvd(out)
     if os.path.exists(args.run):
         fig_leg_D_mc(out, g, args.run)

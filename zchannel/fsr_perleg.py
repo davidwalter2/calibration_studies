@@ -81,6 +81,24 @@ Feeding it to `kernel --mc-leg` gives a per-leg model whose QED is exactly the
 MC's, which is what separates the collinear factorisation from the kernel
 physics.  `condker` completes the separation by reading the MC's *own*
 conditional kernel in the model's mass and selection variables.
+
+**The correlated two-leg density (`corr`).**  The product ``D(x_+) D(x_-)``
+draws the two momentum fractions **independently**, and they are not: at
+O(alpha) the exact three-body kinematics put them on the LINE
+``x_+ + x_- = 1 + z`` with the sharing fixed by the photon angle, and the ~1/L
+of the rate away from the collinear end points is a photon taking energy off
+both muons at once.  `corr` replaces the product by the exact O(alpha)
+correlated density -- ``z`` drawn from ``K`` (untouched, ``int df p_1 = 1`` at
+every ``z``) and the sharing from the spin-summed matrix element -- so the
+selected kernel is the inclusive kernel reweighted by
+
+    Gbar(u | m) = int df p_1(f | z) G(u_+(z, f), u_-(z, f) | m) ,   z = e^{-2u}
+
+with the same ``G`` and the same ``h`` table.  ``--mode matched`` is the
+alternative composition of the resummation, ``K = D_< (x) D_< (x) H_>`` with the
+exact hard emission above ``u_c`` and a collinear-independent soft remainder
+below it; the difference between the two bounds the multi-emission recoil, and
+the matching scale itself is worth 0.2 MeV.
 """
 
 import argparse
@@ -91,6 +109,7 @@ import time
 
 import numpy as np
 
+import fsr_analytic as FA
 from fsr_analytic import (ALPHA, A_PI, KAPPA, M_MU, P1_DELTA, FSRKernel,
                           PairTerm, band_edges, beta_fsr, coll_log,
                           conv_p0_pln, p1_timelike, _merge_cells)
@@ -484,7 +503,8 @@ def merge_positive(cells):
     if a.any() and out:
         out[-1] += a
     while len(out) > 1 and (out[-1][0] <= 0.0 or out[-1][1] < 0.0):
-        out[-2] += out.pop()
+        tail = out.pop()
+        out[-1] += tail
     return np.stack(out, axis=1) if out else np.zeros((3, 0))
 
 
@@ -643,6 +663,487 @@ def _interp_cols(R, b_edges, u):
     j = np.clip(np.searchsorted(b_edges, u, "right") - 1, 0, nb - 1)
     t = np.clip((u - b_edges[j]) / (b_edges[j + 1] - b_edges[j]), 0.0, 1.0)
     return R[j] * (1.0 - t)[:, None] + R[j + 1] * t[:, None]
+
+
+# --------------------------------------------------------------------------
+# the correlated two-leg density: the exact O(alpha) recoil sharing
+# --------------------------------------------------------------------------
+# ``D(x_+) D(x_-)`` is the collinear limit, in which a photon is emitted by one
+# leg and the other leg does not know.  It is exact at O(alpha) *in that limit*
+# -- the exact single-photon kinematics put the two energy fractions on the LINE
+#
+#     x_+ + x_- = 1 + z ,   z = (m_post/m_pre)^2                     (exact)
+#
+# in the pre-FSR rest frame, and the collinear end points of that line are
+# ``(1, z)`` and ``(z, 1)``, all-on-one-leg.  What the product misses is the
+# ~1/L of the rate away from the end points, where the photon takes energy from
+# **both** muons.  Under a lepton ``p_T`` cut that matters, because the pass
+# decision is taken on the two legs separately.
+#
+# The correlated model replaces the product by
+#
+#     z ~ K(z) ,   f ~ p_1(f | z) ,
+#     x_+ = 1 - (1 - z) f ,   x_- = 1 - (1 - z)(1 - f) ,
+#
+# with ``p_1`` the exact spin-summed O(alpha) matrix element of
+# `fsr_analytic.share_nodes`.  Two properties:
+#
+#   * the ``z`` marginal is **exactly** the kernel handed in -- ``int df p_1 = 1``
+#     at every ``z`` -- so ``K(z)`` is untouched by construction and the inclusive
+#     fit is unchanged.  Nothing is refitted, rescaled or matched;
+#   * the mass is the exact one.  ``z = x_+ x_-`` is *not* imposed (it is the
+#     collinear corollary of the product and is wrong off axis by
+#     ``(1-z)^2/8`` at ``f = 1/2``); the model carries ``z`` itself.
+#
+# The selected kernel is then the inclusive kernel reweighted atom by atom,
+#
+#     K_sel(u | m) = K(u | m) Gbar(u | m) ,
+#     Gbar(u | m)  = int df p_1(f | z) G(u_+(z, f), u_-(z, f) | m) ,
+#     A(m)         = int du K(u|m) Gbar(u|m) ,          z = e^{-2u} ,
+#
+# with the **same** ``G`` -- the 2-D survival function of the pre-FSR muon
+# transverse momenta -- and the same ``h`` table.  The boson-kinematics
+# interface does not change: the pass decision is still
+# ``x_q p_T,q^{pre} > p_T^cut``, whose error against the true post-FSR decision
+# is +1.9e-4 on ``A`` and +0.13/+0.03 MeV at fit level (README, check (e)).
+#
+# ``G`` is symmetric because the ``h`` table is symmetrised, and ``p_1`` is
+# exactly symmetric under ``f -> 1 - f``, so only the half branch is summed and
+# the result doubled.
+def share_x(z, f):
+    """``(x_+, x_-)`` on the exact single-photon line ``x_+ + x_- = 1 + z``."""
+    d = (1.0 - z)[:, None] if np.ndim(z) else (1.0 - z)
+    return 1.0 - d * f, 1.0 - d * (1.0 - f)
+
+
+def eval_G_at(g, b_edges, up, um):
+    """``G(u_+, u_-)`` at paired points, bilinear on the table's own grid."""
+    nb = len(b_edges) - 1
+    i = np.clip(np.searchsorted(b_edges, up, "right") - 1, 0, nb - 1)
+    s = np.clip((up - b_edges[i]) / (b_edges[i + 1] - b_edges[i]), 0.0, 1.0)
+    j = np.clip(np.searchsorted(b_edges, um, "right") - 1, 0, nb - 1)
+    t = np.clip((um - b_edges[j]) / (b_edges[j + 1] - b_edges[j]), 0.0, 1.0)
+    return ((g[i, j] * (1.0 - t) + g[i, j + 1] * t) * (1.0 - s)
+            + (g[i + 1, j] * (1.0 - t) + g[i + 1, j + 1] * t) * s)
+
+
+def gbar(m, u_nodes, g, b_edges, npanel=64, ng=8, chunk=512):
+    """``Gbar(u)``: the selection weight of the pair variable, sharing folded in.
+
+    ``u = 0`` is ``G(0, 0)`` -- nothing is radiated, the sharing has no meaning
+    and the matrix element is 0/0 there -- so it is taken from the table
+    directly and the quadrature starts at the first finite node.
+    """
+    u_nodes = np.asarray(u_nodes, float)
+    z = np.exp(-2.0 * u_nodes)
+    out = np.empty(len(u_nodes))
+    out[u_nodes <= 0.0] = g[0, 0]
+    for i0 in range(0, len(u_nodes), chunk):
+        sl = slice(i0, min(i0 + chunk, len(u_nodes)))
+        if u_nodes[sl][-1] <= 0.0:
+            continue
+        zs = np.maximum(z[sl], 0.0)
+        pos = zs < 1.0
+        f, w = FA.share_nodes(m, zs[pos], npanel=npanel, ng=ng)
+        xp, xm = share_x(zs[pos], f)
+        up = -np.log(np.maximum(xp, 1e-300))
+        um = -np.log(np.maximum(xm, 1e-300))
+        o = out[sl]
+        o[pos] = 2.0 * np.sum(w * eval_G_at(g, b_edges, up, um), axis=1)
+        out[sl] = o
+    return out
+
+
+def shift_matrix(b_edges, u_p, w_p):
+    """``M_{ij}``: reading ``sum_p w_p f(b_i + u_p)`` off the grid values ``f_j``.
+
+    The bilinear read is linear in the table, so convoluting a per-leg measure
+    onto **both** legs of ``G`` is the matrix triple product ``M G M^T`` -- one
+    dense 290x290 product per leg instead of a double sum over the ladder.
+    Beyond the last node ``G`` is constant (the table's last bin holds
+    everything above it), which the clipping reproduces.
+    """
+    nb = len(b_edges) - 1
+    b = b_edges[:, None] + np.asarray(u_p, float)[None, :]
+    i = np.clip(np.searchsorted(b_edges, b, "right") - 1, 0, nb - 1)
+    t = np.clip((b - b_edges[i]) / (b_edges[i + 1] - b_edges[i]), 0.0, 1.0)
+    M = np.zeros((nb + 1, nb + 1))
+    wp = np.broadcast_to(np.asarray(w_p, float)[None, :], b.shape)
+    for r in range(nb + 1):
+        M[r] = (np.bincount(i[r], wp[r] * (1.0 - t[r]), nb + 1)
+                + np.bincount(i[r] + 1, wp[r] * t[r], nb + 2)[:nb + 1])
+    return M
+
+
+def corr_cells(cells, u_nodes, gb, u_min):
+    """Reweight kernel cells ``(w, int u, int u^2)`` by ``Gbar`` at their mean."""
+    w, m1, m2 = np.asarray(cells, float)
+    ok = w > 0.0
+    u = np.zeros_like(w)
+    u[ok] = m1[ok] / w[ok]
+    lg = np.interp(np.log(np.maximum(u, u_min)), np.log(u_nodes[1:]), gb[1:],
+                   left=gb[0], right=gb[-1])
+    lg = np.where(u <= u_min, gb[0], lg)
+    return np.stack([w * lg, m1 * lg, m2 * lg])
+
+
+# --------------------------------------------------------------------------
+# the fine cells of the two kernel configurations
+# --------------------------------------------------------------------------
+def analytic_cells(m, variant="exp2nll", pair=(), minus_one=True,
+                   pair_table=None, var_budget=6e-10, n_fine=4000, ng=16):
+    """``(cells, w_delta, u_max)`` of `fsr_analytic.FSRKernel` at mass ``m``."""
+    k = FSRKernel(m, variant=variant, pair=tuple(pair), minus_one=minus_one,
+                  pair_table=pair_table)
+    return k.cells(var_budget=var_budget, n_fine=n_fine, ng=ng), 0.0, k._u_max()
+
+
+def tabulated_cells(run, bands, u_tail0=2.0, u_tail_w=0.05):
+    """``(cells, w_delta, u_max)`` per band of a standalone Photos run.
+
+    One cell per filled histogram bin at the bin's exact first and second
+    moment, plus the genuine ``delta(u)`` of the events the generator left
+    untouched.  An ``h``-table band is served by the run band its centre falls
+    in, exactly as `_mc_leg_cells` does for the leg.
+    """
+    d = np.load(run, allow_pickle=True)
+    bl, bh = np.asarray(d["bands_lo"], float), np.asarray(d["bands_hi"], float)
+    n = np.asarray(d["n"], float)
+    key = "n_noemit" if "n_noemit" in d.files else "n_nophot"
+    f0, f1, f2 = d["fine_s0"], d["fine_s1"], d["fine_s2"]
+    t0, t1, t2 = d["tail_s0"], d["tail_s1"], d["tail_s2"]
+    wn = np.asarray(d[key], float)
+    out = []
+    for lo, hi in bands:
+        mc = 0.5 * (lo + hi)
+        if not np.isfinite(mc):
+            mc = float(lo) * 1.05
+        j = np.nonzero((bl <= mc) & (bh > mc))[0]
+        j = int(j[0]) if len(j) else int(np.argmin(np.abs(0.5 * (bl + bh) - mc)))
+        nk = n[j] if n[j] > 0 else 1.0
+        s0 = np.concatenate([f0[j], t0[j]]).astype(float) / nk
+        s1 = np.concatenate([f1[j], t1[j]]).astype(float) / nk
+        s2 = np.concatenate([f2[j], t2[j]]).astype(float) / nk
+        wd = float(wn[j] / nk)
+        s0[0] = max(s0[0] - wd, 0.0)               # the delta is split off
+        keep = s0 > 0.0
+        out.append((np.stack([s0[keep], s1[keep], s2[keep]]), wd,
+                    u_tail0 + u_tail_w * len(t0[j])))
+    return out
+
+
+# --------------------------------------------------------------------------
+# the matched construction: exact hard sharing + collinear soft remainder
+# --------------------------------------------------------------------------
+def hard_spectrum(m, u_c, u_max, n=600, ng=8, var_budget=1e-11):
+    """``(u_h, w_h, N)`` of the exact O(alpha) emission above ``u_c``.
+
+    ``N = int_{u > u_c} R_1 du`` is the hard rate, and the measure returned
+    carries it; the matching delta carries ``1 - N``.
+    """
+    e = np.geomspace(u_c, u_max, n + 1)
+    g, wq = np.polynomial.legendre.leggauss(ng)
+    a, b = np.log(e[:-1])[:, None], np.log(e[1:])[:, None]
+    lu = 0.5 * (b - a) * (g[None, :] + 1.0) + a
+    wt = 0.5 * (b - a) * wq[None, :]
+    u = np.exp(lu)
+    z = np.exp(-2.0 * u)
+    # R_1(z) dz as a density in u: K_u(u) = 2 z R_1(z), and u dln u = du
+    r = FA.spec_gammastar(m, z.ravel(), np.zeros(z.size), ng=24).reshape(z.shape)
+    f = wt * u * 2.0 * z * r
+    uu, ww = _merge_cells(np.stack([f.sum(1), (f * u).sum(1),
+                                    (f * u * u).sum(1)]), var_budget)
+    return uu, ww, float(ww.sum())
+
+
+#: grid of the matched construction.  Coarser than `KSQRT_DU` on purpose: the
+#: soft remainder only has to smear ``G``, whose own resolution is 1e-3 in the
+#: leg variable, and the *analytic* kernel is a comb on a 2e-5 grid above
+#: ``u`` ~ 2e-3 (its cells are geometric), which a square root cannot divide.
+MATCH_DU = 1e-4
+
+
+def kernel_grid(k, du, n, pair_atoms=None):
+    """A **dense** uniform-grid image of an analytic kernel.
+
+    Each grid cell carries the kernel's own integral over that cell, not a
+    deposited atom, so there is no comb at any ``u`` -- which is what the
+    convolution square root of the matched construction needs.  The pair branch
+    is convoluted on the grid rather than multiplied cell by cell.
+    """
+    ue = np.minimum(np.arange(n + 1) * du, k._u_max())
+    w = k._cells(k._t_of_u(ue), 16)[0]
+    if pair_atoms is not None and len(pair_atoms[0]):
+        uk, wk = pair_atoms
+        P = deposit(np.concatenate([[0.0], np.clip(uk, 0.0, (n - 2) * du)]),
+                    np.concatenate([[1.0 - wk.sum()], wk]), du, n)
+        L = _fft_len(2 * n)
+        w = np.fft.irfft(np.fft.rfft(w, L) * np.fft.rfft(P, L), L)[:n]
+    return w / w.sum()
+
+
+def soft_leg(Kg, u_h, w_h, n_hard, du=MATCH_DU, n_leg=1200, u_min=1e-9):
+    """``(u_p, w_p)`` of ``D_<`` defined by ``D_< (x) D_< (x) H_> = K``.
+
+    ``H_>`` is the hard measure ``(1 - N) delta + (u_h, w_h)``.  The
+    deconvolution and the square root are one spectral operation,
+    ``D^_< = sqrt(K^ / H^_>)``, on the uniform grid `conv_sqrt` uses; the
+    matching keeps ``|H^_>|`` bounded away from zero as long as ``N < 1/2``,
+    which is what limits how low the matching scale can go.
+    """
+    n = len(Kg)
+    H = deposit(np.concatenate([[0.0], np.clip(u_h, 0.0, (n - 2) * du)]),
+                np.concatenate([[1.0 - n_hard], w_h]), du, n)
+    L = _fft_len(2 * n)
+    R = np.fft.rfft(Kg, L) / np.fft.rfft(H, L)
+    D = np.fft.irfft(np.sqrt(R), L)[:n]
+    ue = np.concatenate([[0.0], np.geomspace(u_min, 2.0 * n * du, n_leg)])
+    c = leg_cells_from_grid(D, du, ue)
+    u, w = leg_atoms(c, ue)
+    return u, w / w.sum()
+
+
+def ladder_groups(u, n_v):
+    """Split an ordered leg ladder into ``n_v`` contiguous groups.
+
+    The ladder is geometric in ``u``, so equal counts is geometric binning; the
+    unradiated node ``u = 0`` is kept on its own because it carries most of the
+    soft remainder's weight and must not be averaged with anything.
+    """
+    i0 = 1 if (len(u) and u[0] <= 0.0) else 0
+    rest = np.arange(i0, len(u))
+    out = ([np.arange(i0)] if i0 else []) + [
+        s for s in np.array_split(rest, max(n_v - i0, 1)) if len(s)]
+    return [s for s in out if len(s)]
+
+
+def matched_gbar(m, u_bin_edges, g, b_edges, Kg, u_c, u_max,
+                 n_v=16, npanel=16, ng=4, n_leg=1200, du=MATCH_DU):
+    """``Gbar(u)`` of the matched construction, on ``u_bin_edges``.
+
+    ``K = D_< (x) D_< (x) H_>`` with ``H_>`` the exact O(alpha) emission above
+    ``u_c`` carrying its exact sharing and ``D_<`` the soft-collinear remainder,
+    independent leg by leg.  The total is ``u = u_h + (u_p + u_q)/2`` and the
+    two legs are ``u_q = u_q^h + u_q^<``, so
+
+        Gbar(u) = < G(u_+, u_-) | u >
+
+    is the ratio of two sums over the same configurations, and the
+    discretisation of the soft ladder cancels between them.  The inner double
+    sum over the soft ladder is done group by group with `shift_matrix`, so its
+    cost is ``n_v^2`` dense products and not ``n_leg^2`` per hard configuration.
+    """
+    uh, wh, N = hard_spectrum(m, u_c, u_max)
+    up_, wp_ = soft_leg(Kg, uh, wh, N, du=du, n_leg=n_leg)
+    # hard configurations: the matching delta, then (hard atom) x (sharing node)
+    f, wf = FA.share_nodes(m, np.exp(-2.0 * uh), npanel=npanel, ng=ng)
+    xp, xm = share_x(np.exp(-2.0 * uh), f)
+    A = np.concatenate([[0.0], (-np.log(np.maximum(xp, 1e-300))).ravel()])
+    B = np.concatenate([[0.0], (-np.log(np.maximum(xm, 1e-300))).ravel()])
+    WH = np.concatenate([[0.5 * (1.0 - N)], (wh[:, None] * wf).ravel()])
+    UH = np.concatenate([[0.0], np.repeat(uh, f.shape[1])])
+    grp = ladder_groups(up_, n_v)
+    M = [shift_matrix(b_edges, up_[s], wp_[s]) for s in grp]
+    ub = [float(np.sum(wp_[s] * up_[s]) / np.sum(wp_[s])) for s in grp]
+    wb = [float(np.sum(wp_[s])) for s in grp]
+    nb = len(u_bin_edges) - 1
+    num = np.zeros(nb)
+    den = np.zeros(nb)
+    sum_u = np.zeros(nb)
+    for j in range(len(grp)):
+        Aj = M[j] @ g
+        for k in range(len(grp)):
+            P = Aj @ M[k].T
+            v = UH + 0.5 * (ub[j] + ub[k])
+            i = np.clip(np.searchsorted(u_bin_edges, v, "right") - 1, 0, nb - 1)
+            # both orientations of the half sharing branch: G is symmetric and
+            # the (j, k) sum is, so one read and a factor two
+            num += np.bincount(i, 2.0 * WH * eval_G_at(P, b_edges, A, B), nb)
+            w = 2.0 * WH * wb[j] * wb[k]
+            den += np.bincount(i, w, nb)
+            sum_u += np.bincount(i, w * v, nb)
+    return num, den, sum_u
+
+
+#: extent of the matched construction's uniform grid, in the pair variable
+MATCH_GRID_MAX = 8.0
+
+
+def rebin_cells(cells, w_delta, du, n):
+    """A tabulated kernel's cells on a uniform grid, cell by cell (dense)."""
+    w, m1, _ = np.asarray(cells, float)
+    ok = w > 0.0
+    u = np.zeros_like(w)
+    u[ok] = m1[ok] / w[ok]
+    g = deposit(np.concatenate([[0.0], np.clip(u[ok], 0.0, (n - 2) * du)]),
+                np.concatenate([[w_delta], w[ok]]), du, n)
+    return g / g.sum()
+
+
+def _fill_ratio(num, den, sum_u, u_nodes, g00, u_min=1e-9):
+    """``Gbar`` on ``u_nodes`` from the binned conditional expectation.
+
+    The bins are the model's own configurations, so the numerator and the
+    denominator carry the same discretisation and it cancels in the ratio; each
+    filled bin is attached to its weighted mean ``u`` and the ladder is read off
+    by interpolation in ``ln u``.
+    """
+    ok = den > 0.0
+    if not ok.any():
+        return np.full(len(u_nodes), g00)
+    r = num[ok] / den[ok]
+    ub = np.maximum(sum_u[ok] / den[ok], u_min)
+    o = np.argsort(ub)
+    out = np.interp(np.log(np.maximum(u_nodes, u_min)), np.log(ub[o]), r[o],
+                    left=g00, right=r[o][-1])
+    out[u_nodes <= 0.0] = g00
+    return out
+
+
+#: masses at which an alternative construction's correction is evaluated.  The
+#: alternatives are systematic variants and their ratio to the single-photon
+#: sharing is a smooth, slowly varying function of ``m`` -- the whole model's
+#: ``m`` dependence is analytic -- so they are built on this grid and read off
+#: band by band, which is what makes them affordable.
+VARIANT_MASSES = (55.0, 62.0, 70.0, 78.0, 85.0, 91.0, 97.0, 105.0, 115.0,
+                  130.0, 150.0, 180.0)
+
+
+def variant_ratio(ht, mode, masses=VARIANT_MASSES, n_u=1500, u_ref_max=7.0,
+                  u_min=1e-9, cells_by_band=None, variant="exp2nll", pair=(),
+                  minus_one=True, pair_table=None, var_budget=6e-10,
+                  u_c=0.01, n_v=12, verbose=True):
+    """``rho(m, u) = Gbar_variant / Gbar_single-photon`` on a coarse mass grid.
+
+    ``mode`` is ``"matched"``: the exact hard emission above ``u_c`` with its
+    sharing, convoluted with a collinear-independent soft remainder.  It has
+    the same ``z`` marginal as the single-photon model, so ``rho`` is a pure
+    statement about the two-leg law and is read off at the band's own ``Gbar``.
+    """
+    b_edges = np.asarray(ht["b_edges"], float)
+    H = np.asarray(ht["h"], float)
+    bands = ht["bands"]
+    ctr = np.array([0.5 * (a + b) if np.isfinite(b) else a * 1.05
+                    for a, b in bands])
+    u_ref = np.concatenate([[0.0], np.geomspace(u_min, u_ref_max, n_u)])
+    rho = np.ones((len(masses), len(u_ref)))
+    t0 = time.time()
+    for i, mm in enumerate(masses):
+        k = int(np.argmin(np.abs(ctr - mm)))
+        g = survival(H[k], b_edges)
+        if cells_by_band is None:
+            cells, wd, u_max = analytic_cells(ctr[k], variant, pair, minus_one,
+                                              pair_table, var_budget)
+        else:
+            cells, wd, u_max = cells_by_band[k][:3]
+        un = np.minimum(u_ref, u_max)
+        gb = gbar(ctr[k], un, g, b_edges, npanel=64, ng=8)
+        if mode == "matched":
+            n = int(round(MATCH_GRID_MAX / MATCH_DU))
+            if cells_by_band is None:
+                kk = FSRKernel(ctr[k], variant=variant, pair=tuple(pair),
+                               minus_one=minus_one, pair_table=pair_table)
+                Kg = kernel_grid(kk, MATCH_DU, n,
+                                 kk.pair_atoms(var_budget=1e-9))
+            else:
+                Kg = rebin_cells(cells, wd, MATCH_DU, n)
+            num, den, su = matched_gbar(ctr[k], un, g, b_edges, Kg, u_c, u_max,
+                                        n_v=n_v)
+        else:
+            raise ValueError(mode)
+        gv = _fill_ratio(num, den, su, un, g[0, 0], u_min)
+        rho[i] = np.where(gb > 0, gv / np.maximum(gb, 1e-300), 1.0)
+        if verbose:
+            print(f"[rho:{mode}] m = {ctr[k]:6.2f}  rho(u=1e-2) = "
+                  f"{np.interp(1e-2, un, rho[i]):.5f}  "
+                  f"rho(u=0.1) = {np.interp(0.1, un, rho[i]):.5f}  "
+                  f"{time.time()-t0:.0f} s", flush=True)
+    return np.asarray(masses, float), u_ref, rho
+
+
+def macc_m(ht, k, fallback):
+    """The band's weighted mean pre-FSR mass, or its centre if it is empty."""
+    v = float(ht["m_bar"][k])
+    return v if v > 0 else fallback
+
+
+def apply_rho(m, un, gb, rho, u_min=1e-9):
+    """Read ``rho(m, u)`` off the coarse grid onto a band's own ladder."""
+    mg, ug, R = rho
+    j = np.clip(np.searchsorted(mg, m) - 1, 0, len(mg) - 2)
+    t = np.clip((m - mg[j]) / (mg[j + 1] - mg[j]), 0.0, 1.0)
+    r = R[j] * (1.0 - t) + R[j + 1] * t
+    out = np.interp(np.log(np.maximum(un, u_min)),
+                    np.log(np.maximum(ug[1:], u_min)), r[1:],
+                    left=r[1], right=r[-1])
+    out[un <= 0.0] = r[0]
+    return gb * out
+
+
+def build_corr_kernel(ht, cells_by_band=None, variant="exp2nll", pair=(),
+                      minus_one=True, pair_table=None, var_budget=6e-10,
+                      sigma_cap=None, n_gbar=2000, npanel=64, ng=8,
+                      u_min=1e-9, n_fine=4000, rho=None,
+                      verbose=True):
+    """Atoms + ``A(m)`` of the correlated selection-conditional kernel.
+
+    ``cells_by_band`` is ``(cells, w_delta, u_max)`` per band of the *inclusive*
+    kernel; ``None`` builds them from `fsr_analytic.FSRKernel` at the band
+    centre.  The ``z`` marginal of the result divided by ``A(m)`` is the
+    inclusive kernel of that band reweighted by ``Gbar``, and nothing else.
+    """
+    bands = ht["bands"]
+    b_edges = np.asarray(ht["b_edges"], float)
+    H = np.asarray(ht["h"], float)
+    R, W, LO, HI = [], [], [], []
+    macc, aacc, info = [], [], []
+    t0 = time.time()
+    for k, (lo, hi) in enumerate(bands):
+        mc = 0.5 * (lo + hi)
+        if not np.isfinite(mc):
+            mc = float(lo) * 1.05
+        if k == 0:
+            mc = float(bands[0][1]) * 0.95
+        if cells_by_band is None:
+            cells, wd, u_max = analytic_cells(mc, variant, pair, minus_one,
+                                              pair_table, var_budget, n_fine)
+        else:
+            cells, wd, u_max = cells_by_band[k][:3]
+        g = survival(H[k], b_edges)
+        un = np.concatenate([[0.0], np.geomspace(u_min, u_max, n_gbar)])
+        gb = gbar(mc, un, g, b_edges, npanel=npanel, ng=ng)
+        if rho is not None:
+            gb = apply_rho(macc_m(ht, k, mc), un, gb, rho, u_min)
+        c = corr_cells(cells, un, gb, u_min)
+        tot = float(np.sum(cells[0]) + wd)
+        A = float((c[0].sum() + wd * gb[0]) / tot)
+        if A <= 0.0:
+            info.append(dict(m=mc, A=0.0, natoms=0, mean_u=0.0))
+            continue
+        uj, wj = _merge_cells(c / (tot * A), var_budget, sigma_cap)
+        rj, wj = np.exp(-uj), wj
+        if wd > 0.0:
+            rj = np.concatenate([[1.0], rj])
+            wj = np.concatenate([[wd * gb[0] / (tot * A)], wj])
+        o = np.argsort(-rj)
+        rj, wj = rj[o], wj[o]
+        R.append(rj)
+        W.append(wj)
+        LO.append(np.full(len(rj), float(lo)))
+        HI.append(np.full(len(rj), float(hi)))
+        macc.append(float(ht["m_bar"][k]) if ht["m_bar"][k] > 0 else mc)
+        aacc.append(A)
+        info.append(dict(m=mc, m_bar=macc[-1], A=A, natoms=len(rj),
+                         gb0=float(gb[0]),
+                         mean_u=-float(np.sum(wj * np.log(np.maximum(rj, 1e-300))))))
+    LO[0] = np.zeros_like(LO[0])
+    HI[-1] = np.full_like(HI[-1], np.inf)
+    if verbose:
+        print(f"[corr] {len(R)} bands, {sum(len(r) for r in R)} atoms, "
+              f"{time.time()-t0:.0f} s")
+    return (dict(r=np.concatenate(R), w=np.concatenate(W),
+                 m_lo=np.concatenate(LO), m_hi=np.concatenate(HI)),
+            dict(kind="grid", m=macc, a=aacc), info)
 
 
 # --------------------------------------------------------------------------
@@ -945,6 +1446,60 @@ def _kernel_cmd(args):
                   f"  atoms = {b['natoms']:4d}  <u> = {b['mean_u']*1e3:8.4f}e-3")
 
 
+def _corr_cmd(args):
+    with np.load(args.htable, allow_pickle=False) as d:
+        ht = {k: d[k] for k in ("h", "b_edges", "bands", "m_bar", "sumw", "nev")}
+    prov = json.loads(str(np.load(args.htable,
+                                  allow_pickle=False)["provenance"][0]))
+    cells = None
+    if args.run:
+        cells = tabulated_cells(args.run, ht["bands"])
+    pair = tuple(args.pair if args.pair is not None else ())
+    rho = None
+    if args.mode != "single":
+        if args.rho and os.path.exists(args.rho):
+            with np.load(args.rho) as z:
+                rho = (z["m"], z["u"], z["rho"])
+            print(f"[corr] rho from {args.rho}")
+        else:
+            rho = variant_ratio(ht, args.mode, cells_by_band=cells,
+                                variant=args.variant, pair=pair,
+                                minus_one=not args.no_minus_one,
+                                pair_table=args.pair_table, u_c=args.u_c,
+                                n_v=args.n_v,
+                                masses=(tuple(args.rho_masses)
+                                        if args.rho_masses else VARIANT_MASSES))
+            if args.rho:
+                np.savez(args.rho, m=rho[0], u=rho[1], rho=rho[2])
+    ker, acc, info = build_corr_kernel(
+        ht, cells_by_band=cells, variant=args.variant, pair=pair,
+        minus_one=not args.no_minus_one, pair_table=args.pair_table,
+        var_budget=(None if args.sigma_cap else args.var_budget),
+        sigma_cap=args.sigma_cap, n_gbar=args.n_gbar, npanel=args.npanel,
+        ng=args.ng, rho=rho)
+    meta = dict(kind="corr", variant=args.variant, run=args.run,
+                mode=args.mode, u_c=args.u_c, n_v=args.n_v,
+                pair=list(args.pair or ()), htable=os.path.abspath(args.htable),
+                htable_prov=prov, n_gbar=args.n_gbar, npanel=args.npanel,
+                ng=args.ng, var_budget=args.var_budget,
+                sigma_cap=args.sigma_cap, alpha=ALPHA, m_mu=M_MU, bands=info)
+    np.savez(args.output, r=ker["r"], w=ker["w"], m_lo=ker["m_lo"],
+             m_hi=ker["m_hi"], provenance=np.array([json.dumps(meta)]))
+    if args.acceptance:
+        with open(args.acceptance, "w") as fh:
+            json.dump(dict(kind="grid", m=acc["m"], a=acc["a"],
+                           _meta=dict(pt_cut=prov["pt_cut"],
+                                      eta_cut=prov["eta_cut"],
+                                      source=os.path.abspath(args.output))),
+                      fh, indent=1)
+        print(f"[corr] acceptance -> {args.acceptance}")
+    print(f"[corr] {len(ker['r'])} atoms -> {args.output}")
+    for b in info[:: max(1, len(info) // 10)]:
+        if b["natoms"]:
+            print(f"    m = {b['m_bar']:7.2f}  A = {b['A']:.5f}"
+                  f"  atoms = {b['natoms']:4d}  <u> = {b['mean_u']*1e3:8.4f}e-3")
+
+
 def _mc_leg_cells(path, ht):
     """Per-band leg cells from a `legsqrt` file, matched to the h table's bands.
 
@@ -1205,6 +1760,41 @@ def main():
                         "ones (a 1 GeV empirical D carries a 7 %% band-to-band "
                         "statistical jitter that the smooth K(m) cannot absorb)")
 
+    r = sub.add_parser("corr", help="the CORRELATED selection-conditional "
+                                    "kernel: exact O(alpha) recoil sharing")
+    r.add_argument("--htable", required=True)
+    r.add_argument("-o", "--output", required=True)
+    r.add_argument("--acceptance", default=None, help="write A(m) as a json")
+    r.add_argument("--run", default=None,
+                   help="a standalone Photos run npz: use its tabulated kernel "
+                        "instead of the analytic one (the `mc` configuration)")
+    r.add_argument("--variant", default="exp2nll",
+                   choices=("exp1", "exp2", "exp2nll"))
+    r.add_argument("--pair", nargs="*", default=None)
+    r.add_argument("--no-minus-one", action="store_true")
+    r.add_argument("--pair-table", default=None)
+    r.add_argument("--var-budget", type=float, default=6e-10)
+    r.add_argument("--sigma-cap", type=float, default=None)
+    r.add_argument("--n-gbar", type=int, default=2000,
+                   help="nodes of the Gbar(u) ladder")
+    r.add_argument("--npanel", type=int, default=64,
+                   help="Gauss panels of the sharing integral, half branch")
+    r.add_argument("--ng", type=int, default=8)
+    r.add_argument("--mode", default="single",
+                   choices=("single", "matched"),
+                   help="single: the exact O(alpha) sharing applied to the "
+                        "whole loss.  matched: the exact hard emission above "
+                        "--u-c with its sharing, convoluted with a "
+                        "collinear-independent soft remainder below it")
+    r.add_argument("--u-c", type=float, default=0.01,
+                   help="matching scale of --mode matched")
+    r.add_argument("--n-v", type=int, default=12,
+                   help="groups of the soft remainder's ladder")
+    r.add_argument("--rho", default=None,
+                   help="cache file of the variant/single ratio table")
+    r.add_argument("--rho-masses", type=float, nargs="*", default=None,
+                   help="masses the variant/single ratio is evaluated at")
+
     s = sub.add_parser("legsqrt",
                        help="D from a tabulated kernel by convolution sqrt")
     s.add_argument("--run", required=True,
@@ -1252,6 +1842,8 @@ def main():
         _htable_cmd(args)
     elif args.cmd == "kernel":
         _kernel_cmd(args)
+    elif args.cmd == "corr":
+        _corr_cmd(args)
     elif args.cmd == "legsqrt":
         _legsqrt_cmd(args)
     elif args.cmd == "condker":

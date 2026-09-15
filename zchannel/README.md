@@ -1973,14 +1973,250 @@ The selected `<u|m>` says the same thing without a fit: `D_mc` gives
 0.3 % (table above, figure `08_mean_u`). The deficit does not move when the QED
 is made identical to the MC's, so it is not the kernel.
 
-What would remove it is a per-leg law with the correct correlation. For a single
-photon the exact O(α) 3-body matrix element -- `fsr_analytic._T_rad`, spin
-summed with the exact muon mass -- gives the joint density in
-(`z`, `cos θ*`) and hence the joint density of the two muons' momentum fractions
-at fixed `z`; the multi-photon remainder stays collinear. That replaces
-`D(u_+) D(u_-)` by a correlated two-leg density with the same marginals and the
-same `D (x) D = K`, and leaves the rest of the construction (`G`, the `h` table,
-the atoms) untouched.
+What removes it is the next section: a two-leg law with the correct correlation,
+taken from the exact O(α) matrix element.
+
+## The correlated two-leg density
+
+`D(x_+) D(x_-)` is the collinear limit, and under a lepton `p_T` cut its one
+defect is that the two momentum fractions are **independent draws**. They are
+not. At O(α), with one photon, in the pre-FSR rest frame,
+
+```
+m'^2 = (Q - k)^2 = m^2 (1 - 2 E_gamma/m) = z m^2        (exact, angle free)
+E_+ + E_- + E_gamma = m   ->   x_+ + x_- = 1 + z        (exact)
+```
+
+so the two energy fractions sit on a **line**, not on the collinear hyperbola
+`x_+ x_- = z`, and one number says where on it:
+
+```
+x_+ = 1 - (1-z) f ,   x_- = 1 - (1-z)(1-f) ,   f = (1 - beta_mu cos θ*)/2
+```
+
+with `cos θ*` the angle of the `mu-` to the photon in the `mu mu` rest frame --
+the variable `fsr_analytic._T_rad`/`_T_pair` already use, in which the two
+propagators are `2 p_-.k = s(1-x_+)` and `2 p_+.k = s(1-x_-)`. `f = 0` and
+`f = 1` are the collinear end points, all on one leg, which is what `D (x) D`
+gives at O(α); the ~`1/L` of the rate in between is the recoil, where the
+photon takes energy from **both** muons.
+
+### The sharing density in closed form
+
+`T(s, z, c) (1 - beta_mu^2 c^2)^2` is a **quadratic in `c^2`** -- the two
+propagators are linear in `c` and the numerators quadratic -- so three
+evaluations of `_T_pair` per `z` give the matrix element exactly
+(`fsr_analytic.share_coeffs`), verified against direct evaluation at the
+**1e-14** level from `z` = 1 - 1e-6 down to the `2 m_mu` threshold, where
+`beta_mu` = 0.855. In the massless limit it collapses to the textbook form
+
+```
+T ~ (x_+^2 + x_-^2)/((1-x_+)(1-x_-))  ~  (1 + zeta c^2)/(1 - c^2) ,
+zeta = ((1-z)/(1+z))^2 ,
+```
+
+and `share_nodes` integrates it on the collinear-resolving substitution
+`1 - beta_mu c = (1 - beta_mu) e^t`, i.e. `f = (1 - beta_mu) e^t/2`: the nodes
+are uniform in `ln f` over the `L = ln(z m^2/m_mu^2)` e-folds between the mass
+regulator `f_min = (1 - beta_mu)/2` = 1.3e-6 and `1/2`. Three properties:
+
+* the **marginal identity** `int dc p_1(z, c) = R_1(z)` holds to **8e-12** at
+  `z` = 0.999, 0.99, 0.9, 0.5, 0.05 (`00_corr.txt`). `r1_exact` for a whole
+  array of `z` is the same closed form, `r1_fast`, 1e-11 over the full range
+  and 200x faster; it is what the matched construction's hard spectrum uses;
+* the density is **exactly symmetric** under `f -> 1 - f` (1e-16 in both the
+  vector and the axial current): a neutral current is C even, so the sharing
+  carries no charge asymmetry and only the half branch is tabulated;
+* the vector/axial decomposition changes it by **<= 1e-5**, the same
+  `m_mu^2/s` suppression the inclusive `R_A/R_V` check finds.
+
+### The model
+
+`z` is drawn from `K(z)` -- untouched -- and the sharing from `p_1(f|z)`:
+
+```
+K_sel(u | m) = K(u | m) Gbar(u | m) ,     u = -ln(m'/m) ,   z = e^{-2u}
+Gbar(u | m)  = int df p_1(f|z) G(u_+(z,f), u_-(z,f) | m)
+A(m)         = int du K(u|m) Gbar(u|m)
+```
+
+with the **same** `G` and the **same** `h` table. Two things are exact by
+construction and neither is fitted: `int df p_1 = 1` at every `z`, so the `z`
+marginal is the kernel that was handed in and the inclusive fit is unchanged;
+and the mass is `z` itself, not `x_+ x_-`. The selected kernel is therefore the
+inclusive kernel reweighted atom by atom, which is also why it is cheaper than
+the per-leg form -- the double sum over the leg ladder is gone, and `Gbar` is
+one 1-D ladder per band.
+
+**The boson-kinematics interface does not change.** The pass decision stays
+`x_q p_T,q^pre > p_T^cut`, i.e. `u_q < b_q`, so `h(a_+, a_-|m)` is the same
+table with the same format. The exact three-body kinematics also rotate the two
+muons, and that is *measured* to cost nothing: `A(post-FSR cut)/A(collinear
+x p_T) - 1` = 1.9e-4 on the record (check (e) above) and +0.13 / +0.03 MeV at
+fit level (`cond: collinear selection` minus `cond: true`). Nothing about the
+`p_T^Z`, `y_Z` or decay-angle content of `G` has to be added. The other
+independence the model assumes -- FSR ⊥ the boson kinematics at fixed `m` -- is
+measured directly on the record by decorrelating the two blocks within a band:
+`A` moves by <= 3e-4 and the selected `<u>` by <= 0.35 %, the size of the
+permutation noise itself (0.2-0.5 % per draw).
+
+### Against the generator
+
+`00_corr.txt`, figures `12_share`, `13_share_u`, `14_joint`. Single-photon
+events are tagged by `k^2 = (Q_pre - p'_+ - p'_-)^2 ~ 0` -- **63.3 %** of the
+radiating events. On them the line constraint is exact:
+`x_+ + x_- - (1+z)` is ±2.3e-7, the float32 storage of the record, against a
+-8.0e-3 one-percent tail over all radiating events, which is the
+`(sum k)^2/m^2` of the multi-photon configurations.
+
+The sharing density itself, `P(0.01 < f < 0.99)` in the peak band:
+
+| `u` range | MC, 1γ | exact O(α) | MC/exact | MC, all | all/1γ |
+|---|---|---|---|---|---|
+| 1e-3 - 1e-2 | 0.3476 | 0.3674 | 0.946 | 0.4607 | 1.326 |
+| 1e-2 - 0.05 | 0.3440 | 0.3681 | 0.935 | 0.4618 | 1.342 |
+| 0.05 - 0.2 | 0.3395 | 0.3710 | 0.915 | 0.4639 | 1.366 |
+| 0.2 - 0.6 | 0.3407 | 0.3722 | 0.915 | 0.4651 | 1.365 |
+
+so the exact matrix element reproduces the generator's own single-photon
+sharing to 6-9 % -- that last 6-9 % is Photos against the exact ME, not the
+construction -- and the generator's **all**-emission sharing is 35 % wider
+still. `D (x) D` puts `P(0.01 < f < 0.99)` at **0.124**, so the exact sharing
+recovers three quarters of the distance to the MC and the rest is the
+multi-emission recoil (two photons, one on each leg).
+
+The leg law that follows, at `m` = 91.105:
+
+| `t` | `P(u_leg>t)` MC | model | `D` | joint/prod MC | model | `D (x) D` |
+|---|---|---|---|---|---|---|
+| 1e-5 | 0.35986 | 0.29942 | 0.26877 | 1.99 | 2.42 | 1 |
+| 1e-4 | 0.27940 | 0.26299 | 0.21810 | 2.22 | 2.08 | 1 |
+| 1e-3 | 0.19842 | 0.18758 | 0.16388 | 2.52 | 2.25 | 1 |
+| 1e-2 | 0.11956 | 0.11489 | 0.10623 | 2.90 | 2.41 | 1 |
+| 0.05 | 0.06821 | 0.06681 | 0.06465 | 3.19 | 2.39 | 1 |
+| 0.2 | 0.03097 | 0.03073 | 0.03149 | 3.05 | 1.83 | 1 |
+
+`<u_leg>` = 2.5734e-2 against the MC's 2.5861e-2 (0.5 %), where `D` -- which is
+*defined* by `D (x) D = K` and is not a per-leg spectrum -- sits at 2.6940e-2,
+4.2 % high. The model reproduces the **physical** per-leg marginal *and* most of
+the joint correlation, which the product cannot do at the same time.
+
+### The model against the MC, band by band
+
+Weighted by the band population, as the fit sees them (`00_bands.txt`):
+
+| `m_pre` band | `A` (MC) | `A` model / MC | `<u>` (MC) | `<u>` model / MC |
+|---|---|---|---|---|
+| | | corr `mc` / corr `data` / per-leg `mc` | | corr `mc` / corr `data` / per-leg `mc` |
+| 60-70 | 0.19855 | 0.9927 / 0.9934 / 0.9914 | 5.699e-3 | 0.9711 / 0.9717 / 0.9379 |
+| 70-80 | 0.29151 | 1.0006 / 1.0012 / 0.9991 | 7.868e-3 | 0.9846 / 0.9857 / 0.9445 |
+| 80-86 | 0.34070 | 1.0006 / 1.0010 / 0.9991 | 9.379e-3 | 0.9841 / 0.9867 / 0.9412 |
+| 86-90 | 0.36644 | 0.9999 / 1.0002 / 0.9983 | 10.146e-3 | 0.9946 / 0.9954 / 0.9497 |
+| 90-92 | 0.37546 | 0.9999 / 1.0002 / 0.9984 | 10.539e-3 | 0.9915 / 0.9936 / 0.9463 |
+| 92-96 | 0.38396 | 1.0003 / 1.0006 / 0.9988 | 10.866e-3 | 0.9925 / 0.9944 / 0.9470 |
+| 96-105 | 0.40163 | 0.9983 / 0.9987 / 0.9969 | 11.762e-3 | 0.9890 / 0.9901 / 0.9423 |
+| 105-120 | 0.42811 | 0.9930 / 0.9936 / 0.9915 | 13.288e-3 | 0.9945 / 0.9948 / 0.9454 |
+| 120-140 | 0.45573 | 0.9927 / 0.9936 / 0.9912 | 15.513e-3 | 0.9863 / 0.9822 / 0.9362 |
+| `A`-weighted | | 0.9975 / 0.9980 / 0.9960 | | **0.9887** / **0.9892** / 0.9435 |
+
+The selected `<u|m>` goes from 0.944 of the MC's to **0.989**, and 0.992-0.995
+in the four bands that carry the peak; `A(m)` from 0.996 to 0.998. The `mc` and
+`data` columns agree to 0.2 %, so what is left is not the kernel.
+
+### The matched construction, and the matching scale
+
+The alternative composition splits the kernel at a scale `u_c` instead of
+treating the whole loss as one photon:
+
+```
+K = D_< (x) D_< (x) H_> ,   H_> = (1 - N_>) delta + h_>(u) theta(u - u_c)
+```
+
+with `h_>` the **exact** O(α) emission (`r1_fast`) carrying its exact sharing
+and `D_<` a soft remainder that is collinear-independent leg by leg. `D_<` is
+not a free object: the deconvolution and the square root are one spectral
+operation, `D^_< = sqrt(K^ / H^_>)`, on a uniform grid (`fsr_perleg.soft_leg`).
+The **marginal identity closes to 1e-8** in `<u>` at every matching scale:
+
+| `u_c` | `N_>` | `<u>` model / `<u>` K |
+|---|---|---|
+| 0.1 | 0.0618 | 0.99999999 |
+| 0.03 | 0.1205 | 0.99999999 |
+| 0.01 | 0.1808 | 0.99999999 |
+| 3e-3 | 0.2495 | 0.99999999 |
+| 1e-3 | 0.3129 | 0.99999999 |
+
+`N_> < 1/2` keeps `|H^_>|` away from zero and is what limits how low `u_c` can
+go; `u_c -> 0` is the single-photon model itself. The grid is `MATCH_DU` = 1e-4,
+coarser than the square root's own 2e-5 on purpose: the *analytic* kernel is a
+comb on a 2e-5 grid above `u` ~ 2e-3 (its cells are geometric) and a comb is not
+infinitely divisible, so `kernel_grid` hands the square root the kernel's own
+integral per grid cell instead of a deposited atom.
+
+The selection weight is then the conditional expectation
+`Gbar(u) = <G(u_+, u_-) | u>` over the configurations, numerator and denominator
+binned the same way so the discretisation cancels; the inner double sum over the
+soft ladder is `n_v^2` dense matrix products `M_j G M_k^T` (`shift_matrix`) and
+not `n_leg^2` per hard configuration. Because it is a systematic variant and its
+ratio to the single-photon model is smooth in `m`, it is built on a 12-mass grid
+and read off band by band (`variant_ratio`). Discretisation: the matched /
+single ratio of the selected `<u>` at the peak moves by 0.2 % between `n_u` =
+1500 and 200 bins and by 0.1 % between `n_v` = 8 and 32.
+
+### The fit benchmark
+
+`fit_gen.py fit --suite perleg`, the same 9.87 M selected gen events in
+60-120 GeV, five Legendre shape terms, `nm` = 8192. Every row is the **same**
+run on the **same** events.
+
+| model, fiducial `pT` > 25, \|η\| < 2.4, window 60-120 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| pre-FSR + `A(m)` control | −1.01 ± 0.78 | +1.86 ± 1.50 |
+| MC-conditional, banded + `A(m)` | −0.17 ± 0.84 | +1.83 ± 1.74 |
+| `cond`: true mass, true selection | +0.29 ± 0.84 | +2.08 ± 1.74 |
+| `cond`: collinear selection | +0.42 ± 0.83 | +2.11 ± 1.74 |
+| `cond`: collinear mass + selection | +0.10 ± 0.84 | +0.80 ± 1.74 |
+| **corr, `mc` `K`** | **+0.47 ± 0.83** | **−0.41 ± 1.75** |
+| **corr, `data` `K`** | **+1.07 ± 0.83** | **−1.11 ± 1.74** |
+| corr, `mc` `K`, matched `u_c` = 0.03 | +0.28 ± 0.83 | −0.33 ± 1.74 |
+| corr, `mc` `K`, matched `u_c` = 0.01 | +0.21 ± 0.83 | −0.10 ± 1.74 |
+| corr, `mc` `K`, matched `u_c` = 0.003 | +0.46 ± 0.83 | −0.38 ± 1.75 |
+| per-leg, `mc` `D` (the collinear product) | +1.23 ± 0.83 | −2.39 ± 1.74 |
+| per-leg, analytic `D` (data cfg) | +1.16 ± 0.83 | −2.89 ± 1.74 |
+
+Same-run differences:
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| **the machinery: corr `mc` − `cond`: true** | **+0.18** | **−2.49** |
+| … the same, against `cond`: collinear selection | +0.05 | −2.52 |
+| … before, per-leg `mc` − `cond`: true | +0.95 | −4.47 |
+| the sharing: corr `mc` − per-leg `mc` | −0.76 | +1.98 |
+| the matching scale, `u_c` 0.003 → 0.03 | −0.19 | +0.06 |
+| **the composition: matched (`u_c` 0.01) − single photon** | **−0.26** | **+0.31** |
+| the kernel physics: corr `data` − corr `mc` | +0.60 | −0.71 |
+| … the same difference inclusively | +0.97 | −0.83 |
+| standalone against the sample's own `K` (the floor) | +0.31 | −1.20 |
+| the per-leg record against the full one (the floor) | +0.46 | +0.25 |
+
+**Verdict.** Replacing `D(x_+) D(x_-)` by the exact O(α) correlated two-leg
+density at fixed `z` moves the machinery residual from +0.95 / −4.47 MeV to
+**+0.18 / −2.49 MeV**, and with the standalone-kernel floor of +0.31 / −1.20
+taken out, to **−0.13 / −1.29 MeV**. On `m_Z` the construction is now validated
+at the level of its own floors. On `Γ_Z` the remaining −1.3 MeV is the
+**multi-emission recoil**: the model shares the whole loss as if it were one
+photon, and the generator's all-emission sharing is 35 % wider than its
+single-photon sharing (table above) because a second photon on the other leg
+does the same thing a wide-angle photon does. The two compositions of the
+resummation bracket that ambiguity at **0.26 MeV on `m_Z` and 0.31 MeV on
+`Γ_Z`**, and the matching scale itself at 0.19 / 0.06 MeV -- both far below the
+±0.83 / ±1.74 MeV statistical error, so the answer is insensitive to how the
+hard emission is matched to the soft ladder and the residual is not a
+matching artefact.
+
+`z = x_+ x_-` is gone by construction (the model carries `z`), the acceptance
+decision costs nothing, and the leg independence -- three quarters of the old
+residual -- is three quarters removed.
 
 ### What the detector level needs on top
 
@@ -2013,14 +2249,19 @@ python3 fsr_perleg.py check --n-leg 4000
 #    the model's variables (~3 min all together)
 python3 fsr_perleg.py legsqrt --run data/photos/gen_mcMix.npz --check-band 20
 ./build_machinery.sh
-# 5. the fit benchmarks (~4 min each) and the figures
+# 5. the correlated two-leg kernels: the model for both configurations, then
+#    the matching-scale scan (numpy only, ~40 min)
+./build_corr.sh
+# 6. the fit benchmarks (~4 min each) and the figures
 ./run_perleg_fit.sh physics
 ./run_perleg_fit.sh disc
 ./run_perleg_fit.sh machinery
-ssh submit51 "cd $Z && ./run_tf_z.sh python3 -u cmp_perleg.py \
+./run_perleg_fit.sh corr
+ssh submit51 "cd $Z && ./run_tf_z.sh --ceph python3 -u cmp_perleg.py \
+     --kernel 'corr, mc K=data/kern_corr_mc_1gev.npz' \
+     --kernel 'corr, data K=data/kern_corr_data_1gev.npz' \
      --kernel 'per-leg, mc D=data/kern_perleg_mc_1gev.npz' \
-     --kernel 'per-leg, analytic D (data cfg)=data/kern_perleg_data_1gev.npz' \
-     --kernel 'per-leg, empirical D=data/kern_perleg_emp_1gev.npz'"
+     --kernel 'per-leg, analytic D=data/kern_perleg_data_1gev.npz'"
 # the Photos-like pair content, for the mc <-> data comparison
 python3 fsr_perleg.py kernel --htable data/ht_pt25_1.0gev.npz \
      -o data/kern_perleg_paireik.npz --acceptance data/acc_perleg_paireik.json \
@@ -2036,7 +2277,10 @@ against `D`), `03_leg_corr` (the legs are correlated), `04_z_vs_xx`
 (`K_sel(u|m)` in the peak band), `07_acceptance`, `08_mean_u`, `09_htable`,
 `10_leg_D_mc` (the effective leg of `K_mc` against the analytic `D` and against
 the physical per-leg spectrum), `11_dconvd_mc` (`D_mc (x) D_mc` against
-`K_mc`), and `00_perleg.txt`, `00_bands.txt`, `00_legsqrt.txt` with every
+`K_mc`), `12_share` (the exact O(α) sharing density against the generator's own
+single-photon events), `13_share_u` (how often both legs lose, against the total
+loss), `14_joint` (the leg correlation the sharing puts back), and
+`00_perleg.txt`, `00_bands.txt`, `00_legsqrt.txt`, `00_corr.txt` with every
 number above.
 
 ---
