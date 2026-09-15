@@ -3407,6 +3407,351 @@ and `00_multi.txt` with every number above.
 
 ---
 
+## Resolution classes: the kernel under the likelihood's own conditioning
+
+The likelihood conditions every candidate on its own mass resolution -- the
+v-form conditions on `k = sigma_m/m^p` -- and the selected radiation depends on
+`k`: `<u>` runs 16.1e-3 to 12.5e-3 across the `k` quintiles of the reco MC, and
+does so identically under a cut on the *true* `p_T`, so it is a kinematic
+correlation and not threshold promotion (previous section).  A population-level
+`K_sel(u|m)` inside a `k`-conditioned likelihood is therefore misspecified per
+candidate.  This section builds the conditioned kernel and measures what the
+unconditioned one costs.
+
+### The resolution is a function of the table's own axes
+
+The pair mass is `m^2 = 2 pT_+ pT_- (cosh dEta - cos dPhi)`, so
+
+```
+d ln m = 1/2 (d ln pT_+ + d ln pT_-) + 1/2 d ln(2(cosh dEta - cos dPhi))
+```
+
+and with the two legs' momentum errors independent and the angular term
+resolution-free,
+
+```
+k = sigma_m/m = 1/2 sqrt( s_+^2 + s_-^2 ) ,   s_q = sigma_pT/pT (pT_q, eta_q) .
+```
+
+On the reco MC (3.35 M candidates selected at 25/10, `fsr_kclass.py check`):
+
+| `s_q` from | `k / k_pred` median | 68 % spread | `corr(ln k, ln k_pred)` |
+|---|---|---|---|
+| the two-track fit's own per-leg `sigma_rel` | 1.0005 | **0.33 %** | 0.9989 |
+| the measured `sigma_pT/pT(pT, eta)` map, reco `(pT, eta)` | 1.0640 | 11.93 % | 0.8693 |
+| the same map at the gen `(pT, eta)` | 1.0641 | 11.94 % | 0.8592 |
+
+**The formula is exact.**  Fed the fit's own per-leg relative momentum
+resolutions it reproduces the two-track covariance's `sigma_m` to 0.33 %, so
+the opening angle carries no measurable resolution and the leg-leg correlation
+of the covariance is negligible.  What the *map* does not know is the rest: the
+6.4 % offset is the map being a core width where the covariance carries the
+tail (the `0.9558` pull of the previous section), and the 11.9 % spread is the
+per-track hit pattern, material and alignment.
+
+`k_pred` is therefore a function of `(b_+, eta_+, b_-, eta_-)` -- exactly the
+axes of the `h4` table the boson-kinematics provider already hands over -- and
+a **resolution class** is a bin of it.  Nothing new is asked of SCETLib or
+DYTurbo.
+
+### What the classes separate
+
+Class edges are `k_pred` quantiles of the selected population
+(`fsr_kclass.py classes`, 25/10, `data/kcl10_2510.json`); a coarser class count
+is a contiguous grouping of the deciles, so one build serves the whole scan.
+Selected `<u>` on the generator record at 25/10 (population `18.69e-3`):
+
+| classes | selected `<u>` per class [1e-3] |
+|---|---|
+| 3 | 25.16 / 14.95 / 15.97 |
+| 5 | 20.96 / 25.08 / 12.88 / 18.56 / 16.00 |
+| 10 | 36.46 / 5.46 / 35.66 / 14.50 / 11.71 / 14.05 / 18.65 / 18.46 / 17.45 / 14.55 |
+
+**The classes separate the radiation far more sharply than `k` itself does** --
+a factor 7 between adjacent deciles, against the 1.3 of the `k` quintiles --
+because `k` is `k_pred` smeared by the 11.9 % the map does not know.  The
+mechanism is that all three terms of the 4-parameter width model increase with
+`p_T`, so `sigma_pT/pT` is monotonically increasing in `p_T`; inside one `eta`
+configuration the low-`k_pred` end is therefore the low-`p_T` end, and a
+candidate is at low post-FSR `p_T` because **it radiated**.  Within an `eta`
+configuration the class variable *is* a radiation variable, which is why the
+run is not monotone in `k_pred`: the ordering by `k_pred` mixes the `eta`
+configurations, and `<u>` is not a function of `k_pred` alone.
+
+### Is a class enough to condition on `k`?
+
+The likelihood conditions on `k`, not on the class, so the class is sufficient
+only if `k` carries no further information about `u` once the class is fixed.
+It does, at the level of `d<u>/d ln k = -15 to +11 e-3` inside a decile --
+`+-1.7e-3` on `<u>` over the `+-1 sd` of `ln k` in the class.  But that is the
+**class's own kinematic width**, not a detector-FSR correlation: with the muon
+kinematics controlled cell by cell and only the *residual* of `k` left,
+
+| kinematic cells | `d<u>/d ln k` [1e-3] | over `+-1 sd` of the residual |
+|---|---|---|
+| `\|eta\|`/0.16, 10 `pT` bins per leg (7 067) | −4.43 ± 0.13 | −0.69e-3 |
+| `\|eta\|`/0.10, 16 `pT` bins per leg (14 451) | −1.38 ± 0.12 | −0.19e-3 |
+| `\|eta\|`/0.05, 16 `pT` bins per leg (15 488) | **+0.07 ± 0.11** | **+0.01e-3** |
+
+**Given the muon kinematics, the residual of the per-track resolution -- hit
+pattern, material, alignment -- knows nothing about the radiation**, as it must
+not.  What a coarse class leaves behind is the kinematic variation the class
+does not resolve, and that is reducible by refining the class or the `sigma`
+map, not an irreducible correlation.  (The same number with `k` taken from the
+two-track fit's per-leg `sigma_rel` instead of `sigma_m/m` is
+−4.85 / −1.57 / −0.02 e-3, i.e. the conclusion does not depend on which of the
+two the class is conditioned on.)
+
+### A class is part of the pass region, not a partition of the table
+
+The class of a real candidate is read off its **reconstructed** muons, i.e.
+after FSR -- and a candidate lands in a low-`k_pred` class *because* it
+radiated.  A class is therefore a region in the **post-FSR** muon kinematics,
+exactly as the two `p_T` thresholds are, and it belongs where they belong: in
+`G(u_+, u_-)`, not in the `h` table, whose axes are the pre-FSR `(b, eta)`.
+Restricting the table to the class instead makes class membership a property of
+the Born kinematics and is simply wrong -- figure `17_meanu_class_restricted`:
+the model's `<u|m, class>` is 0.6 to 1.5 times the MC's, and the classes'
+spread collapses to almost nothing.
+
+The correct construction is cheap.  With `t = s^2` increasing in `p_T` at fixed
+`eta`, `4 k_pred^2 = t_+ + t_-` is increasing in both post-FSR momenta, so
+
+```
+U(T) = { t_a(v_+) + t_c(v_-) >= T } ,   v_q = b_q - u_q
+```
+
+is an upper-right set whose boundary `v_- = g(v_+)` is decreasing -- a
+**staircase** -- and a decreasing staircase is a signed sum of quadrants,
+
+```
+P( U_k Q_k ) = sum_k S(x_k, y_k) - sum_k S(x_{k+1}, y_k) ,   Q_k = {v_+ > x_k, v_- > y_k}
+```
+
+(the pairwise intersections are nested, so inclusion-exclusion truncates).  A
+class is `U(T_lo) \ U(T_hi)`, and intersecting a quadrant with the lepton
+thresholds only raises its shifts, so **everything stays a quadrant and the
+whole region is read off the same survival function of the same `h4` table**.
+`fsr_kclass.ClassPassRegion` duck-types `fsr_perleg.PassRegion`;
+`build_corr_kernel` never learns that a class is involved.
+
+`sum_C G_C = G` holds exactly (the decomposition telescopes).  Against a direct
+weighted event count at 25/10 in the peak band, 90/300 staircase knots:
+
+| `(u_+, u_-)` | worst class residual, 90 knots | 300 knots |
+|---|---|---|
+| (0, 0) | 4.4e-3 | 2.7e-3 |
+| (0.2, 0.2) | 3.5e-3 | 2.4e-3 |
+
+on `G_C ~ 0.09`.  At fit level what matters is the *shape*, and figure
+`14_meanu_class` has it: the model reproduces the MC's own class-conditional
+`<u|m>` to **±5 % in every class over the whole window**, including class 1,
+whose `<u>` climbs from 18e-3 at 75 GeV to 44e-3 at 110 GeV while class 2's
+stays flat at 13e-3.
+
+### The fit benchmark
+
+`fit_gen.py fit --suite kclass` partitions the *same* selected events into the
+`k_pred` classes -- assigned from the **post-FSR** muons, which is what a real
+candidate's reconstructed muons give -- and fits **all classes simultaneously**
+with common `m_Z`, `Gamma_Z` and five Legendre shape terms
+(`fit_gen.MultiFit`): every class carries its own `K_sel(u|m, class)`, its own
+`A(m|class)` and its own window normalisation.  `nm = 8192 -> 4096` for cost;
+the inclusive rows reproduce the published ones of the previous section to
+0.5 MeV.
+
+**Without a resolution the conditioning is a no-op, exactly.**  With the same
+density in every class the per-class normalisations are the same and the sum of
+the class likelihoods *is* the pooled one, so the misspecified row is bit for
+bit the inclusive fit.  The generator-level table says so:
+
+| 25/10, no resolution | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| inclusive, MC-conditional + `A(m)` | +0.76 ± 0.77 | +1.04 ± 1.60 |
+| classes, MC-conditional **per class** | +0.60 | +1.09 |
+| classes, MC-conditional **population** | +0.76 | +1.04 |
+| classes, corr `mc` `K` **per class** | +0.45 | +0.49 |
+| classes, corr `mc` `K` **population** | +0.45 | +0.25 |
+| classes, corr `data` `K` **per class** | +0.93 | −0.25 |
+| classes, corr `data` `K` **population** | +1.21 | −0.20 |
+| classes, corr `mc` `K` per class, **restricted table** | +1.34 | +0.28 |
+
+-- every difference below 0.3 MeV, and the class-conditional model closes to
+the inclusive one, which is the first check that the staircase construction is
+right.
+
+**With the per-candidate resolution it is not.**  Each class's mass is smeared
+with the class's own relative Gaussian (`k` = 8.41 / 10.83 / 11.88 / 14.09 /
+20.87 e-3 at 25/10, from `k_pred` times the measured `k/k_pred` = 1.064) and
+the model carries the same one, applied to its own mass grid after the FSR fold
+-- it cannot go into the multiplicative kernel, which is `r <= 1` by
+construction while a resolution fluctuates both ways.  The only thing that
+differs between the rows is then the FSR kernel and its acceptance:
+
+| 25/10, with the resolution | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| MC-conditional **per class** | **+0.48 ± 1.13** | **+1.02 ± 2.31** |
+| MC-conditional **population** | −5.35 ± 1.30 | −2.15 ± 2.36 |
+| corr `mc` `K` **per class** | **+0.82 ± 1.13** | **−0.28 ± 2.31** |
+| corr `mc` `K` **population** | −5.18 ± 1.28 | −1.42 ± 2.34 |
+| corr `data` `K` **per class** | +1.19 ± 1.13 | −1.19 ± 2.31 |
+| corr `data` `K` **population** | −3.91 ± 1.32 | −1.22 ± 2.34 |
+| corr `mc` `K` per class, **restricted table** | +2.75 ± 1.13 | +1.74 ± 2.29 |
+| corr `mc` `K` population, **one average resolution** | −7.26 ± 1.34 | +30.57 ± 2.45 |
+
+| 25/25, with the resolution | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| MC-conditional **per class** | +1.53 ± 1.23 | −0.06 ± 2.51 |
+| MC-conditional **population** | −2.54 ± 1.44 | −0.32 ± 2.57 |
+| corr `mc` `K` **per class** | +2.48 ± 1.22 | −3.02 ± 2.50 |
+| corr `mc` `K` **population** | −3.99 ± 1.37 | −0.05 ± 2.54 |
+| corr `data` `K` **per class** | +2.64 ± 1.22 | −3.66 ± 2.51 |
+| corr `data` `K` **population** | −3.98 ± 1.40 | −0.63 ± 2.54 |
+| corr `mc` `K` per class, **restricted table** | +4.77 ± 1.22 | +0.29 ± 2.49 |
+| corr `mc` `K` population, **one average resolution** | −5.07 ± 1.51 | +27.93 ± 2.65 |
+
+Same-run differences:
+
+| | 25/10 Δ`m_Z` / Δ`Γ_Z` | 25/25 Δ`m_Z` / Δ`Γ_Z` |
+|---|---|---|
+| **the conditioning, MC-conditional `K`** (population − per class) | **−5.83 / −3.18** | **−4.07 / −0.26** |
+| **the conditioning, corr `mc` `K`** | **−6.00 / −1.14** | **−6.47 / +2.97** |
+| **the conditioning, corr `data` `K`** | **−5.10 / −0.03** | **−6.62 / +3.03** |
+| … the same three without the resolution | +0.16 / −0.05, +0.01 / −0.24, +0.28 / +0.05 | −0.30 / −0.48, 0.00 / −0.26, −0.19 / −0.43 |
+| the class as a restricted table (− the pass region), corr `mc`, with / without the resolution | +1.93 / +2.01 and +0.89 / −0.21 | +2.29 / +3.31 and +1.32 / +0.60 |
+| dropping the conditioning altogether (one average resolution − per class) | −8.08 / +30.85 | −7.55 / +30.95 |
+
+**Verdict.**  A population-level `K_sel` and `A(m)` inside a likelihood that
+conditions each candidate on its own resolution costs **−4 to −6.6 MeV on
+`m_Z`** and up to −3 MeV on `Γ_Z`, at both selections and with either QED
+configuration, while the class-conditional model closes at
+**+0.5 to +2.6 MeV** -- inside the ±1.2 MeV statistical error of the test on
+three of the four rows.  The bias is a *conditioning* effect and nothing else:
+the same comparison without the resolution is identically zero.  Two more
+things the table settles:
+
+* **the class must go in the pass region.**  The same class built as a
+  restriction of the `h` table moves the fit by +1.9 / +2.3 MeV on `m_Z`
+  relative to the correct construction, i.e. half the effect it is there to
+  remove, and in the wrong direction;
+* **not conditioning at all is worse on `Γ_Z` than on `m_Z`.**  Using one
+  average resolution for every candidate moves `Γ_Z` by **+31 MeV** -- the
+  resolution-mass pairing of the v-form, which is the reason the likelihood
+  conditions in the first place -- and `m_Z` by −7.3 MeV.  Conditioning is not
+  optional; the point of this section is that once you condition, the FSR
+  kernel has to follow.
+
+### How many classes
+
+The class count is **not** an accuracy knob of the FSR model: the model has to
+match whatever partition the likelihood conditions on, and at every count the
+class-conditional model closes while the population one does not.  At 25/10,
+with the resolution, `mc` `K` (the `data` `K` rows exist only at 5 classes):
+
+| classes | per class | population | population − per class |
+|---|---|---|---|
+| 3 | +2.64 / −2.17 | −0.68 / −7.55 | **−3.32 / −5.38** |
+| 5 | +0.82 / −0.28 | −5.18 / −1.42 | **−6.00 / −1.14** |
+| 10 | N10PER | N10POP | **N10DIFF** |
+
+The three rows are not the same experiment -- each conditions the *toy* on its
+own class resolutions as well as the model, so the truth moves with the count
+-- and that is the point: what the count changes is how finely the likelihood
+conditions, and the FSR kernel has to follow it, whatever it is.  What the
+count does have to be fine enough for is the residual of the previous section:
+`k` must carry no information about `u` once the class is fixed, and at a
+decile that residual is `±1.7e-3` on `<u>` over the class's own `ln k` spread,
+against a `36 -> 5e-3` swing *between* deciles.  Refining the `sigma` map is
+the cheaper lever there than refining the class -- with `|eta|` cells of 0.05
+the residual is `+0.01e-3`.
+
+### The interface, and what it costs
+
+**Nothing new crosses the boson-kinematics interface.**  The provider hands
+over `h4(b_+, eta_+, b_-, eta_- | m)` and `b_mean` exactly as in the previous
+section; the class is computed *inside* the kernel machinery, in the pass
+region, from the same `sigma_pT/pT(pT, eta)` map the smooth acceptance already
+uses.  SCETLib and DYTurbo supply what they already supply.
+
+**What the detector level has to carry** is one `(K_sel, A)` pair per class and
+a class label per candidate.  The label costs nothing: a candidate computes
+`k_pred = 1/2 sqrt(s(pT_+, eta_+)^2 + s(pT_-, eta_-)^2)` from its own two
+reconstructed muons through the same map, and the class edges are four numbers.
+In `rabbit` that is one `MassCFTerm` per class, each with its own
+`TabulatedLineshapeKernel(provider=...)` and the candidates of that class;
+`m_Z`, `Gamma_Z` and the shape terms are shared parameters, so the fit is
+unchanged.
+
+The card and graph cost is `n_class` times one kernel:
+
+| | population | 5 classes | ratio |
+|---|---|---|---|
+| atoms (`r, w, m_lo, m_hi`) | 43 221 | 239 177 (39-67 k each) | 5.5x |
+| on disk, atoms | 1.5 MB | 8.1 MB | 5.4x |
+| cell-integrated table (`fsr_table.py`, `dm` = 1 GeV, 2000 cells) | 4.85 MB | 24 MB | 5x |
+| `A(m)` grid | 151 pairs | 5 x 151 pairs | 5x |
+| the fold matrix in the graph (`nm` = 4096) | 250 MB | 1.25 GB | 5x |
+
+The per-*candidate* cost is unchanged -- the classes are disjoint sets of
+candidates -- so what grows is the constant tabulation, linearly, and the fold
+matrices are the only thing that makes 10 classes uncomfortable rather than 5.
+A continuous `k` dependence (interpolating the kernel between class nodes)
+would trade that for an interpolation at every Born grid point; at five classes
+it is not needed.
+
+Building the kernels costs `n_class` x one `corr` build, plus the staircase:
+`ClassPassRegion` carries 542 to 8 334 signed quadrant terms per band against
+the plain pass region's 48, i.e. 100-900 s per class against ~100 s, and it is
+embarrassingly parallel over `(class, cut, configuration)`.
+
+### Reproducing
+
+```bash
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+cd $Z
+# 1. is k a function of the two legs' (pT, eta), and is its residual
+#    independent of the radiation?  (the reco MC caches, numpy only, ~3 min)
+python3 -u fsr_kclass.py check --aux ../fullscale/runs/auxgen_dyv2.npz \
+    --pairs ../fullscale/runs/zpairs_dyv2_full.npz --res data/ptres_dyv2.npz \
+    --pt-cuts 25 10 -o data/kclass_check_2510.npz
+# 2. the class edges: deciles of k_pred on the selected gen sample
+python3 -u fsr_kclass.py classes --gen data/genmerged_full.npz \
+    --res data/ptres_dyv2.npz --nclass 10 --pt-cuts 25 10 -o data/kcl10_2510.json
+# 3. the kernels.  `buildpr` is the model -- the class inside the pass region;
+#    `build` is the control -- the class as a restriction of the h table, which
+#    also writes the MC's own conditional kernel per class (~1 h each)
+python3 -u fsr_kclass.py buildpr --classes data/kcl10_2510.json --tag kpr \
+    --ngroups 5 --cut-sets 25,25 25,10 --nknot 300 --nproc 10
+python3 -u fsr_kclass.py buildpr --classes data/kcl10_2510.json --tag kpr \
+    --ngroups 3 10 --cut-sets 25,10 --configs mc --nknot 300 --nproc 13
+python3 -u fsr_kclass.py build --gen data/genmerged_full.npz \
+    --classes data/kcl10_2510.json --tag kcl --ngroups 3 5 10 --nproc 12
+# 4. G of `pass AND class` off the table against a direct event count
+python3 -u fsr_kclass.py ccheck --gen data/genmerged_full.npz \
+    --htable data/ht_ref10_1.0gev.npz --h4 data/h4_ref10_1.0gev.npz \
+    --classes data/kcl10_2510.json --ngroup 5 --pt-cuts 25 10 --nknot 300
+# 5. the fit benchmarks (~15-20 min each)
+./run_kclass_all.sh "2510 5" "2525 5" "2510 3" "2510 10" "2510 5 single"
+# 6. the figures
+ssh submit51 "cd $Z && ./run_tf_z.sh python3 -u fsr_kclass.py figs \
+    --check data/kclass_check_2510.npz --classes data/kcl10_2510.json \
+    --tag kpr --control kcl --cuts 2510 --ngroup 5 \
+    --fits data/fit_kclass_2510_n5.json data/fit_kclass_2525_n5.json \
+    --outpath ~/public_html/ZMass/cvh/260916_fsr_kclass"
+```
+
+Figures in `~/public_html/ZMass/cvh/260916_fsr_kclass/`: `10_kpred_vs_k` (the
+formula against the two-track covariance), `11_u_vs_k` (the selected radiation
+against the per-candidate resolution, reco and true cut), `12_u_vs_k_inclass`
+(what is left of that inside a class), `13_slope_convergence` (and that it goes
+away when the kinematics are controlled), `14_meanu_class` (the class-
+conditional `<u|m>`, model against MC), `15_acceptance_class` (`A(m|class)`),
+`16_fitshifts_*` (every fit row), `17_meanu_class_restricted` (the same as
+`14` with the class built as a restriction of the `h` table -- the control that
+shows it is not a partition).
+
+---
+
 ## What is still missing for a *data* Z channel
 
 * **The LO→MiNNLO `K(m)`, and its truncation.** The card must float a smooth

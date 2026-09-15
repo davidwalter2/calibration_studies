@@ -259,7 +259,8 @@ def fit_acceptance(m, passed, w, lo, hi, degree, nbins=200):
 class GenFit:
     """Fine-binned weighted likelihood of one gen mass spectrum."""
 
-    def __init__(self, provider, m, w, window, lumi_slope=False, shape=0, tf=None):
+    def __init__(self, provider, m, w, window, lumi_slope=False, shape=0,
+                 tf=None, mass_smear=None):
         self.tf = tf
         self.z = provider
         self.window = (float(window[0]), float(window[1]))
@@ -294,6 +295,20 @@ class GenFit:
         self._tW = tf.constant(self.W, provider.dtype)
         self._logmref = tf.constant(
             np.log(provider.m_born / provider.m_ref), provider.dtype)
+        # the per-candidate mass resolution, as one Gaussian of RELATIVE width
+        # `mass_smear` applied to the model's own mass grid.  It cannot be
+        # folded into the multiplicative FSR kernel -- that one is `r <= 1` by
+        # construction and a resolution fluctuates both ways -- so it is a
+        # separate (window x grid) matrix, built once and applied after the
+        # FSR fold.  The grid runs 10 GeV beyond the window on each side, ~8
+        # core widths, so the truncation of the Gaussian is below 1e-15.
+        self.mass_smear = None if not mass_smear else float(mass_smear)
+        self._R = None
+        if self.mass_smear:
+            sg = self.mass_smear * grid
+            d = (self.mgrid[:, None] - grid[None, :]) / sg[None, :]
+            R = np.exp(-0.5 * d * d) / (np.sqrt(2.0 * np.pi) * sg[None, :]) * dm
+            self._R = tf.constant(R, provider.dtype)
         # Legendre polynomials of the fit-window-scaled mass, evaluated on the
         # *Born* grid: a smooth multiplicative correction exp(sum_k c_k P_k)
         # applied to the Born spectrum, i.e. to the parton luminosity times the
@@ -321,6 +336,8 @@ class GenFit:
             y = y * tf.exp(tf.clip_by_value(arg, self.z.npdt(-30.0),
                                             self.z.npdt(30.0)))
         y = z.fold_fsr(y) * z._edge
+        if self._R is not None:
+            return tf.linalg.matvec(self._R, y)
         return y[self.sl]
 
     def nll(self, vals):
@@ -418,6 +435,112 @@ class GenFit:
         return dict(x=res.x, nll=f, grad=g, H=H, V=V, Vnaive=Hinv,
                     err=np.sqrt(np.diag(V)), errnaive=np.sqrt(np.diag(Hinv)),
                     params=self.params, nit=res.nit, ok=res.status in (0, 1, 2))
+
+
+class MultiFit:
+    """The same likelihood summed over resolution classes, shared parameters.
+
+    The Z likelihood conditions every candidate on its own mass resolution, so
+    the density it evaluates is ``p(m | class)`` with the class read off the
+    candidate's own observables -- not the population density.  A class is then
+    normalised **on its own** inside the fit window, and a kernel that is right
+    only on average is no longer right: the mixture that made it right has been
+    taken apart.
+
+    Each component is a plain `GenFit` with its own provider (its own
+    ``K_sel(u|m, class)`` and ``A(m|class)``); the parameters are shared by
+    name, so ``m_Z``, ``Gamma_Z`` and the smooth ``K(m)`` terms are common and
+    every class contributes its own normalisation.  The classes are disjoint
+    sets of events, so the sandwich's meat adds as well as the Hessian does.
+    """
+
+    def __init__(self, fits, tf, labels=None):
+        self.tf = tf
+        self.fits = list(fits)
+        self.params = list(self.fits[0].params)
+        for f in self.fits:
+            if f.params != self.params:
+                raise ValueError("the classes must share their parameters")
+        self.z = self.fits[0].z
+        self.labels = list(labels or [f"class {i}" for i in range(len(self.fits))])
+        self.n_used = int(sum(f.n_used for f in self.fits))
+        self.shape = self.fits[0].shape
+        self.lumi_slope = self.fits[0].lumi_slope
+
+    def nll(self, vals):
+        out = self.fits[0].nll(vals)
+        for f in self.fits[1:]:
+            out = out + f.nll(vals)
+        return out
+
+    def value_grad_hess(self, x):
+        tf = self.tf
+        xv = [tf.Variable(float(v), dtype=self.z.dtype) for v in x]
+        vals = dict(zip(self.params, xv))
+        with tf.GradientTape(persistent=True) as t2:
+            with tf.GradientTape() as t1:
+                f = self.nll(vals)
+            g = t1.gradient(f, xv)
+        h = [t2.gradient(gi, xv) for gi in g]
+        del t2
+        H = np.array([[0.0 if hij is None else float(hij) for hij in row]
+                      for row in h])
+        return float(f), np.array([float(gi) for gi in g]), H
+
+    def score_matrix(self, x):
+        return sum(f.score_matrix(x) for f in self.fits)
+
+    def _sub(self):
+        """The same fit with the nuisances held at zero, for the warm start."""
+        subs = []
+        for f in self.fits:
+            s = GenFit.__new__(GenFit)
+            s.__dict__.update(f.__dict__)
+            s.shape = 0
+            s.lumi_slope = False
+            s.params = list(self.z.param_names)
+            subs.append(s)
+        return MultiFit(subs, self.tf, self.labels)
+
+    def fit(self, x0=None, verbose=True):
+        from scipy.optimize import minimize
+        if x0 is None:
+            x0 = np.zeros(len(self.params))
+            if self.shape or self.lumi_slope:
+                r0 = self._sub().fit(x0=np.zeros(len(self.z.param_names)),
+                                     verbose=False)
+                x0[: len(r0["x"])] = r0["x"]
+        x0 = np.asarray(x0, float)
+        cache = {}
+
+        def key(x):
+            k = tuple(np.round(x, 12))
+            if k not in cache:
+                f, gr, H = self.value_grad_hess(x)
+                if not (np.isfinite(f) and np.all(np.isfinite(gr))
+                        and np.all(np.isfinite(H))):
+                    f = np.inf
+                    gr = np.zeros_like(gr)
+                    H = np.eye(len(gr))
+                cache[k] = (f, gr, H)
+                if len(cache) > 8:
+                    cache.pop(next(iter(cache)))
+            return cache[k]
+
+        t0 = time.time()
+        res = minimize(lambda x: key(x)[0], x0, jac=lambda x: key(x)[1],
+                       hess=lambda x: key(x)[2], method="trust-exact",
+                       options={"gtol": 1e-8, "maxiter": 200})
+        f, g, H = self.value_grad_hess(res.x)
+        Hinv = np.linalg.inv(H)
+        V = Hinv @ self.score_matrix(res.x) @ Hinv
+        if verbose:
+            print(f"    {res.message}  ({res.nit} it, {time.time()-t0:.1f} s, "
+                  f"|g|inf = {np.max(np.abs(g)):.2e})")
+        return dict(x=res.x, nll=f, grad=g, H=H, V=V, Vnaive=Hinv,
+                    err=np.sqrt(np.diag(V)), errnaive=np.sqrt(np.diag(Hinv)),
+                    params=self.params, nit=res.nit,
+                    ok=res.status in (0, 1, 2))
 
 
 def make_provider(tf, window, nm, width_scheme, lumi, terms, fsr, acc,
@@ -526,7 +649,8 @@ def main():
     f = sub.add_parser("fit", help="the closure fit")
     f.add_argument("--gen", required=True)
     f.add_argument("--suite", default="prefsr",
-                   choices=["prefsr", "postfsr", "fiducial", "quick", "perleg"])
+                   choices=["prefsr", "postfsr", "fiducial", "quick", "perleg",
+                            "kclass"])
     f.add_argument("--kernel", default=None)
     f.add_argument("--kernel-alt", nargs="*", default=[],
                    help="extra kernels to repeat the fit with (systematics); "
@@ -552,6 +676,28 @@ def main():
     f.add_argument("--wclip", type=float, default=100.0,
                    help="clip |w| at this multiple of the modal |w| (MiNNLO "
                         "produces a handful of 1e19 unweighting failures)")
+    f.add_argument("--kclass-json", default=None,
+                   help="suite kclass: the `fsr_kclass.py classes` json that "
+                        "defines k_pred and the fine class edges")
+    f.add_argument("--kclass-ngroup", type=int, default=5,
+                   help="suite kclass: how many classes (a contiguous grouping "
+                        "of the fine partition)")
+    f.add_argument("--kclass-model", nargs="*", default=[],
+                   help="suite kclass: 'label=kernel:acceptance' with '{c}' "
+                        "substituted by the class index; a spec without '{c}' "
+                        "is the population model used in every class, i.e. the "
+                        "misspecified one")
+    f.add_argument("--kclass-single", action="store_true",
+                   help="suite kclass: also fit each class on its own")
+    f.add_argument("--kclass-mass-smear", action="store_true",
+                   help="suite kclass: smear the fitted mass with each class's "
+                        "own resolution and carry the same Gaussian in the "
+                        "model -- the only configuration in which conditioning "
+                        "is not a no-op")
+    f.add_argument("--kclass-kscale", type=float, default=1.064,
+                   help="k / k_pred of the reco MC: the sigma_pT/pT map is a "
+                        "CORE width and the covariance carries the tail")
+    f.add_argument("--kclass-smear-seed", type=int, default=20260917)
     f.add_argument("-o", "--output", default=None)
 
     args = ap.parse_args()
@@ -662,7 +808,7 @@ def run_fit(args):
             terms=("gamma", "int", "z"), lumi="nnpdf31_nnlo_13tev",
             fsr=None, acceptance=None, lumi_slope=False, shape=0,
             sin2_param=None, nm=None, born_hi=None, born_lo=None, x0=None,
-            unweighted=False, fsr_mmax=None):
+            unweighted=False, fsr_mmax=None, mass_smear=None):
         m = g[mass]
         ww = np.ones_like(w) if unweighted else w
         if sel is not None:
@@ -675,10 +821,37 @@ def run_fit(args):
             gz_ref=(GZ_FIXED if width_scheme == "fixed" else GZ_RUNNING),
             sin2_param=sin2_param,
             fsr_mmax=fsr_mmax if fsr_mmax is not None else args.fsr_mmax)
-        fit = GenFit(z, m, ww, window, lumi_slope=lumi_slope, shape=shape, tf=tf)
+        fit = GenFit(z, m, ww, window, lumi_slope=lumi_slope, shape=shape,
+                     tf=tf, mass_smear=mass_smear)
         res = fit.fit(x0=x0, verbose=False)
         res["nused"] = fit.n_used
         results[tag] = summarise(f"{tag}  [{fit.n_used} events in {window}]", res)
+        return res
+
+    def _acc(path):
+        if not path:
+            return None
+        with open(path) as fh:
+            return {k: v for k, v in json.load(fh).items()
+                    if not k.startswith("_")}
+
+    def many(tag, mass, masks, kernels, accs, window=(60.0, 120.0), shape=0,
+             nm=None, labels=None, quiet=False, smear_k=None):
+        """One simultaneous fit of all classes with shared parameters."""
+        fits = []
+        for i, (msk, ker, ac) in enumerate(zip(masks, kernels, accs)):
+            z = make_provider(tf, born, nm or args.nm, "fixed",
+                              "nnpdf31_nnlo_13tev", ("gamma", "int", "z"),
+                              ker, ac, mz_ref=MZ_FIXED, gz_ref=GZ_FIXED,
+                              fsr_mmax=args.fsr_mmax)
+            fits.append(GenFit(z, g[mass][msk], w[msk], window, shape=shape,
+                               tf=tf,
+                               mass_smear=(smear_k[i] if smear_k else None)))
+        mf = MultiFit(fits, tf, labels)
+        res = mf.fit(verbose=False)
+        res["nused"] = mf.n_used
+        results[tag] = summarise(f"{tag}  [{mf.n_used} events in {window}]",
+                                 res, quiet=quiet)
         return res
 
     t0 = time.time()
@@ -777,6 +950,113 @@ def run_fit(args):
                     a2 = {k: v for k, v in json.load(fh).items()
                           if not k.startswith("_")}
             one(lab, "m_post", sel=sel, fsr=kpath, acceptance=a2, shape=S)
+
+    elif args.suite == "kclass":
+        import fsr_kclass as KC
+        import ptres
+
+        S = args.shape
+        cuts = (args.acc_pt, args.acc_pt_trail or args.acc_pt)
+        rsm = load_resolution(args.smear, args.smear_mode)
+        sel = fiducial(g, cuts, args.acc_eta, post=True, smear=rsm,
+                       seed=args.smear_seed)
+        cfg = KC.load_classes(args.kclass_json)
+        R = ptres.Resolution(cfg["res"], mode=cfg.get("res_mode", "shape"))
+        kp = KC.gen_kpred(g, R, kin=cfg["kin"],
+                          smear=(R if cfg.get("smear") else None),
+                          seed=cfg.get("smear_seed"))
+        fine = KC.assign(kp, cfg["edges"])
+        grp = KC.groups_of(cfg["nclass"], args.kclass_ngroup)
+        masks = [sel & np.isin(fine, gg) for gg in grp]
+        nn = [int(m.sum()) for m in masks]
+        print(f"\n=== resolution classes, pT > {cuts[0]}/{cuts[1]}, "
+              f"|eta| < {args.acc_eta}"
+              + (f", smeared ({args.smear_mode})" if rsm else "")
+              + f": {args.kclass_ngroup} classes of k_pred "
+              f"({cfg['kin']}-FSR kinematics), {sel.sum()} / {len(sel)} events ===")
+        for i, (gg, n) in enumerate(zip(grp, nn)):
+            s_ = masks[i]
+            up = -np.log(np.maximum(np.asarray(g["m_post"])[s_]
+                                    / np.asarray(g["m_pre"])[s_], 1e-300))
+            print(f"    class {i} (fine {gg}): {n:9d} events, "
+                  f"<k_pred> {np.average(kp[s_], weights=w[s_]):.5f}, "
+                  f"<u> {np.average(up, weights=w[s_])*1e3:8.4f}e-3")
+
+        print("\n--- the inclusive fit: no conditioning at all ---")
+        one("inclusive, pre-FSR + A(m)", "m_pre", sel=sel, acceptance=acc,
+            shape=S)
+        one("inclusive, MC-cond + A(m)", "m_post", sel=sel, fsr=ker,
+            acceptance=acc, shape=S)
+        for spec in args.kernel_alt:
+            lab, kpath, apath = _alt_spec(spec)
+            if not os.path.exists(kpath) or (apath and not os.path.exists(apath)):
+                print(f"  [skip] {lab}: missing kernel or acceptance file")
+                continue
+            one(f"inclusive, {lab}", "m_post", sel=sel, fsr=kpath,
+                acceptance=(_acc(apath) if apath else acc), shape=S)
+
+        print(f"\n--- all {args.kclass_ngroup} classes simultaneously, "
+              "common m_Z, Gamma_Z and shape terms ---")
+        for spec in args.kclass_model:
+            lab, kpath, apath = _alt_spec(spec)
+            kk = [kpath.format(c=c) for c in range(args.kclass_ngroup)]
+            aa = [apath.format(c=c) if apath else None
+                  for c in range(args.kclass_ngroup)]
+            miss = [p for p in kk + [x for x in aa if x] if not os.path.exists(p)]
+            if miss:
+                print(f"  [skip] {lab}: missing {os.path.basename(miss[0])}")
+                continue
+            many(f"classes, {lab}", "m_post", masks, kk, [_acc(p) for p in aa],
+                 shape=S)
+
+        if args.kclass_mass_smear:
+            # The detector-level toy of the conditioning: each class's mass is
+            # smeared with the class's own resolution and the model carries the
+            # same one, so the ONLY difference between the rows is the FSR
+            # kernel.  Without this the misspecified row is identical to the
+            # inclusive fit, by construction.
+            kc = [float(np.average(kp[m], weights=w[m])) * args.kclass_kscale
+                  for m in masks]
+            frac = np.array([float(w[m].sum()) for m in masks])
+            frac = frac / frac.sum()
+            kbar = float(np.sum(frac * np.array(kc)))
+            rng = np.random.default_rng(args.kclass_smear_seed)
+            ms = np.asarray(g["m_post"], float).copy()
+            for c, msk in enumerate(masks):
+                ms[msk] = ms[msk] * (1.0 + kc[c]
+                                     * rng.standard_normal(int(msk.sum())))
+            g["m_smear"] = ms
+            print("\n--- with the per-candidate mass resolution: "
+                  + ", ".join(f"k_{c} = {v*1e3:.2f}e-3" for c, v in enumerate(kc))
+                  + f"  (population {kbar*1e3:.2f}e-3) ---")
+
+            for spec in args.kclass_model:
+                lab, kpath, apath = _alt_spec(spec)
+                kk = [kpath.format(c=c) for c in range(args.kclass_ngroup)]
+                aa = [apath.format(c=c) if apath else None
+                      for c in range(args.kclass_ngroup)]
+                if any(not os.path.exists(p) for p in kk + [x for x in aa if x]):
+                    continue
+                many(f"resolution, {lab}", "m_smear", masks, kk,
+                     [_acc(p) for p in aa], shape=S, smear_k=kc)
+                # the same population model with ONE average resolution: the
+                # analysis that conditions on nothing at all
+                if "{c}" not in kpath:
+                    one(f"resolution, {lab}, unconditioned", "m_smear",
+                        sel=sel, fsr=kk[0], acceptance=_acc(aa[0]), shape=S,
+                        mass_smear=kbar)
+
+        if args.kclass_single:
+            print("\n--- each class on its own ---")
+            for spec in args.kclass_model:
+                lab, kpath, apath = _alt_spec(spec)
+                for c in range(args.kclass_ngroup):
+                    kp_, ap_ = kpath.format(c=c), (apath.format(c=c) if apath
+                                                   else None)
+                    if not os.path.exists(kp_) or (ap_ and not os.path.exists(ap_)):
+                        continue
+                    one(f"class {c}, {lab}", "m_post", sel=masks[c], fsr=kp_,
+                        acceptance=_acc(ap_), shape=S)
 
     elif args.suite == "fiducial":
         S = args.shape
