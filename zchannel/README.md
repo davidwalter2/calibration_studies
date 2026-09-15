@@ -2841,6 +2841,8 @@ python3 fsr_table.py analytic -o data/ktab_data_dm10_c2000.npz --dm-node 1.0
 python3 fsr_table.py mc       -o data/ktab_mc_dm10.npz         --dm-node 1.0
 python3 fsr_table.py corr --htable data/ht_ref10_1.0gev.npz --pt-cuts 25 25 \
         -o data/ktab_corr_data_2525.npz -a data/atab_corr_data_2525.json
+python3 fsr_table.py cond --gen data/genmerged_full.npz --pt-cuts 25 25 \
+        -o data/ktab_cond_2525.npz -a data/atab_cond_2525.json
 python3 fsr_table.py check -i data/ktab_*.npz
 python3 fsr_table.py atoms -i <atom file> -o <table>      # the identity test
 ```
@@ -2867,6 +2869,18 @@ python3 fsr_table.py atoms -i <atom file> -o <table>      # the identity test
   its bands and interpolated in `m`; `A(m) = int K Gbar` comes out of the same
   integral and is written as the tabulated acceptance on the same nodes.
   **82 s**, 81 of which is `Gbar` on 152 bands.
+* **`cond`** — the **measured** kernel of a generator sample: the events' own
+  `u = -ln(m_post/m_pre)` deposited into the cells with mass and first moment,
+  one row per `m_pre` band at the band's weighted mean `m`, `p0` the record's
+  unradiated fraction (`u < 1e-5`, the atom form's own floor), and the
+  tabulated `A(m) = P(pass|m)` measured on the same events.  `--pt-cuts` makes
+  it the selection-conditional kernel `K_sel(u|m)`, `--inclusive` the sample's
+  own `K(u|m)`, `--half` one half of the events (the statistical floor).
+  **7 s** for 11 bands x 2000 cells on 29.3 M events.
+* **`corr --sample`** — the same measured inclusive `K`, on the `h` table's
+  bands, fed to the `corr` producer in place of the standalone Photos run, so
+  that the model carries the sample's own QED.  `--mode`/`--rho` select the
+  two-leg law of `fsr_perleg corr`.
 * **`atoms`** — an atom file as a table of point-like cells `[u-eps, u+eps]`;
   the identity test of the two paths.
 
@@ -3258,7 +3272,9 @@ own configurations (one hard photon plus a soft ladder, `<eps_+ eps_->` = 6 % of
 `fit_gen.py fit --suite perleg`, the same 9.87 M selected gen events in
 60-120 GeV, five Legendre shape terms, `nm` = 8192, **atoms** throughout (the
 cell-integrated table representation of `fsr_table.py` carries its own
-+0.52/−0.98 MeV offset against atoms and is not mixed in here).  Every row of a
++0.52/−0.98 MeV offset against atoms and is not mixed in here; the whole
+benchmark in that representation is "The machinery test in the table
+representation" below).  Every row of a
 table is the same run on the same events.
 
 | model, fiducial `pT` > 25/25, \|η\| < 2.4, window 60-120 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
@@ -3326,8 +3342,10 @@ validated -- it reproduces the generator's all-emission sharing to
 0.8 / 1.5 / 0.0 / 0.5 %, its per-leg marginal to 0.3 % and its joint tail ratio
 to 1-7 %, where the single-photon model is 12-40 % low on the joint tail -- and
 at fit level it is worth **−0.03 / +0.05 MeV** at 25/25 and **+0.02 / +0.00**
-at 25/10.  The machinery residual on `Γ_Z` stays at −2.4 MeV, −1.2 after the
-standalone-kernel floor.
+at 25/10.  The machinery residual on `Γ_Z` is −0.62 ± 0.43 MeV once both
+benchmark rows are cell-integrated and the model carries the MC's own inclusive
+`K` (−2.44 with the atom rows and the standalone kernel); see "The machinery
+test in the table representation".
 
 **What the collinear product was really costing is the mass-leg relation, not
 the leg correlation.**  `coll` -- the same collinear sharing as `D (x) D`, in
@@ -3341,20 +3359,176 @@ nothing under this selection, and the whole of it is the mass-leg convention.
 Photos' single-photon sharing is the exact O(α) density to 0.05 / 0.03 / 0.24 /
 0.6 % over the four slices, and the sample's apparent 5-9 % deficit is the
 `k^2 ~ 0` tag rather than the generator.  There is no Photos angular
-approximation left to fold into the model, and no part of the −1.2 MeV belongs
+approximation left to fold into the model, and no part of the residual belongs
 to one.
 
 What is left, with the sharing, the acceptance decision, the Photos angle and
-the exact `z` all excluded, is of order the floors the test itself carries: the
-`cond:` references scatter by 1.8 MeV among themselves (`cond`: true +2.08,
-`cond`: collinear mass +0.80, MC-conditional banded +2.61, pre-FSR +1.86), which
-is the size of the number being chased.  The residual mass-leg inconsistency of
+the exact `z` all excluded, is the discretisation of the benchmark rows
+themselves -- the model side's atom form is worth +0.88 / −1.16 MeV against its
+own cell-integrated table and the `cond` side's −0.11 / +0.32, and the two do
+not cancel.  With both rows tabulated the residual is +0.65 / −0.62 MeV at the
+tables' own statistical floor of 0.30 / 0.43.  The residual mass-leg
+inconsistency of
 `multi` -- its own configurations carry `R` = 0.73 while it assigns `z = 1 - eps`
 (`R` = 1) -- is the one identified effect not yet removed, and it is bounded at
 ~0.1 MeV by `<eps_+ eps_->` being 6 % of `1 - z` where the model's hard
 emissions live.  Closing it needs the third additive coordinate
 `sum_i delta_i^2 f_i (1 - f_i)`, i.e. a 3-D compound Poisson, and is not worth
 it at this level.
+
+### The machinery test in the table representation
+
+The benchmark above is **atoms on both sides, and the two atom sets are
+different objects**: the model's is a `var_budget` merge of the kernel ladder
+per `h` band with its `A(m)` on the 152 band means, the MC-conditional
+reference's is a `sigma_cap` merge of a fine `u` histogram per `m` band with
+its `A(m)` on 1 GeV bins.  Neither discretisation cancels in the difference.
+Both sides become cell-integrated tables:
+
+* **`fsr_table.py cond`** measures the reference as a table -- the selected
+  events' own `u` histogram per `m` band, the cell's mass **and** its first
+  moment, `p0` the record's unradiated fraction (`u < 1e-5`, the atom form's
+  own floor), one node at each band's weighted mean `m`, the provider
+  interpolating linearly between them.  A cell with a negative net weight (3
+  in 22 000, all above `u = 0.6`, carrying 1e-5 of a row: the sample has
+  negative MiNNLO weights) is merged with its neighbours until the group is
+  positive and deposited at the group's own mean -- mass and first moment
+  exact, the group's second moment lost, which is what one atom carries.
+* **`fsr_table.py corr`** writes the model on the same format, with `--mode`
+  for the two-leg law and `--rho` for its correction table.
+* **`fsr_table.py corr --sample`** additionally builds the model's inclusive
+  `K` from the **sample's own** `(m_pre, m_post)` on the `h` table's bands
+  instead of the standalone Photos run.  The model then carries the MC's own
+  QED, the MC's own `h` table and the MC's own events, so the
+  standalone-against-sample kernel floor is gone from the residual and only
+  the two-leg construction is left in it.
+
+`fsr_table.py fit` reproduces `fit_gen.py fit --suite perleg` row for row
+(`cond`: true +0.287/+2.080, per-leg product +1.234/−2.392, `multi` atoms
++0.443/−0.357, MC-conditional banded −0.172/+1.830), so the rows below are the
+same events, the same window and the same five `K(m)` terms as the tables
+above.
+
+| fiducial `pT` > 25/25, one run, 9.87 M events | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| `cond`: true, atoms, per-leg record | +0.29 | +2.08 |
+| **`cond`: true, atoms**, the fit's own events | **−0.24** | **+0.92** |
+| **`cond`: true, table**, the same bands | **−0.13** | **+0.61** |
+| `cond`: true, table, 2 GeV bands, 8000 cells | +0.54 | +0.72 |
+| **model `multi`, atoms**, standalone `K` | **+0.44** | **−0.36** |
+| **model `multi`, table**, standalone `K`, 1 GeV nodes | **−0.44** | **+0.80** |
+| model `multi`, table, standalone `K`, 0.5 GeV nodes | −0.46 | +0.51 |
+| model `multi`, table, standalone `K`, atom `A(m)` | −1.17 | +0.63 |
+| model `multi`, atoms, standalone `K`, table `A(m)` | +1.15 | −0.19 |
+| model `multi`, table, **sample's own `K`**, 1 GeV nodes | +1.18 | +0.27 |
+| **model `multi`, table, sample's own `K`, 0.5 GeV nodes** | **+1.19** | **+0.10** |
+
+Same-run differences:
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| the machinery, atoms, against the per-leg record | +0.16 | **−2.44** |
+| the machinery, atoms, same events | +0.68 | −1.28 |
+| **the machinery, converged tables, the MC's own `K`** | **+0.65** | **−0.62** |
+| the **atom bias of the model side** | **+0.88** | **−1.16** |
+| … of which the `A(m)` grid alone | −0.74 | −0.17 |
+| the **atom bias of the `cond` side** | **−0.11** | **+0.32** |
+| the per-leg record against the fit's own events | +0.53 | +1.16 |
+| the kernel floor, fiducial (standalone − sample) | −1.62 | +0.53 |
+| the kernel floor, inclusive tables | −1.21 | −1.42 |
+| the kernel floor, inclusive atoms | +0.27 | −1.52 |
+| the sharing (`multi` − `single`), sample `K` | −0.06 | +0.06 |
+| `rho` driven by the sample's own `K` | −0.00 | +0.00 |
+
+**The −2.44 MeV on `Γ_Z` is the two atom sets and the two floors, not the
+machinery.**  Term by term, from the atom row to the converged table row:
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| the residual as published, atoms, per-leg-record reference | +0.16 | −2.44 |
+| the per-leg record replaced by the fit's own events | +0.53 | +1.16 |
+| the `cond` side cell-integrated and converged | −0.78 | +0.21 |
+| the model side cell-integrated and converged | −0.91 | +0.86 |
+| the standalone `K` replaced by the sample's own | +1.65 | −0.41 |
+| **what is left** | **+0.65** | **−0.62** |
+
+The model side's atom bias is the larger of the two by an order of magnitude on
+`Γ_Z` (−1.16 against +0.32) and it is **the kernel**, not the acceptance: the
+`A(m)` grid is worth −0.17 of it, the remaining −0.99 is the `var_budget` merge
+and the `h`-band staircase in `m_pre`.  On `m_Z` the split is the other way
+round, +0.74 of the +0.88 being the `A(m)` grid, which is steep at the low edge
+of the window and is resolved by the nodes and not by the bands.
+
+Discretisation, and the test's own statistical floor from a half-sample split
+of each table (`σ = |A − B| / 2`, two independent halves of the same events, the
+fit run on the full sample in both cases):
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| `cond` table, cells 1000 / 2000 / 4000 / 8000 | +0.15 / +0.35 / +0.48 / **+0.54** | +0.41 / +0.56 / +0.68 / **+0.72** |
+| … the same scan on one half of the sample | +0.79 / +0.89 / +1.06 / +1.09 | +1.09 / +1.12 / +1.19 / +1.19 |
+| `cond` table, bands 4 / 2 / 1 GeV | −0.02 / +0.35 / +0.17 | +0.85 / +0.56 / +0.56 |
+| model table, nodes 2 / 1 / 0.5 / 0.25 GeV, standalone `K` | −0.54 / −0.44 / −0.46 / −0.46 | +1.83 / +0.80 / +0.51 / +0.51 |
+| model table, nodes 1 / 0.5 / 0.25 GeV, sample `K` | +1.18 / +1.19 / +1.19 | +0.27 / +0.10 / +0.10 |
+| model table, cells 1000 / 2000 / 4000 | −0.42 / −0.44 / −0.45 | +0.80 / +0.80 / +0.80 |
+| `σ`(`cond` table) | 0.29 | 0.40 |
+| `σ`(model table) | 0.02 | 0.14 |
+| **`σ`(the difference)** | **0.30** | **0.43** |
+
+The `cond` table's cell count converges geometrically -- the increments are
++0.20, +0.13, +0.06 on `m_Z` and +0.16, +0.12, +0.03 on `Γ_Z` -- and the same
+increments appear on one half of the sample, so it is a representation effect
+and not the noise; 8000 cells is the converged row and 2000 is 0.19/0.15 short
+of it.  The model's node spacing is converged at 0.5 GeV (0.25 GeV repeats it
+to 0.00/0.00) and its cell count at 2000 (±0.02/±0.00).  The `cond` band width
+is not resolved beyond the statistical floor: 4 / 2 / 1 GeV scatter by
+0.37/0.30 against `σ` = 0.29/0.40.
+
+What the test still carries, measured on the record (`cmp_machinery.py
+--record`, `01_floors.txt`):
+
+| | |
+|---|---|
+| the `eta` decision, pre-FSR in the model against post-FSR in the record | differs on 1.7e-3 of the sample, 3.3e-4 inside the `pT` cut; `A`(60-120) moves by −9.6e-5 relative |
+| the soft floor `u < 1e-5`, a `delta` in the measured kernel and resolved in the standalone one | `P` = 0.364 selected, `<u>` contribution 3.2e-7, i.e. **0.03 MeV** of `m_Z` |
+| the weight clipping | the same on both sides: 41 events of 29.27 M, `Neff/N` = 0.680 |
+| the mass-leg inconsistency of `multi`, `R` = 0.73 against its own `z = 1 - eps` | bounded at ~0.1 MeV |
+
+**Verdict.**  With every row cell-integrated, the reference measured on the
+fit's own events and the model carrying the MC's own inclusive `K`, the
+two-leg machinery is validated to **+0.65 ± 0.30 MeV on `m_Z`** and
+**−0.62 ± 0.43 MeV on `Γ_Z`**, the errors being the tables' own statistical
+floors; the `cond` band width adds another ±0.3 on each, and no identified
+effect above 0.1 MeV is left unremoved.  The −1.2 MeV on `Γ_Z` that survived
+the kernel floor in the atom representation was the atom discretisation of the
+two benchmark rows, which do not cancel because the two atom sets are built by
+different rules.
+
+Figures `~/public_html/ZMass/cvh/260917_fsr_machinery/`: `50_ksel_band` (the
+MC's own `P(u > u_0 | m)` against each model's, band by band, with the ratio),
+`51_moments` (`p_0(m)` and `<u|m>` with the ratio), `52_fitshifts`,
+`53_converge` (the cell and node scans with the half-sample scan beside them),
+`00_machinery.txt` and `01_floors.txt` with every number above.
+
+### Reproducing the table representation
+
+```bash
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+cd $Z
+# 1. every row as a table: the MC's own conditional kernel, the model on the
+#    standalone K and on the sample's own K, and the discretisation variants
+#    (numpy only, ~30 min)
+./build_machinery_table.sh
+# 2. the fit benchmarks -- each launches detached on $NODE, poll data/00_fit_*.log
+NODE=submit50 ./run_machinery_table.sh main    # the four numbers + the floors
+NODE=submit81 ./run_machinery_table.sh conv    # the table knobs
+NODE=submit81 ./run_machinery_table.sh conv2   # the knobs pushed one step
+NODE=submit50 ./run_machinery_table.sh noise   # the half-sample splits
+NODE=submit52 ./run_machinery_table.sh incl    # the kernel floor, inclusive
+# 3. the summary and the figures
+./run_machinery_figs.sh
+# any row list, finished or still running: python3 show_fit.py <json|log> ...
+```
 
 ### The data configuration
 

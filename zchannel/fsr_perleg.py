@@ -1395,7 +1395,10 @@ def eps_grid_cells(cells, w_delta, h, n):
     u = np.zeros_like(w)
     u[ok] = m1[ok] / w[ok]
     e = eps_of_u(u[ok])
-    keep = e < (n - 1) * h
+    # `deposit` splits an atom between nodes `i` and `i + 1`, so the predicate
+    # is its own, floor(e/h) + 1 < n -- `e < (n-1) h` is the same statement in
+    # exact arithmetic but rounds the other way for an atom on the last node
+    keep = np.floor(e / h).astype(np.int64) + 1 < n
     g = deposit(np.concatenate([[0.0], e[keep]]),
                 np.concatenate([[w_delta], w[ok][keep]]), h, n)
     return g / g.sum()
