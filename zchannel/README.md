@@ -3044,6 +3044,369 @@ Nothing downstream has to change to use a table: `fit_gen.py --kernel` /
 
 ---
 
+## The multi-emission two-leg density
+
+The correlated model of the previous section shares the whole loss as if it
+were **one** photon, and the collinear product `D (x) D` shares it as if every
+photon were collinear.  Both are limits of one object, and the object is fixed
+by the fact that **photon energies add**: in the pre-FSR rest frame
+
+```
+eps_q = 1 - x_q ,      eps_+ + eps_- = eps = 2 sum_i E_i / m       (exact)
+```
+
+so the pair `(eps_+, eps_-)` is a sum over photons and its law is the 2-D
+compound Poisson whose Levy measure is the exact O(alpha) emission density
+carrying its exact sharing,
+
+```
+nu_2(eps_+, eps_-) = nu(delta) p_1(f | 1 - delta) ,
+                     eps_+ = delta f ,   eps_- = delta (1 - f) ,
+log P^(s_+, s_-)   = nu_2^(s_+, s_-) - N ,      N = int nu_2 ,
+```
+
+with `nu` the Levy measure of the inclusive kernel in `eps` and `p_1` the same
+`fsr_analytic.share_nodes` density the single-photon model uses.
+`fsr_perleg.py corr --mode multi`; `--mode coll` and `--mode lin` are the two
+limits below.
+
+### Why this is the object, and not a matching
+
+Three properties, none fitted and none carrying a matching scale:
+
+* **the marginal identity is exact.** On the diagonal `s_+ = s_-` the sharing
+  integrates to one at every `delta`, so `log P^(s,s) = nu^(s) - N = log K^(s)`:
+  the total-loss law is the kernel that was handed in and the inclusive fit is
+  untouched;
+* **at O(alpha) the law IS `nu_2`**, the exact matrix element's angular
+  distribution -- no collinear approximation in the recoil;
+* **in the collinear limit it collapses exactly to `D (x) D`.** With
+  `p_1 -> [delta(f) + delta(f-1)]/2`,
+  `log P^ = [nu^(s_+) - N]/2 + [nu^(s_-) - N]/2`, and `K^{1/2}` is the leg
+  radiator.
+
+Factorising the exponential the other way is the **first-order matching**:
+
+```
+P = exp_*(nu_2^coll - N) (x) exp_*(dnu_2) = [D (x) D] (x) exp_*(dnu_2) ,
+dnu_2 = nu_2^exact - nu_2^collinear ,
+```
+
+and `dnu_2` integrates to zero over `f` at every `delta`, so it changes no `z`
+marginal at any order.  Keeping its first term, `P = D (x) D + [D (x) D] (x)
+dnu_2`, is `--mode lin`: the collinear ladder plus **one** wide-angle emission.
+`multi` resums it; the two bracket the resummation of the sharing at
+**0.12 / 0.16 MeV**.
+
+### The Levy measure
+
+`nu` is read off the kernel by the same spectral operation the convolution
+square root is -- `log` in place of `sqrt` -- on a uniform grid in `eps`:
+`nu = F^-1 log F K`, `N = -log K[0]`.  `nu[0] = 0` and `N` come out of it rather
+than being imposed, because the `n`-photon term of `exp_*` starts at node `n`.
+The same object obeys the causal recursion `k g_k = sum_j j nu_j g_{k-j}`, which
+makes `nu` below any `eps_max` independent of everything above it -- what lets a
+**fine short grid** resolve the sharing at small `u`.  The two branches agree to
+**1e-14**.
+
+Peak band, `mc` kernel:
+
+| | `h` = 1e-3 | 5e-4 | 2.5e-4 |
+|---|---|---|---|
+| `N` | 0.4157 | 0.4560 | 0.4963 |
+| `nu < 0` | 0 | -3.8e-5 | -1.2e-4 |
+| spectral vs causal recursion | 2.7e-14 | 1.4e-14 | 6.8e-15 |
+| **marginal identity, `multi`** | **1.2e-9** | **6.0e-10** | **3.1e-10** |
+| marginal identity, `coll` | 2.7e-9 | 1.4e-9 | 7.5e-10 |
+| weight above `eps` = 1 | -2.6e-7 | -2.6e-7 | -2.6e-7 |
+| `min P`, `multi` | 0 | -2.1e-7 | -1.3e-7 |
+
+The marginal identity -- `int P` along the line `eps_+ + eps_- = eps` against the
+kernel -- holds to **3e-10** because the 2-D atoms are deposited **along their
+own anti-diagonal** (`deposit_diag`), which makes the projection of `nu_2` equal
+`nu` to machine precision.  `N` grows with the grid because the soft end of `nu`
+is logarithmic; nothing observable depends on it.
+
+`coll` is the closure test: its joint leg tail over the product of its marginals
+is **1.000** at every threshold -- the definition of independent legs -- and its
+leg marginal reproduces `conv_sqrt(K_eps)` to 1.7e-4, with `<u_leg>` agreeing to
+2e-4.
+
+### Against the generator
+
+Peak band, `00_multi.txt`.  The `f` resolution of the model is `h/eps`, so the
+soft slices are read off the fine short grid (`eps < 0.021`, `h` = 1e-5) and the
+hard ones off the full one (`h` = 2.5e-4).  `P(0.01 < f < 0.99)`:
+
+| `u` slice | MC, all | `single` | **`multi`** | `coll` | exact O(α) |
+|---|---|---|---|---|---|
+| 1e-3 - 1e-2 | 0.4604 | 0.3662 | **0.4568** | 0.1216 | 0.3676 |
+| 1e-2 - 0.05 | 0.4625 | 0.3765 | **0.4693** | 0.1266 | 0.3686 |
+| 0.05 - 0.2 | 0.4642 | 0.3717 | **0.4640** | 0.1246 | 0.3719 |
+| 0.2 - 0.6 | 0.4667 | 0.3724 | **0.4643** | 0.1241 | 0.3724 |
+
+`single` reproduces the exact O(α) column, `coll` reproduces `D (x) D`'s own
+0.124, and **`multi` reproduces the generator's all-emission sharing** to
+-0.8 %, +1.5 %, 0.0 % and -0.5 %.  The 35 % gap between one-photon and
+all-emission sharing is closed by the exponentiation and by nothing else.
+
+The leg law, full grid at `h` = 2.5e-4, against the standalone at 2.5e9 events
+per setting:
+
+| `t` | `P(u_leg>t)` MC | `single` | `multi` | joint/prod MC | `single` | `multi` | `coll` |
+|---|---|---|---|---|---|---|---|
+| 1e-3 | 0.19887 | 0.19371 | 0.20375 | 2.516 | 2.21 | 2.49 | 1.000 |
+| 1e-2 | 0.11986 | 0.11564 | 0.12017 | 2.903 | 2.39 | 2.88 | 1.000 |
+| 0.05 | 0.06845 | 0.06676 | 0.06842 | 3.185 | 2.41 | 3.11 | 1.000 |
+| 0.2 | 0.03109 | 0.03086 | 0.03116 | 3.048 | 1.84 | 2.84 | 1.000 |
+
+`multi` reproduces the per-leg marginal to **0.3 %** above `u_leg` = 1e-2 (2.5 %
+at 1e-3, the grid's own reach) and the joint tail ratio to **1-7 %**, where the
+single-photon model is 12-40 % low on the joint tail.
+
+### Photos' own angle is exact; the 6-9 % "deficit" was the tag
+
+`photos_standalone/photos_share.cc` accumulates the per-leg law directly, with
+`photos_gen.cc`'s event generation unchanged: `x_q = 2 (p'_q . Q_pre)/m^2`, an
+invariant, so `f` and `u_q` are built in the pre-FSR Z rest frame with or
+without `--kinboost` (checked boost-invariant to 8e-4).  2.5e9 events per
+setting at the peak band, three classes: **exactly one photon and no pair**,
+**all events**, and **`|k^2|/m^2 < 1e-8`** -- which is the tag
+`cmp_perleg.one_photon` uses on the sample's gen record.  `share_merge.py`
+combines and mixes them at the same `f_ME` the kernel mixture uses;
+`data/photos/share_peak.npz`.
+
+`P(0.01 < f < 0.99)`, exactly-one-photon class, against the exact O(α) density
+at the slice's own `(m, z)`:
+
+| `u` slice | exact | ME on 100 % | ME off | sample-like mix |
+|---|---|---|---|---|
+| 1e-4 - 1e-3 | 0.36704 | 0.36708 (1.0001) | 0.36713 | 0.36711 |
+| 1e-3 - 1e-2 | 0.36725 | 0.36735 (1.0003) | 0.36736 | 0.36736 |
+| 1e-2 - 0.05 | 0.36837 | 0.36847 (1.0003) | 0.36856 | 0.36853 |
+| 0.05 - 0.2 | 0.37144 | 0.37105 (0.9989) | 0.37242 | 0.37189 |
+| 0.2 - 0.6 | 0.37223 | 0.37006 (0.9941) | 0.38178 | 0.37728 |
+
+**Photos has no angular deficiency worth modelling.** With the exact Z
+matrix-element correction on for 100 % of events its single-photon sharing
+agrees with the exact O(α) density to 0.03 % below `u` = 0.05, 0.11 % at
+0.05-0.2 and 0.6 % at 0.2-0.6, and the `f` *shape* is flat at 1.000 ± 0.0005
+over four decades in `f`.  With the correction **off** it agrees to 0.05 % below
+`u` = 0.05 and breaks only at hard emission (+2.6 % at `u` = 0.2-0.6, entirely
+in the wide-angle core `f` in [0.1, 0.5]) -- which is what the correction is
+for.
+
+The 5-9 % by which the sample's "1γ" column sat below the exact O(α) density is
+therefore **not** Photos' angular approximation: it is the `k^2 ~ 0` **tag**.
+Two photons collinear *with each other* also give `k^2 ~ 0`; the tag keeps
+62.1 % of radiating events in the standalone (63.3 % on the sample) while only
+53.9 % of them are genuinely one photon and no pair.  Applying the tag to the
+standalone, with the physics untouched, moves `P(0.01 < f < 0.99)` from 0.3674
+to 0.3486 -- reproducing the sample's 0.3476 / 0.3440.  A `--ktag` scan over
+1e-9 to 1e-5 leaves the tagged value at 0.348-0.352: it is the class, not the
+threshold.  The standalone's **all-emission** column reproduces the sample to
+0.1-0.2 % and its joint tail ratios to 0.2-0.4 %, so the standalone setup is the
+sample.
+
+### The mass-leg relation, and what the collinear product was really costing
+
+With `n` photons, energy conservation in the pre-FSR rest frame is exact,
+`eps_+ + eps_- = eps`, and the mass is `z = 1 - eps + (sum k)^2/m^2`.  Decompose
+each photon along the two muon light-cone directions,
+`k_i = eps_+^i p_+ + eps_-^i p_- + k_T`; averaged over the relative azimuth
+
+```
+(sum k)^2/m^2 = eps_+ eps_- - sum_i eps_+^i eps_-^i ,
+x_+ x_- - z   = sum_i eps_+^i eps_-^i = sum_i delta_i^2 f_i (1 - f_i) ,
+R             = <x_+ x_- - z> / <eps_+ eps_-> .
+```
+
+`R = 1` is `z = 1 - eps`, which is **exact for one photon at any angle** and is
+the convention of the whole `corr` family; `R = 0` is `z = x_+ x_-`, which is
+**exact when every photon is collinear to one leg** and is the convention of the
+collinear product.  `R` is measurable on the generator record from `x_+`, `x_-`
+and `m_post` alone, and on the model from the compound Poisson's first moment
+(`fsr_perleg.multi_R`, Mecke's formula):
+
+| `u` | 1e-3 | 1e-2 | 0.05 | 0.1 | 0.2 | 0.35 | 0.5 |
+|---|---|---|---|---|---|---|---|
+| generator | 0.737 | 0.733 | 0.726 | 0.720 | 0.706 | 0.686 | 0.617 |
+| model, `multi` | 0.752 | 0.734 | 0.731 | 0.737 | 0.735 | 0.739 | 0.731 |
+| model, `single` | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
+| model, `coll` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+so the generator is **73 %** of the way to the one-photon convention, and the
+exponentiated model reproduces that composition to 1-2 % -- which nothing in the
+construction was arranged to do.  It also settles what the old "independent
+legs" row was measuring: `coll` and the per-leg product have the **same** sharing
+and differ only in this convention, and at fit level that difference is
+**+1.65 MeV on `Gamma_Z`**, against +0.24 MeV for the sharing itself.  Three
+quarters of the collinear product's old -4.5 MeV was the mass-leg relation, not
+the leg correlation.
+
+`coll` is therefore not a physics variant: its photons are collinear (`R` = 0)
+while its mass rule is `z = 1 - eps` (`R` = 1), so it is internally
+inconsistent, and it is kept only as the closure test of the 2-D law.  `single`
+is exactly self-consistent (one photon, `R` = 1 both ways).  `multi` carries the
+generator's own `R` = 0.73 in its configurations while still assigning
+`z = 1 - eps`: a residual inconsistency of 0.27 of `eps_+ eps_-`, which for its
+own configurations (one hard photon plus a soft ladder, `<eps_+ eps_->` = 6 % of
+`1 - z` at `u` = 0.5) is worth of order 0.1 MeV.
+
+### The fit benchmark
+
+`fit_gen.py fit --suite perleg`, the same 9.87 M selected gen events in
+60-120 GeV, five Legendre shape terms, `nm` = 8192, **atoms** throughout (the
+cell-integrated table representation of `fsr_table.py` carries its own
++0.52/−0.98 MeV offset against atoms and is not mixed in here).  Every row of a
+table is the same run on the same events.
+
+| model, fiducial `pT` > 25/25, \|η\| < 2.4, window 60-120 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| pre-FSR + `A(m)` control | −1.01 ± 0.78 | +1.86 ± 1.50 |
+| MC-conditional, banded + `A(m)` | −0.31 ± 0.87 | +2.61 ± 1.75 |
+| `cond`: true mass, true selection | +0.29 ± 0.84 | +2.08 ± 1.74 |
+| `cond`: collinear selection | +0.42 ± 0.83 | +2.11 ± 1.74 |
+| `cond`: collinear mass + selection | +0.10 ± 0.84 | +0.80 ± 1.74 |
+| **corr, `mc` `K` (one photon)** | **+0.47 ± 0.83** | **−0.41 ± 1.75** |
+| corr, `mc` `K`, matched `u_c` = 0.01 | +0.21 ± 0.83 | −0.10 ± 1.74 |
+| **multi, `mc` `K`** | **+0.44 ± 0.83** | **−0.36 ± 1.75** |
+| multi, `data` `K` | +1.04 ± 0.83 | −1.02 ± 1.74 |
+| lin, `mc` `K` (first order only) | +0.43 ± 0.83 | −0.34 ± 1.75 |
+| coll, `mc` `K` (the collinear limit) | +0.51 ± 0.83 | −0.39 ± 1.74 |
+| per-leg, `mc` `D` (the collinear product) | +1.23 ± 0.83 | −2.39 ± 1.74 |
+| inclusive `mc` standalone + `A(m)` | −3.18 ± 0.88 | +2.19 ± 1.82 |
+| inclusive empirical kernel + `A(m)` | −3.48 ± 0.88 | +3.39 ± 1.81 |
+
+Same-run differences:
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| **the multi-emission sharing: multi − corr** | **−0.03** | **+0.05** |
+| its first-order form: lin − corr | −0.04 | +0.07 |
+| the sharing law altogether: corr − coll | −0.04 | −0.02 |
+| **the mass-leg relation: coll − per-leg** | **−0.72** | **+2.01** |
+| the machinery: multi − `cond`: true | +0.16 | −2.44 |
+| … before, corr − `cond`: true | +0.19 | −2.49 |
+| … per-leg − `cond`: true | +0.95 | −4.47 |
+| the kernel physics: multi `data` − multi `mc` | +0.59 | −0.67 |
+| standalone against the sample's own `K` (the floor) | +0.31 | −1.20 |
+
+and the discretisation, all against the default row:
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| `eps` grid `h` 2.5e-4 (from 5e-4) | −0.01 | +0.01 |
+| sharing quadrature 32x8 (from 16x4) | 0.00 | 0.00 |
+| `share_floor` 1e-4 (from 1e-6) | 0.00 | 0.00 |
+
+Under the **asymmetric 25/10 cut**, on the `pT_ref` = 10 table (a different
+selection and a different event set -- not comparable row by row with the table
+above):
+
+| model, `pT` > 25/10 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| `cond`: 25/10, true mass and selection | +0.60 ± 0.77 | +1.14 ± 1.60 |
+| corr, `mc` `K` | +0.47 ± 0.77 | +0.35 ± 1.60 |
+| **multi, `mc` `K`** | **+0.49 ± 0.77** | **+0.35 ± 1.60** |
+| corr, `data` `K` | +1.02 ± 0.77 | −0.19 ± 1.60 |
+| multi, `data` `K` | +1.02 ± 0.77 | −0.20 ± 1.60 |
+| coll, `mc` `K` | +0.46 ± 0.77 | +0.35 ± 1.60 |
+
+multi − corr is **+0.02 / +0.00**, and the machinery residual is
+**−0.11 / −0.78**, the same as the single-photon model's −0.13 / −0.79.  The
+correction vanishes here because the trailing threshold at 10 GeV leaves the
+softer muon so much headroom that how the loss is shared no longer decides the
+event: `rho(u = 0.5)` is 0.9997 against 1.0286 at 25/25.
+
+### Verdict
+
+**The multi-emission sharing is not the residual.**  The construction is
+validated -- it reproduces the generator's all-emission sharing to
+0.8 / 1.5 / 0.0 / 0.5 %, its per-leg marginal to 0.3 % and its joint tail ratio
+to 1-7 %, where the single-photon model is 12-40 % low on the joint tail -- and
+at fit level it is worth **−0.03 / +0.05 MeV** at 25/25 and **+0.02 / +0.00**
+at 25/10.  The machinery residual on `Γ_Z` stays at −2.4 MeV, −1.2 after the
+standalone-kernel floor.
+
+**What the collinear product was really costing is the mass-leg relation, not
+the leg correlation.**  `coll` -- the same collinear sharing as `D (x) D`, in
+the `corr` family's `z = 1 - eps` convention -- sits within 0.04 MeV of the
+single-photon model, while the per-leg product, which differs from it *only* in
+using `z = x_+ x_-`, is 0.72 / 2.01 MeV away.  The old attribution of that
++1.98 MeV to "independent legs" was wrong: the legs' correlation is worth
+nothing under this selection, and the whole of it is the mass-leg convention.
+
+**Photos contributes nothing either.**  With the exact-ME correction on,
+Photos' single-photon sharing is the exact O(α) density to 0.05 / 0.03 / 0.24 /
+0.6 % over the four slices, and the sample's apparent 5-9 % deficit is the
+`k^2 ~ 0` tag rather than the generator.  There is no Photos angular
+approximation left to fold into the model, and no part of the −1.2 MeV belongs
+to one.
+
+What is left, with the sharing, the acceptance decision, the Photos angle and
+the exact `z` all excluded, is of order the floors the test itself carries: the
+`cond:` references scatter by 1.8 MeV among themselves (`cond`: true +2.08,
+`cond`: collinear mass +0.80, MC-conditional banded +2.61, pre-FSR +1.86), which
+is the size of the number being chased.  The residual mass-leg inconsistency of
+`multi` -- its own configurations carry `R` = 0.73 while it assigns `z = 1 - eps`
+(`R` = 1) -- is the one identified effect not yet removed, and it is bounded at
+~0.1 MeV by `<eps_+ eps_->` being 6 % of `1 - z` where the model's hard
+emissions live.  Closing it needs the third additive coordinate
+`sum_i delta_i^2 f_i (1 - f_i)`, i.e. a 3-D compound Poisson, and is not worth
+it at this level.
+
+### The data configuration
+
+`fsr_config.SHARE_MODE` = `"multi"`.  It is the construction that is right at
+O(α) in the angle **and** carries the collinear ladder exactly, it costs
+nothing to build on top of the single-photon model (one `rho` table per
+selection), and its fit difference from `corr` is below the test's resolution --
+so the choice is made on correctness, not on a measured gain.
+
+### Reproducing
+
+```bash
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+cd $Z
+# 1. the standalone Photos sharing: ME on / off / the sample-like mixture,
+#    2.5e9 events per setting on the peak band (~5 min each on 200 cores)
+photos_standalone/build.sh                       # OUTBIN=photos_share too
+./photos_standalone/run_share.sh A   20 --me=1 --pairs=1 --fint=8
+./photos_standalone/run_share.sh B   20 --me=0 --pairs=1 --fint=8
+python3 photos_standalone/share_merge.py --combine ... -o data/photos/share_peak.npz
+# 2. the construction's own closure: the Levy measure, the marginal identity,
+#    the leg law, the sharing and the mass-leg ratio (numpy only, ~10 min)
+python3 fsr_perleg.py multicheck --htable data/ht_pt25_1.0gev.npz \
+        --run data/photos/gen_mcMix.npz --h-scan 2.5e-4 5e-4 1e-3 \
+        -o data/multi_check_mc.npz
+python3 fsr_perleg.py multicheck --htable data/ht_pt25_1.0gev.npz \
+        --pair e mu tau had --eps-max 0.021 --h-scan 1e-5 5e-6 2e-5 \
+        -o data/multi_check_data_fine.npz
+# 3. the kernels, both configurations and both selections (~40 min)
+./build_corr.sh
+# 4. the fit benchmarks (~4 min each) and the figures
+./run_perleg_fit.sh multi
+./run_perleg_fit.sh multi2510
+ssh submit51 "cd $Z && ./run_tf_z.sh --ceph python3 -u cmp_multi.py \
+   --check data/multi_check_mc.npz --check-fine data/multi_check_data_fine.npz \
+   --check-alt 'data cfg=data/multi_check_data.npz' \
+   --photos-share data/photos/share_peak.npz \
+   --fit '25/25=data/fit_perleg_multi.json' \
+   --fit '25/10=data/fit_perleg_multi2510.json'"
+```
+
+Figures `~/public_html/ZMass/cvh/260916_fsr_multiemission/`: `40_share_f` (the
+sharing density at `u` in [0.05, 0.2), model against the generator and against
+the standalone's three classes), `40b_share_f_soft` (the same at
+`u` in [1e-3, 1e-2) off the fine grid), `41_share_u`
+(`P(0.01 < f < 0.99)` against the total loss), `42_joint` (the joint leg tail
+over the product), `43_gbar` (the selection weight of each construction over the
+single-photon model's), `44_fitshifts`, `45_massconv` (the mass-leg ratio `R`),
+and `00_multi.txt` with every number above.
+
+---
+
 ## What is still missing for a *data* Z channel
 
 * **The LO→MiNNLO `K(m)`, and its truncation.** The card must float a smooth

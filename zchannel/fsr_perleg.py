@@ -1298,6 +1298,469 @@ def _fill_ratio(num, den, sum_u, u_nodes, g00, u_min=1e-9):
     return out
 
 
+# --------------------------------------------------------------------------
+# the multi-emission two-leg density: the exponentiated exact O(alpha) sharing
+# --------------------------------------------------------------------------
+# The single-photon model above shares the WHOLE loss as if it were one photon;
+# the collinear product ``D (x) D`` shares it as if every photon were collinear.
+# Both are limits of one object.  Photon energies ADD, so in the pre-FSR rest
+# frame the two leg losses
+#
+#     eps_q = 1 - x_q ,    eps_+ + eps_- = eps = 2 sum_i E_i / m       (exact)
+#
+# are sums over photons, and the two-leg law is the 2-D compound Poisson whose
+# Levy measure is the exact O(alpha) emission density carrying its exact
+# sharing,
+#
+#     nu_2(eps_+, eps_-) = nu(delta) p_1(f | 1 - delta) ,
+#                          eps_+ = delta f ,  eps_- = delta (1 - f) ,
+#     log P^(s_+, s_-)   = nu_2^(s_+, s_-) - N ,   N = int nu_2 .
+#
+# Three properties, none of them fitted and none of them a matching:
+#
+#   * the MARGINAL IDENTITY is exact.  On the diagonal ``s_+ = s_- = s`` the
+#     sharing integrates to one at every ``delta``, so
+#     ``log P^(s,s) = nu^(s) - N = log K^(s)``: the total-loss law is the
+#     kernel that was handed in, to machine precision, and the inclusive fit is
+#     untouched;
+#   * at O(alpha) the law IS ``nu_2``, the exact matrix element's angular
+#     distribution -- no collinear approximation in the recoil;
+#   * in the collinear limit ``p_1 -> [delta(f) + delta(f-1)]/2`` it collapses
+#     EXACTLY to ``D (x) D``: ``log P^ = [nu^(s_+) - N]/2 + [nu^(s_-) - N]/2``
+#     ``= log K^(s_+)^{1/2} + log K^(s_-)^{1/2}``, and ``K^{1/2}`` is the leg
+#     radiator.  The construction interpolates between the two limits with no
+#     matching scale and no subtraction, and it is a positive measure wherever
+#     ``nu`` is.
+#
+# ``nu`` is read off the kernel by the same spectral operation the convolution
+# square root is -- ``log`` in place of ``sqrt`` -- on a uniform grid in
+# ``eps``, which is the additive variable.  ``K`` is infinitely divisible in it
+# by construction (it is the exponential of a Mellin exponent), so ``nu >= 0``
+# up to the grid's own representation error, which is measured.
+#
+# The convention for the multi-photon part is forced by the same additivity:
+# the model's mass is ``z = 1 - eps`` with ``eps = eps_+ + eps_-``, which is
+# EXACT for one photon and neglects ``(sum k)^2/m^2`` beyond it -- the same
+# quantity the generator record measures at -8.0e-3 on the 1 % tail of the
+# radiating events.  The collinear product's own convention, ``z = x_+ x_-``,
+# differs from it by ``eps_+ eps_-`` and is exact for collinear photons and
+# wrong at O(alpha) off axis by ``(1-z)^2/8`` at ``f = 1/2``.
+
+#: uniform step of the ``eps`` grid.  ``eps = 1 - z`` runs over [0, 1], so the
+#: node count is ``1/MULTI_H``; the step has to resolve ``G``, whose own
+#: resolution is 1e-3 in the leg variable.
+MULTI_H = 5e-4
+
+
+def eps_of_u(u):
+    return -np.expm1(-2.0 * np.asarray(u, float))
+
+
+def u_of_eps(e):
+    return -0.5 * np.log1p(-np.minimum(np.asarray(e, float), 1.0 - 1e-300))
+
+
+def kernel_eps_grid(k, h, n, pair_atoms=None):
+    """A **dense** uniform-``eps`` image of an analytic kernel.
+
+    Each cell carries the kernel's own integral over that cell, so there is no
+    comb at any ``eps`` -- which is what the logarithm of the transform needs.
+    The pair branch is convoluted on the grid; ``eps`` is the additive variable
+    for a lepton pair exactly as it is for a photon.
+    """
+    ee = np.minimum(np.arange(n + 1) * h, eps_of_u(k._u_max()))
+    w = k._cells(k._t_of_u(u_of_eps(ee)), 16)[0]
+    if pair_atoms is not None and len(pair_atoms[0]):
+        uk, wk = pair_atoms
+        P = deposit(np.concatenate([[0.0], np.clip(eps_of_u(uk), 0.0,
+                                                   (n - 2) * h)]),
+                    np.concatenate([[1.0 - wk.sum()], wk]), h, n)
+        L = _fft_len(2 * n)
+        w = np.fft.irfft(np.fft.rfft(w, L) * np.fft.rfft(P, L), L)[:n]
+    return w / w.sum()
+
+
+def eps_grid_cells(cells, w_delta, h, n):
+    """A tabulated kernel's cells on the uniform ``eps`` grid, cell by cell.
+
+    Atoms above the grid are **dropped**, not clipped, and the result is
+    renormalised: the Levy measure obeys a causal recursion,
+    ``k g_k = sum_j j nu_j g_{k-j}``, so ``nu`` below ``eps_max`` is the same
+    for the kernel and for the kernel conditioned on ``eps < eps_max`` -- which
+    is what lets a fine short grid resolve the sharing at small ``u``, and
+    which piling the tail into the last cell would destroy.
+    """
+    w, m1, _ = np.asarray(cells, float)
+    ok = w > 0.0
+    u = np.zeros_like(w)
+    u[ok] = m1[ok] / w[ok]
+    e = eps_of_u(u[ok])
+    keep = e < (n - 1) * h
+    g = deposit(np.concatenate([[0.0], e[keep]]),
+                np.concatenate([[w_delta], w[ok][keep]]), h, n)
+    return g / g.sum()
+
+
+def levy(g):
+    """``(nu, N, info)`` with ``g = exp_*(nu - N e_0)`` on ``g``'s own grid.
+
+    The same spectral operation as `conv_sqrt`, with ``log`` in place of
+    ``sqrt``: ``log g^ = nu^ - N`` pointwise.  ``nu[0] = 0`` and
+    ``N = -log g[0]`` come out of it rather than being imposed -- the
+    ``n``-photon term of ``exp_*`` starts at node ``n``, so node 0 sees only
+    ``e^{-N}``.
+    """
+    n = len(g)
+    L = _fft_len(4 * n)
+    G = np.zeros(L)
+    G[:n] = g
+    Gh = np.fft.rfft(G)
+    lam = np.fft.irfft(np.log(Gh), L)
+    N = -float(lam[0])
+    nu = lam.copy()
+    nu[0] = 0.0
+    rt = np.fft.irfft(np.exp(np.fft.rfft(nu) - N), L)[:n]
+    info = dict(N=N, k_abs_min=float(np.abs(Gh).min()),
+                k_arg_max=float(np.abs(np.angle(Gh)).max()),
+                neg=float(nu[nu < 0.0].sum()),
+                wrap=float(np.abs(nu[n:]).sum()),
+                roundtrip=float(np.abs(rt - g).max()))
+    return nu[:n], N, info
+
+
+def levy_recursion(g):
+    """``(nu, N)`` by the causal moment recursion ``k g_k = sum_j j nu_j g_{k-j}``.
+
+    ``nu[1..k]`` depends only on ``g[0..k]``, so a grid truncated at some
+    ``eps_max`` carries the same Levy measure below it as the full one -- which
+    is what lets a *fine* short grid be used for the sharing diagnostics.
+    O(n^2), and the cross-check of the spectral branch.
+    """
+    g = np.asarray(g, float)
+    n = len(g)
+    nu = np.zeros(n)
+    jn = np.zeros(n)
+    for k in range(1, n):
+        nu[k] = ((k * g[k] - float(np.dot(jn[1:k], g[k - 1:0:-1])))
+                 / (k * g[0]))
+        jn[k] = k * nu[k]
+    return nu, -math.log(g[0])
+
+
+def deposit_diag(kk, p, w, n):
+    """Atoms onto the 2-D grid **along their own anti-diagonal**.
+
+    An atom of total loss ``kk h`` at ``eps_+ = p h`` is split between the
+    nodes ``(i, kk - i)`` and ``(i + 1, kk - i - 1)``, both of which have
+    ``i + j = kk`` exactly.  The projection onto the total is therefore the
+    1-D measure the atoms came from, to machine precision -- which is what
+    makes the marginal identity exact -- and the first moment in ``eps_+`` is
+    preserved as well.
+    """
+    kk = np.asarray(kk, np.int64)
+    i = np.floor(p).astype(np.int64)
+    t = np.asarray(p, float) - i
+    i = np.clip(i, 0, kk)
+    hi = np.minimum(i + 1, kk)
+    j, jh = kk - i, kk - hi
+    ok = (i < n) & (j < n)
+    A = np.bincount((i[ok] * n + j[ok]), (w * (1.0 - t))[ok], n * n)
+    ok = (hi < n) & (jh < n)
+    A += np.bincount((hi[ok] * n + jh[ok]), (w * t)[ok], n * n)
+    return A.reshape(n, n)
+
+
+def share_measure(m, w, h, n, npanel=16, ng=4, mmu=M_MU):
+    """``nu_2`` (or ``S_1``) from a 1-D measure ``w`` on the ``eps`` grid.
+
+    Every node ``k >= 1`` carries a loss ``delta = k h``; the exact O(alpha)
+    sharing of that loss between the two legs is `fsr_analytic.share_nodes` at
+    ``z = 1 - delta``, tabulated on the half branch ``f <= 1/2`` and mirrored.
+    Below the ``2 m_mu`` threshold the muons are at rest in their own frame and
+    the sharing is ``f = 1/2``.
+    """
+    k = np.arange(1, n)
+    d = k * h
+    use = (w[1:n] != 0.0) & (d < 1.0)
+    out = np.zeros((n, n))
+    if not use.any():
+        return out
+    kk, dd, ww = k[use], d[use], w[1:n][use]
+    z = 1.0 - dd
+    live = z * m * m > 4.0 * mmu * mmu
+    if live.any():
+        f, wf = FA.share_nodes(m, z[live], npanel=npanel, ng=ng, mmu=mmu)
+        K = np.repeat(kk[live], f.shape[1])
+        W = (ww[live][:, None] * wf).ravel()
+        P = (np.repeat(dd[live], f.shape[1]) * f.ravel()) / h
+        out += deposit_diag(K, P, W, n)                       # f  <= 1/2
+        out += deposit_diag(K, np.repeat(kk[live], f.shape[1]) - P, W, n)
+    if (~live).any():
+        K = kk[~live]
+        out += deposit_diag(K, 0.5 * K, ww[~live], n)
+    return out
+
+
+def coll_measure(w, n):
+    """The collinear limit of `share_measure`: half the loss on each end point.
+
+    The 2-D exponential of this is ``D (x) D`` exactly, with ``D`` the
+    convolution square root of the kernel in ``eps``.
+    """
+    out = np.zeros((n, n))
+    k = np.arange(1, n)
+    out[k, 0] += 0.5 * w[1:n]
+    out[0, k] += 0.5 * w[1:n]
+    return out
+
+
+def multi_law(nu2, N, n, dtype=np.float64):
+    """``exp_*(nu_2 - N e_0)`` on the 2-D grid, by FFT.
+
+    The grid is padded to twice its extent: a configuration aliasing back into
+    ``eps_+ < 1`` needs a total loss above 2, i.e. three photons each taking
+    the whole mass, and carries no weight.  The wrap is measured by the
+    marginal identity.
+    """
+    L = _fft_len(2 * n)
+    A = np.zeros((L, L), dtype)
+    A[:n, :n] = nu2
+    F = np.fft.rfft2(A)
+    del A
+    F -= N
+    np.exp(F, out=F)
+    P = np.fft.irfft2(F, s=(L, L))
+    del F
+    return np.ascontiguousarray(P[:n, :n])
+
+
+def conv2(A, B, n):
+    """The 2-D convolution of two measures on the ``eps`` grid, truncated."""
+    L = _fft_len(2 * n)
+    X = np.zeros((L, L))
+    X[:n, :n] = A
+    F = np.fft.rfft2(X)
+    X[:] = 0.0
+    X[:n, :n] = B
+    F *= np.fft.rfft2(X)
+    del X
+    return np.ascontiguousarray(np.fft.irfft2(F, s=(L, L))[:n, :n])
+
+
+def G_eps_matrix(g, b_edges, h, n):
+    """``G(u_+, u_-)`` on the ``eps`` grid, bilinear on the table's own grid."""
+    u = np.minimum(u_of_eps(np.arange(n) * h), b_edges[-1])
+    nb = len(b_edges) - 1
+    i = np.clip(np.searchsorted(b_edges, u, "right") - 1, 0, nb - 1)
+    s = np.clip((u - b_edges[i]) / (b_edges[i + 1] - b_edges[i]), 0.0, 1.0)
+    r0 = g[i][:, i] * (1.0 - s) + g[i][:, i + 1] * s
+    r1 = g[i + 1][:, i] * (1.0 - s) + g[i + 1][:, i + 1] * s
+    return r0 * (1.0 - s)[:, None] + r1 * s[:, None]
+
+
+def diag_reduce(P, Gm, n):
+    """``(num, den)`` per anti-diagonal ``eps_+ + eps_- = k h``."""
+    i = np.arange(n, dtype=np.int64)
+    kk = (i[:, None] + i[None, :]).ravel()
+    den = np.bincount(kk, P.ravel(), 2 * n)[:n]
+    num = np.bincount(kk, (P * Gm).ravel(), 2 * n)[:n]
+    return num, den
+
+
+def multi_laws(m, Ke, h, n, modes, npanel=16, ng=4):
+    """Yield ``(mode, P, info)``: the two-leg laws that share ``Ke``.
+
+    One law is alive at a time.  ``modes`` picks the sharing:
+
+      ``single``  the whole loss carried by one exact-angle photon (the `corr`
+                  model), i.e. ``S_1`` without exponentiation;
+      ``multi``   the exponentiated exact sharing (this section);
+      ``coll``    the exponentiated collinear sharing, which is ``D (x) D``;
+      ``lin``     the same correction at first order only, ``D (x) D`` plus one
+                  wide-angle emission.
+    """
+    nu, N, info = levy(Ke)
+    for md in modes:
+        if md == "single":
+            P = share_measure(m, Ke, h, n, npanel, ng)
+            P[0, 0] += Ke[0]                # the unradiated atom, no sharing
+        elif md == "multi":
+            P = multi_law(share_measure(m, nu, h, n, npanel, ng), N, n)
+        elif md == "coll":
+            P = multi_law(coll_measure(nu, n), N, n)
+        elif md == "lin":
+            # the LINEARISED matching: D (x) D plus one wide-angle correction,
+            # ``P = D (x) D + [D (x) D] (x) dnu_2`` with
+            # ``dnu_2 = nu_2^exact - nu_2^collinear``.  It is the first term of
+            # ``exp_*(dnu_2)`` acting on the collinear law, so it has the same
+            # O(alpha) angle and the same exact z marginal (``dnu_2`` has zero
+            # projection on every anti-diagonal), and differs from ``multi`` by
+            # the multi-WIDE-angle configurations only -- which is the size of
+            # the resummation of the sharing.  Unlike ``multi`` it is a signed
+            # measure.
+            dn = (share_measure(m, nu, h, n, npanel, ng)
+                  - coll_measure(nu, n))
+            P = multi_law(coll_measure(nu, n), N, n)
+            P += conv2(P, dn, n)
+        else:
+            raise ValueError(md)
+        yield md, P, info
+
+
+def share_q(m, w, h, n, npanel=16, ng=4, mmu=M_MU):
+    """``sum_i delta_i^2 f_i (1-f_i)`` carried by a 1-D measure ``w``, per node.
+
+    The mass of an ``n``-photon configuration is
+    ``z = 1 - eps + (sum k)^2/m^2``, and the light-cone decomposition of each
+    photon along the two muon directions gives, averaged over the relative
+    azimuth,
+
+        (sum k)^2/m^2 = eps_+ eps_- - sum_i eps_+^i eps_-^i ,
+        x_+ x_- - z   = sum_i eps_+^i eps_-^i = sum_i delta_i^2 f_i (1-f_i) .
+
+    So ``R = <x_+ x_- - z> / <eps_+ eps_->`` is 1 when one photon carries the
+    loss at any angle (``z = 1 - eps``) and 0 when every photon is collinear to
+    one leg (``z = x_+ x_-``): it says which mass-leg relation a configuration
+    obeys, and it is measurable on the generator record as well as on the model.
+    """
+    k = np.arange(1, n)
+    d = k * h
+    out = np.zeros(n)
+    use = (w[1:n] != 0.0) & (d < 1.0) & ((1.0 - d) * m * m > 4.0 * mmu * mmu)
+    if not use.any():
+        return out
+    f, wf = FA.share_nodes(m, 1.0 - d[use], npanel=npanel, ng=ng, mmu=mmu)
+    out[1:n][use] = w[1:n][use] * d[use] ** 2 * (2.0 * (wf * f
+                                                       * (1.0 - f)).sum(1))
+    return out
+
+
+def multi_R(m, Ke, nu, P, h, n, npanel=16, ng=4, exclusive=False):
+    """``(R, num, den)``: the model's own mass-leg ratio, per anti-diagonal.
+
+    For a compound Poisson the first moment of an additive functional at fixed
+    total is ``E[sum_i g_i ; total = eps] = (nu_g (x) P_total)(eps)`` (Mecke),
+    and ``P_total`` is the kernel itself -- so the numerator is one 1-D
+    convolution.  The denominator ``<eps_+ eps_- ; eps>`` is read off the same
+    2-D law the selection weight is.
+    """
+    nug = share_q(m, nu, h, n, npanel, ng)
+    if exclusive:
+        # the whole loss is ONE photon: no ladder to convolute with, and the
+        # answer is 1 by construction
+        num = nug
+    else:
+        L = _fft_len(2 * n)
+        num = np.fft.irfft(np.fft.rfft(nug, L) * np.fft.rfft(Ke, L), L)[:n]
+    e = np.arange(n) * h
+    i = np.arange(n, dtype=np.int64)
+    kk = (i[:, None] + i[None, :]).ravel()
+    den = np.bincount(kk, (P * np.outer(e, e)).ravel(), 2 * n)[:n]
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return num / den, num, den
+
+
+def multi_gbar(m, Ke, g, b_edges, h=MULTI_H, npanel=16, ng=4, modes=("multi",),
+               verbose=False):
+    """``Gbar`` of the two-leg laws that share ``Ke`` on the ``eps`` grid.
+
+    ``modes`` picks which laws to build on the SAME grid so that the
+    discretisation cancels in their ratio:
+
+      ``single``  the whole loss carried by one exact-angle photon (the `corr`
+                  model), i.e. ``S_1`` without exponentiation;
+      ``multi``   the exponentiated exact sharing (this section);
+      ``coll``    the exponentiated collinear sharing, which is ``D (x) D``.
+
+    Returns ``(u_nodes, {mode: Gbar}, info)``; ``u_nodes[k]`` is the exact
+    ``u`` of the anti-diagonal, ``-ln(1 - k h)/2``.
+    """
+    n = len(Ke)
+    Gm = G_eps_matrix(g, b_edges, h, n)
+    out = {}
+    marg = {}
+    info = {}
+    for md, P, info in multi_laws(m, Ke, h, n, modes, npanel, ng):
+        num, den = diag_reduce(P, Gm, n)
+        neg = float(P.min())
+        negsum = float(P[P < 0.0].sum())
+        del P
+        ok = den > 0.0
+        v = np.full(n, Gm[0, 0])
+        v[ok] = num[ok] / den[ok]
+        out[md] = v
+        info["den"] = den
+        marg[md] = (float(np.abs(den - Ke).max() / Ke.max()),
+                    float(1.0 - den.sum()), float(min(neg, 0.0)), negsum)
+        if verbose:
+            print(f"    [{md}] marginal {marg[md][0]:.2e}  leak {marg[md][1]:.2e}"
+                  f"  min P {marg[md][2]:.2e}  Gbar(1e-2) = "
+                  f"{np.interp(1e-2, u_of_eps(np.arange(n) * h), v):.6f}",
+                  flush=True)
+    info["marginal"] = marg
+    return u_of_eps(np.arange(n) * h), out, info
+
+
+def u_leg_of_eps(e):
+    """The leg's own variable, ``u_q = -ln x_q`` with ``x_q = 1 - eps_q``."""
+    return -np.log1p(-np.minimum(np.asarray(e, float), 1.0 - 1e-300))
+
+
+def leg_tails(P, h, t_grid):
+    """``(t, P(u_leg>t), P(u_+>t, u_->t), joint/product)`` of a two-leg law."""
+    n = P.shape[0]
+    u = u_leg_of_eps(np.arange(n) * h)
+    tot = float(P.sum())
+    Pl = P.sum(1) / tot
+    out = []
+    for t in t_grid:
+        i = int(np.searchsorted(u, t, "right"))
+        mg = float(Pl[i:].sum())
+        jt = float(P[i:, i:].sum()) / tot
+        out.append((t, mg, jt, jt / max(mg * mg, 1e-300)))
+    return out
+
+
+def share_hist(P, h, u_lo, u_hi, f_edges):
+    """``(hist, weight, P(0.01 < f < 0.99))`` of the sharing in a ``u`` slice.
+
+    ``f = eps_+ / eps`` is read off the anti-diagonal the configuration sits
+    on, so the slice is weighted by the kernel itself.  The resolution in ``f``
+    is ``1/k`` at total node ``k``: the two collinear end bins are grid-limited
+    and so is the MC's own measurement, which has its own infrared cutoff.
+    """
+    n = P.shape[0]
+    k0 = max(int(np.ceil(eps_of_u(u_lo) / h)), 1)
+    k1 = min(int(np.floor(eps_of_u(u_hi) / h)), n - 1)
+    nb = len(f_edges) - 1
+    hst = np.zeros(nb)
+    tot = win = 0.0
+    if k1 < k0:                                  # the slice is off the grid
+        return np.full(nb, np.nan), 0.0, np.nan
+    for k in range(k0, k1 + 1):
+        i = np.arange(k + 1)
+        w = P[i, k - i]
+        f = i / float(k)
+        j = np.clip(np.searchsorted(f_edges, f, "right") - 1, 0, nb - 1)
+        hst += np.bincount(j, w, nb)
+        tot += float(w.sum())
+        win += float(w[(f > 0.01) & (f < 0.99)].sum())
+    return hst, tot, win / max(tot, 1e-300)
+
+
+#: the ``f`` binning of `cmp_perleg.fig_share`, symmetric under ``f -> 1-f``
+def share_edges(n=25, f0=1e-6):
+    e = np.geomspace(f0, 0.5, n)
+    return np.unique(np.concatenate([e, 1.0 - e[::-1]]))
+
+
+#: floor, relative to ``Gbar(0)``, below which the two-leg law's selection
+#: weight is not resolved on the ``eps`` grid and the variant correction is
+#: continued at 1.  The kernel weight there is below 1e-4 of the total and the
+#: answer is flat in it over three decades (README).
+SHARE_FLOOR = 1e-6
+
+
 #: masses at which an alternative construction's correction is evaluated.  The
 #: alternatives are systematic variants and their ratio to the single-photon
 #: sharing is a smooth, slowly varying function of ``m`` -- the whole model's
@@ -1310,13 +1773,24 @@ VARIANT_MASSES = (55.0, 62.0, 70.0, 78.0, 85.0, 91.0, 97.0, 105.0, 115.0,
 def variant_ratio(ht, mode, masses=VARIANT_MASSES, n_u=1500, u_ref_max=7.0,
                   u_min=1e-9, cells_by_band=None, variant="exp2nll", pair=(),
                   minus_one=True, pair_table=None, var_budget=6e-10,
-                  u_c=0.01, n_v=12, pr=None, verbose=True):
+                  u_c=0.01, n_v=12, multi_h=MULTI_H, npanel=16, ng=4,
+                  share_floor=SHARE_FLOOR, pr=None, verbose=True):
     """``rho(m, u) = Gbar_variant / Gbar_single-photon`` on a coarse mass grid.
 
-    ``mode`` is ``"matched"``: the exact hard emission above ``u_c`` with its
-    sharing, convoluted with a collinear-independent soft remainder.  It has
-    the same ``z`` marginal as the single-photon model, so ``rho`` is a pure
-    statement about the two-leg law and is read off at the band's own ``Gbar``.
+    ``mode`` is
+
+      ``"matched"``  the exact hard emission above ``u_c`` with its sharing,
+                     convoluted with a collinear-independent soft remainder;
+      ``"multi"``    the exponentiated exact sharing, i.e. every photon of the
+                     Levy measure carrying the exact O(alpha) angle;
+      ``"coll"``     the exponentiated *collinear* sharing, which is
+                     ``D (x) D`` in the ``eps`` convention -- the collinear
+                     limit of ``"multi"``, kept as a closure test of the
+                     construction against the per-leg model.
+
+    All three have the same ``z`` marginal as the single-photon model, so
+    ``rho`` is a pure statement about the two-leg law and is read off at the
+    band's own ``Gbar``.
     """
     b_edges = np.asarray(ht["b_edges"], float)
     H = np.asarray(ht["h"], float)
@@ -1335,6 +1809,45 @@ def variant_ratio(ht, mode, masses=VARIANT_MASSES, n_u=1500, u_ref_max=7.0,
         else:
             cells, wd, u_max = cells_by_band[k][:3]
         un = np.minimum(u_ref, u_max)
+        if mode in ("multi", "coll", "lin"):
+            nn = int(round(1.0 / multi_h))
+            if cells_by_band is None:
+                kk = FSRKernel(ctr[k], variant=variant, pair=tuple(pair),
+                               minus_one=minus_one, pair_table=pair_table)
+                Ke = kernel_eps_grid(kk, multi_h, nn,
+                                     kk.pair_atoms(var_budget=1e-9))
+            else:
+                Ke = eps_grid_cells(cells, wd, multi_h, nn)
+            ue, gv, inf = multi_gbar(ctr[k], Ke, g, b_edges, h=multi_h,
+                                     npanel=npanel, ng=ng,
+                                     modes=("single", mode))
+            # the ratio is formed only where the conditional expectation is
+            # RESOLVED: the anti-diagonal has to carry kernel weight and the
+            # single-photon model's own selection weight has to be above a
+            # floor, or ``Gbar`` is 0/0 and the ratio is noise.  Above the last
+            # resolved node the two constructions are both selecting nothing
+            # and the ratio is continued at 1.  ``share_floor`` is scanned.
+            gs, gm, den = gv["single"], gv[mode], inf["den"]
+            ok = (den > 1e-8 * den.max()) & (gs > share_floor * max(gs[0],
+                                                                    1e-300))
+            ok[0] = False
+            kmax = int(np.nonzero(ok)[0].max()) if ok.any() else 1
+            v = np.ones(len(gs))
+            v[ok] = gm[ok] / gs[ok]
+            rho[i] = np.interp(np.log(np.maximum(u_ref, u_min)),
+                               np.log(np.maximum(ue[1:kmax + 1], u_min)),
+                               v[1:kmax + 1], left=v[1], right=1.0)
+            rho[i][u_ref <= 0.0] = 1.0
+            if verbose:
+                mg, lk, mp = inf["marginal"][mode][:3]
+                print(f"[rho:{mode}] m = {ctr[k]:6.2f}  rho(u=1e-2) = "
+                      f"{np.interp(1e-2, u_ref, rho[i]):.5f}  "
+                      f"rho(0.1) = {np.interp(0.1, u_ref, rho[i]):.5f}  "
+                      f"rho(0.5) = {np.interp(0.5, u_ref, rho[i]):.5f}  "
+                      f"u_res = {ue[kmax]:.2f}  "
+                      f"[marg {mg:.1e} leak {lk:.1e} minP {mp:.1e}]  "
+                      f"{time.time()-t0:.0f} s", flush=True)
+            continue
         gb = gbar(ctr[k], un, g, b_edges, npanel=64, ng=8)
         if mode == "matched":
             n = int(round(MATCH_GRID_MAX / MATCH_DU))
@@ -1356,7 +1869,7 @@ def variant_ratio(ht, mode, masses=VARIANT_MASSES, n_u=1500, u_ref_max=7.0,
                   f"{np.interp(1e-2, un, rho[i]):.5f}  "
                   f"rho(u=0.1) = {np.interp(0.1, un, rho[i]):.5f}  "
                   f"{time.time()-t0:.0f} s", flush=True)
-    return np.asarray(masses, float), u_ref, rho
+    return np.asarray(masses, float), u_ref, rho, "ratio"
 
 
 def macc_m(ht, k, fallback):
@@ -1366,8 +1879,15 @@ def macc_m(ht, k, fallback):
 
 
 def apply_rho(m, un, gb, rho, u_min=1e-9):
-    """Read ``rho(m, u)`` off the coarse grid onto a band's own ladder."""
-    mg, ug, R = rho
+    """Read a variant's correction off the coarse mass grid onto a band's ladder.
+
+    ``rho`` is ``(masses, u, table, kind)``; ``kind`` is ``ratio`` for the
+    matched construction and ``delta`` for the two-leg laws of the
+    multi-emission section, whose correction is a difference of two selection
+    weights and is therefore well defined where both of them vanish.
+    """
+    mg, ug, R = rho[:3]
+    kind = rho[3] if len(rho) > 3 else "ratio"
     j = np.clip(np.searchsorted(mg, m) - 1, 0, len(mg) - 2)
     t = np.clip((m - mg[j]) / (mg[j + 1] - mg[j]), 0.0, 1.0)
     r = R[j] * (1.0 - t) + R[j + 1] * t
@@ -1375,7 +1895,7 @@ def apply_rho(m, un, gb, rho, u_min=1e-9):
                     np.log(np.maximum(ug[1:], u_min)), r[1:],
                     left=r[1], right=r[-1])
     out[un <= 0.0] = r[0]
-    return gb * out
+    return np.maximum(gb + out, 0.0) if kind == "delta" else gb * out
 
 
 def build_corr_kernel(ht, cells_by_band=None, variant="exp2nll", pair=(),
@@ -1934,18 +2454,22 @@ def _corr_cmd(args):
     if args.mode != "single":
         if args.rho and os.path.exists(args.rho):
             with np.load(args.rho) as z:
-                rho = (z["m"], z["u"], z["rho"])
-            print(f"[corr] rho from {args.rho}")
+                rho = (z["m"], z["u"], z["rho"],
+                       str(z["kind"]) if "kind" in z.files else "ratio")
+            print(f"[corr] {rho[3]} table from {args.rho}")
         else:
             rho = variant_ratio(ht, args.mode, cells_by_band=cells,
                                 variant=args.variant, pair=pair,
                                 minus_one=not args.no_minus_one,
                                 pair_table=args.pair_table, u_c=args.u_c,
-                                n_v=args.n_v, pr=pr,
+                                n_v=args.n_v, pr=pr, multi_h=args.multi_h,
+                                npanel=args.share_npanel, ng=args.share_ng,
+                                share_floor=args.share_floor,
                                 masses=(tuple(args.rho_masses)
                                         if args.rho_masses else VARIANT_MASSES))
             if args.rho:
-                np.savez(args.rho, m=rho[0], u=rho[1], rho=rho[2])
+                np.savez(args.rho, m=rho[0], u=rho[1], rho=rho[2],
+                         kind=np.array(rho[3]))
     ker, acc, info = build_corr_kernel(
         ht, cells_by_band=cells, variant=args.variant, pair=pair,
         minus_one=not args.no_minus_one, pair_table=args.pair_table,
@@ -1955,6 +2479,8 @@ def _corr_cmd(args):
     meta = dict(kind="corr", selection=_sel_meta(pr, ht), variant=args.variant,
                 run=args.run,
                 mode=args.mode, u_c=args.u_c, n_v=args.n_v,
+                multi_h=args.multi_h, share_npanel=args.share_npanel,
+                share_ng=args.share_ng, share_floor=args.share_floor,
                 pair=list(args.pair or ()), htable=os.path.abspath(args.htable),
                 htable_prov=prov, n_gbar=args.n_gbar, npanel=args.npanel,
                 ng=args.ng, var_budget=args.var_budget,
@@ -1974,6 +2500,165 @@ def _corr_cmd(args):
         if b["natoms"]:
             print(f"    m = {b['m_bar']:7.2f}  A = {b['A']:.5f}"
                   f"  atoms = {b['natoms']:4d}  <u> = {b['mean_u']*1e3:8.4f}e-3")
+
+
+#: the four ``u`` slices the generator record's own sharing table is quoted in
+REPORT_SLICES = ((1e-3, 1e-2), (1e-2, 0.05), (0.05, 0.2), (0.2, 0.6))
+#: the profile version, on `cmp_perleg.fig_share_u`'s own ``u`` binning
+PROFILE_EDGES = np.geomspace(6e-4, 0.8, 15)
+SHARE_SLICES = tuple(REPORT_SLICES) + tuple(zip(PROFILE_EDGES[:-1],
+                                                PROFILE_EDGES[1:]))
+
+#: thresholds of the leg law, matching the generator record's own table
+LEG_T = (1e-5, 1e-4, 1e-3, 1e-2, 0.05, 0.2)
+
+
+def _multi_cells(args, ht, k, mc):
+    """``(cells, w_delta, u_max, m)`` of the band's inclusive kernel."""
+    if args.run:
+        c, wd, um = tabulated_cells(args.run, [ht["bands"][k]])[0]
+        return c, wd, um
+    kk = FSRKernel(mc, variant=args.variant,
+                   pair=tuple(args.pair if args.pair is not None else ()),
+                   minus_one=not args.no_minus_one,
+                   pair_table=args.pair_table)
+    return kk.cells(var_budget=args.var_budget), 0.0, kk._u_max()
+
+
+def _multi_Ke(args, cells, wd, mc, h, n):
+    """The band's inclusive kernel on the uniform ``eps`` grid.
+
+    A tabulated (standalone Photos) kernel is deposited cell by cell; an
+    analytic one is integrated cell by cell, which keeps it dense -- a comb is
+    not infinitely divisible and its logarithm is not a measure.
+    """
+    if args.run:
+        return eps_grid_cells(cells, wd, h, n)
+    k = FSRKernel(mc, variant=args.variant,
+                  pair=tuple(args.pair if args.pair is not None else ()),
+                  minus_one=not args.no_minus_one, pair_table=args.pair_table)
+    return kernel_eps_grid(k, h, n, k.pair_atoms(var_budget=1e-9))
+
+
+def _multicheck_cmd(args):
+    ht = load_htable(args.htable)
+    pr = make_pass(ht, args)
+    b_edges = np.asarray(ht["b_edges"], float)
+    bands = ht["bands"]
+    ctr = np.array([0.5 * (a + b) if np.isfinite(b) else a * 1.05
+                    for a, b in bands])
+    k = int(np.argmin(np.abs(ctr - args.mass)))
+    mc = float(ctr[k])
+    g = (pr.grid(k) if pr is not None
+         else survival(np.asarray(ht["h"], float)[k], b_edges))
+    cells, wd, u_max = _multi_cells(args, ht, k, mc)
+    print(f"# band {k} = [{bands[k][0]:g}, {bands[k][1]:g}) GeV, m = {mc:.3f}, "
+          f"selection {_sel_meta(pr, ht)}, kernel = "
+          f"{'tabulated ' + os.path.basename(args.run) if args.run else args.variant}")
+    u_probe = (1e-4, 1e-3, 1e-2, 0.05, 0.1, 0.2, 0.35, 0.5, 1.0)
+    keep = {}
+    print("\n# the Levy measure of the kernel in eps = 1 - z, and the "
+          "marginal identity of the two-leg law")
+    for h in args.h_scan:
+        n = int(round(args.eps_max / h))
+        Ke = _multi_Ke(args, cells, wd, mc, h, n)
+        nu, N, inf = levy(Ke)
+        line = (f"h = {h:.1e}  n = {n:5d}  N = {N:.6f}  |K^|min = "
+                f"{inf['k_abs_min']:.4f}  |arg K^|max = {inf['k_arg_max']:.4f}  "
+                f"nu<0 = {float(nu[nu < 0].sum()):+.2e}  roundtrip = "
+                f"{inf['roundtrip']:.1e}")
+        if n <= args.recursion_max:
+            nur, Nr = levy_recursion(Ke)
+            line += (f"  |nu - nu_rec|max = "
+                     f"{float(np.abs(nu - nur).max()):.1e}")
+        print(line, flush=True)
+        un, gb, inf2 = multi_gbar(mc, Ke, g, b_edges, h=h, npanel=args.npanel,
+                                  ng=args.ng, modes=tuple(args.modes))
+        for md in args.modes:
+            mg, lk, mp, ms = inf2["marginal"][md]
+            print(f"    {md:7s} marginal {mg:.2e}  leak {lk:+.2e}  "
+                  f"min P {mp:+.2e}  sum P<0 {ms:+.2e}")
+        keep[h] = (un, gb)
+    print("\n# Gbar(u), and the two-leg law's correction to the single-photon "
+          "model")
+    hdr = "  u        " + "".join(f"{md:>12s}" for md in args.modes)
+    for md in args.modes[1:]:
+        hdr += f"{md + '/single':>14s}"
+    print(hdr)
+    for h in args.h_scan:
+        un, gb = keep[h]
+        print(f"  -- h = {h:.1e}")
+        for u0 in u_probe:
+            row = f"  {u0:<9.4g}"
+            for md in args.modes:
+                row += f"{np.interp(u0, un, gb[md]):12.6f}"
+            for md in args.modes[1:]:
+                row += (f"{np.interp(u0, un, gb[md]) / np.interp(u0, un, gb['single']):14.5f}")
+            print(row)
+    h = args.h_scan[0]
+    n = int(round(args.eps_max / h))
+    Ke = _multi_Ke(args, cells, wd, mc, h, n)
+    fe = share_edges()
+    Dref = conv_sqrt(Ke)[0][:n]
+    out = dict(h=h, n=n, m=mc, band=np.asarray(bands[k], float),
+               f_edges=fe, slices=np.asarray(SHARE_SLICES, float),
+               t=np.asarray(LEG_T, float), Ke=Ke,
+               u_nodes=u_of_eps(np.arange(n) * h),
+               modes=np.asarray(list(args.modes)))
+    for md in args.modes:
+        out[f"gbar_{md}"] = keep[h][1][md]
+    print("\n# the leg law: P(u_leg > t), the joint tail, and their ratio")
+    print(f"  {'t':>8s}" + "".join(f"{md + ' marg':>14s}{md + ' j/p':>10s}"
+                                   for md in args.modes))
+    rows = {}
+    shr = {}
+    for md, P, _ in multi_laws(mc, Ke, h, n, tuple(args.modes),
+                               args.npanel, args.ng):
+        rows[md] = leg_tails(P, h, LEG_T)
+        shr[md] = [share_hist(P, h, a, b, fe) for a, b in SHARE_SLICES]
+        nu, N, _ = levy(Ke)
+        Rm = multi_R(mc, Ke, Ke if md == "single" else
+                     (np.zeros(n) if md == "coll" else nu), P, h, n,
+                     args.npanel, args.ng, exclusive=(md == "single"))[0]
+        out[f"R_{md}"] = Rm
+        if md == "coll":
+            pl = P.sum(1)
+            out["coll_legmarg"] = pl
+            print(f"  [coll] leg marginal against conv_sqrt(K_eps): "
+                  f"max |diff| = {float(np.abs(pl - Dref).max()):.2e}, "
+                  f"  <u_leg> {float(np.sum(pl * u_leg_of_eps(np.arange(n) * h))):.6e}"
+                  f" vs {float(np.sum(Dref * u_leg_of_eps(np.arange(n) * h))):.6e}")
+        out[f"legtail_{md}"] = np.asarray(rows[md], float)
+        out[f"share_{md}"] = np.stack([x[0] for x in shr[md]])
+        out[f"sharewin_{md}"] = np.asarray([x[2] for x in shr[md]], float)
+        del P
+    for i, t in enumerate(LEG_T):
+        row = f"  {t:8.1e}"
+        for md in args.modes:
+            row += f"{rows[md][i][1]:14.5f}{rows[md][i][3]:10.3f}"
+        print(row)
+    print("\n# the model's own mass-leg ratio "
+          "R = <x_+ x_- - z>/<eps_+ eps_->  (1 = z is 1 - eps, 0 = z is x_+x_-)")
+    un = u_of_eps(np.arange(n) * h)
+    print(f"  {'u':>10s}" + "".join(f"{md:>12s}" for md in args.modes))
+    for u0 in (1e-3, 1e-2, 0.05, 0.1, 0.2, 0.35, 0.5):
+        print(f"  {u0:10.4g}" + "".join(
+            f"{np.interp(u0, un, out['R_' + md]):12.4f}" for md in args.modes))
+    print("\n# the sharing: P(0.01 < f < 0.99) per u slice "
+          f"(f resolution 1/k, k = eps/h, h = {h:.1e})")
+    print(f"  {'u slice':>16s}" + "".join(f"{md:>12s}" for md in args.modes)
+          + f"{'exact O(a)':>12s}")
+    for i, (a, b) in enumerate(REPORT_SLICES):
+        zb = float(np.exp(-2.0 * math.sqrt(a * b)))
+        fm, wm = FA.share_nodes(mc, np.array([zb]), npanel=256, ng=8)
+        ex = float(2.0 * wm[0][fm[0] > 0.01].sum())
+        row = f"  [{a:g}, {b:g})".rjust(18)
+        for md in args.modes:
+            row += f"{shr[md][i][2]:12.4f}"
+        print(row + f"{ex:12.4f}")
+    if args.output:
+        np.savez_compressed(args.output, **out)
+        print(f"\n[multicheck] -> {args.output}")
 
 
 def _mc_leg_cells(path, ht):
@@ -2320,11 +3005,24 @@ def main():
                    help="Gauss panels of the sharing integral, half branch")
     r.add_argument("--ng", type=int, default=8)
     r.add_argument("--mode", default="single",
-                   choices=("single", "matched"),
+                   choices=("single", "matched", "multi", "coll", "lin"),
                    help="single: the exact O(alpha) sharing applied to the "
                         "whole loss.  matched: the exact hard emission above "
                         "--u-c with its sharing, convoluted with a "
-                        "collinear-independent soft remainder below it")
+                        "collinear-independent soft remainder below it.  "
+                        "multi: the exponentiated exact sharing -- every "
+                        "photon of the kernel's Levy measure carries the "
+                        "exact O(alpha) angle.  coll: its collinear limit, "
+                        "D (x) D")
+    r.add_argument("--multi-h", type=float, default=MULTI_H,
+                   help="uniform step of the eps grid of --mode multi/coll")
+    r.add_argument("--share-npanel", type=int, default=16,
+                   help="Gauss panels of the per-photon sharing, half branch")
+    r.add_argument("--share-ng", type=int, default=4)
+    r.add_argument("--share-floor", type=float, default=SHARE_FLOOR,
+                   help="floor on Gbar/Gbar(0) below which the two-leg law is "
+                        "not resolved on the eps grid and the correction is "
+                        "continued at 1")
     r.add_argument("--u-c", type=float, default=0.01,
                    help="matching scale of --mode matched")
     r.add_argument("--n-v", type=int, default=12,
@@ -2333,6 +3031,39 @@ def main():
                    help="cache file of the variant/single ratio table")
     r.add_argument("--rho-masses", type=float, nargs="*", default=None,
                    help="masses the variant/single ratio is evaluated at")
+
+    mc = sub.add_parser("multicheck",
+                        help="the exponentiated-sharing two-leg law: the Levy "
+                             "measure, the marginal identity, the leg law and "
+                             "the sharing, against the collinear product")
+    mc.add_argument("--htable", required=True)
+    mc.add_argument("-o", "--output", default=None)
+    mc.add_argument("--mass", type=float, default=91.0,
+                    help="the h-table band whose centre is closest is used")
+    mc.add_argument("--run", default=None,
+                    help="a standalone Photos run npz: the `mc` kernel")
+    mc.add_argument("--pt-cuts", nargs="*", type=float, default=None)
+    mc.add_argument("--h4", default=None)
+    mc.add_argument("--resol", default=None)
+    mc.add_argument("--resol-mode", default="shape", choices=("shape", "gauss"))
+    mc.add_argument("--variant", default="exp2nll",
+                    choices=("exp1", "exp2", "exp2nll"))
+    mc.add_argument("--pair", nargs="*", default=None)
+    mc.add_argument("--no-minus-one", action="store_true")
+    mc.add_argument("--pair-table", default=None)
+    mc.add_argument("--var-budget", type=float, default=6e-10)
+    mc.add_argument("--eps-max", type=float, default=1.0,
+                    help="extent of the eps grid; below 1 it is a FINE short "
+                         "grid for the small-u sharing, which the causal Levy "
+                         "recursion makes exact there")
+    mc.add_argument("--h-scan", nargs="*", type=float,
+                    default=(5e-4, 2.5e-4, 1e-3))
+    mc.add_argument("--modes", nargs="*", default=("single", "multi", "coll"))
+    mc.add_argument("--npanel", type=int, default=16)
+    mc.add_argument("--ng", type=int, default=4)
+    mc.add_argument("--recursion-max", type=int, default=6000,
+                    help="grid size up to which the causal recursion is run as "
+                         "a cross-check of the spectral logarithm")
 
     s = sub.add_parser("legsqrt",
                        help="D from a tabulated kernel by convolution sqrt")
@@ -2406,6 +3137,8 @@ def main():
         _kernel_cmd(args)
     elif args.cmd == "corr":
         _corr_cmd(args)
+    elif args.cmd == "multicheck":
+        _multicheck_cmd(args)
     elif args.cmd == "legsqrt":
         _legsqrt_cmd(args)
     elif args.cmd == "condker":

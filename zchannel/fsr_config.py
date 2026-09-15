@@ -22,9 +22,11 @@ Both are written as ``(r, w, m_lo, m_hi)`` atom files for the
 
 Under a lepton ``p_T`` cut the kernel has to be resolved **leg by leg**, which
 is `fsr_perleg`.  The selection-conditional form of either configuration is
-``fsr_perleg.py corr``: the pair variable ``z`` keeps the kernel below
-untouched and the two muons' energy fractions are drawn from the exact O(alpha)
-recoil sharing at fixed ``z``, so that
+``fsr_perleg.py corr --mode`` (`SHARE_MODE`): the pair variable ``z`` keeps the
+kernel below untouched and the two muons' energy fractions are drawn from the
+exact O(alpha) recoil sharing at fixed ``z`` -- carried by EVERY photon of the
+kernel's Levy measure, which makes the law exact at O(alpha) in the angle and
+exactly ``D (x) D`` in the collinear limit -- so that
 
     K_sel(u | m) = K(u | m) Gbar(u | m) ,
 
@@ -67,6 +69,15 @@ DATA_PAIRS = ("e", "mu", "tau", "had")
 #: sample's own gen record.  ``--run data/photos/gen_mcB.npz`` gives the
 #: unmixed variant; it moves ``m_Z`` by 0.34 MeV.
 MC_RUN = "data/photos/gen_mcMix.npz"
+
+#: the two-leg law the selection-conditional form uses (``fsr_perleg.py corr
+#: --mode``).  ``multi`` is the exponentiated exact O(alpha) sharing: right at
+#: O(alpha) in the recoil angle AND collapsing exactly to ``D (x) D`` in the
+#: collinear limit, so it needs no matching scale.  ``single`` is the one-photon
+#: sharing it supersedes; the two differ by -0.03 / +0.05 MeV at 25/25 and
+#: +0.02 / +0.00 at 25/10, below the closure test's resolution, so the choice is
+#: made on correctness rather than on a measured gain (README).
+SHARE_MODE = "multi"
 
 #: discretisation.  ``mc`` uses the ``sigma_cap`` of the empirical kernels of
 #: `fit_gen.py kernel`, ``data`` the ``var_budget`` of `fsr_analytic.py kernel`,

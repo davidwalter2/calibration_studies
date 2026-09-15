@@ -6,6 +6,10 @@ set -u
 Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
 NODE=${NODE:-submit50}
 WHICH=${1:-physics}
+# the reference kernel and the fiducial selection; the asymmetric suites
+# override them
+SEL=""
+REF="data/kern_fid_sc3.3e-4.npz:data/acc_d8.json"
 
 if [ "$WHICH" = "physics" ]; then
 ALT=(
@@ -38,6 +42,55 @@ ALT=(
  "inclusive empirical kernel=data/kern_incl_sc3.3e-4.npz"
 )
 OUT=data/fit_perleg_machinery.json
+elif [ "$WHICH" = "multi" ]; then
+# The multi-emission sharing: the exact O(alpha) angle carried by EVERY photon
+# of the kernel's Levy measure, exponentiated.  Same references as the `corr`
+# benchmark, so the residual is read off the same target; `coll` is the
+# construction's own collinear limit and is the closure test against the
+# per-leg product.
+ALT=(
+ "corr, mc K (single photon)=data/kern_corr_mc_1gev.npz:data/acc_corr_mc_1gev.json"
+ "corr, mc K, matched u_c 0.01=data/kern_corr_mc_uc001.npz:data/acc_corr_mc_uc001.json"
+ "multi, mc K=data/kern_corr_mc_multi.npz:data/acc_corr_mc_multi.json"
+ "multi, data K=data/kern_corr_data_multi.npz:data/acc_corr_data_multi.json"
+ "multi, mc K, h 2.5e-4=data/kern_corr_mc_multih25.npz:data/acc_corr_mc_multih25.json"
+ "multi, mc K, sharing 32x8=data/kern_corr_mc_multip32.npz:data/acc_corr_mc_multip32.json"
+ "multi, mc K, share_floor 1e-4=data/kern_corr_mc_multif4.npz:data/acc_corr_mc_multif4.json"
+ "lin, mc K (first order only)=data/kern_corr_mc_lin.npz:data/acc_corr_mc_lin.json"
+ "coll, mc K (the collinear limit)=data/kern_corr_mc_coll.npz:data/acc_corr_mc_coll.json"
+ "per-leg, mc D=data/kern_perleg_mc_1gev.npz:data/acc_perleg_mc_1gev.json"
+ "cond: true mass, true selection=data/kern_cond_true.npz:data/acc_cond_true.json"
+ "cond: collinear selection=data/kern_cond_collsel.npz:data/acc_cond_collsel.json"
+ "cond: collinear mass + selection=data/kern_cond_coll.npz:data/acc_cond_coll.json"
+ "inclusive mc standalone=data/kern_cfg_mc_sc3.3e-4.npz"
+ "inclusive empirical kernel=data/kern_incl_sc3.3e-4.npz"
+)
+OUT=data/fit_perleg_multi.json
+elif [ "$WHICH" = "multi2510" ]; then
+# The same construction under the ASYMMETRIC cut, on the pT_ref = 10 table.
+# Not comparable row by row with the 25/25 table above: different selection,
+# different events.
+SEL="--acc-pt 25 --acc-pt-trail 10"
+REF="data/kern_cond_2510.npz:data/acc_cond_2510.json"
+ALT=(
+ "corr, mc K (single photon)=data/kern_corr_mc_2510.npz:data/acc_corr_mc_2510.json"
+ "corr, data K=data/kern_corr_data_2510.npz:data/acc_corr_data_2510.json"
+ "multi, mc K=data/kern_corr_mc_2510multi.npz:data/acc_corr_mc_2510multi.json"
+ "multi, data K=data/kern_corr_data_2510multi.npz:data/acc_corr_data_2510multi.json"
+ "coll, mc K (the collinear limit)=data/kern_corr_mc_2510coll.npz:data/acc_corr_mc_2510coll.json"
+)
+OUT=data/fit_perleg_multi2510.json
+elif [ "$WHICH" = "multi2525" ]; then
+# The symmetric cut on the pT_ref = 10 table: the bridge between the two.
+SEL="--acc-pt 25"
+REF="data/kern_cond_2525.npz:data/acc_cond_2525.json"
+ALT=(
+ "corr, mc K (single photon)=data/kern_corr_mc_2525.npz:data/acc_corr_mc_2525.json"
+ "corr, data K=data/kern_corr_data_2525.npz:data/acc_corr_data_2525.json"
+ "multi, mc K=data/kern_corr_mc_2525multi.npz:data/acc_corr_mc_2525multi.json"
+ "multi, data K=data/kern_corr_data_2525multi.npz:data/acc_corr_data_2525multi.json"
+)
+OUT=data/fit_perleg_multi2525.json
 elif [ "$WHICH" = "corr" ]; then
 # The correlated two-leg density: the exact O(alpha) recoil sharing replaces
 # D(x_+) D(x_-) at fixed z, with K(z) untouched.  The `cond:` rows are the same
@@ -77,6 +130,6 @@ OUT=data/fit_perleg_disc.json
 fi
 
 ssh "$NODE" "cd $Z && ./run_tf_z.sh python3 -u fit_gen.py fit \
-  --gen data/genmerged_full.npz --suite perleg \
-  --kernel data/kern_fid_sc3.3e-4.npz --acc data/acc_d8.json --nm 8192 \
+  --gen data/genmerged_full.npz --suite perleg $SEL \
+  --kernel ${REF%%:*} --acc ${REF##*:} --nm 8192 \
   --kernel-alt $(printf "'%s' " "${ALT[@]}") -o $OUT"
