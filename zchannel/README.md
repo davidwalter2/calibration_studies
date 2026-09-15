@@ -2792,6 +2792,258 @@ band-by-band tables.
 
 ---
 
+## Fold matrix from the kernel table
+
+The provider folds FSR with one constant matrix, `p_post = F p_born`, built at
+construction and applied as a single `matvec` per likelihood evaluation. `F` is
+built from either of two representations of the kernel, dispatched on the keys
+of `fsr=` (`rabbit/lineshapes/zgamma.py`):
+
+| | atoms `(r, w, m_lo, m_hi)` | table `(m_nodes, u_edges, K, u_mean, p0)` |
+|---|---|---|
+| in `m_pre` | piecewise constant: one atom set per band | interpolated at every Born grid point |
+| in `u` | point masses, cells merged under `var_budget` / `sigma_cap` | cell-integrated, nothing merged |
+| its discretisations | band width, `sigma_cap`/`var_budget` | node spacing, cell count — both convergent |
+
+### The format
+
+`fsr_table.py` writes an npz with
+
+| array | shape | |
+|---|---|---|
+| `m_nodes` | `(n_m,)` | pre-FSR mass nodes [GeV], increasing |
+| `u_edges` | `(n_c + 1,)` | cell edges in `u = -ln(m_post/m_pre)`, increasing, `u_edges[0] = 0` |
+| `K` | `(n_m, n_c)` | probability **mass** in each cell |
+| `u_mean` | `(n_m, n_c)` | its first moment `<u>`, inside its own cell |
+| `p0` | `(n_m,)` | point mass at `u = 0` |
+
+and `sum_c K + p0 = 1` per row (the provider renormalises the rows anyway, as
+the atom form renormalises each band). `p0` is a genuine `delta`: the fraction
+of events the generator left untouched in the `mc` configuration, zero in the
+analytic one, whose soft end is an integrable singularity and not a delta.
+
+The default `u` grid is one cell below `u = 1e-9` and 2000 geometric cells to
+`u = 7`; the mass nodes run 50-200 GeV — the Born grid of the fold reaches the
+luminosity table's upper edge — every 1 GeV. That is 151 x 2000 float64,
+**4.9 MB** on disk, against 0.99 MB for the 30 835 atoms of the same kernel.
+The first cell carries 31 % of the analytic kernel's mass and all of it sits at
+`m' = m` to 1e-8 of a grid spacing, which is why one cell there is enough.
+
+In the card the table is serialised **by reference** when it came from an npz
+that is still on disk (591 bytes of JSON) and inline otherwise, as zlib'd
+base64 of the float64 arrays — 0.07 MB of JSON for 3800 cells, so ~11 MB for a
+151 x 2000 table. The arrays come back bit-identical.
+
+### Producers
+
+```bash
+python3 fsr_table.py analytic -o data/ktab_data_dm10_c2000.npz --dm-node 1.0
+python3 fsr_table.py mc       -o data/ktab_mc_dm10.npz         --dm-node 1.0
+python3 fsr_table.py corr --htable data/ht_ref10_1.0gev.npz --pt-cuts 25 25 \
+        -o data/ktab_corr_data_2525.npz -a data/atab_corr_data_2525.json
+python3 fsr_table.py check -i data/ktab_*.npz
+python3 fsr_table.py atoms -i <atom file> -o <table>      # the identity test
+```
+
+* **`analytic`** — `fsr_analytic.FSRKernel` at each node. The photonic part is
+  integrated **cell by cell** in `t = (1-z)^beta`, the substitution that removes
+  the `C beta (1-z)^{beta-1}` endpoint exactly: the singular piece is
+  `C [(1-z_lo)^beta - (1-z_hi)^beta]` per cell analytically (a constant
+  integrand in `t`, on which Gauss-Legendre is exact) and the regular remainder
+  is the same quadrature the atom form uses. The pair branch
+  `K = K_phot (x) [(1-N) delta + R_pair]` is folded in by depositing the
+  (coarse photonic atom) x (pair atom) products into the cells at their own
+  `u`, mass and first moment exact. **1 s** for 151 x 2000, against 1.9 s for
+  the 75-band atom set.
+* **`mc`** — the standalone Photos histograms are already cells, so the table
+  is a *coarsening* of them (merging bins adds masses and first moments, which
+  is exact) and the 78 generated 2 GeV bands are interpolated onto the nodes.
+  The default `u` grid is therefore built from the run's own edges: 1268 cells.
+  **1 s**, against **53 s** for the 143 245-atom set, whose per-band merge is a
+  Python loop over 100 k histogram bins.
+* **`corr`** — the selection-conditional kernel `K_sel(u|m) = K(u|m) Gbar(u|m)`
+  of `fsr_perleg`: the inclusive cells above, multiplied per cell by `Gbar` at
+  the cell's own mean. `Gbar` is a property of the `h` table and is computed on
+  its bands and interpolated in `m`; `A(m) = int K Gbar` comes out of the same
+  integral and is written as the tabulated acceptance on the same nodes.
+  **82 s**, 81 of which is `Gbar` on 152 bands.
+* **`atoms`** — an atom file as a table of point-like cells `[u-eps, u+eps]`;
+  the identity test of the two paths.
+
+### How a column is built
+
+Column `b` is what a unit of Born probability at `m_b` becomes on the output
+grid, so it is built from the kernel **at that mass** — the rows interpolated
+to `m_b`, linearly or (`fsr_minterp="cubic"`) by a natural cubic spline, both
+of which reproduce a constant exactly and so preserve `sum_c K + p0 = 1`. Each
+cell is then deposited by the rule that is exact for its own width in `m'`,
+`m_b (e^{-u_lo} - e^{-u_hi})`:
+
+* **narrower than the grid spacing** — a point mass at the cell's own first
+  moment, which is what an atom is, except that the cell is *integrated* and
+  not *merged*, so what is lost is the cell's second moment alone and no
+  `sigma_cap` enters. `p0` is the same deposit at `u = 0`, i.e. on the
+  diagonal. `fsr_deposit` picks how it is spread onto the two neighbouring
+  nodes: `"interp"` (default) a tent of half width `r dm` and height `1/r`,
+  which makes the column the exact fold of the piecewise-linear Born density —
+  *identical to the atom form, matrix element by matrix element*; `"mass"` the
+  unit-width tent, which splits the mass linearly and conserves it exactly.
+* **wider** — the tail, where the output grid resolves the kernel: the cell's
+  mass spread over its own width and projected onto the hat basis exactly,
+  `int rho lambda_i`, which twice-integrating by parts is the second difference
+  at the nodes of the twice-integrated density. Two cumulative sums and one
+  `searchsorted` per column, no per-cell loop, and mass *and* position are
+  exact however the cell edges fall between the nodes.
+
+The two branches meet where a cell is one grid spacing wide, where they agree.
+Both choices in the narrow branch matter, and they trade off:
+
+| against the exact fold `sum_j (w_j/r_j) p_born(m/r_j)` of a 40-atom kernel | `nm` = 1024 | 2048 | 4096 |
+|---|---|---|---|
+| `"interp"` (and the atom form), max rel dev on the pdf | 1.9e-4 | 4.7e-5 | 1.4e-5 |
+| `"mass"` | 2.3e-3 | 2.7e-3 | 3.4e-3 |
+| largest column excess, `"interp"` | +3.2e-3 | +3.8e-3 | +4.6e-3 |
+| largest column excess, `"mass"` | 4e-16 | 7e-16 | 7e-16 |
+
+`"mass"` conserves probability exactly but sampling a unit-width tent on a grid
+of spacing `r dm` is **not a partition of unity**, and the O(1-r) ripple that
+leaves in the output density does not shrink with `dm`. `"interp"` puts the
+same ripple in the column *mass* instead, where the smooth Born density
+averages it away — which is why it converges as `dm^2` and is the default. The
+atom form is `"interp"` by construction and carries the same column ripple:
+up to +0.5 % on a 40-atom kernel, against 4e-16 for `"mass"`.
+
+Projecting the tail rather than reading its density off at the nodes is what
+makes the cell count converge: a nodal read-off misplaces a cell one grid
+spacing wide by up to `dm/2`, which on its own is worth 0.22 MeV of `m_Z`
+between 1000 and 4000 cells.
+
+### What it costs
+
+Build of the `(nm, n_born)` matrix, 50-130 GeV window with the Born grid
+extended to 200 GeV, on an idle `submit81` core:
+
+| | `nm` = 8192 (0.94 GiB matrix) | `nm` = 32768 (15.0 GiB) |
+|---|---|---|
+| atoms, data (30 835 atoms, 75 bands) | 2.1 s | 14.1 s |
+| atoms, mc (143 245 atoms, 78 bands) | 6.7 s | 27.1 s |
+| table, data (151 x 2000) | 4.7 s | 61.8 s |
+| table, data (151 x 4000) | 5.6 s | 66.5 s |
+| table, mc (151 x 1268) | 4.2 s | 58.2 s |
+| peak RSS, atoms / table | 3.4 / 3.7 GiB | 42.8 / 47.3 GiB |
+
+Both are quadratic in `nm` (the atom cost is `n_atoms x nm`, the table's is
+`n_born x (n_c + nm)` with `n_born ~ nm`), and the matrix — hence the
+**per-evaluation cost** — is identical. The table is 2.2x the atom build at
+`nm` = 32768 and below it for a kernel with many atoms; the peak RSS is 10 %
+above the atom path, both dominated by the `numpy` matrix and its `tf.constant`
+copy.
+
+### What it is worth
+
+`fsr_table.py fit` runs `fit_gen`'s closure fit on an explicit list of kernels,
+so an atom row and its table are the same events, the same window and the same
+five `K(m)` terms. 27.7 M gen events in 60-120 GeV, `nm` = 8192; offsets from
+the generator's own `m_Z`, `Gamma_Z`.
+
+| inclusive, `data` configuration (exp. O(a) + O(a^2)LL + NLL + all pairs) | d`m_Z` [MeV] | d`Gamma_Z` [MeV] |
+|---|---|---|
+| **atoms, 2 GeV bands, `var_budget` 6e-10** (the published row) | **+1.381 ± 0.543** | **−1.036 ± 1.132** |
+| table, 4 GeV nodes, 2000 cells | +1.139 ± 0.594 | −1.226 ± 1.140 |
+| table, 2 GeV nodes, 2000 cells | +1.131 ± 0.589 | −1.238 ± 1.139 |
+| **table, 1 GeV nodes, 2000 cells** | **+1.105 ± 0.592** | **−1.221 ± 1.139** |
+| table, 0.5 GeV nodes, 2000 cells | +1.102 ± 0.592 | −1.230 ± 1.139 |
+| table, 1 GeV nodes, 1000 cells | +0.944 ± 0.647 | −1.232 ± 1.141 |
+| table, 1 GeV nodes, 4000 cells | +1.060 ± 0.587 | −1.221 ± 1.138 |
+| table, 1 GeV nodes, 8000 cells | +1.105 ± 0.578 | −1.200 ± 1.137 |
+| … 2000 cells, `fsr_deposit="mass"` | +1.105 ± 0.592 | −1.221 ± 1.139 |
+| … 4000 cells, `fsr_deposit="mass"` | +1.060 ± 0.587 | −1.221 ± 1.138 |
+
+| inclusive, `mc` configuration (standalone Photos) | d`m_Z` [MeV] | d`Gamma_Z` [MeV] |
+|---|---|---|
+| **atoms, 2 GeV bands, `sigma_cap` 3.3e-4** | **+0.412 ± 0.561** | **−0.212 ± 1.136** |
+| table, 4 GeV nodes | −0.263 ± 0.588 | −1.039 ± 1.140 |
+| table, 2 GeV nodes | −0.253 ± 0.589 | −1.051 ± 1.140 |
+| **table, 1 GeV nodes** | **−0.249 ± 0.589** | **−1.106 ± 1.141** |
+| … `fsr_deposit="mass"` | −0.249 ± 0.589 | −1.106 ± 1.141 |
+
+| fiducial 25/25, `corr` kernel, `data` configuration | d`m_Z` [MeV] | d`Gamma_Z` [MeV] |
+|---|---|---|
+| **atoms, 1 GeV bands** (the published row) | **+1.070 ± 0.829** | **−1.113 ± 1.744** |
+| table, 2 GeV nodes | +0.462 ± 0.903 | +0.786 ± 1.760 |
+| **table, 1 GeV nodes** | **+0.552 ± 0.905** | **−0.133 ± 1.758** |
+| table, 0.5 GeV nodes | +0.546 ± 0.905 | −0.451 ± 1.758 |
+
+**The atom minus table difference is the discretisation the atom form carries**
+(same events, so it is not a statistical difference):
+
+| | d`m_Z` [MeV] | d`Gamma_Z` [MeV] |
+|---|---|---|
+| inclusive `data` (2 GeV bands + `var_budget` 6e-10) | **+0.28** | **+0.19** |
+| inclusive `mc` (2 GeV bands + `sigma_cap` 3.3e-4) | **+0.66** | **+0.89** |
+| fiducial 25/25 `corr` (1 GeV bands + `var_budget` 6e-10) | **+0.52** | **−0.98** |
+
+For the `mc` configuration that is the `sigma_cap` systematic the atom scan
+already showed (3.3e-4 against 1e-4 was worth 0.7 / 0.6 MeV) and it is now
+simply gone. The table's own knobs are convergent and an order of magnitude
+smaller: **the node spacing is worth 0.04 MeV on `m_Z` between 4 and 0.5 GeV**
+(0.014 MeV for `mc`), and the cell count **±0.05 MeV** — 2000 / 4000 / 8000
+cells give +1.105 / +1.060 / +1.105, an oscillation and not a trend, set by
+where the narrow/wide crossover falls between the cells; 1000 is visibly too
+coarse and 2000 is the default. `Gamma_Z` is stable to 0.02 MeV across both. For `corr` the node spacing also refines
+`A(m)`, which is steep at the low edge, so the two cannot be separated there;
+`m_Z` converges to +0.55 MeV.
+
+The **deposit rule is invisible at this scale**: on a real table every rule
+agrees to 0.4 keV on `m_Z` and 0.1 keV on `Gamma_Z`, with the same error and
+the same correlations, because the cells near `u = 0` are far finer than the
+grid and their ripples average away. It only shows up on a table of isolated
+point masses, i.e. on an atom set.
+
+One thing does change and it is not a bias: with a kernel that is **continuous
+in `m_pre`**, `m_Z` becomes correlated with the floated smooth `K(m)`
+(`rho` = +0.39 against −0.02 for the bands) and its error grows by 8-9 %
+(0.592 against 0.543). That is the band staircase and not the atom fold's
+column ripple — the exactly mass-conserving `"mass"` rule has no ripple at all
+and gives the same error and the same correlations. A staircase in `m_pre` is
+structure the kernel does not have, and a fit that can see it separates the
+kernel from `K(m)` on information that is not there; the table's error is the
+honest one.
+
+### Reproducing
+
+```bash
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+cd $Z
+for S in "1.0 2000" "4.0 2000" "2.0 2000" "0.5 2000" "1.0 1000" "1.0 4000"; do
+  set -- $S
+  python3 -W ignore fsr_table.py analytic --dm-node $1 --n-cell $2 \
+     -o data/ktab_data_dm$(echo $1 | tr -d .)_c$2.npz
+done
+python3 -W ignore fsr_table.py mc -o data/ktab_mc_dm10.npz --dm-node 1.0
+python3 -W ignore fsr_table.py corr --htable data/ht_ref10_1.0gev.npz \
+   --pt-cuts 25 25 -o data/ktab_corr_data_2525.npz \
+   -a data/atab_corr_data_2525.json --dm-node 1.0
+./run_tf_z.sh python3 -u fsr_table.py fit --gen data/genmerged_full.npz \
+   --nm 8192 --shape 5 \
+   --row "atoms data, 2 GeV bands=data/kern_cfg_data_vb6e-10.npz" \
+   --row "table data, 1 GeV nodes, 2000 cells=data/ktab_data_dm10_c2000.npz" \
+   -o data/fit_ktab_postfsr.json
+./run_tf_z.sh python3 -u fsr_table.py fit --gen data/genmerged_full.npz \
+   --nm 8192 --shape 5 --acc-pt 25 \
+   --row "corr atoms=data/kern_corr_data_2525.npz:data/acc_corr_data_2525.json" \
+   --row "corr table=data/ktab_corr_data_2525.npz:data/atab_corr_data_2525.json" \
+   -o data/fit_ktab_corr2525.json
+./run_tf_z.sh python3 -u /work/submit/david_w/ZMass/rabbit-vmass/tests/\
+test_zgamma_kernel.py --skip 1 2 3 4 5 6 7      # the table tests
+```
+
+Nothing downstream has to change to use a table: `fit_gen.py --kernel` /
+`--kernel-alt` and `fullscale/make_card.py --fsr` all pass a path straight to
+`ZGammaLineshape(fsr=)`, which dispatches on the npz keys.
+
+---
+
 ## What is still missing for a *data* Z channel
 
 * **The LO→MiNNLO `K(m)`, and its truncation.** The card must float a smooth
