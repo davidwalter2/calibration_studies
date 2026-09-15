@@ -484,10 +484,12 @@ def main():
     f = sub.add_parser("fit", help="the closure fit")
     f.add_argument("--gen", required=True)
     f.add_argument("--suite", default="prefsr",
-                   choices=["prefsr", "postfsr", "fiducial", "quick"])
+                   choices=["prefsr", "postfsr", "fiducial", "quick", "perleg"])
     f.add_argument("--kernel", default=None)
     f.add_argument("--kernel-alt", nargs="*", default=[],
-                   help="extra kernels to repeat the fit with (systematics)")
+                   help="extra kernels to repeat the fit with (systematics); "
+                        "'label=kernel.npz' renames the row and "
+                        "'label=kernel.npz:acc.json' also swaps the acceptance")
     f.add_argument("--acc", default=None)
     f.add_argument("--nm", type=int, default=32768)
     f.add_argument("--born-hi", type=float, default=130.0)
@@ -564,6 +566,15 @@ def main():
         return
 
     run_fit(args)
+
+
+def _alt_spec(spec):
+    """``label=kernel.npz[:acceptance.json]`` -> ``(label, kernel, acceptance)``."""
+    lab, _, rest = spec.partition("=")
+    if not rest:
+        lab, rest = os.path.basename(spec), spec
+    kpath, _, apath = rest.partition(":")
+    return lab, kpath, (apath or None)
 
 
 def run_fit(args):
@@ -680,6 +691,24 @@ def run_fit(args):
         one(f"pre-FSR, shape {S} (no fold)", "m_pre", shape=S)
         one("pre-FSR, no shape (no fold)", "m_pre")
 
+    elif args.suite == "perleg":
+        S = args.shape
+        sel = fiducial(g, args.acc_pt, args.acc_eta, post=True)
+        print(f"\n=== per-leg factorised kernel, pT > {args.acc_pt}, "
+              f"|eta| < {args.acc_eta}  ({sel.sum()} / {len(sel)} events) ===")
+        one(f"pre-FSR + A(m) control", "m_pre", sel=sel, acceptance=acc,
+            shape=S)
+        one(f"MC-conditional banded + A(m)", "m_post", sel=sel, fsr=ker,
+            acceptance=acc, shape=S)
+        for spec in args.kernel_alt:
+            lab, kpath, apath = _alt_spec(spec)
+            a2 = acc
+            if apath:
+                with open(apath) as fh:
+                    a2 = {k: v for k, v in json.load(fh).items()
+                          if not k.startswith("_")}
+            one(lab, "m_post", sel=sel, fsr=kpath, acceptance=a2, shape=S)
+
     elif args.suite == "fiducial":
         S = args.shape
         sel = fiducial(g, args.acc_pt, args.acc_eta, post=True)
@@ -694,9 +723,14 @@ def run_fit(args):
             acceptance=acc, shape=S)
         one(f"pre-FSR, no A(m), shape {S}", "m_pre", sel=sel, shape=S)
         print("\n--- kernel variants (the m-dependence of the selected kernel) ---")
-        for kalt in args.kernel_alt:
-            one(f"kernel {os.path.basename(kalt)}", "m_post", sel=sel,
-                fsr=kalt, acceptance=acc, shape=S)
+        for spec in args.kernel_alt:
+            lab, kpath, apath = _alt_spec(spec)
+            a2 = acc
+            if apath:
+                with open(apath) as fh:
+                    a2 = {k: v for k, v in json.load(fh).items()
+                          if not k.startswith("_")}
+            one(lab, "m_post", sel=sel, fsr=kpath, acceptance=a2, shape=S)
         print("\n--- acceptance parameterisation ---")
         for d in (4, 6, 10):
             f2 = f"data/acc_d{d}.json"

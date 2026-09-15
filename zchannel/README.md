@@ -29,6 +29,12 @@ generator-level validation it rests on.
 | `zfsr_kernel.py` | those samples → the empirical FSR kernel CF `phi_K(t)`, plus diagnostics |
 | `fsr_analytic.py` | the **analytic** QED FSR kernel: exact O(α) + exponentiation + O(α²)LL+NLL + the exact O(α²) pair radiator, and the exact matrix elements both are validated against |
 | `cmp_fsr.py` | the analytic kernel against the Photos++ generator record (figures + moment tables) |
+| `fsr_perleg.py` | the **per-leg** radiator `D` (the Mellin square root of `K`), the `h(a_+,a_-\|m)` table and the selection-conditional kernel + `A(m)` |
+| `dump_gen_perleg.py` | the same gen dump with the two legs matched **by charge** (`x = E'/E` per leg) |
+| `run_perleg_dump.sh`, `merge_perleg.py` | shard and merge it |
+| `build_perleg.sh` | build every `h` table and selection-conditional kernel, including the discretisation variants |
+| `run_perleg_fit.sh` | the per-leg fit benchmark, `physics` and `disc` suites |
+| `cmp_perleg.py` | the per-leg construction against the generator record (figures + tables) |
 | `fit_gen.py` | **generator-level closure**: FSR kernel, acceptance, and the fit |
 | `kern_from_selected.py` | rebuild the kernel *and* `A(m)` from the gen record of the SELECTED reconstructed candidates |
 | `fit_gensel.py` | the same closure on the selected candidates' own gen masses, so the fold is isolated from the detector |
@@ -1458,6 +1464,420 @@ binary runs outside the container once built.
 
 ---
 
+## Per-leg factorised kernel and the selection-conditional shape
+
+`fsr_perleg.py` resolves the inclusive kernel leg by leg, which is what a
+lepton `p_T` cut needs: the cut does not act on the pair variable `z`, it acts
+on each muon separately. `cmp_perleg.py` is the validation against the
+generator record; figures `~/public_html/ZMass/cvh/260915_fsr_perleg/`.
+
+### The collinear factorisation
+
+In the quasi-collinear limit each muon keeps its direction and its post-FSR
+four-momentum is `p' = x p`.  In the massless limit that is exactly Lorentz
+covariant, so `x = p_T'/p_T = E'/E` in any frame and `eta' = eta`,
+`phi' = phi`.  The pair mass then factorises,
+
+```
+m'^2 = (x_+ p_+ + x_- p_-)^2 = x_+ x_- m^2 ,   z = x_+ x_- ,
+u = -ln(m'/m) = (u_+ + u_-)/2 ,   u_q = -ln x_q ,
+```
+
+and in Mellin space the inclusive kernel is the **square** of the single-leg
+time-like QED structure function, `K~(n) = D~(n)^2`.
+
+### The single-leg radiator
+
+`LegRadiator` is `fsr_analytic.FSRKernel` with the Mellin exponent halved.
+
+With `a = alpha/pi`, `L = ln(m^2/m_mu^2)` and the inclusive exponent
+`E(n) = a (L g0 + c1) + a^2 (L/2) g1`, `K~ = exp E`, the leg is `D~ = exp(E/2)`:
+
+```
+D(x) = C_D beta_D (1-x)^{beta_D-1} + h_D(x) + q2_D(x) + nll_D(x)
+
+beta_D  = beta/2 = a (L - 1)
+h_D(x)  = -(beta_D/2)(1+x) + (a/2) (1+x^2) ln x/(1-x)          = h(x)/2
+q2_D(x) = (beta_D^2/8) [P (x) P]_reg(x)
+nll_D(x)= (a^2 L/4) [ G_D(x) + g_delta,D delta(1-x) ]
+G_D     = P1T + A - kappa (1+x) = G + P1T/2
+g_delta,D = P1_delta + (3/2) kappa
+C_D     = 1 - int h_D - int q2_D - int nll_D
+```
+
+`G`, `A`, `P1T`, `kappa`, `P1_delta` are exactly the objects of
+`fsr_analytic`. Three of the four lines are the inclusive construction with
+`beta -> beta/2` and `a -> a/2`; the fourth is not, and the extra `P1T/2` is
+forced: the generic construction at coupling `a_hat` has Mellin exponent
+`a_hat (L g0 + c1) + a_hat^2 (L/2) g1`, so `a_hat = a/2` undershoots the wanted
+`(a^2 L/4) g1` by `(a^2 L/8) g1`, i.e. by `(a^2 L/8) P1T`. Adding it to
+`(a^2 L/4) G` gives `(a^2 L/4) G_D`. The normalisation is untouched with no
+numerical rescale, because `int P1T dx = -P1_delta`, `int A dx = 0` and
+`int kappa (1+x) dx = (3/2) kappa`, so `int G_D dx + g_delta,D = 0` exactly.
+
+**Pairs are emitted from one leg**, so the leg carries
+`(1 - N/2) delta(1-x) + R_pair(x)/2` with the *same* exact `R_pair` the
+inclusive kernel uses (`fsr_analytic.PairTerm`); its square is
+`(1 - N) delta + R_pair + O(alpha^4)`, the inclusive pair factor. The leg's
+support floor is `x_min = 2 m_mu/m` -- the muon cannot keep less than its own
+mass, and `x_min^2` is exactly the pair's own threshold `4 m_mu^2/m^2`, so
+`D (x) D` has support `z >= z_min` with nothing to trim.
+
+### `D (x) D` against the inclusive kernel
+
+`fsr_perleg.py check`. The Mellin square root is exact only through the order
+the kernel is built to; what is left is the O(alpha^3) difference between the
+two soft resummations, `[beta_D (1-x)^{beta_D-1}]^{(x)2}` for the leg against
+`beta (1-z)^{beta-1}` for the pair.
+
+| `n` | `exp1` | `exp2` | `exp2nll` | data cfg |
+|---|---|---|---|---|
+| 1 | -3.26e-5 | -3.36e-5 | -2.24e-5 | -2.14e-5 |
+| 2 | +6.29e-5 | +3.45e-5 | -5.56e-5 | -5.45e-5 |
+| 4 | -5.99e-5 | +3.90e-5 | -7.97e-5 | -7.82e-5 |
+| 8 | -2.44e-4 | +4.11e-5 | -8.39e-5 | -8.21e-5 |
+
+The order is read off the mass dependence: over `beta` = 0.038 to 0.080
+(`m` = 10 to 1000 GeV) the `exp2nll` residual at `n = 8` scales as `beta^3`
+(`res/beta^3` = -0.50 to -0.41) and the `exp1` one as `beta^2`
+(`res/beta^2` = -0.058 to -0.076). `exp1` is second order because it *omits*
+the O(alpha^2) leading log on purpose, and the leg's own exponentiation squared
+supplies part of it; `exp2` and `exp2nll`, which carry the whole `L^2`
+coefficient, are third order, i.e. beyond the accuracy of either form.
+
+At the data configuration, density and moments:
+
+| | `<u>` | `P(u>1e-3)` | `P(u>1e-2)` | `P(u>0.05)` | `P(u>0.2)` |
+|---|---|---|---|---|---|
+| `K`, `m` = 91.19 | 2.696648e-2 | 0.2733 | 0.1699 | 0.0935 | 0.0365 |
+| `D (x) D` / `K` - 1 | -8.3e-4 | -1.9e-4 | -1.5e-4 | -2.5e-4 | +3.3e-4 |
+| … at `m` = 60 | -2.4e-3 | +6.3e-5 | +3.1e-4 | +7.6e-4 | +2.2e-3 |
+| … at `m` = 130 | +1.7e-4 | +1.1e-4 | +3.1e-4 | +9.5e-4 | +2.7e-3 |
+
+`int D dx` = 0.99998893 rather than 1: the ladder truncates at
+`x_min = 2 m_mu/m`, and the atoms are renormalised on their own support, which
+is what the provider does anyway.
+
+### The radiator, band by band
+
+`beta_D = beta/2` and the leg's pair rate `N/2`, at the `data` configuration:
+
+| `m` [GeV] | `beta` | `beta_D` | `N_pair` | `N_pair/2` | `<u>_D` | `<u>_K` |
+|---|---|---|---|---|---|---|
+| 60 | 0.05428 | 0.02714 | 2.9642e-3 | 1.4814e-3 | 2.486347e-2 | 2.492276e-2 |
+| 80 | 0.05695 | 0.02848 | 3.3525e-3 | 1.6757e-3 | 2.629339e-2 | 2.632662e-2 |
+| 91.19 | 0.05817 | 0.02908 | 3.5414e-3 | 1.7702e-3 | 2.694417e-2 | 2.696648e-2 |
+| 110 | 0.05991 | 0.02996 | 3.8271e-3 | 1.9131e-3 | 2.787710e-2 | 2.788466e-2 |
+| 130 | 0.06146 | 0.03073 | 4.0959e-3 | 2.0475e-3 | 2.870841e-2 | 2.870363e-2 |
+
+`<u>_D` = `<u>_K` is not a coincidence and not a check: `u_pair = (u_+ + u_-)/2`
+with two identical legs, so the two means are the same object; the small
+difference is exactly the O(alpha^3) of `D (x) D` against `K` above.
+
+### The selection-conditional shape
+
+With `|eta| < eta_cut` FSR-independent in the collinear limit, the post-FSR
+`p_T > p_T^cut` condition on a pre-FSR configuration `(p_T+, p_T-)` is
+`x_q > a_q = p_T^cut/p_T q`, i.e. `u_q < b_q = -ln a_q`, so
+
+```
+K_sel(z | a_+, a_-) = int dx_+ D(x_+) D(z/x_+)/x_+ ,
+                      x_+ in [max(a_+, z), min(1, z/a_-)]
+K_sel(z | m)        = int da_+ da_- h(a_+, a_- | m) K_sel(z | a_+, a_-)
+A(m)                = int dz K_sel(z | m) .
+```
+
+Doing the `a` integral **first** turns the double integral over `h` into its
+2-D survival function evaluated on the leg's own ladder, which is what the code
+computes:
+
+```
+K_sel(u | m) = int du_+ du_- D_u(u_+) D_u(u_-) G(u_+, u_- | m)
+                                              delta(u - (u_+ + u_-)/2)
+A(m)         = int du_+ du_- D_u(u_+) D_u(u_-) G(u_+, u_- | m)
+
+G(u_+, u_- | m) = P( p_T+ > p_T^cut e^{u_+} , p_T- > p_T^cut e^{u_-} ,
+                     |eta_q| < eta_cut  |  m )      on the PRE-FSR muons.
+```
+
+`G` is the 2-D reverse cumulative of `h` and is exact on the table's grid
+edges; the `(a_+, a_-)` binning is therefore a discretisation of `G` only,
+never of the kernel. `G` is the whole boson-kinematics input: production
+(`p_T^Z`, `y_Z`), the decay angles with their angular coefficients and the PDFs
+all sit inside it and nothing else does.
+
+### The h table: the interface for SCETLib + DYTurbo
+
+`fsr_perleg.py htable` measures `h` from a generator record; anything with the
+same format can replace it, and nothing in the QED above has to change.
+
+```
+np.savez_compressed(out,
+    h        = float32 (n_band, n_a+1, n_a+1),   # the table, symmetrised
+    b_edges  = float64 (n_a+1,),                 # b = -ln a = ln(pT/pT_cut)
+    bands    = float64 (n_band, 2),              # m_pre band edges [GeV]
+    m_bar    = float64 (n_band,),                # weighted mean m_pre
+    sumw     = float64 (n_band,),                # band total weight
+    nev      = int64   (n_band,),
+    provenance = json  {pt_cut, eta_cut, band_lo, band_hi, band_width, ...})
+```
+
+* `h[k, i, j]` is the weight of events in `m` band `k` whose two **pre-FSR**
+  muons have `b_+ in [b_edges[i], b_edges[i+1])` and `b_- in [.., ..)` and pass
+  `|eta| < eta_cut`, **divided by the band's total weight** including the events
+  that fail. Index `n_a` is the overflow (`b` above the last edge). Events with
+  `p_T < p_T^cut` (`a > 1`, `b < 0`) and `eta` failures are simply absent, so
+  `sum_ij h[k] = P(both p_T > p_T^cut and both |eta| < eta_cut | m)` and
+  `A(m) <= sum_ij h[k]`.
+* The table is stored **symmetrised**, `(h + h^T)/2`: the radiator is the same
+  on both legs, so only the symmetric part can ever enter, and the charge
+  labelling of the two legs is then irrelevant (`p_T`-ordered muons are a valid
+  labelling).
+* `b_edges` is the grid in the leg's own variable; the default is `1e-3` up to
+  `b = 0.08`, `5e-3` to `0.5` and `2e-2` to `3.0`, i.e. finest where the
+  radiator has its weight (`u -> 0`). `p_T = p_T^cut e^b`.
+* Everything about the boson is integrated out. A `p_T`- or `eta`-dependent
+  efficiency instead of a step in `p_T` would need one more axis (the `eta`
+  pair, or `eps(p_T, eta)` folded into the `h` fill); nothing else changes,
+  because `G` is by construction *the probability that both legs survive their
+  own threshold*, and a smooth efficiency only makes that probability smooth.
+
+### What the collinear picture costs
+
+Measured on 20.8 M events of the sample's own gen record with the two legs
+**matched by charge** (`dump_gen_perleg.py`; `dump_gen_fsr.py` sorts the pre-
+and post-FSR muons by `p_T` *independently*, which loses the correspondence in
+6.3 % of the radiating events). `x` is taken in the Born `Z` rest frame.
+
+**(a) the directions are conserved.** Per leg, `P(|d eta| > 1e-3) = 9.50e-2`,
+`> 1e-2` 4.51e-2, `> 0.1` 1.31e-2, and the same for `phi` to three digits
+(41 % of events radiate nothing at all, so `d eta = 0` exactly there). The tail
+is real wide-angle emission, not a failure of the matching. It does not matter
+for the `eta` cut, because it only flips a decision for a muon within `d eta` of
+`|eta| = 2.4`: the `eta` decision taken on pre-FSR muons differs from the
+post-FSR one in 1.68e-3 of events.
+
+**(d) `z = x_+ x_-` holds where the weight is, and fails in the hard tail.**
+`P(u > u0)` of the true `u = -ln(m'/m)` and of `(u_+ + u_-)/2` agree to 1e-5 up
+to `u0 = 0.05`; the collinear product is 0.6 % low at `u0 = 0.1` and 7 % low at
+`u0 = 0.5`. Broken down by the true `u`:
+
+| `u` region | `P` | `<u>` true | `<u>` collinear | ratio-1 |
+|---|---|---|---|---|
+| `[0, 1e-3)` | 0.66498 | 5.99549e-5 | 5.99444e-5 | -1.8e-4 |
+| `[1e-3, 1e-2)` | 0.10304 | 3.98460e-3 | 3.98292e-3 | -4.2e-4 |
+| `[1e-2, 0.05)` | 0.07592 | 2.47672e-2 | 2.47109e-2 | -2.3e-3 |
+| `[0.05, 0.2)` | 0.05643 | 1.04333e-1 | 1.03363e-1 | -9.3e-3 |
+| `[0.2, 0.5)` | 0.02384 | 3.13528e-1 | 3.05379e-1 | -2.6e-2 |
+| `[0.5, 10)` | 0.01275 | 8.98035e-1 | 8.13799e-1 | -9.4e-2 |
+
+so `<u>` inclusively is 4.89 % low and, under `p_T > 25`, 1.96 % low: the
+missing piece is the opening angle, which a wide-angle photon closes so the pair
+mass falls further than `x_+ x_-` alone. It is entirely in `u > 0.05`, which the
+`p_T` cut is already removing.
+
+**(c) the legs are NOT independent.** In the peak band the joint tail
+`P(u_+ > t, u_- > t)` is 2.2 (`t` = 1e-4) to 3.2 (`t` = 0.05) times the product
+of the two marginals, because a wide-angle photon takes energy from **both**
+muons: the recoil is shared. This is the `1/L` power correction to the collinear
+picture, and it is the reason the measured per-leg `x` spectrum is *not* `D`:
+`<u_leg>` = 2.581e-2 / 2.592e-2 against the analytic `D`'s 2.694e-2 at the same
+mass, and the analytic `D` is the harder of the two by exactly the amount that
+makes `D (x) D` reproduce the true (correlated) pair spectrum.
+
+**(e) the acceptance decision closes to 2e-4.** Taking the collinear prediction
+`x_q p_T^{pre} > 25` and the pre-FSR `eta` against the true post-FSR cut,
+
+```
+A(post-FSR cut)    = 0.364188
+A(collinear x p_T) = 0.364257        ratio-1 = +1.90e-4
+per-event mismatch = 1.51e-3   (eta only 1.68e-3, p_T only 2.32e-3)
+```
+
+The two per-event mismatches are twice the net, i.e. they very largely cancel:
+the wide-angle events that the collinear rule wrongly keeps are balanced by the
+ones it wrongly drops.
+
+### The model against the MC, band by band
+
+The construction is exact in the acceptance and a few per cent low in the mass
+loss. Weighted by the band population, as the fit sees them:
+
+| `m_pre` band | `A` (MC) | `A` model / MC | `<u>` (MC) | `<u>` model / MC |
+|---|---|---|---|---|
+| | | analytic `D` / empirical `D` | | analytic / empirical |
+| 60-70 | 0.19855 | 0.9995 / 0.9978 | 5.699e-3 | 0.9492 / 1.0735 |
+| 70-80 | 0.29151 | 0.9988 / 0.9987 | 7.867e-3 | 0.9519 / 1.0573 |
+| 80-86 | 0.34070 | 0.9986 / 0.9994 | 9.379e-3 | 0.9449 / 1.0338 |
+| 86-90 | 0.36644 | 0.9983 / 0.9994 | 10.146e-3 | 0.9511 / 1.0315 |
+| 90-92 | 0.37546 | 0.9986 / 0.9999 | 10.539e-3 | 0.9490 / 1.0232 |
+| 92-96 | 0.38396 | 0.9984 / 0.9998 | 10.866e-3 | 0.9495 / 1.0186 |
+| 96-105 | 0.40163 | 0.9987 / 1.0002 | 11.762e-3 | 0.9453 / 1.0071 |
+| 105-120 | 0.42811 | 0.9983 / 1.0000 | 13.288e-3 | 0.9468 / 1.0010 |
+| 120-140 | 0.45573 | 0.9985 / 0.9998 | 15.513e-3 | 0.9305 / 0.9746 |
+
+`A(m)` closes to 0.15 %. The `<u>` column is the price of the two collinear
+approximations, and they pull in opposite directions:
+
+* with the **empirical** per-leg `D` -- the sample's own `x` spectrum, so the
+  QED content is exactly the MC's -- the only error left is **leg
+  independence**, and it makes `<u>` 2-7 % **too large**: under independence a
+  hard emission on one leg leaves the other untouched and the pair survives the
+  cut, whereas in the generator a wide-angle photon pushes **both** legs down
+  and the pair fails;
+* with the **analytic** `D`, which is fixed by `D (x) D = K` rather than
+  measured, `<u>` is 5-7 % **too small**, because `D` is the *harder* per-leg
+  spectrum that compensates the missing opening-angle piece inclusively, and
+  cutting on it is not the same as cutting on the physical `x`.
+
+The conditional kernel's own mass dependence is reproduced: `<u>` of the
+analytic model runs 6.58e-3 (60-80 GeV) to 14.59e-3 (110-150), against the
+MC's 7.1e-3 to 14.9e-3 -- the factor 2.2 that makes the banded kernel
+mandatory under this selection.
+
+### Discretisation
+
+Four knobs, all measured against the same reference (1 GeV bands, 290-edge
+`(a_+, a_-)` grid, 3000-cell leg ladder, `var_budget = 6e-10`):
+
+| knob | atoms | `<u>` (88-94 GeV) | `A` (88-94) |
+|---|---|---|---|
+| **1 GeV bands (default)** | 28 048 | 9.99526e-3 | 0.37492 |
+| 0.5 GeV bands | 55 685 | 9.99521e-3 | 0.37493 |
+| 2 GeV bands | 14 204 | 9.99593e-3 | 0.37498 |
+| leg ladder 1500 (from 3000) | 28 582 | 9.99529e-3 | 0.37492 |
+| `(a_+,a_-)` grid thinned 4x | 28 054 | 10.00647e-3 | 0.37493 |
+
+The band width is free because the model's `m` dependence is analytic
+(`beta(m)` and `G(.,.|m)`), not a measured table: 0.5 and 2 GeV agree with 1 GeV
+to 7e-5 and 1.6e-4 relative. The leg ladder is converged at 1500 cells. Only the
+`(a_+,a_-)` grid matters, and it matters through `G`, not through the kernel:
+read off the default grid, `G(u_+,u_-)` reproduces a direct event count to
+<= 5e-7 everywhere and exactly at the grid edges; thinned by 4 it is off by
+2e-4 at `u = 1`, worth +1.1e-3 on `<u>`.
+
+### The fit benchmark
+
+`fit_gen.py fit --suite perleg`, 9.87 M selected gen events in 60-120 GeV, five
+Legendre shape terms, `nm = 8192`, offsets from the generator's own
+`m_Z` = 91.153510, `Gamma_Z` = 2.493202. Every row is the **same** run on the
+**same** events, so the differences are same-run differences.
+
+| model, fiducial `pT` > 25, \|η\| < 2.4, window 60-120 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| pre-FSR + `A(m)` control | −1.01 ± 0.78 | +1.86 ± 1.50 |
+| **MC-conditional kernel + `A(m)` (Bernstein 8)** | **−0.31 ± 0.87** | **+2.61 ± 1.75** |
+| … `data/kern_fid_sc3.3e-4.npz`: `K_sel` measured on the selected events | | |
+| … with the per-leg model's tabulated `A(m)` instead | −0.33 ± 0.87 | +2.12 ± 1.75 |
+| **per-leg, analytic `D` (data cfg) + `h`** | **+1.16 ± 0.83** | **−2.89 ± 1.74** |
+| per-leg, analytic `D`, exp. O(α) only | +1.25 ± 0.83 | −0.95 ± 1.74 |
+| per-leg, analytic `D`, no pair emission | +1.35 ± 0.83 | +1.18 ± 1.74 |
+| per-leg, analytic `D`, eikonal `e`,`μ` pairs (Photos' own) | +1.38 ± 0.83 | −2.32 ± 1.74 |
+| **per-leg, empirical `D` + `h`** | **+28.69 ± 0.82** | **−57.06 ± 1.72** |
+| inclusive empirical kernel + `A(m)` | −3.48 ± 0.88 | +3.39 ± 1.81 |
+| inclusive analytic kernel (data cfg) + `A(m)` | −3.11 ± 0.87 | +1.72 ± 1.81 |
+
+Same-run differences:
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| per-leg analytic − MC-conditional | **+1.47** | **−5.50** |
+| per-leg empirical − MC-conditional | +29.00 | −59.67 |
+| pair emission (data cfg − no pairs) | −0.19 | −4.07 |
+| O(α²) LL + NLL (no pairs − exp1) | +0.11 | +2.13 |
+| exact pairs − Photos' eikonal `e`,`μ` pairs | −0.22 | −0.57 |
+| per-leg `A(m)` − Bernstein 8 of the MC's | −0.02 | −0.50 |
+
+and the discretisation, all against the 1 GeV / default row:
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| 0.5 GeV bands | +0.56 | +0.31 |
+| 2 GeV bands | +0.16 | +0.67 |
+| `(a_+,a_-)` grid thinned 4x | +0.02 | +0.10 |
+| leg ladder 1500 | +0.25 | −0.08 |
+| leg ladder 6000 | +0.04 | −0.02 |
+| `var_budget` 6e-9 | +0.34 | −0.27 |
+| `var_budget` 6e-11 | +0.24 | −0.14 |
+| `A(m)` as a degree-8 Bernstein instead of the table | −0.45 | +0.69 |
+| empirical `D` measured in 1 / 20 GeV windows | +0.17 / +0.04 | +0.80 / +0.17 |
+| empirical `D` with 2 GeV kernel bands | −0.06 | +0.61 |
+
+Every discretisation knob is below the ±0.83 / ±1.74 MeV statistical error, so
+the construction is numerically converged and the two numbers that mean
+something are the physics ones.
+
+**The per-leg factorisation must use the effective `D`, not the measured one.**
+`D` is *defined* by `D (x) D = K`; the physical per-leg energy-fraction spectrum
+is a different object -- 55 % denser at `u_leg` = 1e-4 and
+`P(u_leg > 1e-4)` = 0.27940 against `D`'s 0.21812 (figure `02_leg_x`) --
+because the generator's two legs are correlated. Feeding the physical spectrum
+in as an independent marginal gets the unradiated fraction wrong by 12 %
+absolute -- `(1 - 0.27940)^2` = 0.51926 against the MC's own 0.63643 -- and that
+is where the mass peak lives, so it costs **+29 / −60 MeV**. The same row is
+reproduced to 0.2 MeV with the leg measured in 1, 10 or 20 GeV windows and with
+1 or 2 GeV kernel bands, so it is the independence assumption and not statistics.
+With the effective `D`, `D (x) D` gives 0.63571 against the same 0.63643, and
+the fit closes to **+1.5 / −5.5 MeV** of the MC-conditional kernel --
+of which the inclusive `mc` → `data` QED difference is already +0.97 / −0.80
+(see "Fit level" above), leaving about +0.5 / −4.7 MeV for the factorisation
+itself.
+
+The full `mc` → `data` step cannot be taken inside the per-leg construction --
+there is no per-leg `D` for Photos, because `D` is defined by `D (x) D = K` and
+Photos' `K` is a table, not a closed form. What *can* be compared are the
+analytic proxies, and they behave as they do inclusively: replacing the exact
+O(α²) pair radiator by the **eikonal** limit Photos actually generates
+(`e`, `μ` only) moves the per-leg fit by −0.22 / −0.57 MeV, against −0.31 /
+−0.11 for the same replacement in the inclusive fit.
+
+### What the detector level needs on top
+
+The cut there is on the **reconstructed** `p_T`, so the resolution enters the
+acceptance: the pass condition becomes `p_T^reco(x p_T) > p_T^cut` with
+`p_T^reco` smeared, and `G` has to be built with the smearing folded in --
+`G(u_+, u_-) = P(both reconstructed p_T above threshold | m)`, which is no
+longer a pure generator quantity and no longer a step. The format above does
+not change (it is still a joint survival function in the two thresholds); what
+changes is who fills it. Also out of scope here: the `eta` cut is applied to
+the reconstructed track, and the trigger/identification efficiency is a smooth
+function of `(p_T, eta)` rather than a step.
+
+### Reproducing
+
+```bash
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+cd $Z
+# 1. the per-leg gen dump (charge-matched legs; 400 MiniAOD files, ~20 min)
+./run_perleg_dump.sh   0 199 submit50 14 &
+./run_perleg_dump.sh 200 399 submit51 14 &
+python3 merge_perleg.py -i "/ceph/submit/data/user/d/david_w/ZMass/zgen_perleg/pl_*.npz" \
+        -o data/perleg_full.npz
+# 2. D (x) D against K
+python3 fsr_perleg.py check --n-leg 4000
+# 3. h(a_+,a_-|m) and the selection-conditional kernels (numpy only, ~25 min)
+./build_perleg.sh
+# 4. the fit benchmark (~5 min each) and the figures
+./run_perleg_fit.sh physics
+./run_perleg_fit.sh disc
+./run_tf_z.sh python3 -u cmp_perleg.py \
+     --kernel "per-leg, analytic D (data cfg)=data/kern_perleg_data_1gev.npz" \
+     --kernel "per-leg, empirical D=data/kern_perleg_emp_1gev.npz" \
+     --kernel "MC-conditional=data/kern_fid_sc3.3e-4.npz"
+# the Photos-like pair content, for the mc <-> data comparison
+python3 fsr_perleg.py kernel --htable data/ht_pt25_1.0gev.npz \
+     -o data/kern_perleg_paireik.npz --acceptance data/acc_perleg_paireik.json \
+     --variant exp2nll --pair e mu --pair-table data/fsr/pairkern_eik.npz
+```
+
+Figures: `01_angles` (the directions), `02_leg_x` (the measured per-leg `x`
+against `D`), `03_leg_corr` (the legs are correlated), `04_z_vs_xx`
+(`z = x_+ x_-`), `05_dconvd` (`D (x) D` against `K`), `06_ksel_peak`
+(`K_sel(u|m)` in the peak band), `07_acceptance`, `08_mean_u`, `09_htable`,
+and `00_perleg.txt` with every number above.
+
+---
+
 ## What is still missing for a *data* Z channel
 
 * **The LO→MiNNLO `K(m)`, and its truncation.** The card must float a smooth
@@ -1467,12 +1887,13 @@ binary runs outside the container once built.
   statistics the truncation order is the one item still open — see
   `../fullscale/SUMMARY.md`.
 * **The selection-conditional part of the FSR kernel.** The QED content is
-  settled by `fsr_analytic.py` (see above) and no longer has to be measured; what
-  still has to come from MC is the *ratio* `K_sel/K` that a lepton `p_T` cut
-  imposes on the kernel at fixed `m_pre`, together with `A(m)`.
-  `kern_from_selected.py` builds both from the selected candidates' own gen
-  record; the gen-fiducial kernel describes a sample radiating 1.66× more than
-  the selected one.
+  settled by `fsr_analytic.py` and the selection-conditional shape by
+  `fsr_perleg.py` (see above): `K_sel` and `A(m)` follow from the same radiator
+  plus one boson-kinematics table `h(a_+, a_- | m)`, and close against this MC
+  to +1.5 / −5.5 MeV. What is *not* settled is the detector-level version of
+  `h`, whose thresholds act on the reconstructed `p_T` and therefore carry the
+  resolution. `kern_from_selected.py` remains the MC-measured alternative,
+  which needs a selected gen record at every calibration point.
 * **Background.** `UniformBackground` / `BernsteinBackground` are wired up with
   a fixed or floating fraction, but the shape and normalisation of the real
   background (Z→ττ, top, QCD) are not measured.
