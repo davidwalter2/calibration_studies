@@ -534,22 +534,28 @@ B_EDGES = np.concatenate([np.arange(0.0, 0.08, 1e-3),
                           np.arange(0.5, 3.0 + 1e-9, 2e-2)])
 
 
-def build_htable(m, pt1, eta1, pt2, eta2, w, bands, pt_cut=25.0,
+def build_htable(m, pt1, eta1, pt2, eta2, w, bands, pt_ref=25.0,
                  eta_cut=2.4, b_edges=None):
-    """``h(a_+, a_- | m)``: the 2-D threshold-ratio table, one per ``m`` band.
+    """``h(b_+, b_- | m)``: the 2-D threshold-ratio table, one per ``m`` band.
 
-    ``a_q = pT_cut / pT_q`` on the **pre-FSR** muons; the table counts the
-    weight of events inside each ``(a_+, a_-)`` cell that pass the pre-FSR
+    ``b_q = ln(pT_q / pT_ref)`` on the **pre-FSR** muons; the table counts the
+    weight of events inside each ``(b_+, b_-)`` cell that pass the pre-FSR
     ``|eta| < eta_cut``, normalised to the band's total weight, so the sum of a
-    band is ``P(|eta| < eta_cut and both pT > pT_cut | m)`` and everything the
-    selection can never accept (``a > 1``, i.e. ``pT < pT_cut``, or an ``eta``
-    failure) is simply absent.
+    band is ``P(|eta| < eta_cut and both pT > pT_ref e^{b_min} | m)`` and
+    everything below the grid's own floor -- which no cut at or above
+    ``pT_ref`` can accept, up to the resolution -- is simply absent.
+
+    ``pT_ref`` is the reference of the logarithmic axis, NOT a cut: a table
+    built at ``pT_ref = 10`` serves 25/10, 25/25 and 10/10 alike, and which
+    cuts are applied is `PassRegion`'s business.  Its floor ``b_edges[0]``
+    must sit below every threshold the table will be asked about, and below it
+    by enough resolution that an up-fluctuation cannot reach the cut.
 
     The table is stored **symmetrised**, ``(h + h^T)/2``: the QED radiator is
     the same on both legs, so only the symmetric part of ``h`` can ever enter.
     Its 2-D reverse cumulative
     ``G(u_+, u_-) = sum_{b_+ > u_+, b_- > u_-} h`` -- exact on the grid edges,
-    bilinear between them -- is what the kernel uses.
+    bilinear between them -- is what a symmetric step cut uses directly.
     """
     b_edges = B_EDGES if b_edges is None else np.asarray(b_edges, float)
     nb = len(b_edges) - 1                      # + one overflow bin
@@ -557,9 +563,9 @@ def build_htable(m, pt1, eta1, pt2, eta2, w, bands, pt_cut=25.0,
     w = np.asarray(w, float)
     ok = (np.abs(np.asarray(eta1, float)) < eta_cut)
     ok &= (np.abs(np.asarray(eta2, float)) < eta_cut)
-    b1 = np.log(np.maximum(np.asarray(pt1, float), 1e-9) / pt_cut)
-    b2 = np.log(np.maximum(np.asarray(pt2, float), 1e-9) / pt_cut)
-    ok &= (b1 > 0.0) & (b2 > 0.0)
+    b1 = np.log(np.maximum(np.asarray(pt1, float), 1e-9) / pt_ref)
+    b2 = np.log(np.maximum(np.asarray(pt2, float), 1e-9) / pt_ref)
+    ok &= (b1 > b_edges[0]) & (b2 > b_edges[0])
     i1 = np.clip(np.searchsorted(b_edges, b1, "right") - 1, 0, nb)
     i2 = np.clip(np.searchsorted(b_edges, b2, "right") - 1, 0, nb)
 
@@ -582,7 +588,81 @@ def build_htable(m, pt1, eta1, pt2, eta2, w, bands, pt_cut=25.0,
         H[k] = 0.5 * (f + f.T) / tot[k]
     return dict(h=H, b_edges=b_edges, bands=np.asarray(bands, float),
                 m_bar=mbar, sumw=tot, nev=nev,
-                pt_cut=float(pt_cut), eta_cut=float(eta_cut))
+                pt_ref=float(pt_ref), eta_cut=float(eta_cut))
+
+
+def build_h4table(m, pt1, eta1, pt2, eta2, w, bands, pt_ref=10.0,
+                  eta_cut=2.4, b_edges=None, eta_edges=None):
+    """``h4(b_+, eta_+, b_-, eta_-|m)``: the same table with the ``eta`` axis.
+
+    The resolution depends on ``eta``, so a pass PROBABILITY -- unlike a step
+    in ``pT`` -- needs to know which ``eta`` each leg had.  This is the whole
+    extension of the boson-kinematics interface that the detector level forces:
+    one more axis per leg, on a coarse grid, and nothing else.
+
+    Stored as ``(n_band, n_eta, n_b+1, n_eta, n_b+1)`` float32, symmetrised
+    under the simultaneous swap of both axes of the two legs.  The ``b`` grid
+    is deliberately coarser than the step table's: the step is smoothed by the
+    resolution, so ``G`` is read through a kernel of width ``sigma`` and the
+    cell midpoint rule converges second order (`smeared_G`).
+    """
+    b_edges = B_EDGES if b_edges is None else np.asarray(b_edges, float)
+    eta_edges = (np.array([0.0, 0.9, 1.6, 2.1, 2.4]) if eta_edges is None
+                 else np.asarray(eta_edges, float))
+    nb = len(b_edges) - 1
+    ne = len(eta_edges) - 1
+    nc = ne * (nb + 1)
+    m = np.asarray(m, float)
+    w = np.asarray(w, float)
+    a1 = np.abs(np.asarray(eta1, float))
+    a2 = np.abs(np.asarray(eta2, float))
+    ok = (a1 < eta_cut) & (a2 < eta_cut) & (a1 >= eta_edges[0]) \
+        & (a2 >= eta_edges[0])
+    b1 = np.log(np.maximum(np.asarray(pt1, float), 1e-9) / pt_ref)
+    b2 = np.log(np.maximum(np.asarray(pt2, float), 1e-9) / pt_ref)
+    ok &= (b1 > b_edges[0]) & (b2 > b_edges[0])
+    i1 = np.clip(np.searchsorted(b_edges, b1, "right") - 1, 0, nb)
+    i2 = np.clip(np.searchsorted(b_edges, b2, "right") - 1, 0, nb)
+    e1 = np.clip(np.searchsorted(eta_edges, a1, "right") - 1, 0, ne - 1)
+    e2 = np.clip(np.searchsorted(eta_edges, a2, "right") - 1, 0, ne - 1)
+    c1 = e1 * (nb + 1) + i1
+    c2 = e2 * (nb + 1) + i2
+
+    H = np.zeros((len(bands), ne, nb + 1, ne, nb + 1), np.float32)
+    # the cell's own mean b, per leg marginal.  The contraction reads the pass
+    # probability at ONE b per cell; taking the cell's mean instead of its
+    # midpoint removes the first-order discretisation error and is one extra
+    # number per (eta, b) cell -- 0.2 % of the table.
+    B = np.zeros((len(bands), ne, nb + 1))
+    mid = np.concatenate([0.5 * (b_edges[:-1] + b_edges[1:]),
+                          [b_edges[-1] + 0.5 * (b_edges[-1] - b_edges[-2])]])
+    tot = np.zeros(len(bands))
+    mbar = np.zeros(len(bands))
+    nev = np.zeros(len(bands), np.int64)
+    for k, (lo, hi) in enumerate(bands):
+        s = (m >= lo) & (m < hi)
+        B[k] = np.broadcast_to(mid, (ne, nb + 1))
+        if not s.any():
+            continue
+        tot[k] = w[s].sum()
+        mbar[k] = float(np.sum(w[s] * m[s]) / tot[k]) if tot[k] else 0.0
+        nev[k] = int(s.sum())
+        t = s & ok
+        if not t.any():
+            continue
+        f = np.bincount(c1[t] * nc + c2[t], w[t], nc * nc).reshape(nc, nc)
+        f = (0.5 * (f + f.T) / tot[k]).reshape(ne, nb + 1, ne, nb + 1)
+        H[k] = f.astype(np.float32)
+        cw = (np.bincount(c1[t], w[t], nc) + np.bincount(c2[t], w[t], nc))
+        cb = (np.bincount(c1[t], w[t] * b1[t], nc)
+              + np.bincount(c2[t], w[t] * b2[t], nc))
+        g = cw > 0
+        bm = B[k].ravel().copy()
+        bm[g] = cb[g] / cw[g]
+        B[k] = bm.reshape(ne, nb + 1)
+    return dict(h4=H, b_mean=B, b_edges=b_edges, eta_edges=eta_edges,
+                bands=np.asarray(bands, float), m_bar=mbar, sumw=tot, nev=nev,
+                pt_ref=float(pt_ref), eta_cut=float(eta_cut))
 
 
 def survival(h, b_edges):
@@ -610,6 +690,213 @@ def eval_G(g, b_edges, u):
     # rows first, then columns
     a = g[j] * (1.0 - t)[:, None] + g[j + 1] * t[:, None]
     return a[:, j] * (1.0 - t)[None, :] + a[:, j + 1] * t[None, :]
+
+
+# --------------------------------------------------------------------------
+# the pass region: which (u_+, u_-) survive the lepton pT cuts
+# --------------------------------------------------------------------------
+# The cuts are a LEADING and a TRAILING threshold, ``c_L >= c_T``, and which
+# muon is which is decided AFTER the loss (and, at detector level, after the
+# smearing).  With ``b_q = ln(pT_q^pre / pT_ref)`` and the loss ``u_q``, the
+# post-FSR transverse momenta are ``pT_ref e^{b_q - u_q}``, so the pass
+# condition is
+#
+#     max(pT'_+, pT'_-) > c_L   and   min(pT'_+, pT'_-) > c_T
+#
+# i.e. the UNION of the two rectangles
+#
+#     A = {b_+ - u_+ > s_L , b_- - u_- > s_T} ,  s_c = ln(c / pT_ref)
+#     B = {b_- - u_- > s_L , b_+ - u_+ > s_T}
+#
+# in the ``(b_+, b_-)`` plane at fixed ``(u_+, u_-)``.  ``A and B`` is
+# ``{both over c_L}`` because ``c_L >= c_T``, so
+#
+#     P(pass) = P_A + P_B - P_{A and B}
+#             = P_+(c_L) P_-(c_T) + P_+(c_T) P_-(c_L) - P_+(c_L) P_-(c_L)
+#
+# with ``P_q(c)`` the probability that leg ``q`` alone clears ``c``.  Every term
+# is a PRODUCT of two per-leg thresholds, which is what makes the whole
+# construction work for a smooth pass probability as well as for a step: the
+# two legs' resolutions are independent given their own ``(pT, eta)``, so the
+# joint pass probability of a rectangle factorises inside the boson-kinematics
+# average and only the ``(b, eta)`` pair correlation is left in the table.
+#
+# ``c_L = c_T`` collapses the three terms to ``P_+ P_-``, the symmetric case,
+# and the code returns the plain survival function there, bit for bit.
+def b_grid(anchors=(0.0,), b_min=0.0, b_max=3.0,
+           fine=((0.08, 1e-3), (0.5, 5e-3)), coarse=2e-2):
+    """Edges in ``b = ln(pT/pT_ref)``: the fine pattern replicated at each cut.
+
+    ``G`` has to be resolved where the leg radiator has its weight, which is at
+    ``u -> 0`` **above each threshold**.  With an asymmetric pair of cuts there
+    are two thresholds, ``b = ln(c/pT_ref)``, so the fine part of the grid is
+    replicated at each of them; between and beyond them the grid is coarse.
+
+    The replication is exact: ``anchor + pattern`` is the same expression the
+    shifted reading of the survival function evaluates, so a node of the grid
+    shifted by ``s_L - s_T`` lands on another node and the reading stays exact
+    there rather than interpolating.
+
+    ``anchors = (0,)``, ``b_min = 0``, ``b_max = 3`` reproduces `B_EDGES`.
+    """
+    anchors = np.unique(np.asarray(anchors, float))
+    parts = []
+    if b_min < anchors[0] - 1e-12:
+        e = np.arange(b_min, anchors[0], coarse)
+        parts.append(e[e < anchors[0] - 1e-9])
+    for i, a in enumerate(anchors):
+        lo = 0.0
+        for hi, step in fine:
+            parts.append(a + np.arange(lo, hi, step))
+            lo = hi
+        nxt = anchors[i + 1] if i + 1 < len(anchors) else None
+        if nxt is not None:
+            e = np.arange(a + lo, nxt, coarse)
+            parts.append(e[e < nxt - 1e-9])
+    e = np.arange(anchors[-1] + fine[-1][0], b_max + 1e-9, coarse)
+    parts.append(e)
+    b = np.concatenate(parts)
+    keep = np.concatenate([[True], np.diff(b) > 1e-9])
+    return b[keep]
+
+
+def cut_shifts(cuts, pt_ref):
+    """``(s_L, s_T) = ln(c/pT_ref)`` of the leading and trailing thresholds."""
+    c = np.atleast_1d(np.asarray(cuts, float))
+    if c.size == 1:
+        c = np.array([c[0], c[0]])
+    c = np.sort(c)[::-1]
+    return float(np.log(c[0] / pt_ref)), float(np.log(c[1] / pt_ref))
+
+
+def rect_terms(s_lead, s_trail, tol=1e-12):
+    """``[(shift_+, shift_-, sign)]`` of the union-of-rectangles pass region."""
+    if s_lead - s_trail <= tol:
+        return [(s_trail, s_trail, 1.0)]
+    return [(s_lead, s_trail, 1.0), (s_trail, s_lead, 1.0),
+            (s_lead, s_lead, -1.0)]
+
+
+def step_G(h, b_edges, terms):
+    """``G`` on the grid nodes for a step acceptance: shifted survivals.
+
+    Each rectangle is the survival function read at ``(b_p + shift_+,
+    b_q + shift_-)``; the sum is the union.  A symmetric cut returns
+    `survival` itself, unread and unshifted.
+    """
+    g = survival(h, b_edges)
+    if len(terms) == 1 and terms[0][0] == 0.0 and terms[0][1] == 0.0:
+        return g
+    out = np.zeros_like(g)
+    for sp, sm, sgn in terms:
+        R = _interp_rows(g, b_edges, b_edges + sm)
+        out += sgn * _interp_cols(R, b_edges, b_edges + sp)
+    return out
+
+
+def pass_matrix(resol, cut, iband, b_src, b_out, s):
+    """``Pi[i, p] = P(pT_reco > cut | b_i, u = b_out[p], eta band iband)``.
+
+    ``v = ln(pT^post/cut) = b_i - u - ln(cut/pT_ref)`` is the distance to the
+    threshold in the leg's own logarithmic variable, and the resolution is
+    evaluated at the TRUE post-FSR ``pT = cut e^v``, which is what the law of
+    ``r = pT^reco/pT^gen - 1`` is conditioned on.
+    """
+    v = np.asarray(b_src, float)[:, None] - np.asarray(b_out, float)[None, :] - s
+    return resol.pass_prob(v, cut, iband)
+
+
+def smeared_G(h4, b_src, eta_edges, b_out, terms, pt_ref, resol):
+    """``G`` on the grid nodes with the resolution folded into the acceptance.
+
+    ``h4[a, i, c, j]`` is the weight of the ``(eta, b)`` pair cell, so
+
+        G(u_+, u_-) = sum_terms sign sum_{a,i,c,j} h4 Pi(b_i - u_+ - s_+, eta_a)
+                                                      Pi(b_j - u_- - s_-, eta_c)
+
+    and the inner double sum is the matrix triple product
+    ``Pi_a^T h4[a, :, c, :] Pi_c``.  The ``b`` argument of each cell is its
+    midpoint: the first-order error of that cancels against the symmetric part
+    of the cell's own content, which is what makes a coarse ``b`` grid usable
+    once the step is smoothed (checked against a direct event count by
+    `fsr_perleg.py gcheck`).
+    """
+    ne = len(eta_edges) - 1
+    shifts = sorted({s for t in terms for s in t[:2]})
+    P = {s: [pass_matrix(resol, pt_ref * np.exp(s), a, b_src[a], b_out, s)
+             for a in range(ne)] for s in shifts}
+    n = len(b_out)
+    G = np.zeros((n, n))
+    for a in range(ne):
+        for c in range(ne):
+            M = np.asarray(h4[a, :, c, :], float)
+            if not M.any():
+                continue
+            for sp, sm, sgn in terms:
+                G += sgn * (P[sp][a].T @ (M @ P[sm][c]))
+    return G
+
+
+class PassRegion:
+    """``G(u_+, u_-|m)`` for one selection, on the ``h`` table's own node grid.
+
+    It is the only object that knows what the selection is; everything
+    downstream -- `ksel_band`, `gbar`, `matched_gbar` -- takes the array it
+    returns and never asks how it was built.  Three cases, in increasing
+    generality:
+
+    * symmetric step: the plain 2-D survival function of ``h``, unchanged;
+    * asymmetric step: the union of two rectangles, three shifted readings;
+    * with a resolution: the step is replaced by the per-leg pass probability
+      of `ptres.Resolution`, which needs the ``eta`` of each leg and therefore
+      the 4-D table ``h4(b_+, eta_+, b_-, eta_-|m)``.
+    """
+
+    def __init__(self, ht, cuts=None, h4=None, resol=None):
+        self.b_edges = np.asarray(ht["b_edges"], float)
+        self.pt_ref = float(ht["pt_ref"])
+        if cuts is None:
+            self.cuts = (self.pt_ref, self.pt_ref)
+        else:
+            c = np.atleast_1d(np.asarray(cuts, float))
+            self.cuts = ((float(c[0]), float(c[0])) if c.size == 1
+                         else (float(np.max(c)), float(np.min(c))))
+        self.shifts = cut_shifts(self.cuts, self.pt_ref)
+        self.terms = rect_terms(*self.shifts)
+        self.H = np.asarray(ht["h"], float)
+        self.resol = resol
+        self.h4 = h4
+        if resol is not None:
+            if h4 is None:
+                raise ValueError("a resolution needs the h4 table (--h4)")
+            self.h4_b = np.asarray(h4["b_edges"], float)
+            self.h4_eta = np.asarray(h4["eta_edges"], float)
+            b = self.h4_b
+            mid = np.concatenate([0.5 * (b[:-1] + b[1:]),
+                                  [b[-1] + 0.5 * (b[-1] - b[-2])]])
+            self.H4 = h4["h4"]
+            self.h4_mean = h4.get("b_mean")
+            if self.h4_mean is None:
+                self.h4_mean = np.broadcast_to(
+                    mid, (len(self.H4), len(self.h4_eta) - 1, len(mid)))
+        if self.shifts[0] < self.b_edges[0] or self.shifts[1] < self.b_edges[0]:
+            raise ValueError(f"cuts {self.cuts} below the table's pT floor "
+                             f"{self.pt_ref * np.exp(self.b_edges[0]):.3f} GeV")
+
+    def grid(self, k):
+        """``G`` of band ``k`` on ``b_edges`` x ``b_edges``."""
+        if self.resol is None:
+            return step_G(self.H[k], self.b_edges, self.terms)
+        return smeared_G(np.asarray(self.H4[k], float),
+                         np.asarray(self.h4_mean[k], float),
+                         self.h4_eta, self.b_edges, self.terms, self.pt_ref,
+                         self.resol)
+
+    def label(self):
+        c = self.cuts
+        s = f"pT > {c[0]:g}/{c[1]:g}"
+        return s + (f", resolution ({self.resol.mode})" if self.resol else
+                    ", step")
 
 
 # --------------------------------------------------------------------------
@@ -727,6 +1014,17 @@ def eval_G_at(g, b_edges, up, um):
             + (g[i + 1, j] * (1.0 - t) + g[i + 1, j + 1] * t) * s)
 
 
+def G_norad(g, b_edges):
+    """``G(0, 0)``: the pass probability of an event that radiated nothing.
+
+    ``u = 0`` is a node of every grid built by `b_grid`, but it is NOT node 0
+    once the grid reaches below the threshold (which it must, for a resolution
+    to be able to promote a muon over the cut), so it is read rather than
+    indexed.
+    """
+    return float(eval_G_at(g, b_edges, np.zeros(1), np.zeros(1))[0])
+
+
 def gbar(m, u_nodes, g, b_edges, npanel=64, ng=8, chunk=512):
     """``Gbar(u)``: the selection weight of the pair variable, sharing folded in.
 
@@ -737,7 +1035,7 @@ def gbar(m, u_nodes, g, b_edges, npanel=64, ng=8, chunk=512):
     u_nodes = np.asarray(u_nodes, float)
     z = np.exp(-2.0 * u_nodes)
     out = np.empty(len(u_nodes))
-    out[u_nodes <= 0.0] = g[0, 0]
+    out[u_nodes <= 0.0] = G_norad(g, b_edges)
     for i0 in range(0, len(u_nodes), chunk):
         sl = slice(i0, min(i0 + chunk, len(u_nodes)))
         if u_nodes[sl][-1] <= 0.0:
@@ -1012,7 +1310,7 @@ VARIANT_MASSES = (55.0, 62.0, 70.0, 78.0, 85.0, 91.0, 97.0, 105.0, 115.0,
 def variant_ratio(ht, mode, masses=VARIANT_MASSES, n_u=1500, u_ref_max=7.0,
                   u_min=1e-9, cells_by_band=None, variant="exp2nll", pair=(),
                   minus_one=True, pair_table=None, var_budget=6e-10,
-                  u_c=0.01, n_v=12, verbose=True):
+                  u_c=0.01, n_v=12, pr=None, verbose=True):
     """``rho(m, u) = Gbar_variant / Gbar_single-photon`` on a coarse mass grid.
 
     ``mode`` is ``"matched"``: the exact hard emission above ``u_c`` with its
@@ -1030,7 +1328,7 @@ def variant_ratio(ht, mode, masses=VARIANT_MASSES, n_u=1500, u_ref_max=7.0,
     t0 = time.time()
     for i, mm in enumerate(masses):
         k = int(np.argmin(np.abs(ctr - mm)))
-        g = survival(H[k], b_edges)
+        g = pr.grid(k) if pr is not None else survival(H[k], b_edges)
         if cells_by_band is None:
             cells, wd, u_max = analytic_cells(ctr[k], variant, pair, minus_one,
                                               pair_table, var_budget)
@@ -1051,7 +1349,7 @@ def variant_ratio(ht, mode, masses=VARIANT_MASSES, n_u=1500, u_ref_max=7.0,
                                         n_v=n_v)
         else:
             raise ValueError(mode)
-        gv = _fill_ratio(num, den, su, un, g[0, 0], u_min)
+        gv = _fill_ratio(num, den, su, un, G_norad(g, b_edges), u_min)
         rho[i] = np.where(gb > 0, gv / np.maximum(gb, 1e-300), 1.0)
         if verbose:
             print(f"[rho:{mode}] m = {ctr[k]:6.2f}  rho(u=1e-2) = "
@@ -1083,7 +1381,7 @@ def apply_rho(m, un, gb, rho, u_min=1e-9):
 def build_corr_kernel(ht, cells_by_band=None, variant="exp2nll", pair=(),
                       minus_one=True, pair_table=None, var_budget=6e-10,
                       sigma_cap=None, n_gbar=2000, npanel=64, ng=8,
-                      u_min=1e-9, n_fine=4000, rho=None,
+                      u_min=1e-9, n_fine=4000, rho=None, pr=None,
                       verbose=True):
     """Atoms + ``A(m)`` of the correlated selection-conditional kernel.
 
@@ -1109,7 +1407,7 @@ def build_corr_kernel(ht, cells_by_band=None, variant="exp2nll", pair=(),
                                               pair_table, var_budget, n_fine)
         else:
             cells, wd, u_max = cells_by_band[k][:3]
-        g = survival(H[k], b_edges)
+        g = pr.grid(k) if pr is not None else survival(H[k], b_edges)
         un = np.concatenate([[0.0], np.geomspace(u_min, u_max, n_gbar)])
         gb = gbar(mc, un, g, b_edges, npanel=npanel, ng=ng)
         if rho is not None:
@@ -1149,6 +1447,47 @@ def build_corr_kernel(ht, cells_by_band=None, variant="exp2nll", pair=(),
 # --------------------------------------------------------------------------
 # drivers
 # --------------------------------------------------------------------------
+def load_htable(path):
+    """An ``h`` table plus the provenance fields the pass region needs."""
+    with np.load(path, allow_pickle=False) as d:
+        ht = {k: d[k] for k in ("h", "b_edges", "bands", "m_bar", "sumw", "nev")}
+        prov = json.loads(str(d["provenance"][0]))
+    # `pt_cut` is the pre-asymmetric name of the same number: the reference of
+    # the logarithmic axis.  Tables written before the cuts were separated from
+    # the axis carry it and are read unchanged.
+    ht["pt_ref"] = float(prov.get("pt_ref", prov.get("pt_cut")))
+    ht["eta_cut"] = float(prov["eta_cut"])
+    ht["provenance"] = prov
+    return ht
+
+
+def load_h4table(path):
+    """The ``(b, eta)`` per leg table of `build_h4table`."""
+    with np.load(path, allow_pickle=False) as d:
+        h4 = {k: d[k] for k in ("h4", "b_mean", "b_edges", "eta_edges",
+                                "bands", "m_bar", "sumw", "nev")}
+        prov = json.loads(str(d["provenance"][0]))
+    h4["pt_ref"] = float(prov["pt_ref"])
+    h4["provenance"] = prov
+    return h4
+
+
+def make_pass(ht, args):
+    """The `PassRegion` an ``args`` namespace asks for (None-safe)."""
+    resol = None
+    h4 = None
+    if getattr(args, "resol", None):
+        import ptres
+        resol = ptres.Resolution(args.resol, mode=args.resol_mode)
+        h4 = load_h4table(args.h4)
+        if abs(h4["pt_ref"] - ht["pt_ref"]) > 1e-9:
+            raise ValueError("h and h4 tables have different pT references")
+    cuts = getattr(args, "pt_cuts", None)
+    if cuts is None and resol is None:
+        return None
+    return PassRegion(ht, cuts=cuts, h4=h4, resol=resol)
+
+
 def make_bands(lo, hi, width):
     e = band_edges(lo, hi, width)
     b = list(zip(e[:-1], e[1:]))
@@ -1181,7 +1520,8 @@ def empirical_leg(u1, u2, w, bands, m, u_edges):
 def build_selected_kernel(ht, variant="exp2nll", pair=(), minus_one=True,
                           pair_table=None, n_leg=3000, u_min=1e-9,
                           var_budget=6e-10, sigma_cap=None, n_out=40000,
-                          ng=16, leg_cells_by_band=None, verbose=True):
+                          ng=16, leg_cells_by_band=None, pr=None,
+                          verbose=True):
     """Atoms + ``A(m)`` of the selection-conditional kernel, band by band."""
     bands = ht["bands"]
     b_edges = np.asarray(ht["b_edges"], float)
@@ -1205,7 +1545,7 @@ def build_selected_kernel(ht, variant="exp2nll", pair=(), minus_one=True,
         u_leg, w_leg = leg_atoms(cells, ue)
         w_leg = w_leg / w_leg.sum()
         u_out = np.concatenate([[0.0], np.geomspace(u_min, D._u_max(), n_out)])
-        g = survival(H[k], b_edges)
+        g = pr.grid(k) if pr is not None else survival(H[k], b_edges)
         c, A = ksel_band(u_leg, w_leg, g, b_edges, u_out)
         if A <= 0.0:
             info.append(dict(m=mc, A=0.0, natoms=0, mean_u=0.0))
@@ -1372,6 +1712,140 @@ def _legsqrt_check(args):
                   f"{np.abs(Df - D).max():.1e}")
 
 
+def _sel_meta(pr, ht):
+    """The selection, as it goes into a kernel's provenance."""
+    if pr is None:
+        return dict(pt_lead=ht["pt_ref"], pt_trail=ht["pt_ref"],
+                    eta_cut=ht["eta_cut"], resolution=None)
+    return dict(pt_lead=pr.cuts[0], pt_trail=pr.cuts[1],
+                eta_cut=ht["eta_cut"],
+                resolution=None if pr.resol is None else
+                dict(file=pr.resol.path, mode=pr.resol.mode,
+                     h4=pr.h4["provenance"]["gen"] if pr.h4 else None))
+
+
+def _edges_from_args(args):
+    """The ``b`` grid an ``args`` namespace asks for.
+
+    No ``--anchor-cuts`` and the default range reproduces `B_EDGES` exactly, so
+    every table and every number built before the cuts became asymmetric is
+    reproduced bit for bit.
+    """
+    if not args.anchor_cuts and args.b_min == 0.0 and args.b_max == 3.0 \
+            and args.b_thin <= 1 and args.fine_step is None:
+        return B_EDGES
+    anchors = [0.0] + [float(np.log(c / args.pt_ref))
+                       for c in (args.anchor_cuts or ())]
+    fine = (((0.08, 1e-3), (0.5, 5e-3)) if args.fine_step is None
+            else ((args.fine_width, args.fine_step),))
+    be = b_grid(anchors, b_min=args.b_min, b_max=args.b_max, fine=fine,
+                coarse=args.coarse_step)
+    if args.b_thin > 1:
+        be = np.unique(np.concatenate([be[::args.b_thin], be[-1:]]))
+    return be
+
+
+def _gen_legs(d):
+    """``(pt1, eta1, pt2, eta2)`` of the PRE-FSR muons of a gen record."""
+    if "ptp_pre" in d:
+        return d["ptp_pre"], d["etap_pre"], d["ptm_pre"], d["etam_pre"]
+    return d["pt1_pre"], d["eta1_pre"], d["pt2_pre"], d["eta2_pre"]
+
+
+def _h4table_cmd(args):
+    d = np.load(args.gen)
+    w = np.asarray(d["weight"], np.float64)
+    if args.wclip:
+        aw = np.abs(w)
+        w = np.clip(w, -args.wclip * np.median(aw), args.wclip * np.median(aw))
+        w = w * (len(w) / w.sum())
+    m = np.asarray(d["m_pre"], np.float64)
+    pt1, eta1, pt2, eta2 = _gen_legs(d)
+    bands = make_bands(args.band_lo, args.band_hi, args.band_width)
+    be = _edges_from_args(args)
+    ee = np.asarray(args.eta_edges, float)
+    ht = build_h4table(m, pt1, eta1, pt2, eta2, w, bands, pt_ref=args.pt_ref,
+                       eta_cut=args.eta_cut, b_edges=be, eta_edges=ee)
+    meta = dict(gen=os.path.abspath(args.gen), pt_ref=args.pt_ref,
+                anchor_cuts=list(args.anchor_cuts or ()),
+                b_min=args.b_min, b_max=args.b_max, eta_cut=args.eta_cut,
+                eta_edges=ee.tolist(), band_lo=args.band_lo,
+                band_hi=args.band_hi, band_width=args.band_width,
+                wclip=args.wclip, b_thin=args.b_thin, n_b=len(ht["b_edges"]))
+    np.savez_compressed(args.output, h4=ht["h4"], b_mean=ht["b_mean"],
+                        b_edges=ht["b_edges"],
+                        eta_edges=ht["eta_edges"], bands=ht["bands"],
+                        m_bar=ht["m_bar"], sumw=ht["sumw"], nev=ht["nev"],
+                        provenance=np.array([json.dumps(meta)]))
+    print(f"[h4table] {len(bands)} bands x ({len(ee)-1} x "
+          f"{ht['h4'].shape[2]})^2 cells = "
+          f"{ht['h4'].nbytes/1e6:.0f} MB -> {args.output}")
+    for k in range(0, len(bands), max(1, len(bands) // 8)):
+        print(f"    m = {ht['m_bar'][k]:7.2f}  n = {ht['nev'][k]:8d}  "
+              f"sum h4 = {ht['h4'][k].sum():.5f}")
+
+
+def _gcheck_cmd(args):
+    """``G`` off the table against a direct weighted event count.
+
+    The only approximation between the two is the table: the ``(b_+, b_-)``
+    binning for a step, and additionally the ``eta`` binning and the cell
+    midpoint rule once the pass probability is smooth.  The resolution model
+    itself is the SAME object on both sides, so what this measures is the
+    discretisation and nothing else.
+    """
+    ht = load_htable(args.htable)
+    pr = make_pass(ht, args)
+    d = np.load(args.gen)
+    w = np.asarray(d["weight"], np.float64)
+    aw = np.abs(w)
+    w = np.clip(w, -args.wclip * np.median(aw), args.wclip * np.median(aw))
+    w = w * (len(w) / w.sum())
+    m = np.asarray(d["m_pre"], np.float64)
+    pt1, eta1, pt2, eta2 = (np.asarray(x, float) for x in _gen_legs(d))
+    c0 = 0.5 * (args.band[0] + args.band[1])
+    k = int(np.argmin([abs(0.5 * (a + b) - c0) if np.isfinite(b) else 1e9
+                       for a, b in ht["bands"]]))
+    # the direct count must use the SAME band the table's G belongs to: A(m)
+    # moves by ~1e-3 per GeV, which would swamp the discretisation this checks
+    lo, hi = ht["bands"][k]
+    s = (m >= lo) & (m < hi)
+    w, pt1, eta1, pt2, eta2 = w[s], pt1[s], eta1[s], pt2[s], eta2[s]
+    tot = w.sum()
+    ok = (np.abs(eta1) < ht["eta_cut"]) & (np.abs(eta2) < ht["eta_cut"])
+    cL, cT = pr.cuts
+    G = pr.grid(k)
+    print(f"[gcheck] band {lo}-{hi} ({int(s.sum())} events), {pr.label()}, "
+          f"table band {ht['bands'][k]}")
+    print(f"{'u_+':>9s} {'u_-':>9s} {'G table':>12s} {'G direct':>12s} "
+          f"{'diff':>11s}")
+    for up in args.u:
+        for um in args.u:
+            a1 = pt1 * np.exp(-up)
+            a2 = pt2 * np.exp(-um)
+            b1 = pt1 * np.exp(-um)
+            b2 = pt2 * np.exp(-up)
+            if pr.resol is None:
+                p1 = ((np.maximum(a1, a2) > cL) & (np.minimum(a1, a2) > cT))
+                p2 = ((np.maximum(b1, b2) > cL) & (np.minimum(b1, b2) > cT))
+                direct = float(np.sum(w * ok * 0.5
+                                      * (p1.astype(float)
+                                         + p2.astype(float))) / tot)
+            else:
+                acc = 0.0
+                for x1, x2 in ((a1, a2), (b1, b2)):
+                    L1 = pr.resol.pass_prob_ev(x1, cL, eta1)
+                    T1 = pr.resol.pass_prob_ev(x1, cT, eta1)
+                    L2 = pr.resol.pass_prob_ev(x2, cL, eta2)
+                    T2 = pr.resol.pass_prob_ev(x2, cT, eta2)
+                    acc = acc + 0.5 * (L1 * T2 + T1 * L2 - L1 * L2)
+                direct = float(np.sum(w * ok * acc) / tot)
+            gt = float(eval_G_at(G, ht["b_edges"], np.array([up]),
+                                 np.array([um]))[0])
+            print(f"{up:9.4f} {um:9.4f} {gt:12.6f} {direct:12.6f} "
+                  f"{gt - direct:+11.2e}")
+
+
 def _htable_cmd(args):
     d = np.load(args.gen)
     w = d["weight"].astype(np.float64)
@@ -1387,11 +1861,12 @@ def _htable_cmd(args):
         pt1, eta1 = d["pt1_pre"], d["eta1_pre"]
         pt2, eta2 = d["pt2_pre"], d["eta2_pre"]
     bands = make_bands(args.band_lo, args.band_hi, args.band_width)
-    be = B_EDGES if args.b_thin <= 1 else np.unique(
-        np.concatenate([B_EDGES[::args.b_thin], B_EDGES[-1:]]))
-    ht = build_htable(m, pt1, eta1, pt2, eta2, w, bands, pt_cut=args.pt_cut,
+    be = _edges_from_args(args)
+    ht = build_htable(m, pt1, eta1, pt2, eta2, w, bands, pt_ref=args.pt_ref,
                       eta_cut=args.eta_cut, b_edges=be)
-    meta = dict(gen=os.path.abspath(args.gen), pt_cut=args.pt_cut,
+    meta = dict(gen=os.path.abspath(args.gen), pt_ref=args.pt_ref,
+                anchor_cuts=list(args.anchor_cuts or ()),
+                b_min=args.b_min, b_max=args.b_max,
                 eta_cut=args.eta_cut, band_lo=args.band_lo,
                 band_hi=args.band_hi, band_width=args.band_width,
                 wclip=args.wclip, b_thin=args.b_thin,
@@ -1401,17 +1876,17 @@ def _htable_cmd(args):
                         m_bar=ht["m_bar"], sumw=ht["sumw"], nev=ht["nev"],
                         provenance=np.array([json.dumps(meta)]))
     print(f"[htable] {len(bands)} bands x {ht['h'].shape[1]}^2 cells, "
-          f"pT > {args.pt_cut}, |eta| < {args.eta_cut} -> {args.output}")
+          f"pT ref {args.pt_ref}, b in [{be[0]:.2f}, {be[-1]:.2f}], "
+          f"|eta| < {args.eta_cut} -> {args.output}")
     for k in range(0, len(bands), max(1, len(bands) // 8)):
         print(f"    m = {ht['m_bar'][k]:7.2f}  n = {ht['nev'][k]:8d}  "
               f"sum h = {ht['h'][k].sum():.5f}")
 
 
 def _kernel_cmd(args):
-    with np.load(args.htable, allow_pickle=False) as d:
-        ht = {k: d[k] for k in ("h", "b_edges", "bands", "m_bar", "sumw", "nev")}
-    prov = json.loads(str(np.load(args.htable,
-                                  allow_pickle=False)["provenance"][0]))
+    ht = load_htable(args.htable)
+    prov = ht["provenance"]
+    pr = make_pass(ht, args)
     legs = None
     if args.empirical_leg:
         legs = _empirical_leg_cells(args.empirical_leg, ht, args)
@@ -1422,8 +1897,9 @@ def _kernel_cmd(args):
         minus_one=not args.no_minus_one, pair_table=args.pair_table,
         n_leg=args.n_leg, var_budget=(None if args.sigma_cap
                                       else args.var_budget),
-        sigma_cap=args.sigma_cap, n_out=args.n_out, leg_cells_by_band=legs)
-    meta = dict(kind="perleg", variant=args.variant,
+        sigma_cap=args.sigma_cap, n_out=args.n_out, leg_cells_by_band=legs,
+        pr=pr)
+    meta = dict(kind="perleg", selection=_sel_meta(pr, ht), variant=args.variant,
                 pair=list(args.pair or ()), htable=os.path.abspath(args.htable),
                 htable_prov=prov, empirical_leg=args.empirical_leg,
                 n_leg=args.n_leg, var_budget=args.var_budget,
@@ -1434,7 +1910,7 @@ def _kernel_cmd(args):
     if args.acceptance:
         with open(args.acceptance, "w") as fh:
             json.dump(dict(kind="grid", m=acc["m"], a=acc["a"],
-                           _meta=dict(pt_cut=prov["pt_cut"],
+                           _meta=dict(selection=_sel_meta(pr, ht),
                                       eta_cut=prov["eta_cut"],
                                       source=os.path.abspath(args.output))),
                       fh, indent=1)
@@ -1447,10 +1923,9 @@ def _kernel_cmd(args):
 
 
 def _corr_cmd(args):
-    with np.load(args.htable, allow_pickle=False) as d:
-        ht = {k: d[k] for k in ("h", "b_edges", "bands", "m_bar", "sumw", "nev")}
-    prov = json.loads(str(np.load(args.htable,
-                                  allow_pickle=False)["provenance"][0]))
+    ht = load_htable(args.htable)
+    prov = ht["provenance"]
+    pr = make_pass(ht, args)
     cells = None
     if args.run:
         cells = tabulated_cells(args.run, ht["bands"])
@@ -1466,7 +1941,7 @@ def _corr_cmd(args):
                                 variant=args.variant, pair=pair,
                                 minus_one=not args.no_minus_one,
                                 pair_table=args.pair_table, u_c=args.u_c,
-                                n_v=args.n_v,
+                                n_v=args.n_v, pr=pr,
                                 masses=(tuple(args.rho_masses)
                                         if args.rho_masses else VARIANT_MASSES))
             if args.rho:
@@ -1476,8 +1951,9 @@ def _corr_cmd(args):
         minus_one=not args.no_minus_one, pair_table=args.pair_table,
         var_budget=(None if args.sigma_cap else args.var_budget),
         sigma_cap=args.sigma_cap, n_gbar=args.n_gbar, npanel=args.npanel,
-        ng=args.ng, rho=rho)
-    meta = dict(kind="corr", variant=args.variant, run=args.run,
+        ng=args.ng, rho=rho, pr=pr)
+    meta = dict(kind="corr", selection=_sel_meta(pr, ht), variant=args.variant,
+                run=args.run,
                 mode=args.mode, u_c=args.u_c, n_v=args.n_v,
                 pair=list(args.pair or ()), htable=os.path.abspath(args.htable),
                 htable_prov=prov, n_gbar=args.n_gbar, npanel=args.npanel,
@@ -1488,7 +1964,7 @@ def _corr_cmd(args):
     if args.acceptance:
         with open(args.acceptance, "w") as fh:
             json.dump(dict(kind="grid", m=acc["m"], a=acc["a"],
-                           _meta=dict(pt_cut=prov["pt_cut"],
+                           _meta=dict(selection=_sel_meta(pr, ht),
                                       eta_cut=prov["eta_cut"],
                                       source=os.path.abspath(args.output))),
                       fh, indent=1)
@@ -1639,27 +2115,44 @@ def _condker_cmd(args):
     w = np.clip(w, -args.wclip * np.median(aw), args.wclip * np.median(aw))
     w = w * (len(w) / w.sum())
     m = np.asarray(d["m_pre"], float)
-    xp = np.asarray(d["xp"], float)
-    xm = np.asarray(d["xm"], float)
-    mass = {"u": np.asarray(d["m_post"], float),
-            "coll": m * np.sqrt(np.maximum(xp * xm, 1e-300))}
-    sel = {
-        "post": ((d["ptp"] > args.pt_cut) & (d["ptm"] > args.pt_cut)
-                 & (np.abs(d["etap"]) < args.eta_cut)
-                 & (np.abs(d["etam"]) < args.eta_cut)),
-        "coll": ((xp * d["ptp_pre"] > args.pt_cut)
-                 & (xm * d["ptm_pre"] > args.pt_cut)
-                 & (np.abs(d["etap_pre"]) < args.eta_cut)
-                 & (np.abs(d["etam_pre"]) < args.eta_cut)),
-    }
+    cuts = args.pt_cuts if args.pt_cuts else [args.pt_cut]
+    seed = (FG.SMEAR_SEED if args.smear_seed is None else args.smear_seed)
+    args.smear_seed = seed
+    rsm = FG.load_resolution(args.smear, args.smear_mode)
+    if "xp" in d.files:
+        xp = np.asarray(d["xp"], float)
+        xm = np.asarray(d["xm"], float)
+        mass = {"u": np.asarray(d["m_post"], float),
+                "coll": m * np.sqrt(np.maximum(xp * xm, 1e-300))}
+        rec = {"post": dict(m_pre=m, pt1=d["ptp"], eta1=d["etap"],
+                            pt2=d["ptm"], eta2=d["etam"]),
+               "coll": dict(m_pre=m, pt1=xp * d["ptp_pre"],
+                            eta1=d["etap_pre"], pt2=xm * d["ptm_pre"],
+                            eta2=d["etam_pre"])}
+        sel = {k: FG.fiducial(v, cuts, args.eta_cut, post=True, smear=rsm,
+                              seed=args.smear_seed) for k, v in rec.items()}
+    else:
+        # the full gen record: no per-leg x, so only the MC's own kernel under
+        # its own selection -- which is the reference row of the benchmark, and
+        # is measured on the SAME events (and the same smearing draw) the fit
+        # sees, so it carries no record floor of its own.
+        mass = {"u": np.asarray(d["m_post"], float)}
+        sel = {"post": FG.fiducial(
+            {k: np.asarray(d[k], float) for k in
+             ("m_pre", "pt1", "eta1", "pt2", "eta2")},
+            cuts, args.eta_cut, post=True, smear=rsm, seed=args.smear_seed)}
     mkey, skey = COND_MODES[args.mode]
+    if mkey not in mass or skey not in sel:
+        raise ValueError(f"mode {args.mode} needs a per-leg gen record")
     s = sel[skey]
     bands = list(zip(COND_BANDS[:-1], COND_BANDS[1:]))
     bands = [(0.0, COND_BANDS[0])] + bands + [(COND_BANDS[-1], np.inf)]
     ker, info = FG.build_banded_kernel(m[s], mass[mkey][s], w[s], bands,
                                        sigma_cap=args.sigma_cap)
     meta = dict(kind="condker", mode=args.mode, mass=mkey, selection=skey,
-                gen=os.path.abspath(args.gen), pt_cut=args.pt_cut,
+                gen=os.path.abspath(args.gen), pt_cuts=list(cuts),
+                smear=args.smear, smear_mode=args.smear_mode,
+                smear_seed=args.smear_seed,
                 eta_cut=args.eta_cut, sigma_cap=args.sigma_cap,
                 bands=list(COND_BANDS), n=int(s.sum()))
     np.savez(args.output, r=ker["r"], w=ker["w"], m_lo=ker["m_lo"],
@@ -1680,7 +2173,8 @@ def _condker_cmd(args):
             json.dump(dict(kind="grid", m=mb[ok].tolist(),
                            a=(npass[ok] / tot[ok]).tolist(),
                            _meta=dict(source=os.path.abspath(args.output),
-                                      selection=skey, pt_cut=args.pt_cut,
+                                      selection=skey, pt_cuts=list(cuts),
+                                      smear=args.smear,
                                       eta_cut=args.eta_cut)), fh, indent=1)
         print(f"[condker] acceptance ({skey}) -> {args.acceptance}")
 
@@ -1723,22 +2217,57 @@ def main():
     c.add_argument("--n-leg", type=int, default=6000)
     c.add_argument("--pair-table", default=None)
 
-    t = sub.add_parser("htable", help="h(a_+, a_- | m) from a generator record")
-    t.add_argument("--gen", required=True)
-    t.add_argument("-o", "--output", required=True)
-    t.add_argument("--pt-cut", type=float, default=25.0)
-    t.add_argument("--eta-cut", type=float, default=2.4)
-    t.add_argument("--band-lo", type=float, default=50.0)
-    t.add_argument("--band-hi", type=float, default=200.0)
-    t.add_argument("--band-width", type=float, default=1.0)
-    t.add_argument("--wclip", type=float, default=100.0)
-    t.add_argument("--b-thin", type=int, default=1,
-                   help="keep every n-th edge of the (a_+, a_-) grid")
+    def _table_args(q, pt_ref):
+        q.add_argument("--gen", required=True)
+        q.add_argument("-o", "--output", required=True)
+        q.add_argument("--pt-ref", type=float, default=pt_ref,
+                       help="reference of the log axis b = ln(pT/pT_ref); NOT "
+                            "a cut -- the table serves every cut above it")
+        q.add_argument("--anchor-cuts", nargs="*", type=float, default=None,
+                       help="extra thresholds [GeV] the fine part of the b "
+                            "grid is replicated at (the leading cut of an "
+                            "asymmetric pair)")
+        q.add_argument("--b-min", type=float, default=0.0,
+                       help="floor of the b grid; below 0 for a resolution, so "
+                            "a muon under the cut can fluctuate over it")
+        q.add_argument("--b-max", type=float, default=3.0)
+        q.add_argument("--fine-step", type=float, default=None,
+                       help="single-step fine pattern instead of the default "
+                            "1e-3 / 5e-3 two-block one")
+        q.add_argument("--fine-width", type=float, default=0.2)
+        q.add_argument("--coarse-step", type=float, default=2e-2)
+        q.add_argument("--eta-cut", type=float, default=2.4)
+        q.add_argument("--band-lo", type=float, default=50.0)
+        q.add_argument("--band-hi", type=float, default=200.0)
+        q.add_argument("--band-width", type=float, default=1.0)
+        q.add_argument("--wclip", type=float, default=100.0)
+        q.add_argument("--b-thin", type=int, default=1,
+                       help="keep every n-th edge of the b grid")
+
+    t = sub.add_parser("htable", help="h(b_+, b_- | m) from a generator record")
+    _table_args(t, 25.0)
+
+    t4 = sub.add_parser("h4table",
+                        help="h4(b_+, eta_+, b_-, eta_- | m): the same table "
+                             "with the eta axis the resolution needs")
+    _table_args(t4, 10.0)
+    t4.add_argument("--eta-edges", nargs="*", type=float,
+                    default=[0.0, 0.9, 1.6, 2.1, 2.4])
 
     k = sub.add_parser("kernel", help="the selection-conditional atoms + A(m)")
     k.add_argument("--htable", required=True)
     k.add_argument("-o", "--output", required=True)
     k.add_argument("--acceptance", default=None, help="write A(m) as a json")
+    k.add_argument("--pt-cuts", nargs="*", type=float, default=None,
+                   help="leading and trailing pT thresholds [GeV]; one value "
+                        "or none is the symmetric cut at the table's pT ref")
+    k.add_argument("--h4", default=None,
+                   help="h4 table, required with --resol")
+    k.add_argument("--resol", default=None,
+                   help="a `ptres.py` resolution npz: the cuts then act on the "
+                        "RECONSTRUCTED pT and the pass region is smooth")
+    k.add_argument("--resol-mode", default="shape",
+                   choices=("shape", "gauss"))
     k.add_argument("--variant", default="exp2nll",
                    choices=("exp1", "exp2", "exp2nll"))
     k.add_argument("--pair", nargs="*", default=None)
@@ -1765,6 +2294,16 @@ def main():
     r.add_argument("--htable", required=True)
     r.add_argument("-o", "--output", required=True)
     r.add_argument("--acceptance", default=None, help="write A(m) as a json")
+    r.add_argument("--pt-cuts", nargs="*", type=float, default=None,
+                   help="leading and trailing pT thresholds [GeV]; one value "
+                        "or none is the symmetric cut at the table's pT ref")
+    r.add_argument("--h4", default=None,
+                   help="h4 table, required with --resol")
+    r.add_argument("--resol", default=None,
+                   help="a `ptres.py` resolution npz: the cuts then act on the "
+                        "RECONSTRUCTED pT and the pass region is smooth")
+    r.add_argument("--resol-mode", default="shape",
+                   choices=("shape", "gauss"))
     r.add_argument("--run", default=None,
                    help="a standalone Photos run npz: use its tabulated kernel "
                         "instead of the analytic one (the `mc` configuration)")
@@ -1819,12 +2358,31 @@ def main():
     d.add_argument("--mode", required=True, choices=tuple(COND_MODES))
     d.add_argument("--acceptance", default=None)
     d.add_argument("--pt-cut", type=float, default=25.0)
+    d.add_argument("--pt-cuts", nargs="*", type=float, default=None,
+                   help="leading and trailing pT thresholds [GeV]")
+    d.add_argument("--smear", default=None,
+                   help="a `ptres.py` resolution npz: select on a smeared pT")
+    d.add_argument("--smear-mode", default="shape", choices=("shape", "gauss"))
+    d.add_argument("--smear-seed", type=int, default=None)
     d.add_argument("--eta-cut", type=float, default=2.4)
     d.add_argument("--sigma-cap", type=float, default=3.3e-4)
     d.add_argument("--wclip", type=float, default=100.0)
     d.add_argument("--acc-lo", type=float, default=50.0)
     d.add_argument("--acc-hi", type=float, default=200.0)
     d.add_argument("--acc-width", type=float, default=1.0)
+
+    gc = sub.add_parser("gcheck",
+                        help="G off the table against a direct event count")
+    gc.add_argument("--gen", required=True)
+    gc.add_argument("--htable", required=True)
+    gc.add_argument("--pt-cuts", nargs="*", type=float, default=None)
+    gc.add_argument("--h4", default=None)
+    gc.add_argument("--resol", default=None)
+    gc.add_argument("--resol-mode", default="shape", choices=("shape", "gauss"))
+    gc.add_argument("--band", nargs=2, type=float, default=(90.0, 92.0))
+    gc.add_argument("--u", nargs="*", type=float,
+                    default=(0.0, 1e-3, 1e-2, 0.05, 0.2, 0.5))
+    gc.add_argument("--wclip", type=float, default=100.0)
 
     f = sub.add_parser("accfit", help="Bernstein fit of a tabulated A(m)")
     f.add_argument("--acceptance", required=True)
@@ -1840,6 +2398,10 @@ def main():
         _check_cmd(args)
     elif args.cmd == "htable":
         _htable_cmd(args)
+    elif args.cmd == "h4table":
+        _h4table_cmd(args)
+    elif args.cmd == "gcheck":
+        _gcheck_cmd(args)
     elif args.cmd == "kernel":
         _kernel_cmd(args)
     elif args.cmd == "corr":

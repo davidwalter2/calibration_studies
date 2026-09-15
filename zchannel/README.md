@@ -35,6 +35,9 @@ generator-level validation it rests on.
 | `build_perleg.sh` | build every `h` table and selection-conditional kernel, including the discretisation variants |
 | `run_perleg_fit.sh` | the per-leg fit benchmark, `physics` and `disc` suites |
 | `cmp_perleg.py` | the per-leg construction against the generator record (figures + tables) |
+| `ptres.py` | the **detector side**: the CVH-refit muon `p_T` resolution on the DY reco MC, its 4-parameter form and its tails, the per-leg pass probability, and the `sigma`-conditioning of the acceptance |
+| `build_selection.sh` | the tables and kernels of the asymmetric cuts and of the resolution in the acceptance |
+| `run_selection_fit.sh` | their fit benchmark, one suite per selection |
 | `fit_gen.py` | **generator-level closure**: FSR kernel, acceptance, and the fit |
 | `kern_from_selected.py` | rebuild the kernel *and* `A(m)` from the gen record of the SELECTED reconstructed candidates |
 | `fit_gensel.py` | the same closure on the selected candidates' own gen masses, so the fold is isolated from the detector |
@@ -2285,6 +2288,510 @@ number above.
 
 ---
 
+## Asymmetric cuts, and the resolution in the acceptance
+
+The fiducial selection of a real Z channel is **not** the symmetric generator
+cut of the sections above: it is a *leading* and a *trailing* muon threshold,
+and it acts on the **reconstructed** `p_T`, not on the bare post-FSR one.  Both
+generalisations live in one object, `fsr_perleg.PassRegion`, and nothing
+downstream -- `ksel_band`, `gbar`, `matched_gbar`, the kernel builders -- knows
+which selection it is serving: they take the array `PassRegion.grid(band)`
+returns and read it exactly as they read the old survival function.
+
+### The pass region
+
+With `b_q = ln(p_T,q^pre / p_T^ref)` and the leg's loss `u_q`, the post-FSR
+transverse momenta are `p_T^ref e^{b_q - u_q}` and the pass condition for
+`leading > c_L`, `trailing > c_T` is
+
+```
+max(pT'_+, pT'_-) > c_L   and   min(pT'_+, pT'_-) > c_T ,
+```
+
+i.e. at fixed `(u_+, u_-)` the **union of two rectangles** in `(b_+, b_-)`,
+
+```
+A = {b_+ - u_+ > s_L , b_- - u_- > s_T} ,      s_c = ln(c / pT^ref)
+B = {b_- - u_- > s_L , b_+ - u_+ > s_T} ,
+A and B = {both over c_L}      (because c_L >= c_T)
+```
+
+so, with `S` the 2-D survival function of the `h` table and `P_q(c)` the
+probability that leg `q` alone clears `c`,
+
+```
+G(u_+, u_-) = S(u_+ + s_L, u_- + s_T) + S(u_+ + s_T, u_- + s_L)
+            - S(u_+ + s_L, u_- + s_L)
+            = P_+(c_L) P_-(c_T) + P_+(c_T) P_-(c_L) - P_+(c_L) P_-(c_L) .
+```
+
+Three points about that form:
+
+* **leading/trailing is decided after FSR** (and, at detector level, after the
+  smearing).  The `max`/`min` form does that by construction; ordering the two
+  legs *before* the losses would be a different -- and wrong -- selection;
+* `c_L = c_T` collapses the three terms to one and the code returns the plain
+  survival function, **bit for bit**, so every symmetric number of the sections
+  above is reproduced unchanged;
+* every term is a **product of two per-leg thresholds**.  That is what carries
+  the construction over to a smooth pass probability: given each muon's own
+  `(p_T, eta)` the two resolutions are independent, so the same three-term
+  identity holds with `P_q(c)` a probability instead of an indicator.
+
+`fsr_perleg.py gcheck` reads `G` off the table and compares it to a direct
+weighted event count on the generator record.  At 25/10, peak band, on the grid
+below, the two agree to **1e-9** -- the float32 storage of `h` -- at every
+`(u_+, u_-)` from 0 to 0.5.
+
+### One table per reference, not per cut
+
+`p_T^ref` is the reference of the logarithmic axis and **not** a cut: a table
+built at `p_T^ref = 10` serves 25/10, 25/25 and 10/10 alike, and which cuts are
+applied is `PassRegion`'s business.  Two things follow.
+
+* The table's floor `b_edges[0]` must sit below every threshold it will be
+  asked about, and (for a resolution) below it by enough that an
+  up-fluctuation cannot reach the cut: the default is `b_min = -0.3`, i.e.
+  `p_T > 7.4` GeV for `p_T^ref = 10`, which is 11 core widths in the barrel and
+  6 in the endcap.  The old tables cut at `b > 0` because an event under a
+  *symmetric* step could never pass; that is exactly the line that changes.
+* `G` has to be resolved where the leg radiator has its weight, which is at
+  `u -> 0` **above each threshold**.  With two thresholds there are two such
+  places, so `b_grid` replicates the fine part of the pattern at each
+  `ln(c/p_T^ref)`.  The replication is exact -- `anchor + pattern` is the same
+  expression the shifted reading evaluates -- so a fine node shifted by
+  `s_L - s_T` lands on another node and the reading of `S` stays exact there
+  rather than interpolating (164 of 164 nodes below `b = 0.5`).
+  `b_grid((0,), 0, 3)` reproduces `B_EDGES` and the whole earlier chain
+  unchanged.
+
+The 25/25 kernel rebuilt on the `p_T^ref = 10` anchored table reproduces the
+published `p_T^ref = 25` acceptance to **1e-8** in every band and the fit to
+**+0.02 / -0.02 MeV**, so the generalisation is a no-op where it has to be.
+
+### The 25/10 benchmark
+
+`fit_gen.py fit --suite perleg --acc-pt 25 --acc-pt-trail 10`: 12.07 M selected
+gen events (against 10.07 M at 25/25), 11.99 M in 60-120, five Legendre shape
+terms, `nm = 8192`, offsets from the generator's own `m_Z` = 91.153510,
+`Gamma_Z` = 2.493202.  Every row is the **same** run on the **same** events.
+The reference is the MC's own conditional kernel, measured on the *same*
+record and banded like the model (`fsr_perleg.py condker --gen
+genmerged_full.npz --mode true`), so unlike the published `cond:` rows it
+carries no per-leg-record floor.
+
+| model, `pT` > 25/10, \|η\| < 2.4, window 60-120 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| pre-FSR + `A(m)` control | −0.58 ± 0.70 | +1.18 ± 1.37 |
+| MC-conditional, banded + `A(m)` | +0.60 ± 0.77 | +1.14 ± 1.60 |
+| **corr, `mc` `K`** | **+0.47 ± 0.76** | **+0.35 ± 1.60** |
+| **corr, `data` `K`** | **+1.02 ± 0.77** | **−0.19 ± 1.60** |
+| corr, `mc` `K`, the **symmetric 25/25** kernel | +7.17 ± 0.76 | −5.95 ± 1.57 |
+
+and the same suite at 25/25, on the same table, for reference:
+
+| model, `pT` > 25, \|η\| < 2.4, window 60-120 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| pre-FSR + `A(m)` control | −0.87 ± 0.78 | +1.12 ± 1.50 |
+| MC-conditional, banded + `A(m)` | −0.24 ± 0.84 | +0.92 ± 1.74 |
+| **corr, `mc` `K`** | **+0.49 ± 0.83** | **−0.43 ± 1.74** |
+| **corr, `data` `K`** | **+1.07 ± 0.83** | **−1.11 ± 1.74** |
+| corr, `mc` `K`, `p_T^ref` = 25 table (the published build) | +0.47 ± 0.83 | −0.41 ± 1.75 |
+| `cond`: true, per-leg record (the published reference) | +0.29 ± 0.84 | +2.08 ± 1.74 |
+
+Same-run differences:
+
+| | Δ`m_Z` | Δ`Γ_Z` | |
+|---|---|---|---|
+| **the machinery at 25/10** (corr `mc` − MC-conditional) | **−0.13** | **−0.79** | |
+| … the same at 25/25 | +0.73 | −1.35 | |
+| the kernel physics at 25/10 (corr `data` − corr `mc`) | +0.55 | −0.54 | |
+| … the same at 25/25 | +0.58 | −0.68 | |
+| **ignoring the asymmetry** (the 25/25 kernel on the 25/10 selection) | **+6.70** | **−6.30** | |
+| the `p_T^ref` = 10 anchored table (25/25, against the published build) | +0.02 | −0.02 | |
+
+**The interplay is weaker at 25/10, and the model is better there, not worse.**
+The trailing cut at 10 GeV rejects **1.5 %** of the pairs whose leading muon is
+already over 25 GeV (the symmetric cut rejects 18.0 % of the same pairs), so the
+selection is very nearly a *single*-leg threshold and the two
+defects the correlated model was built to repair -- leg independence and
+`z = x_+ x_-` -- have much less to act on.  Quantitatively, band by band
+(`00_bands_2510.txt`, figures `07_acceptance_2510`, `08_mean_u_2510`):
+
+| | `A` model/MC (`A`-weighted) | selected `<u>` model/MC |
+|---|---|---|
+| 25/25, corr `mc` / `data` | 0.9975 / 0.9980 | 0.9887 / 0.9892 |
+| **25/10, corr `mc` / `data`** | **0.9968 / 0.9971** | **0.9994 / 0.9936** |
+
+`A(m)` closes to the same 0.3 %, and the selected `<u|m>` -- which at 25/25 was
+1.1 % low and was the whole residual -- closes to **0.06 %** at 25/10, within
+0.7 % in every band from 60 to 120 GeV.  The fit says the same thing: the
+machinery residual is −0.13 / −0.79 MeV, i.e. consistent with zero on both
+parameters at the ±0.76 / ±1.60 MeV statistical error of the test.
+
+What is **not** small is getting the pass region wrong: feeding the symmetric
+25/25 kernel to the 25/10 selection -- the same QED, the same `h` table, only
+the wrong region -- moves the fit by **+6.7 / −6.3 MeV**.  That is the size of
+the thing this section generalises.
+
+### The reconstructed `p_T` resolution
+
+`ptres.py measure` on the CVH two-track Z production
+(`dymc_8p5M_260906_v2`, 3.67 M of 3.73 M candidates after the standard
+selection -- finite `sigma_m > 0`, >= 8 valid hits on each leg, `chi2/ndof < 3`
+-- and both legs gen-matched, i.e. 7.33 M muons).  The measured quantity is
+**per muon**,
+
+```
+r = pT_reco / pT_gen - 1 ,
+```
+
+against the charge-matched **bare post-FSR** gen muon of the same candidate
+(`Mu{plus,minus}gen_pt`, the status-1 muon the maker matches within dR < 0.1),
+binned in **gen** `p_T` and `eta`: binning in reconstructed `p_T` would bin the
+residual on a variable that contains it.  The production's only kinematic cut
+is the 60-120 GeV window on the input-track pair mass; restricting the gen pair
+mass to 85-95 moves the core width by **< 1 %** in every cell, so that window
+does not censor the measurement.
+
+The core is the iterated `+-2 sigma` truncated moment, started from the
+interquartile range and corrected for the truncation.  `sigma_pT/pT` runs
+
+| \|eta\| | `pT` = 9 | 28 | 42 | 145 GeV | 4-par. fit dev. (10-100 GeV) |
+|---|---|---|---|---|---|
+| 0.0-0.9 | 9.00e-3 | 9.94e-3 | 11.07e-3 | 20.8e-3 | 0.97 % |
+| 0.9-1.6 | 14.80e-3 | 16.86e-3 | 17.99e-3 | 28.3e-3 | 1.26 % |
+| 1.6-2.1 | 17.29e-3 | 19.66e-3 | 21.44e-3 | 37.3e-3 | 1.35 % |
+| 2.1-2.4 | 26.16e-3 | 32.33e-3 | 37.73e-3 | 84.9e-3 | 3.41 % |
+
+and the 4-parameter form
+`(sigma/pT)^2 = a^2 + c^2 pT^2 + b^2/(1 + d^2/pT^2)`, fitted per `eta` band,
+reproduces it to **1 % over 10-100 GeV** in the three inner bands and 3.4 % in
+2.1-2.4; over the whole 8-200 GeV range the worst cell is 4.0 %, always one of
+the two end cells, which carry a few thousand muons each.  That is inside the
+5 % target, and the acceptance only ever uses `sigma` within a few per cent of
+the two thresholds.
+
+| \|eta\| | `a` [1e-3] | `b` [1e-3] | `c` [1e-5] | `d` |
+|---|---|---|---|---|
+| 0.0-0.9 | 8.983 | 7.814 | 11.868 | 71.65 |
+| 0.9-1.6 | 15.153 | 9.686 | 15.460 | 37.53 |
+| 1.6-2.1 | 17.110 | 10.916 | 22.810 | 30.90 |
+| 2.1-2.4 | 24.072 | 17.347 | 57.150 | 18.85 |
+
+**The law is not Gaussian and the acceptance sees the tail.**  In the
+standardised variable `s = (r - mu)/sigma`, over 10-60 GeV,
+
+| \|eta\| | `P(s < -3)` | `P(s > +3)` | `P(s < -5)` | `P(s > +5)` |
+|---|---|---|---|---|
+| 0.0-0.9 | 0.61-0.99 % | 0.78-1.06 % | 1.0-3.1e-3 | 1.1-4.0e-3 |
+| 0.9-1.6 | 0.54-1.18 % | 0.76-1.14 % | 1.2-5.6e-3 | 1.0-5.2e-3 |
+| 1.6-2.1 | 0.61-0.91 % | 0.87-1.08 % | 0.8-3.0e-3 | 1.2-2.0e-3 |
+| 2.1-2.4 | 0.81-1.57 % | 1.29-2.71 % | 1.0-5.4e-3 | 3.3-11.7e-3 |
+
+against a Gaussian's 0.135 % and 2.9e-7.  The model therefore carries two
+renderings, and the benchmark runs both: `gauss` (the fitted core only) and
+`shape` (`r = mu + sigma s` with `s` the measured standardised shape of the
+same `eta` band, pooled over `p_T` cells).  The mean is a two-term fit
+`mu = m0 + m1/pT`; it is below 3e-4 everywhere except the 2.1-2.4 band above
+50 GeV, where the fit reaches -0.68e-3 at 90 GeV.
+
+**The CVH covariance can almost be used directly.**  The per-leg pull
+`(q/p - q/p_gen)/(sigma_rel |q/p|)` with `sigma_rel = Jpsi_sigmarel{plus,minus}`
+-- the two-track fit's own reported relative momentum resolution -- has core
+width **0.9558** and core mean -0.005 over 7.33 M legs, i.e. the covariance
+**over**states the core by 4.4 %, by `eta` band 0.948 / 0.954 / 0.963 / 0.979.
+That is the same statement the tails make: the reported variance includes the
+non-Gaussian tail that the core estimator excludes.  For the acceptance it
+means the covariance is usable as a first approximation but not as the core
+width, and the shape has to come from a measurement like this one anyway.
+
+### The pass probability, and the `h4` table
+
+Per leg the step `x_q p_T,q > c` becomes a probability.  With
+`v = ln(p_T^post / c) = b_q - u_q - ln(c/p_T^ref)` the distance to the
+threshold in the leg's own logarithmic variable,
+
+```
+Pi(v; c, eta) = P( r > e^{-v} - 1 | p_T = c e^v, eta )
+```
+
+-- the resolution is evaluated at the **true** post-FSR `p_T`, which is what
+the law of `r` is conditioned on -- and the union-of-rectangles identity above
+goes through unchanged with `P_q(c) = Pi(v_q; c, eta_q)`.
+
+`Pi` depends on `eta`, so the boson-kinematics table has to carry the `eta` of
+each leg.  That is the **whole** extension the detector level forces:
+
+```
+h4[k, a, i, c, j]  =  weight of m band k with (b_+, eta_+) in cell (i, a) and
+                      (b_-, eta_-) in cell (j, c), / the band's total weight,
+b_mean[k, a, i]    =  that cell's own mean b, per leg marginal
+```
+
+one more axis per leg on a coarse `eta` grid, symmetrised under the
+simultaneous swap of both axes of the two legs, and
+
+```
+G(u_+, u_-) = sum_terms sign * Pi_a^T h4[a, :, c, :] Pi_c  ,
+Pi_a[i, p] = Pi(b_mean[a, i] - b_p - s ; c, eta_a)
+```
+
+is `n_eta^2` matrix triple products per band -- 0.7 s per band at
+`n_eta = 4`, `n_b = 139`, reading onto the step table's own 494-node grid.
+The cell's **mean** `b` rather than its midpoint removes the first-order
+discretisation error and costs one number per `(eta, b)` cell.
+
+`h4` is deliberately coarser in `b` than the step table (1e-2 near each
+threshold, 4e-2 beyond, against 1e-3 / 5e-3 / 2e-2): once the step is smoothed
+by `sigma ~ 1e-2`, `G` is a smooth `h` read through a sharp kernel, not a sharp
+function, so it is `h`'s own smoothness that sets the grid.  The default table
+is 152 bands x (4 x 139)^2 = 188 MB in memory, 3.0 MB on disk.
+
+`gcheck` against a direct event count with the **same** resolution object on
+both sides -- so what is measured is the table and nothing else -- at 25/10 in
+the peak band:
+
+| `(u_+, u_-)` | default `b` grid | fine `b` grid (5e-3 out to 0.5) |
+|---|---|---|
+| (0, 0) | -1.5e-4 | -7.8e-5 |
+| (0.01, 0.01) | -7.9e-5 | -4.3e-5 |
+| (0.2, 0.2) | +4.5e-4 | +2.5e-6 |
+| (0.5, 0.2) | +5.1e-4 | +1.7e-4 |
+| (0.5, 0.5) | +4.4e-4 | +1.5e-3 |
+
+on `G ~ 0.31-0.45`.  The residual of the default grid is visible as a stripe
+pattern in `20_passregion_2510sm` (third panel, `resolution - step`): above
+`b = 0.2` the `h4` cells are 4e-2 wide and their midpoints alias against the
+step table's own 1e-3 grid, at the 2e-3 level in `G` where the leg weight is
+1e-2 of the total.  What that costs at fit level is the `fine b grid` row of
+the toy benchmark below; the `8 eta bands` row is the same statement for the
+`eta` grid, which is the resolution model's grid and not the boson's.
+
+### The resolution toy
+
+The acceptance effect is isolated from the mass resolution the way the real
+likelihood separates them: the gen sample's **post-FSR muon `p_T`** are smeared
+with the measured law, the selection is taken on the **smeared** `p_T`, and the
+**fitted mass is left unsmeared** -- in the data likelihood the mass resolution
+is the CF's job and the acceptance is this.  The draw is seeded
+(`fit_gen.SMEAR_SEED`) and the two legs are drawn in a fixed order, so the fit,
+the MC-conditional reference kernel and its `A(m)` see the *same* selection
+event by event.
+
+The model rows are the same correlated two-leg kernel with two different pass
+regions: the **step** one (the current model, which ignores the resolution) and
+the **smeared** one.  Their difference is the whole effect.
+
+| model, smeared 25/25 selection, window 60-120 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| pre-FSR + `A(m)` control | −0.84 ± 0.78 | +1.07 ± 1.50 |
+| MC-conditional, banded + `A(m)` (the smeared selection's own) | −0.21 ± 0.84 | +0.94 ± 1.75 |
+| **corr, `mc` `K`, smeared acceptance** | **+0.40 ± 0.83** | **−0.37 ± 1.75** |
+| corr, `mc` `K`, **step** acceptance | +0.52 ± 0.83 | −0.51 ± 1.75 |
+| corr, `data` `K`, smeared acceptance | +1.08 ± 0.83 | −1.20 ± 1.75 |
+| corr, `data` `K`, **step** acceptance | +1.10 ± 0.83 | −1.18 ± 1.75 |
+
+| model, smeared 25/10 selection, window 60-120 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| pre-FSR + `A(m)` control | −0.58 ± 0.70 | +1.17 ± 1.37 |
+| MC-conditional, banded + `A(m)` | +0.64 ± 0.77 | +1.06 ± 1.60 |
+| **corr, `mc` `K`, smeared acceptance** | **+0.48 ± 0.76** | **+0.30 ± 1.60** |
+| corr, `mc` `K`, **step** acceptance | +0.46 ± 0.76 | +0.33 ± 1.60 |
+| corr, `data` `K`, smeared acceptance | +1.02 ± 0.77 | −0.25 ± 1.60 |
+| corr, `data` `K`, **step** acceptance | +1.00 ± 0.77 | −0.21 ± 1.60 |
+| corr, `mc` `K`, smeared, **Gaussian core only** | +0.47 ± 0.76 | +0.30 ± 1.60 |
+| corr, `mc` `K`, smeared, **fine `b` grid** (5e-3 out to 0.5) | +0.48 ± 0.76 | +0.31 ± 1.60 |
+| corr, `mc` `K`, smeared, **8 `eta` bands** | +0.48 ± 0.76 | +0.30 ± 1.60 |
+
+Same-run differences:
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| **step → smeared acceptance, 25/25**, `mc` `K` / `data` `K` | **−0.12** / **−0.02** | **+0.14** / **−0.02** |
+| **step → smeared acceptance, 25/10**, `mc` `K` / `data` `K` | **+0.02** / **+0.02** | **−0.03** / **−0.04** |
+| the tail of `r`: `shape` − `gauss` pass probability (25/10) | +0.01 | +0.00 |
+| the `h4` `b` grid: fine − default (25/10) | +0.00 | +0.01 |
+| the `h4` `eta` grid: 8 bands − 4 bands (25/10) | +0.00 | +0.00 |
+| the machinery under the smeared selection (corr `mc` − MC-cond.) at 25/10 | −0.16 | −0.76 |
+| … the same under the step selection at 25/10 | −0.13 | −0.79 |
+| … the same at 25/25 (smeared / step selection) | +0.61 / +0.73 | −1.31 / −1.45 |
+
+and the same toy run with a **Gaussian** smearing instead of the measured shape
+(so the tail is absent from the selection as well as from the model) gives
++0.40 / +0.41 / +0.39 for the `gauss` / `shape` / step acceptance -- the same
+picture, 0.02 MeV wide.
+
+**Verdict.** Ignoring the resolution in the acceptance -- using the step pass
+region when the cut actually acts on the reconstructed `p_T` -- costs
+**0.12 MeV on `m_Z` and 0.14 MeV on `Γ_Z` at 25/25**, and **0.02 / 0.04 MeV at
+25/10**.  Both are well below the ±0.8 / ±1.6 MeV statistical error of this
+test and below the machinery residual itself, but they are not zero and the
+25/25 number is comparable to the `+0.18 / −2.49` closure the correlated
+construction achieves, so the smeared pass region is the right default even
+though the step one would not have broken anything.  It costs one `eta` axis on
+the interface and 0.7 s per mass band.
+
+Why 25/10 is six times smaller than 25/25: the resolution moves `A(m)` by
+−0.56 % at 70 GeV to −0.10 % at 110 at the symmetric cut, a clear **slope**
+across the window, and by −0.07 % to −0.02 % at the asymmetric one, which is
+nearly flat -- and a flat multiplicative change of `A(m)` cannot move a mass.
+At 25/25 both legs sit on the threshold; at 25/10 only the leading one does.
+
+Three things the benchmark also settles:
+
+* **the tail of `r` does not matter for the acceptance** (0.01 MeV between the
+  measured shape and its Gaussian core), even though it is 10-1000x the
+  Gaussian beyond 3 sigma.  What the acceptance integrates is the *pass
+  probability* near the threshold, and the tail contributes a smooth, slowly
+  varying few per mille there.  It is the mass resolution, not the acceptance,
+  that will care about the tail;
+* **the `h4` discretisation is free** at fit level: a `b` grid twice as fine
+  (785 MB against 188) and an `eta` grid twice as fine both move the fit by
+  < 0.01 MeV, even though the coarse `b` grid is visibly striped in `G` at the
+  2e-3 level (figure `20_passregion_2510sm`);
+* **the machinery residual does not change** when the selection is smeared
+  (−0.16 against −0.13 MeV at 25/10, +0.61 against +0.73 at 25/25), i.e. the
+  resolution in the acceptance and the FSR factorisation are independent
+  questions, as the construction assumes.
+
+### The interface for SCETLib + DYTurbo, with resolution
+
+The two sides stay separable, and the split is exactly where it was:
+
+**the boson-kinematics provider** hands over, per pre-FSR mass band,
+
+```
+h4(b_+, eta_+, b_-, eta_- | m)     the joint weight of the two muons'
+                                   (ln pT/pT_ref, eta) at that mass,
+                                   normalised to the band's TOTAL weight
+b_mean(eta, b | m)                 the cell's own mean b, per leg marginal
+```
+
+on a `b` grid that reaches below the lowest threshold (`b_min = -0.3`) and a
+coarse `|eta|` grid.  Everything about the boson -- `p_T^Z`, `y_Z`, the decay
+angles with their angular coefficients, the PDFs -- is integrated into it and
+nothing else is.  The 2-D `h(b_+, b_-|m)` of the earlier sections is its
+`eta`-marginal and is what a step acceptance needs;
+
+**the detector side** hands over
+
+```
+sigma_pT/pT(pT, eta)   and the shape of r = pT_reco/pT_gen - 1
+```
+
+as one `ptres.Resolution` object, which the model calls only through
+`pass_prob(v, c, eta band)`.  It never sees `h4`, and the provider never sees
+the resolution.
+
+**The QED side does not change at all**: `K(z)`, the exact O(alpha) sharing
+`p_1(f|z)`, `Gbar = int df p_1 G`, `A(m) = int du K Gbar` are the same objects
+and the same code.
+
+Three things the interface now *has* to say that it did not before:
+
+* the `b` axis must extend **below** the lowest cut, because a muon under the
+  threshold can be promoted over it.  A table that starts at the cut cannot be
+  used with a resolution at all;
+* the `eta` grid is the resolution's grid, not the boson's.  Its coarseness is
+  a modelling choice of the detector side and is quantified at fit level below;
+* `A(m)` is no longer a pure generator quantity.  It is still a single function
+  of `m` in the likelihood, and it is still `int du K(u|m) Gbar(u|m)`; what
+  changed is that `Gbar` carries a detector object.
+
+### Is the acceptance correlated with the per-candidate `sigma`?
+
+The likelihood conditions each candidate on its own mass resolution (the
+v-form conditions on `k = sigma_m/m^p`).  If the acceptance and `k` are
+correlated the population-level `A(m)` is not the conditional one.
+`ptres.py sigcond` measures it on the reco MC (160 files, 381 k candidates),
+comparing the **same** events selected on the reconstructed `p_T` and on the
+true (bare post-FSR gen) `p_T`, with `u = -ln(m_gen,post / m_gen,pre)` from the
+generator record:
+
+| `k = sigma_m/m` quantile | `<k>` | `<u>` reco cut | `<u>` true cut | reco/true |
+|---|---|---|---|---|
+| 0-20 % | 0.00853 | 16.362e-3 | 16.365e-3 | 0.9998 |
+| 20-40 % | 0.01074 | 14.818e-3 | 14.806e-3 | 1.0008 |
+| 40-60 % | 0.01232 | 12.438e-3 | 12.434e-3 | 1.0003 |
+| 60-80 % | 0.01479 | 12.829e-3 | 12.831e-3 | 0.9998 |
+| 80-100 % | 0.03759 | 12.404e-3 | 12.407e-3 | 0.9997 |
+| inclusive | 0.01679 | 13.869e-3 | 13.867e-3 | 1.0001 |
+
+Two separate statements, and only one of them is a problem.
+
+* **The promotion across the threshold is negligible.**  779 candidates of
+  349 098 (0.22 %) are selected on the reconstructed `p_T` and not on the true
+  one, and 724 the other way round; the promoted ones are biased -- `<k>` =
+  0.0243 against 0.0168 inclusive and `<u>` = 16.9e-3 against 13.9e-3 -- but
+  the reco and true columns agree to **<= 8e-4** in every `k` quantile and to
+  1e-4 inclusively.  So the *resolution's own* contribution to a
+  `k`-dependence of the acceptance is below the MeV level.
+* **The selected FSR content depends strongly on `k` through kinematics.**
+  `<u>` runs 16.4e-3 to 12.4e-3 across the `k` quintiles -- +-14 % about the
+  mean -- and it does so identically under the true cut, so it is not a
+  detector effect at all: a large-`sigma` candidate is a forward or soft one,
+  which has a different acceptance and therefore a different selected FSR
+  spectrum.  A population-level `K_sel(u|m)` inside a `k`-conditioned
+  likelihood is therefore misspecified per candidate, even though it is right
+  on average.
+
+The fix does **not** need a new axis on the interface: `k` is predicted by the
+two legs' `(p_T, eta)` -- the very variables `h4` is binned in -- to a median
+ratio 1.063 with an 11.9 % 68 % spread and `corr(ln k, ln k_pred) = 0.875`, so
+a `k`-conditioned `K_sel` is the same `h4` restricted to the cells of a `k`
+class.  Quantifying the residual bias of the unconditioned form, and building
+the conditioned one, is the next item; it is a property of the **conditioning**
+and not of the asymmetric cuts or of the resolution in the acceptance, both of
+which are closed here.
+
+### Reproducing
+
+```bash
+Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
+cd $Z
+# 1. the detector side: the CVH-refit muon pT resolution (numpy only, ~2 min)
+python3 ptres.py measure --aux ../fullscale/runs/auxgen_dyv2.npz \
+    --pairs ../fullscale/runs/zpairs_dyv2_full.npz \
+    --seed ../fullscale/runs/auxseed_dyv2.npz -o data/ptres_dyv2.npz
+# 2. the tables and every kernel of the four selections (numpy only, ~50 min)
+./build_selection.sh
+# 3. the pass region off the table against a direct event count
+python3 fsr_perleg.py gcheck --gen data/genmerged_full.npz \
+    --htable data/ht_ref10_1.0gev.npz --pt-cuts 25 10
+python3 fsr_perleg.py gcheck --gen data/genmerged_full.npz \
+    --htable data/ht_ref10_1.0gev.npz --h4 data/h4_ref10_1.0gev.npz \
+    --resol data/ptres_dyv2.npz --pt-cuts 25 10
+# 4. the fit benchmarks (~25 min each)
+for S in 2525 2510 res2525 res2510 res2510g; do ./run_selection_fit.sh $S; done
+# 5. is the acceptance correlated with the per-candidate sigma? (needs /ceph)
+ssh submit50 "cd $Z && ./run_tf_z.sh --ceph python3 -u ptres.py sigcond \
+    --files /ceph/submit/data/user/d/david_w/ZMass/cvh/dymc_8p5M_260906_v2 \
+    --max-tasks 40 --pt-cuts 25 10 --res data/ptres_dyv2.npz"
+# 6. the figures (needs /ceph: the container's mount hook binds it)
+F=~/public_html/ZMass/cvh/260916_fsr_selection
+ssh submit50 "cd $Z && ./run_tf_z.sh python3 -u ptres.py figs \
+    --res data/ptres_dyv2.npz --aux ../fullscale/runs/auxgen_dyv2.npz \
+    --seed ../fullscale/runs/auxseed_dyv2.npz --outpath $F"
+for S in '2510:--pt-cuts 25 10' '2510sm:--pt-cuts 25 10 --h4 data/h4_ref10_1.0gev.npz --resol data/ptres_dyv2.npz'; do
+  ssh submit50 "cd $Z && ./run_tf_z.sh python3 -u cmp_perleg.py --selection-only \
+     --htable data/ht_ref10_1.0gev.npz --outpath $F --suffix _${S%%:*} ${S#*:} \
+     --kernel 'corr, mc K=data/kern_corr_mc_${S%%:*}.npz' \
+     --kernel 'corr, data K=data/kern_corr_data_${S%%:*}.npz'"
+done
+```
+
+Figures in `~/public_html/ZMass/cvh/260916_fsr_selection/`: `06_ksel_peak_*`,
+`07_acceptance_*`, `08_mean_u_*` (model against MC, per selection),
+`20_passregion_*` (the pass region, step and smeared), `21_passprob_*` (the
+per-leg pass probability against the step), `22_fitshifts` (every fit row),
+`30_ptres_sigma` (the resolution and its 4-parameter form), `31_ptres_shape`
+(the standardised shape against a Gaussian), `32_ptres_tails`,
+`33_ptres_pull` (the CVH covariance pull), and `00_bands_*.txt` with the
+band-by-band tables.
+
+---
+
 ## What is still missing for a *data* Z channel
 
 * **The LO→MiNNLO `K(m)`, and its truncation.** The card must float a smooth
@@ -2301,9 +2808,11 @@ number above.
   +0.95 / −4.5 MeV, so that number is the **collinear factorisation** and not
   the QED; −3.2 MeV of the `Γ_Z` part is the independence of the two legs, and
   the fix is the correlated two-leg density of the exact O(α) 3-body matrix
-  element. `A(m)` itself is not the problem (+0.13 / +0.03). What is also *not*
-  settled is the detector-level version of `h`, whose thresholds act on the
-  reconstructed `p_T` and therefore carry the resolution.
+  element. `A(m)` itself is not the problem (+0.13 / +0.03). The **asymmetric**
+  cut of a real selection and the **resolution** in the acceptance are both
+  built and benchmarked (see "Asymmetric cuts, and the resolution in the
+  acceptance"); what is left there is that the likelihood conditions each
+  candidate on its own `sigma` while `K_sel(u|m)` does not.
   `kern_from_selected.py` remains the MC-measured alternative, which needs a
   selected gen record at every calibration point.
 * **Background.** `UniformBackground` / `BernsteinBackground` are wired up with

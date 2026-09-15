@@ -45,6 +45,11 @@ import numpy as np
 
 MZ_FIXED = 91.153509740726733       # POWHEG's constant-width Z mass
 GZ_FIXED = 2.4932018986110700       # POWHEG's constant-width Z width
+#: the seed of the acceptance toy's per-muon smearing.  One number, used by
+#: every consumer, so the fit's selection and the kernel measured for it are
+#: the same events.
+SMEAR_SEED = 20260916
+
 MZ_RUNNING = 91.1876                # the PDG input POWHEG converted from
 GZ_RUNNING = 2.4941343245745466
 
@@ -75,18 +80,47 @@ def load_gen(path, columns=None):
     return {k: d[k] for k in (columns or d.files) if k in d.files}
 
 
-def fiducial(g, pt_min, eta_max, post=True):
-    """Boolean mask: both muons above ``pt_min`` and inside ``eta_max``.
+def fiducial(g, pt_cuts, eta_max, post=True, smear=None, seed=SMEAR_SEED):
+    """Boolean mask: the two muons inside ``eta_max``, over the ``pT`` cuts.
+
+    ``pt_cuts`` is ``(leading, trailing)``, or one number for the symmetric
+    cut.  Which muon is the leading one is decided **after** FSR and after the
+    smearing, so the condition is on ``max``/``min`` and the legs are never
+    ordered before the losses are applied.
 
     ``post=True`` uses the post-FSR (status-1) muons, which is what a real
     selection cuts on; ``post=False`` uses the pre-FSR pair.
+
+    ``smear`` is a `ptres.Resolution`: the cuts then act on ``pT (1 + r)`` with
+    ``r`` drawn per muon at that muon's own ``(pT, eta)``, which is the toy the
+    detector-level acceptance is benchmarked against.  The draw is seeded and
+    the two legs are drawn in a fixed order, so every row of a fit suite and
+    the MC-conditional kernel measured for it see the SAME selection.
     """
     sfx = "" if post else "_pre"
+    c = np.atleast_1d(np.asarray(pt_cuts, float))
+    c_lead, c_trail = ((c[0], c[0]) if c.size == 1
+                       else (float(np.max(c)), float(np.min(c))))
     ok = np.ones(len(g["m_pre"]), bool)
+    rng = np.random.default_rng(seed) if smear is not None else None
+    pts = []
     for i in ("1", "2"):
-        ok &= g[f"pt{i}{sfx}"] > pt_min
-        ok &= np.abs(g[f"eta{i}{sfx}"]) < eta_max
-    return ok
+        pt = np.asarray(g[f"pt{i}{sfx}"], float)
+        eta = np.asarray(g[f"eta{i}{sfx}"], float)
+        ok &= np.abs(eta) < eta_max
+        if smear is not None:
+            pt = pt * (1.0 + smear.sample(pt, eta, rng))
+        pts.append(pt)
+    return ok & (np.maximum(pts[0], pts[1]) > c_lead) \
+        & (np.minimum(pts[0], pts[1]) > c_trail)
+
+
+def load_resolution(path, mode="shape"):
+    """A `ptres.Resolution`, or None."""
+    if not path:
+        return None
+    import ptres
+    return ptres.Resolution(path, mode=mode)
 
 
 # --------------------------------------------------------------------------
@@ -454,7 +488,11 @@ def main():
     k.add_argument("--gen", required=True)
     k.add_argument("-o", "--output", required=True)
     k.add_argument("--acc-pt", type=float, default=None)
+    k.add_argument("--acc-pt-trail", type=float, default=None)
     k.add_argument("--acc-eta", type=float, default=None)
+    k.add_argument("--smear", default=None)
+    k.add_argument("--smear-mode", default="shape", choices=("shape", "gauss"))
+    k.add_argument("--smear-seed", type=int, default=SMEAR_SEED)
     k.add_argument("--sigma-cap", type=float, default=3.3e-4,
                    help="cap on the in-group sd of u = -ln(m_post/m_pre); the "
                         "fold is a midpoint quadrature, so the residual bias "
@@ -476,7 +514,11 @@ def main():
     a.add_argument("--gen", required=True)
     a.add_argument("-o", "--output", required=True)
     a.add_argument("--acc-pt", type=float, default=25.0)
+    a.add_argument("--acc-pt-trail", type=float, default=None)
     a.add_argument("--acc-eta", type=float, default=2.4)
+    a.add_argument("--smear", default=None)
+    a.add_argument("--smear-mode", default="shape", choices=("shape", "gauss"))
+    a.add_argument("--smear-seed", type=int, default=SMEAR_SEED)
     a.add_argument("--lo", type=float, default=50.0)
     a.add_argument("--hi", type=float, default=200.0)
     a.add_argument("--degree", type=int, default=8)
@@ -493,8 +535,16 @@ def main():
     f.add_argument("--acc", default=None)
     f.add_argument("--nm", type=int, default=32768)
     f.add_argument("--born-hi", type=float, default=130.0)
-    f.add_argument("--acc-pt", type=float, default=25.0)
+    f.add_argument("--acc-pt", type=float, default=25.0,
+                   help="leading muon pT cut [GeV]")
+    f.add_argument("--acc-pt-trail", type=float, default=None,
+                   help="trailing muon pT cut [GeV]; default = --acc-pt")
     f.add_argument("--acc-eta", type=float, default=2.4)
+    f.add_argument("--smear", default=None,
+                   help="a `ptres.py` resolution npz: the pT cuts then act on "
+                        "a SMEARED post-FSR pT (the fitted mass is untouched)")
+    f.add_argument("--smear-mode", default="shape", choices=("shape", "gauss"))
+    f.add_argument("--smear-seed", type=int, default=SMEAR_SEED)
     f.add_argument("--shape", type=int, default=5,
                    help="Legendre terms of the smooth K(m) nuisance")
     f.add_argument("--fsr-mmax", type=float, default=None)
@@ -512,7 +562,10 @@ def main():
              else clip_weights(g["weight"].astype(float), args.wclip))
         sel = np.ones(len(w), bool)
         if args.acc_pt is not None:
-            sel &= fiducial(g, args.acc_pt, args.acc_eta, post=True)
+            sel &= fiducial(g, (args.acc_pt, args.acc_pt_trail or args.acc_pt),
+                            args.acc_eta, post=True,
+                            smear=load_resolution(args.smear, args.smear_mode),
+                            seed=args.smear_seed)
         if args.mass_slice:
             sel &= (g["m_pre"] >= args.mass_slice[0]) & (g["m_pre"] < args.mass_slice[1])
         if args.half:
@@ -520,6 +573,7 @@ def main():
             sel &= (np.arange(n) < n // 2) if args.half == "a" else (np.arange(n) >= n // 2)
         meta = dict(gen=os.path.abspath(args.gen), n=int(sel.sum()),
                     sumw=float(w[sel].sum()), acc_pt=args.acc_pt,
+                    acc_pt_trail=args.acc_pt_trail, smear=args.smear,
                     acc_eta=args.acc_eta, sigma_cap=args.sigma_cap,
                     half=args.half, mass_slice=args.mass_slice,
                     bands=args.bands, u_fine=args.u_fine,
@@ -552,9 +606,14 @@ def main():
     if args.cmd == "acceptance":
         g = load_gen(args.gen)
         w = clip_weights(g["weight"].astype(float), 100.0)
-        p = fiducial(g, args.acc_pt, args.acc_eta, post=True)
+        p = fiducial(g, (args.acc_pt, args.acc_pt_trail or args.acc_pt),
+                     args.acc_eta, post=True,
+                     smear=load_resolution(args.smear, args.smear_mode),
+                     seed=args.smear_seed)
         cfg, diag = fit_acceptance(g["m_pre"], p, w, args.lo, args.hi, args.degree)
-        cfg["_meta"] = dict(acc_pt=args.acc_pt, acc_eta=args.acc_eta,
+        cfg["_meta"] = dict(acc_pt=args.acc_pt,
+                            acc_pt_trail=args.acc_pt_trail,
+                            smear=args.smear, acc_eta=args.acc_eta,
                             degree=args.degree, chi2=diag["chi2"], ndf=diag["ndf"])
         with open(args.output, "w") as fh:
             json.dump(cfg, fh, indent=1)
@@ -693,15 +752,25 @@ def run_fit(args):
 
     elif args.suite == "perleg":
         S = args.shape
-        sel = fiducial(g, args.acc_pt, args.acc_eta, post=True)
-        print(f"\n=== per-leg factorised kernel, pT > {args.acc_pt}, "
-              f"|eta| < {args.acc_eta}  ({sel.sum()} / {len(sel)} events) ===")
+        cuts = (args.acc_pt, args.acc_pt_trail or args.acc_pt)
+        rsm = load_resolution(args.smear, args.smear_mode)
+        sel = fiducial(g, cuts, args.acc_eta, post=True, smear=rsm,
+                       seed=args.smear_seed)
+        print(f"\n=== per-leg factorised kernel, pT > {cuts[0]}/{cuts[1]}, "
+              f"|eta| < {args.acc_eta}"
+              + (f", smeared ({args.smear_mode})" if rsm else "")
+              + f"  ({sel.sum()} / {len(sel)} events) ===")
         one(f"pre-FSR + A(m) control", "m_pre", sel=sel, acceptance=acc,
             shape=S)
         one(f"MC-conditional banded + A(m)", "m_post", sel=sel, fsr=ker,
             acceptance=acc, shape=S)
         for spec in args.kernel_alt:
             lab, kpath, apath = _alt_spec(spec)
+            # a missing row is skipped, loudly: a suite is a long run and one
+            # absent variant must not cost the rows that are already done
+            if not os.path.exists(kpath) or (apath and not os.path.exists(apath)):
+                print(f"  [skip] {lab}: missing kernel or acceptance file")
+                continue
             a2 = acc
             if apath:
                 with open(apath) as fh:
@@ -711,7 +780,10 @@ def run_fit(args):
 
     elif args.suite == "fiducial":
         S = args.shape
-        sel = fiducial(g, args.acc_pt, args.acc_eta, post=True)
+        sel = fiducial(g, (args.acc_pt, args.acc_pt_trail or args.acc_pt),
+                       args.acc_eta, post=True,
+                       smear=load_resolution(args.smear, args.smear_mode),
+                       seed=args.smear_seed)
         print(f"\n=== step 4b: fiducial selection pT > {args.acc_pt}, "
               f"|eta| < {args.acc_eta}  ({sel.sum()} / {len(sel)} events) ===")
         one(f"no FSR, no A(m), shape {S}", "m_post", sel=sel, shape=S)

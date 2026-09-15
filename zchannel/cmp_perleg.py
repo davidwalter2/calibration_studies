@@ -22,6 +22,7 @@ from wums import logging
 import pubhtml
 import ratiopanel
 
+import fit_gen as FG
 import fsr_analytic as FA
 import fsr_perleg as PL
 
@@ -455,13 +456,32 @@ def kernel_u_of(path):
             np.array([x["A"] for x in b]))
 
 
-def mc_profile(gen, pt_cut, eta_cut, edges):
+def sel_mask(d, cuts, eta_cut, smear=None):
+    """The fiducial mask of a gen record: `fit_gen.fiducial`, one place.
+
+    ``cuts`` is ``(leading, trailing)``; ``smear`` a `ptres.Resolution`, in
+    which case the cuts act on a smeared post-FSR ``pT`` with the seeded draw
+    every consumer of this study shares.
+    """
+    return FG.fiducial({k: np.asarray(d[k], np.float64) for k in
+                        ("m_pre", "pt1", "eta1", "pt2", "eta2")},
+                       cuts, eta_cut, post=True, smear=smear)
+
+
+def cutlabel(cuts, smear=None):
+    c = np.atleast_1d(np.asarray(cuts, float))
+    c = (c[0], c[0]) if c.size == 1 else (np.max(c), np.min(c))
+    s = (rf"$p_T > {c[0]:.0f}/{c[1]:.0f}$ GeV" if c[0] != c[1]
+         else rf"$p_T > {c[0]:.0f}$ GeV")
+    return s + (", smeared" if smear is not None else "")
+
+
+def mc_profile(gen, cuts, eta_cut, edges, smear=None):
     """MC ``A(m)`` and ``<u>`` of the selected sample, per band."""
     d = np.load(gen)
     w = clip(d["weight"].astype(np.float64))
     m = d["m_pre"].astype(np.float64)
-    sel = ((d["pt1"] > pt_cut) & (d["pt2"] > pt_cut)
-           & (np.abs(d["eta1"]) < eta_cut) & (np.abs(d["eta2"]) < eta_cut))
+    sel = sel_mask(d, cuts, eta_cut, smear)
     u = -np.log(np.maximum(d["m_post"].astype(np.float64) / m, 1e-300))
     # the first and the last band mean what they say: events outside the grid
     # are dropped, not folded into the edge bins
@@ -602,9 +622,9 @@ def fig_dconvd_mc(out, run, band=PEAK, n_leg=6000):
     plt.close(fig)
 
 
-def fig_acceptance(out, gen, kernels, pt_cut, eta_cut):
+def fig_acceptance(out, gen, kernels, cuts, eta_cut, smear=None, sfx=""):
     edges = np.arange(56.0, 142.0, 2.0)
-    mb, A, umc, neff = mc_profile(gen, pt_cut, eta_cut, edges)
+    mb, A, umc, neff = mc_profile(gen, cuts, eta_cut, edges, smear)
     ok = np.isfinite(A) & (mb > 0)
     fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(9.5, 7.6))
     ax.plot(mb[ok], A[ok], "o", ms=4, color="black", label="MC (post-FSR cut)")
@@ -618,19 +638,20 @@ def fig_acceptance(out, gen, kernels, pt_cut, eta_cut):
                  lw=1.8)
     ax.set_ylabel(r"$A(m_{\rm pre})$")
     ax.legend(fontsize=13, frameon=False, loc="lower right")
-    ax.set_title(rf"acceptance, $p_T > {pt_cut:.0f}$ GeV, "
-                 rf"$|\eta| < {eta_cut}$", fontsize=14, loc="left")
+    ax.set_title("acceptance, " + cutlabel(cuts, smear)
+                 + rf", $|\eta| < {eta_cut}$", fontsize=14, loc="left")
     rax.axhline(1.0, color="grey", lw=0.8)
     rax.set_ylim(0.99, 1.01)
     ax.set_xlim(edges[0], edges[-1])
     rax.set_xlabel(r"$m_{\rm pre}$ [GeV]")
     rax.set_ylabel("model / MC")
-    pubhtml.savefig(fig, os.path.join(out, "07_acceptance.pdf"))
+    pubhtml.savefig(fig, os.path.join(out, f"07_acceptance{sfx}.pdf"))
     plt.close(fig)
     return mb, A, umc, neff, edges
 
 
-def fig_meanu(out, gen, kernels, mb, umc, neff, pt_cut, eta_cut):
+def fig_meanu(out, gen, kernels, mb, umc, neff, cuts, eta_cut, smear=None,
+              sfx=""):
     ok = np.isfinite(umc) & (mb > 0)
     err = umc / np.sqrt(np.maximum(neff, 1.0))
     fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(9.5, 7.6))
@@ -646,14 +667,14 @@ def fig_meanu(out, gen, kernels, mb, umc, neff, pt_cut, eta_cut):
                  lw=1.8)
     ax.set_ylabel(r"$\langle u\rangle$ (selected)  [$10^{-3}$]")
     ax.legend(fontsize=13, frameon=False, loc="upper left")
-    ax.set_title(rf"conditional mass loss, $p_T > {pt_cut:.0f}$ GeV, "
-                 rf"$|\eta| < {eta_cut}$", fontsize=14, loc="left")
+    ax.set_title("conditional mass loss, " + cutlabel(cuts, smear)
+                 + rf", $|\eta| < {eta_cut}$", fontsize=14, loc="left")
     rax.axhline(1.0, color="grey", lw=0.8)
     rax.set_ylim(0.88, 1.12)
     ax.set_xlim(float(mb[ok].min()) - 2.0, float(mb[ok].max()) + 2.0)
     rax.set_xlabel(r"$m_{\rm pre}$ [GeV]")
     rax.set_ylabel("model / MC")
-    pubhtml.savefig(fig, os.path.join(out, "08_mean_u.pdf"))
+    pubhtml.savefig(fig, os.path.join(out, f"08_mean_u{sfx}.pdf"))
     plt.close(fig)
 
 
@@ -730,11 +751,11 @@ def corr_table(out, g, path, band=PEAK):
     print(txt)
 
 
-def band_table(out, gen, kernels, path, pt_cut=25.0, eta_cut=2.4,
+def band_table(out, gen, kernels, path, cuts=25.0, eta_cut=2.4, smear=None,
                edges=(60, 70, 80, 86, 90, 92, 96, 105, 120, 140)):
     """``A(m)`` and the selected ``<u|m>`` of every model against the MC's own."""
     e = np.asarray(edges, float)
-    mb, A, umc, neff = mc_profile(gen, pt_cut, eta_cut, e)
+    mb, A, umc, neff = mc_profile(gen, cuts, eta_cut, e, smear)
     err = umc / np.sqrt(np.maximum(neff, 1.0))
     labs, got = [], []
     for p_, lab, _c, _ls in kernels:
@@ -743,7 +764,8 @@ def band_table(out, gen, kernels, path, pt_cut=25.0, eta_cut=2.4,
             labs.append(lab)
             got.append(u)
     L = ["the selection-conditional model against the MC, band by band",
-         f"  pT > {pt_cut:.0f}, |eta| < {eta_cut};  model / MC of A(m) and of "
+         f"  pT cuts {np.atleast_1d(cuts).tolist()}, |eta| < {eta_cut}, "
+         f"smear = {getattr(smear, 'mode', None)};  model / MC of A(m) and of "
          f"the selected <u>\n"]
     for k, lab in enumerate(labs):
         L.append(f"  [{k}] {lab}")
@@ -774,13 +796,13 @@ def band_table(out, gen, kernels, path, pt_cut=25.0, eta_cut=2.4,
     print(txt)
 
 
-def fig_ksel(out, gen, kernels, band=PEAK, pt_cut=25.0, eta_cut=2.4):
+def fig_ksel(out, gen, kernels, band=PEAK, cuts=25.0, eta_cut=2.4,
+             smear=None, sfx=""):
     """``K_sel(u|m)`` of the model against the MC's own selected spectrum."""
     d = np.load(gen)
     w = clip(d["weight"].astype(np.float64))
     m = d["m_pre"].astype(np.float64)
-    sel = ((d["pt1"] > pt_cut) & (d["pt2"] > pt_cut)
-           & (np.abs(d["eta1"]) < eta_cut) & (np.abs(d["eta2"]) < eta_cut))
+    sel = sel_mask(d, cuts, eta_cut, smear)
     s = sel & (m >= band[0]) & (m < band[1])
     u = -np.log(np.maximum(d["m_post"][s].astype(np.float64) / m[s], 1e-300))
     ww = w[s]
@@ -808,14 +830,14 @@ def fig_ksel(out, gen, kernels, band=PEAK, pt_cut=25.0, eta_cut=2.4):
     ax.set_ylabel(r"$P(u > u_0\,|\,\rm selected)$")
     ax.legend(fontsize=13, frameon=False, loc="lower left")
     ax.set_title(rf"$m_{{pre}}\in[{band[0]:.0f},{band[1]:.0f})$ GeV, "
-                 rf"$p_T > {pt_cut:.0f}$ GeV, $|\eta| < {eta_cut}$",
+                 + cutlabel(cuts, smear) + rf", $|\eta| < {eta_cut}$",
                  fontsize=13, loc="left")
     rax.axhline(1.0, color="grey", lw=0.8)
     rax.set_xscale("log")
     rax.set_ylim(0.85, 1.15)
     rax.set_xlabel(r"$u_0$")
     rax.set_ylabel("model / MC")
-    pubhtml.savefig(fig, os.path.join(out, "06_ksel_peak.pdf"))
+    pubhtml.savefig(fig, os.path.join(out, f"06_ksel_peak{sfx}.pdf"))
     plt.close(fig)
 
 
@@ -823,8 +845,8 @@ def fig_htable(out, htable, band=91.0):
     with np.load(htable, allow_pickle=False) as d:
         h, be, mb = d["h"], d["b_edges"], d["m_bar"]
     k = int(np.argmin(np.abs(mb - band)))
-    pt_cut = json.loads(str(np.load(htable,
-                                    allow_pickle=False)["provenance"][0]))["pt_cut"]
+    prov = json.loads(str(np.load(htable, allow_pickle=False)["provenance"][0]))
+    pt_cut = float(prov.get("pt_ref", prov.get("pt_cut")))
     x = pt_cut * np.exp(be)
     fig, ax = plt.subplots(figsize=(8.4, 7.2))
     # a density in (b_+, b_-) = (ln pT_+, ln pT_-): the grid spacing is not
@@ -847,6 +869,124 @@ def fig_htable(out, htable, band=91.0):
 
 
 # --------------------------------------------------------------------------
+def fig_passregion(out, htable, cuts, eta_cut, h4=None, resol=None,
+                   band=91.0, name="20_passregion"):
+    """``G(u_+, u_-|m)``: which pre-FSR configurations survive the cuts.
+
+    The union of two rectangles for an asymmetric pair of cuts, the same
+    surface with the resolution folded in, and their difference -- which is the
+    only place the two differ and is 100x smaller than either.
+    """
+    ht = PL.load_htable(htable)
+    k = int(np.argmin([abs(0.5 * (a + b) - band) if np.isfinite(b) else 1e9
+                       for a, b in ht["bands"]]))
+    be = ht["b_edges"]
+    s = (be >= -0.02) & (be <= 1.6)
+    G = {"step": PL.PassRegion(ht, cuts=cuts).grid(k)}
+    if resol is not None:
+        G["resolution"] = PL.PassRegion(ht, cuts=cuts, h4=h4,
+                                        resol=resol).grid(k)
+        G["resolution $-$ step"] = G["resolution"] - G["step"]
+    fig, axs = plt.subplots(1, len(G), figsize=(6.5 * len(G), 5.6))
+    for ax, (lab, g) in zip(np.atleast_1d(axs), G.items()):
+        d = lab.startswith("resolution $-$")
+        v = float(np.max(np.abs(g[np.ix_(s, s)]))) if d else None
+        im = ax.pcolormesh(be[s], be[s], g[np.ix_(s, s)],
+                           cmap="RdBu_r" if d else "viridis",
+                           vmin=-v if d else None, vmax=v if d else None,
+                           shading="nearest")
+        fig.colorbar(im, ax=ax).set_label(
+            r"$\Delta G$" if d else r"$G(u_+, u_-)$")
+        for x in PL.cut_shifts(cuts if np.size(cuts) > 1 else (cuts, cuts),
+                               ht["pt_ref"]):
+            ax.axvline(x, color="k" if d else "w", lw=0.8, ls=":")
+            ax.axhline(x, color="k" if d else "w", lw=0.8, ls=":")
+        ax.set_xlabel(r"$u_+$")
+        ax.set_ylabel(r"$u_-$")
+        ax.set_title(f"{lab}, {cutlabel(cuts)}, "
+                     + rf"$m_{{\rm pre}} \approx {band:.0f}$ GeV",
+                     fontsize=12, loc="left")
+    pubhtml.savefig(fig, os.path.join(out, f"{name}.pdf"))
+    plt.close(fig)
+
+
+def fig_passprob(out, resol, cuts, name="21_passprob"):
+    """The per-leg pass probability: a step against the smeared threshold.
+
+    In the leg's own variable ``v = ln(pT/c)`` both thresholds sit at the same
+    place, so the two cuts and the four ``eta`` bands are one family of curves
+    and the only thing that separates them is the width.
+    """
+    c = np.atleast_1d(np.asarray(cuts, float))
+    c = [float(np.max(c)), float(np.min(c))]
+    fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(9.5, 7.6))
+    v = np.linspace(-0.22, 0.22, 881)
+    for i, cut in enumerate(dict.fromkeys(c)):
+        for a in range(len(resol.eta_edges) - 1):
+            p = resol.pass_prob(v, cut, a)
+            ax.plot(v, p, lw=1.5, ls=["-", "--"][i], color=f"C{a}",
+                    label=rf"$c = {cut:.0f}$ GeV, "
+                          rf"$|\eta| < {resol.eta_edges[a+1]:.1f}$")
+            rax.plot(v, p - (v > 0), lw=1.5, ls=["-", "--"][i], color=f"C{a}")
+    ax.axvline(0.0, color="grey", lw=0.8)
+    rax.axvline(0.0, color="grey", lw=0.8)
+    ax.set_ylabel(r"$P(p_T^{\rm reco} > c)$")
+    rax.set_ylabel("smeared $-$ step")
+    rax.set_xlabel(r"$v = \ln(p_T^{\rm true} / c)$")
+    rax.axhline(0.0, color="grey", lw=0.8)
+    ax.legend(fontsize=10, frameon=False, ncol=2, loc="upper left")
+    ax.set_ylim(-0.03, 1.25)
+    ax.set_title("per-leg pass probability, " + cutlabel(cuts),
+                 fontsize=14, loc="left")
+    pubhtml.savefig(fig, os.path.join(out, f"{name}.pdf"))
+    plt.close(fig)
+
+
+def fig_fitshifts(out, specs, name="22_fitshifts"):
+    """The fit rows of every suite, as offsets from the generator's own values.
+
+    One panel per parameter; one group of points per suite, so the same-run
+    differences inside a suite are read off vertically and the four selections
+    are not silently compared across suites.
+    """
+    rows = []
+    for spec in specs:
+        lab, _, path = spec.partition("=")
+        if not os.path.exists(path):
+            logger.warning(f"missing {path}")
+            continue
+        with open(path) as fh:
+            rows.append((lab, json.load(fh)))
+    if not rows:
+        return
+    fig, axs = plt.subplots(1, 2, figsize=(14.0, 0.42 * sum(
+        len(r[1]) for r in rows) + 2.6), sharey=True)
+    ticks, labels, y = [], [], 0.0
+    for j, (suite, d) in enumerate(rows):
+        for tag, v in d.items():
+            for ax, p in zip(axs, ("m_Z", "Gamma_Z")):
+                if p not in v:
+                    continue
+                ax.errorbar([v[p][0]], [y], xerr=[v[p][1]], fmt="o", ms=5,
+                            color=f"C{j}", elinewidth=1.2)
+            ticks.append(y)
+            labels.append(f"{suite}: {tag}")
+            y -= 1.0
+        y -= 0.6
+    for ax, p, lab in zip(axs, ("m_Z", "Gamma_Z"),
+                          (r"$\Delta m_Z$ [MeV]", r"$\Delta\Gamma_Z$ [MeV]")):
+        ax.axvline(0.0, color="grey", lw=0.9)
+        ax.set_xlabel(lab)
+        ax.grid(axis="x", alpha=0.25)
+    axs[0].set_yticks(ticks)
+    axs[0].set_yticklabels(labels, fontsize=9)
+    axs[0].set_ylim(y + 0.4, 1.0)
+    axs[0].set_title("gen-level closure of the selection-conditional kernel",
+                     fontsize=13, loc="left")
+    pubhtml.savefig(fig, os.path.join(out, f"{name}.pdf"))
+    plt.close(fig)
+
+
 def table(out, g, gen, path, pt_cut=25.0, eta_cut=2.4):
     w = g["weight"]
     m = g["m_pre"].astype(np.float64)
@@ -971,7 +1111,21 @@ def main():
     ap.add_argument("--kernel", action="append", default=[],
                     help="label=path.npz (repeatable)")
     ap.add_argument("--pt-cut", type=float, default=25.0)
+    ap.add_argument("--pt-cuts", nargs="*", type=float, default=None,
+                    help="leading and trailing pT thresholds [GeV]")
     ap.add_argument("--eta-cut", type=float, default=2.4)
+    ap.add_argument("--h4", default=None)
+    ap.add_argument("--resol", default=None,
+                    help="a `ptres.py` npz: the cuts act on the smeared pT")
+    ap.add_argument("--resol-mode", default="shape", choices=("shape", "gauss"))
+    ap.add_argument("--fit", action="append", default=[],
+                    help="label=fit_selection_X.json (repeatable): the fit "
+                         "shift summary panel")
+    ap.add_argument("--suffix", default="",
+                    help="appended to every file name of --selection-only, so "
+                         "two selections can share a figure directory")
+    ap.add_argument("--selection-only", action="store_true",
+                    help="only the panels that depend on the selection")
     ap.add_argument("--outpath", default=None)
     ap.add_argument("--tag", default="fsr_perleg")
     ap.add_argument("--no-table", action="store_true",
@@ -989,6 +1143,29 @@ def main():
     for i, spec in enumerate(args.kernel):
         lab, _, path = spec.partition("=")
         kernels.append((path, lab, *style[i % len(style)]))
+
+    cuts = args.pt_cuts if args.pt_cuts else [args.pt_cut]
+    resol = FG.load_resolution(args.resol, args.resol_mode)
+    h4 = PL.load_h4table(args.h4) if args.h4 else None
+    if args.selection_only:
+        sfx = args.suffix
+        if args.fit:
+            fig_fitshifts(out, args.fit)
+        if resol is not None:
+            fig_passprob(out, resol, cuts, name=f"21_passprob{sfx}")
+        fig_passregion(out, args.htable, cuts, args.eta_cut, h4, resol,
+                       name=f"20_passregion{sfx}")
+        if kernels:
+            fig_ksel(out, args.gen, kernels, PEAK, cuts, args.eta_cut, resol,
+                     sfx)
+            mb, A, umc, neff, _ = fig_acceptance(out, args.gen, kernels, cuts,
+                                                 args.eta_cut, resol, sfx)
+            fig_meanu(out, args.gen, kernels, mb, umc, neff, cuts,
+                      args.eta_cut, resol, sfx)
+            band_table(out, args.gen, kernels,
+                       os.path.join(out, f"00_bands{sfx}.txt"), cuts,
+                       args.eta_cut, resol)
+        return
 
     g = load_perleg(args.perleg)
     logger.info(f"{len(g['m_pre'])} per-leg events")
@@ -1009,13 +1186,12 @@ def main():
         fig_leg_D_mc(out, g, args.run)
         fig_dconvd_mc(out, args.run)
     if kernels:
-        fig_ksel(out, args.gen, kernels, PEAK, args.pt_cut, args.eta_cut)
+        fig_ksel(out, args.gen, kernels, PEAK, cuts, args.eta_cut)
         mb, A, umc, neff, _ = fig_acceptance(out, args.gen, kernels,
-                                             args.pt_cut, args.eta_cut)
-        fig_meanu(out, args.gen, kernels, mb, umc, neff, args.pt_cut,
-                  args.eta_cut)
+                                             cuts, args.eta_cut)
+        fig_meanu(out, args.gen, kernels, mb, umc, neff, cuts, args.eta_cut)
         band_table(out, args.gen, kernels, os.path.join(out, "00_bands.txt"),
-                   args.pt_cut, args.eta_cut)
+                   cuts, args.eta_cut)
     if os.path.exists(args.htable):
         fig_htable(out, args.htable)
 
