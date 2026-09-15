@@ -261,6 +261,10 @@ def mc_profile(gen, pt_cut, eta_cut, edges):
     sel = ((d["pt1"] > pt_cut) & (d["pt2"] > pt_cut)
            & (np.abs(d["eta1"]) < eta_cut) & (np.abs(d["eta2"]) < eta_cut))
     u = -np.log(np.maximum(d["m_post"].astype(np.float64) / m, 1e-300))
+    # the first and the last band mean what they say: events outside the grid
+    # are dropped, not folded into the edge bins
+    keep = (m >= edges[0]) & (m < edges[-1])
+    w, m, sel, u = w[keep], m[keep], sel[keep], u[keep]
     i = np.clip(np.searchsorted(edges, m, "right") - 1, 0, len(edges) - 2)
     n = len(edges) - 1
     tot = np.bincount(i, w, n)
@@ -270,6 +274,130 @@ def mc_profile(gen, pt_cut, eta_cut, edges):
     with np.errstate(invalid="ignore", divide="ignore"):
         return mb, npass / tot, su / npass, np.bincount(i, w * sel, n) ** 2 / \
             np.maximum(np.bincount(i, (w * sel) ** 2, n), 1e-30)
+
+
+# --------------------------------------------------------------------------
+def mc_leg(run, band, du=PL.KSQRT_DU, u_max=PL.KSQRT_UMAX):
+    """``(u, w, D, du, m_bar, info)`` of the run band covering ``band``."""
+    rows = PL._run_bands(run)
+    mid = 0.5 * (band[0] + band[1])
+    k = int(np.argmin([abs(0.5 * (r[0] + r[1]) - mid) for r in rows]))
+    lo, hi, mb, s0, s1, t0, t1, wn = rows[k]
+    u, w = PL.kernel_atoms(s0, s1, wn, t0, t1)
+    g = PL.deposit(u, w, du, int(round(u_max / du)))
+    D, info = PL.conv_sqrt(g)
+    info.update(lo=lo, hi=hi, m_bar=mb)
+    return u, w, D, du, mb, info
+
+
+def fig_leg_D_mc(out, g, run, band=PEAK, nbin=48):
+    """The effective leg: the numerical square root of ``K_mc`` against ``D``.
+
+    ``D`` is *defined* by ``D (x) D = K``.  For the analytic kernel it is the
+    closed form of `LegRadiator`; for the tabulated Photos kernel it is the
+    numerical convolution square root.  The physical per-leg spectrum -- the
+    sample's own ``x = E'/E`` -- is a third, different object.
+    """
+    ua, wa, D, du, mb, info = mc_leg(run, band)
+    # `D` lives on a uniform grid of step 2 du in u_leg; snap the log bin edges
+    # to it so every bin holds a whole number of nodes and the density carries
+    # no aliasing against the grid
+    e = np.unique(np.round(np.geomspace(20.0 * du, 2.0, nbin + 1)
+                           / (2.0 * du)) * (2.0 * du))
+    nbin = len(e) - 1
+    c = np.sqrt(e[1:] * e[:-1])
+    bw = np.diff(e)
+    uleg = np.arange(len(D)) * (2.0 * du)
+    i = np.clip(np.searchsorted(e, uleg, "right") - 1, 0, nbin - 1)
+    ok = (uleg >= e[0]) & (uleg < e[-1])
+    dmc = np.bincount(i[ok], D[ok], nbin) / bw
+
+    Dan = PL.LegRadiator(mb, variant=DVAR, pair=DPAIR)
+    dan = ratiopanel.bin_average(Dan.pdf_u(e[:-1]), Dan.pdf_u(c),
+                                 Dan.pdf_u(e[1:]))
+
+    w = g["weight"]
+    m = g["m_pre"].astype(np.float64)
+    s = (m >= band[0]) & (m < band[1])
+    up = np.concatenate([-np.log(np.maximum(g["xp"][s], 1e-300)),
+                         -np.log(np.maximum(g["xm"][s], 1e-300))])
+    ww = np.concatenate([w[s], w[s]])
+    j = np.clip(np.searchsorted(e, up, "right") - 1, 0, nbin - 1)
+    okp = (up >= e[0]) & (up < e[-1])
+    dphys = np.bincount(j[okp], ww[okp], nbin) / (ww.sum() * bw)
+
+    fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(9.5, 7.6))
+    ax.plot(c, dan, color="C0", lw=2.0, label=r"analytic $D$ (data cfg)")
+    ax.plot(c, dmc, color="C3", ls="--", lw=1.8,
+            label=r"$D_{\rm mc}$: numerical $\sqrt{K_{\rm mc}}$")
+    ax.plot(c, dphys, color="grey", ls=":", lw=1.8,
+            label="physical per-leg spectrum (MC)")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_ylabel(r"$(1/N)\,\mathrm{d}N/\mathrm{d}u_{\rm leg}$")
+    ax.legend(fontsize=13, frameon=False, loc="lower left")
+    ax.set_title(rf"the effective leg, $m_{{pre}}\in[{band[0]:.0f},"
+                 rf"{band[1]:.0f})$ GeV", fontsize=13, loc="left")
+    rax.plot(c, dmc / dan, color="C3", ls="--", lw=1.8)
+    rax.plot(c, dphys / dan, color="grey", ls=":", lw=1.8)
+    rax.axhline(1.0, color="grey", lw=0.8)
+    rax.set_xscale("log")
+    rax.set_ylim(0.7, 1.6)
+    rax.set_xlabel(r"$u_{\rm leg}$")
+    rax.set_ylabel(r"/ analytic $D$")
+    pubhtml.savefig(fig, os.path.join(out, "10_leg_D_mc.pdf"))
+    plt.close(fig)
+
+
+def fig_dconvd_mc(out, run, band=PEAK, n_leg=6000):
+    """``D_mc (x) D_mc`` against the tabulated ``K_mc`` it is the root of."""
+    ua, wa, D, du, mb, info = mc_leg(run, band)
+    n = len(D)
+    DD = np.fft.irfft(np.fft.rfft(D) ** 2, n)
+    ug = np.arange(n) * du
+    # cuts half-way between nodes: on the grid the kernel is a point measure,
+    # so a cut sitting on a node is ambiguous at the level of that node's weight
+    t = (np.round(np.geomspace(1e-4, 1.5, 50) / du) + 0.5) * du
+    o = np.argsort(ua)
+    ck = np.concatenate([np.cumsum(wa[o][::-1])[::-1], [0.0]])
+    pk = np.array([ck[np.searchsorted(ua[o], x, "right")] for x in t])
+    cd = np.concatenate([np.cumsum(DD[::-1])[::-1], [0.0]])
+    pd = np.array([cd[np.searchsorted(ug, x, "right")] for x in t])
+
+    K = FA.FSRKernel(mb, variant=DVAR, pair=DPAIR)
+    Da = PL.LegRadiator(mb, variant=DVAR, pair=DPAIR)
+    ue = np.concatenate([[0.0], np.geomspace(1e-9, 7.0, 6000)])
+    e = PL.leg_u_edges(Da, n=n_leg)
+    u, w = PL.leg_atoms(PL.leg_cells(Da, e), e)
+    s = PL.conv_atoms(u, w / w.sum(), ue)
+    um = np.where(s[0] > 0, s[1] / np.maximum(s[0], 1e-300), 0.0)
+    pda = np.array([s[0][um > x].sum() / s[0].sum() for x in t])
+    kc = PL.leg_cells(K, PL.leg_u_edges(K, n=n_leg))
+    ku = np.where(kc[0] > 0, kc[1] / np.maximum(kc[0], 1e-300), 0.0)
+    pka = np.array([kc[0][ku > x].sum() / kc[0].sum() for x in t])
+
+    fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(9.5, 7.6))
+    ax.plot(t, pk, color="black", lw=2.0, label=r"$K_{\rm mc}$ (Photos)")
+    ax.plot(t, pd, color="C3", ls="--", lw=1.8,
+            label=r"$D_{\rm mc}\otimes D_{\rm mc}$")
+    ax.plot(t, pda, color="C0", ls=":", lw=1.8,
+            label=r"analytic $D\otimes D$ / its own $K$")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_ylabel(r"$P(u > u_0)$")
+    ax.legend(fontsize=13, frameon=False, loc="lower left")
+    ax.set_title(rf"$\langle m_{{pre}}\rangle = {mb:.2f}$ GeV; the numerical "
+                 r"root is exact, the analytic one to O($\alpha^3$)",
+                 fontsize=13, loc="left")
+    rax.plot(t, pd / pk, color="C3", ls="--", lw=1.8)
+    rax.plot(t, pda / pka, color="C0", ls=":", lw=1.8)
+    rax.axhline(1.0, color="grey", lw=0.8)
+    rax.set_xscale("log")
+    rax.set_ylim(0.99, 1.01)
+    rax.set_xlabel(r"$u_0$")
+    rax.set_ylabel(r"$D\otimes D$ / $K$")
+    pubhtml.savefig(fig, os.path.join(out, "11_dconvd_mc.pdf"))
+    plt.close(fig)
 
 
 def fig_acceptance(out, gen, kernels, pt_cut, eta_cut):
@@ -325,6 +453,50 @@ def fig_meanu(out, gen, kernels, mb, umc, neff, pt_cut, eta_cut):
     rax.set_ylabel("model / MC")
     pubhtml.savefig(fig, os.path.join(out, "08_mean_u.pdf"))
     plt.close(fig)
+
+
+def band_table(out, gen, kernels, path, pt_cut=25.0, eta_cut=2.4,
+               edges=(60, 70, 80, 86, 90, 92, 96, 105, 120, 140)):
+    """``A(m)`` and the selected ``<u|m>`` of every model against the MC's own."""
+    e = np.asarray(edges, float)
+    mb, A, umc, neff = mc_profile(gen, pt_cut, eta_cut, e)
+    err = umc / np.sqrt(np.maximum(neff, 1.0))
+    labs, got = [], []
+    for p_, lab, _c, _ls in kernels:
+        u = kernel_u_of(p_)
+        if u is not None:
+            labs.append(lab)
+            got.append(u)
+    L = ["the selection-conditional model against the MC, band by band",
+         f"  pT > {pt_cut:.0f}, |eta| < {eta_cut};  model / MC of A(m) and of "
+         f"the selected <u>\n"]
+    for k, lab in enumerate(labs):
+        L.append(f"  [{k}] {lab}")
+    L.append("")
+    L.append(f"  {'band':>10s} {'<m>':>7s} {'A (MC)':>9s} {'<u> (MC)':>11s}"
+             f" {'d<u>/<u>':>9s}"
+             + "".join(f" {'A [' + str(k) + ']':>9s} {'<u> [' + str(k) + ']':>9s}"
+                       for k in range(len(labs))))
+    for k in range(len(e) - 1):
+        if not np.isfinite(A[k]) or mb[k] <= 0:
+            continue
+        L.append(f"  {e[k]:4.0f}-{e[k+1]:<5.0f} {mb[k]:7.2f} {A[k]:9.5f}"
+                 f" {umc[k]*1e3:9.4f}e-3 {err[k]/umc[k]:9.2e}"
+                 + "".join(f" {np.interp(mb[k], g[0], g[2]) / A[k]:9.4f}"
+                           f" {np.interp(mb[k], g[0], g[1]) / umc[k]:9.4f}"
+                           for g in got))
+    tot = np.isfinite(A) & (mb > 0)
+    wgt = np.nan_to_num(A[tot])
+    L.append("")
+    L.append(f"  {'A-weighted':>10s} {'':7s} {'':9s} {'':11s} {'':9s}"
+             + "".join(
+                 f" {np.average(np.interp(mb[tot], g[0], g[2]) / A[tot], weights=wgt):9.4f}"
+                 f" {np.average(np.interp(mb[tot], g[0], g[1]) / umc[tot], weights=wgt):9.4f}"
+                 for g in got))
+    txt = "\n".join(L) + "\n"
+    with open(path, "w") as fh:
+        fh.write(txt)
+    print(txt)
 
 
 def fig_ksel(out, gen, kernels, band=PEAK, pt_cut=25.0, eta_cut=2.4):
@@ -519,6 +691,8 @@ def main():
     ap.add_argument("--perleg", default="data/perleg_full.npz")
     ap.add_argument("--gen", default="data/genmerged_full.npz")
     ap.add_argument("--htable", default="data/ht_pt25_1.0gev.npz")
+    ap.add_argument("--run", default="data/photos/gen_mcMix.npz",
+                    help="standalone Photos run for the numerical leg D")
     ap.add_argument("--kernel", action="append", default=[],
                     help="label=path.npz (repeatable)")
     ap.add_argument("--pt-cut", type=float, default=25.0)
@@ -551,12 +725,17 @@ def main():
     fig_leg_corr(out, g)
     fig_z_vs_xx(out, g)
     fig_dconvd(out)
+    if os.path.exists(args.run):
+        fig_leg_D_mc(out, g, args.run)
+        fig_dconvd_mc(out, args.run)
     if kernels:
         fig_ksel(out, args.gen, kernels, PEAK, args.pt_cut, args.eta_cut)
         mb, A, umc, neff, _ = fig_acceptance(out, args.gen, kernels,
                                              args.pt_cut, args.eta_cut)
         fig_meanu(out, args.gen, kernels, mb, umc, neff, args.pt_cut,
                   args.eta_cut)
+        band_table(out, args.gen, kernels, os.path.join(out, "00_bands.txt"),
+                   args.pt_cut, args.eta_cut)
     if os.path.exists(args.htable):
         fig_htable(out, args.htable)
 

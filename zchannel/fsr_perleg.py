@@ -72,6 +72,15 @@ their angular coefficients, and the PDFs all sit inside it and nothing else
 does.  It is the 2-D reverse cumulative of the table ``h(a_+, a_- | m)``, which
 `htable` measures from a generator record and which SCETLib + DYTurbo can
 supply instead without touching any of the QED above.
+
+**The effective leg of a tabulated kernel.**  ``D`` is *defined* by
+``D (x) D = K``, so a kernel that is a table rather than a closed form -- the
+``mc`` configuration of `fsr_config`, i.e. standalone Photos -- has a per-leg
+radiator too, the numerical convolution square root (`legsqrt`, `conv_sqrt`).
+Feeding it to `kernel --mc-leg` gives a per-leg model whose QED is exactly the
+MC's, which is what separates the collinear factorisation from the kernel
+physics.  `condker` completes the separation by reading the MC's *own*
+conditional kernel in the model's mass and selection variables.
 """
 
 import argparse
@@ -340,6 +349,160 @@ def conv_atoms(u, w, u_out_edges):
 
 
 # --------------------------------------------------------------------------
+# the numerical convolution square root: `D` from a *tabulated* kernel
+# --------------------------------------------------------------------------
+#: grid spacing of the square root, in the pair variable ``u``.  It is the
+#: standalone Photos histograms' own resolution (`photos_gen.cc`'s ``U_FINE``):
+#: one node per filled histogram bin, so the kernel is a gap-free positive
+#: vector.  On a finer grid the tabulated kernel is a *comb* -- isolated atoms
+#: with empty nodes between them -- and a comb is not infinitely divisible, so
+#: its square root rings at the lattice scale (see `legsqrt --check-band`).
+KSQRT_DU = 2e-5
+#: the grid's extent in ``u``; the standalone's support ends at ``u`` ~ 6.
+KSQRT_UMAX = 8.0
+
+
+def kernel_atoms(s0, s1, w_norad, tail0=None, tail1=None):
+    """``(u, w)`` of a tabulated kernel: one atom per filled bin, exact mean.
+
+    ``w_norad`` is the weight of the events the generator left untouched; they
+    are a genuine ``delta(u)``, and the first bin's *continuum* is what is left
+    of it, at its own conditional mean (the untouched events contribute zero to
+    ``s1``, so no modelling is involved).
+    """
+    w = np.asarray(s0, float).copy()
+    s1 = np.asarray(s1, float)
+    w[0] -= float(w_norad)
+    u = np.zeros_like(w)
+    ok = w > 0.0
+    u[ok] = s1[ok] / w[ok]
+    uu, ww = [np.zeros(1)], [np.array([float(w_norad)])]
+    uu.append(u[ok])
+    ww.append(w[ok])
+    if tail0 is not None:
+        t0 = np.asarray(tail0, float)
+        t1 = np.asarray(tail1, float)
+        ok = t0 > 0.0
+        uu.append(t1[ok] / t0[ok])
+        ww.append(t0[ok])
+    u = np.concatenate(uu)
+    w = np.concatenate(ww)
+    return u, w / w.sum()
+
+
+def deposit(u, w, du, n):
+    """Atoms onto a uniform grid, **mass and mean preserved exactly**.
+
+    Each atom is split linearly between its two neighbouring nodes.  The sum of
+    two nodes is again a node, so the convolution of two deposited measures is
+    the exact convolution of the node measures -- no positioning error enters
+    the square root.
+    """
+    p = np.asarray(u, float) / du
+    i = np.floor(p).astype(np.int64)
+    t = p - i
+    if i.min() < 0 or i.max() + 1 >= n:
+        raise ValueError(f"atoms outside the grid: u_max = {np.max(u):.4g}")
+    w = np.asarray(w, float)
+    return (np.bincount(i, w * (1.0 - t), n)
+            + np.bincount(i + 1, w * t, n)[:n])
+
+
+def _fft_len(n):
+    m = 1
+    while m < n:
+        m <<= 1
+    return m
+
+
+def conv_sqrt(g, method="spectral", tol=1e-15, maxit=200):
+    """``D`` with ``D (x) D = g``, on the grid ``g`` lives on.
+
+    ``g`` is a kernel with a ``delta`` at the origin (``g[0] > 0``), so the
+    square root exists and is unique as a *signed* measure: with
+    ``g = g0 e0 + g_c`` and ``D = d0 e0 + D_c``, ``D_c`` is supported on nodes
+    ``>= 1`` and ``D_c (x) D_c`` on nodes ``>= 2``, so ``d0 = sqrt(g0)`` and
+
+        D_c = (g_c - D_c (x) D_c) / (2 sqrt(g0))
+
+    is a contraction with factor ``||D_c||/sqrt(g0)``.  ``spectral`` solves the
+    same equation pointwise in Fourier space, where it is the scalar quadratic
+    ``d^2 + 2 sqrt(g0) d - g_c = 0`` and the contracting root is
+    ``d = -sqrt(g0) + sqrt(g_hat)``: the two are the same object, and the
+    branch of the square root is the one the iteration selects.
+    """
+    n = _fft_len(2 * len(g))
+    G = np.zeros(n)
+    G[:len(g)] = g
+    if method == "spectral":
+        Gh = np.fft.rfft(G)
+        D = np.fft.irfft(np.sqrt(Gh), n)
+        info = dict(method="spectral", k_abs_min=float(np.abs(Gh).min()),
+                    k_arg_max=float(np.abs(np.angle(Gh)).max()))
+    elif method == "fixedpoint":
+        s = math.sqrt(G[0])
+        Kc = G.copy()
+        Kc[0] -= G[0]
+        Dc = Kc / (2.0 * s)
+        for it in range(1, maxit + 1):
+            new = (Kc - np.fft.irfft(np.fft.rfft(Dc) ** 2, n)) / (2.0 * s)
+            step = float(np.abs(new - Dc).max())
+            Dc = new
+            if step < tol:
+                break
+        info = dict(method="fixedpoint", iterations=it, last_step=step,
+                    contraction=float(np.abs(Dc).sum() / s))
+        D = Dc
+        D[0] += s
+    else:
+        raise ValueError(method)
+    info["roundtrip"] = float(
+        np.abs(np.fft.irfft(np.fft.rfft(D) ** 2, n) - G).max())
+    info["neg_mass"] = float(D[D < 0.0].sum())
+    info["d0"] = float(D[0])
+    return D, info
+
+
+def merge_positive(cells):
+    """Merge neighbouring cells forward until every weight is positive.
+
+    The square root is a *signed* measure on the grid: wherever the tabulated
+    kernel is a comb rather than a dense histogram -- which above ``u`` = 2 it
+    is, the standalone's tail block being binned at 0.05 against a 2e-5 grid --
+    it rings at the lattice scale.  Merging is exact in the mass and in the
+    first two moments, so it changes no integral of the leg against a function
+    that is smooth on the merged cell; it only says where the leg is resolved.
+    """
+    w, m1, m2 = np.asarray(cells, float)
+    out = []
+    a = np.zeros(3)
+    for k in range(len(w)):
+        a += (w[k], m1[k], m2[k])
+        if a[0] > 0.0 and a[1] >= 0.0:
+            out.append(a.copy())
+            a[:] = 0.0
+    if a.any() and out:
+        out[-1] += a
+    while len(out) > 1 and (out[-1][0] <= 0.0 or out[-1][1] < 0.0):
+        out[-2] += out.pop()
+    return np.stack(out, axis=1) if out else np.zeros((3, 0))
+
+
+def leg_cells_from_grid(D, du, u_edges, positive=True):
+    """``(w, int u, int u^2)`` per cell of ``u_edges`` in the **leg** variable.
+
+    ``D`` is a measure in the leg's contribution to the pair variable,
+    ``v = u_leg/2``, so the ladder in ``u_leg = 2 v`` is read at ``2 du``.
+    """
+    n = len(u_edges) - 1
+    u = np.arange(len(D)) * (2.0 * du)
+    i = np.clip(np.searchsorted(u_edges, u, "right") - 1, 0, n - 1)
+    c = np.stack([np.bincount(i, D, n), np.bincount(i, D * u, n),
+                  np.bincount(i, D * u * u, n)])
+    return merge_positive(c) if positive else c
+
+
+# --------------------------------------------------------------------------
 # h(a_+, a_- | m): the boson-kinematics table
 # --------------------------------------------------------------------------
 #: default edges of the threshold-ratio grid, in ``b = -ln a = ln(pT/pT_cut)``:
@@ -571,6 +734,143 @@ def build_selected_kernel(ht, variant="exp2nll", pair=(), minus_one=True,
             dict(kind="grid", m=macc, a=aacc), info)
 
 
+def _run_bands(run):
+    """``(lo, hi, m_bar, s0, s1, tail0, tail1, w_norad)`` per band of a run."""
+    d = np.load(run, allow_pickle=True)
+    key = "n_noemit" if "n_noemit" in d.files else "n_nophot"
+    # the run file is compressed: pull each block out once, not once per band
+    n = np.asarray(d["n"], float)
+    lo, hi, mp = d["bands_lo"], d["bands_hi"], d["mpre_s1"]
+    f0, f1 = d["fine_s0"], d["fine_s1"]
+    t0, t1 = d["tail_s0"], d["tail_s1"]
+    wn = d[key]
+    out = []
+    for k in range(len(lo)):
+        nk = n[k] if n[k] > 0 else 1.0
+        out.append((float(lo[k]), float(hi[k]), float(mp[k] / nk),
+                    f0[k] / nk, f1[k] / nk, t0[k] / nk, t1[k] / nk,
+                    float(wn[k] / nk)))
+    return out
+
+
+def leg_from_run(run, du=KSQRT_DU, u_max=KSQRT_UMAX, n_leg=3000,
+                 method="spectral", verbose=True):
+    """The numerical convolution square root of a tabulated kernel, per band.
+
+    Returns ``(u_edges, cells, meta)`` with ``cells[k]`` the leg's
+    ``(w, int u, int u^2)`` on ``u_edges`` in the leg variable ``u_leg``.
+    """
+    rows = _run_bands(run)
+    n_grid = int(round(u_max / du))
+    ue = np.concatenate([[0.0], np.geomspace(2.0 * du, 2.0 * u_max, n_leg)])
+    cells = np.zeros((len(rows), 3, len(ue) - 1))
+    info = []
+    t0 = time.time()
+    for k, (lo, hi, mb, s0, s1, t0_, t1_, wn) in enumerate(rows):
+        u, w = kernel_atoms(s0, s1, wn, t0_, t1_)
+        g = deposit(u, w, du, n_grid)
+        D, dg = conv_sqrt(g, method=method)
+        raw = leg_cells_from_grid(D[:2 * n_grid], du, ue, positive=False)
+        c = merge_positive(raw)
+        if (c[0] <= 0.0).any() or (c[1] < 0.0).any():
+            raise RuntimeError(f"band {k}: leg cells are not a positive measure")
+        cells[k, :, :c.shape[1]] = c
+        info.append(dict(lo=lo, hi=hi, m_bar=mb, u_max=float(u.max()),
+                         mean_u_K=float((u * w).sum()),
+                         mean_u_leg=float(c[1].sum() / c[0].sum()),
+                         cells=int(c.shape[1]),
+                         neg_cells=int((raw[0] < 0.0).sum()),
+                         neg_cell_mass=float(raw[0][raw[0] < 0.0].sum()), **dg))
+        if verbose and (k % 8 == 0 or k == len(rows) - 1):
+            b = info[-1]
+            print(f"    band {k:3d} [{lo:6.1f}, {hi:7.1f})  d0 = {dg['d0']:.6f}"
+                  f"  neg = {dg['neg_mass']:+.2e}  cells = {b['cells']}"
+                  f"  merged = {b['neg_cells']}"
+                  f"  <u>_leg/<u>_K - 1 = "
+                  f"{b['mean_u_leg'] / b['mean_u_K'] - 1:+.2e}")
+    if verbose:
+        print(f"[legsqrt] {len(rows)} bands, {time.time() - t0:.0f} s")
+    return ue, cells, info
+
+
+def _legsqrt_cmd(args):
+    if args.check_band is not None:
+        return _legsqrt_check(args)
+    ue, cells, info = leg_from_run(args.run, du=args.du, u_max=args.u_max,
+                                   n_leg=args.n_leg, method=args.method)
+    meta = dict(kind="legsqrt", run=os.path.abspath(args.run), du=args.du,
+                u_max=args.u_max, n_leg=args.n_leg, method=args.method,
+                bands=info)
+    np.savez_compressed(args.output, u_edges=ue, cells=cells,
+                        bands=np.array([[b["lo"], b["hi"]] for b in info]),
+                        m_bar=np.array([b["m_bar"] for b in info]),
+                        provenance=np.array([json.dumps(meta)]))
+    print(f"[legsqrt] -> {args.output}")
+
+
+def _surv(u, w, cuts):
+    """``P(u > t)`` of a discrete measure."""
+    o = np.argsort(u, kind="stable")
+    u, w = np.asarray(u)[o], np.asarray(w)[o]
+    c = np.concatenate([np.cumsum(w[::-1])[::-1], [0.0]])
+    return np.array([c[np.searchsorted(u, t, "right")] for t in cuts])
+
+
+def _w1(u1, w1, u2, w2):
+    """The 1-D Wasserstein-1 distance ``int |F_1 - F_2| du`` of two measures.
+
+    Cut-position free, and the natural size of the grid representation: it is
+    the mean distance the deposition moves the kernel's mass in ``u``.
+    """
+    x = np.unique(np.concatenate([np.asarray(u1, float), np.asarray(u2, float)]))
+    def cdf(u, w):
+        o = np.argsort(u, kind="stable")
+        return np.cumsum(np.asarray(w)[o])[
+            np.clip(np.searchsorted(np.asarray(u)[o], x, "right") - 1, 0, None)
+        ] * (np.searchsorted(np.sort(u), x, "right") > 0)
+    return float(np.sum(np.abs(cdf(u1, w1) - cdf(u2, w2))[:-1] * np.diff(x)))
+
+
+def _legsqrt_check(args):
+    """``D (x) D`` against the tabulated kernel: grid scan and fixed point."""
+    rows = _run_bands(args.run)
+    k = args.check_band
+    lo, hi, mb, s0, s1, t0_, t1_, wn = rows[k]
+    u, w = kernel_atoms(s0, s1, wn, t0_, t1_)
+    cuts = np.array([1.3e-4, 1.1e-3, 1.07e-2, 5.3e-2, 0.21, 0.53])
+    pk, uk = _surv(u, w, cuts), float((u * w).sum())
+    print(f"band {k} [{lo:.0f}, {hi:.0f}), <m_pre> = {mb:.3f} GeV, "
+          f"P(no emission) = {wn:.6f}, support to u = {u.max():.3f}\n")
+    print(f"K (atoms):  <u> = {uk:.8e}")
+    print("     t     " + " ".join(f"{v:8.2e}" for v in cuts))
+    print("  P(u>t)   " + " ".join(f"{v:8.6f}" for v in pk))
+    print(f"\n{'du':>9s} {'|K^|min':>9s} {'max|arg|':>9s} {'D[0]':>10s}"
+          f" {'neg mass':>10s} {'roundtrip':>10s} {'d<u>/<u>':>10s} {'W1':>9s}"
+          f"   P(grid)/P(atoms) - 1")
+    for du in args.du_scan:
+        ng = int(round(args.u_max / du))
+        g = deposit(u, w, du, ng)
+        D, dg = conv_sqrt(g, method="spectral")
+        ug = np.arange(len(g)) * du
+        pg = _surv(ug, g, cuts)
+        print(f"{du:9.1e} {dg['k_abs_min']:9.4f} {dg['k_arg_max']:9.3f}"
+              f" {dg['d0']:10.6f} {dg['neg_mass']:+10.2e} {dg['roundtrip']:10.1e}"
+              f" {(ug * g).sum() / uk - 1:+10.1e} {_w1(ug, g, u, w):9.2e}  "
+              + " ".join(f"{a / b - 1:+8.1e}" for a, b in zip(pg, pk)))
+        if abs(du - args.du) < 1e-12:
+            e = np.concatenate([[0.0], np.geomspace(du, 2.0 * u.max(), 300)])
+            i = np.clip(np.searchsorted(e, np.arange(len(D)) * du, "right") - 1,
+                        0, len(e) - 2)
+            b = np.bincount(i, D, len(e) - 1)
+            print(f"{'':9s} log-binned D: {int((b < 0).sum())} negative cells "
+                  f"of {int((b != 0).sum())}, most negative {b.min():+.2e}")
+            Df, fi = conv_sqrt(g, method="fixedpoint")
+            print(f"{'':9s} fixed point:  {fi['iterations']} iterations, "
+                  f"contraction {fi['contraction']:.3f}, last step "
+                  f"{fi['last_step']:.1e}, max|D_fp - D_sqrt| = "
+                  f"{np.abs(Df - D).max():.1e}")
+
+
 def _htable_cmd(args):
     d = np.load(args.gen)
     w = d["weight"].astype(np.float64)
@@ -614,6 +914,8 @@ def _kernel_cmd(args):
     legs = None
     if args.empirical_leg:
         legs = _empirical_leg_cells(args.empirical_leg, ht, args)
+    elif getattr(args, "mc_leg", None):
+        legs = _mc_leg_cells(args.mc_leg, ht)
     ker, acc, info = build_selected_kernel(
         ht, variant=args.variant, pair=tuple(args.pair or ()),
         minus_one=not args.no_minus_one, pair_table=args.pair_table,
@@ -624,6 +926,7 @@ def _kernel_cmd(args):
                 pair=list(args.pair or ()), htable=os.path.abspath(args.htable),
                 htable_prov=prov, empirical_leg=args.empirical_leg,
                 n_leg=args.n_leg, var_budget=args.var_budget,
+                mc_leg=getattr(args, "mc_leg", None),
                 sigma_cap=args.sigma_cap, alpha=ALPHA, m_mu=M_MU, bands=info)
     np.savez(args.output, r=ker["r"], w=ker["w"], m_lo=ker["m_lo"],
              m_hi=ker["m_hi"], provenance=np.array([json.dumps(meta)]))
@@ -640,6 +943,27 @@ def _kernel_cmd(args):
         if b["natoms"]:
             print(f"    m = {b['m_bar']:7.2f}  A = {b['A']:.5f}"
                   f"  atoms = {b['natoms']:4d}  <u> = {b['mean_u']*1e3:8.4f}e-3")
+
+
+def _mc_leg_cells(path, ht):
+    """Per-band leg cells from a `legsqrt` file, matched to the h table's bands.
+
+    The square root is taken band by band on the run's own (2 GeV) bands; an
+    `h` band is served by the run band its centre falls in.  The leg depends on
+    ``m`` only through the radiator, so the mapping is a coarsening, not an
+    interpolation.
+    """
+    d = np.load(path, allow_pickle=False)
+    cells, bl, bh = d["cells"], d["bands"][:, 0], d["bands"][:, 1]
+    out = []
+    for lo, hi in ht["bands"]:
+        mc = 0.5 * (lo + hi)
+        if not np.isfinite(mc):
+            mc = float(lo) * 1.05
+        j = np.nonzero((bl <= mc) & (bh > mc))[0]
+        j = int(j[0]) if len(j) else int(np.argmin(np.abs(0.5 * (bl + bh) - mc)))
+        out.append(cells[j])
+    return out
 
 
 def _empirical_leg_cells(path, ht, args):
@@ -729,6 +1053,83 @@ def _check_cmd(args):
                   f" {ak:13.8f} {ad/ak-1:+10.2e}")
 
 
+# --------------------------------------------------------------------------
+# the conditional kernel read in the model's own variables
+# --------------------------------------------------------------------------
+#: the two approximations of the collinear picture, as switches on the
+#: generator record: which mass loss is histogrammed, and which decision the
+#: selection takes.  ``true`` is the MC's own selected kernel; ``coll`` is what
+#: the per-leg construction would give if the two legs kept their measured
+#: correlation, so ``coll`` minus ``true`` is the cost of ``z = x_+ x_-`` and of
+#: taking the ``p_T`` decision on ``x p_T^{pre}``, and the per-leg model minus
+#: ``coll`` is the cost of treating the legs as independent.
+COND_MODES = {
+    "true": ("u", "post"),
+    "collmass": ("coll", "post"),
+    "collsel": ("u", "coll"),
+    "coll": ("coll", "coll"),
+}
+#: the bands the selected kernel is measured in; the selection makes ``<u|m>``
+#: run by a factor two across the window, so the kernel has to be banded, and
+#: these are the bands the MC-conditional reference uses.
+COND_BANDS = (70.0, 80.0, 85.0, 88.0, 91.0, 94.0, 98.0, 105.0, 115.0, 130.0)
+
+
+def _condker_cmd(args):
+    import fit_gen as FG
+
+    d = np.load(args.gen)
+    w = np.asarray(d["weight"], float)
+    aw = np.abs(w)
+    w = np.clip(w, -args.wclip * np.median(aw), args.wclip * np.median(aw))
+    w = w * (len(w) / w.sum())
+    m = np.asarray(d["m_pre"], float)
+    xp = np.asarray(d["xp"], float)
+    xm = np.asarray(d["xm"], float)
+    mass = {"u": np.asarray(d["m_post"], float),
+            "coll": m * np.sqrt(np.maximum(xp * xm, 1e-300))}
+    sel = {
+        "post": ((d["ptp"] > args.pt_cut) & (d["ptm"] > args.pt_cut)
+                 & (np.abs(d["etap"]) < args.eta_cut)
+                 & (np.abs(d["etam"]) < args.eta_cut)),
+        "coll": ((xp * d["ptp_pre"] > args.pt_cut)
+                 & (xm * d["ptm_pre"] > args.pt_cut)
+                 & (np.abs(d["etap_pre"]) < args.eta_cut)
+                 & (np.abs(d["etam_pre"]) < args.eta_cut)),
+    }
+    mkey, skey = COND_MODES[args.mode]
+    s = sel[skey]
+    bands = list(zip(COND_BANDS[:-1], COND_BANDS[1:]))
+    bands = [(0.0, COND_BANDS[0])] + bands + [(COND_BANDS[-1], np.inf)]
+    ker, info = FG.build_banded_kernel(m[s], mass[mkey][s], w[s], bands,
+                                       sigma_cap=args.sigma_cap)
+    meta = dict(kind="condker", mode=args.mode, mass=mkey, selection=skey,
+                gen=os.path.abspath(args.gen), pt_cut=args.pt_cut,
+                eta_cut=args.eta_cut, sigma_cap=args.sigma_cap,
+                bands=list(COND_BANDS), n=int(s.sum()))
+    np.savez(args.output, r=ker["r"], w=ker["w"], m_lo=ker["m_lo"],
+             m_hi=ker["m_hi"], provenance=np.array([json.dumps(meta)]))
+    print(f"[condker] {args.mode}: mass = {mkey}, selection = {skey}, "
+          f"{int(s.sum())} events, {len(ker['r'])} atoms -> {args.output}")
+    for lo, hi, n, na, pn, md in info:
+        print(f"    [{lo:6.1f}, {hi:6.1f})  n = {n:9d}  atoms = {na:4d}"
+              f"  P(no rad) = {pn:.4f}  <u> = {md * 1e3:+8.4f}e-3")
+    if args.acceptance:
+        e = np.arange(args.acc_lo, args.acc_hi + 1e-9, args.acc_width)
+        i = np.clip(np.searchsorted(e, m, "right") - 1, 0, len(e) - 2)
+        tot = np.bincount(i, w, len(e) - 1)
+        npass = np.bincount(i, w * s, len(e) - 1)
+        mb = np.bincount(i, w * m, len(e) - 1) / np.maximum(tot, 1e-30)
+        ok = tot > 0
+        with open(args.acceptance, "w") as fh:
+            json.dump(dict(kind="grid", m=mb[ok].tolist(),
+                           a=(npass[ok] / tot[ok]).tolist(),
+                           _meta=dict(source=os.path.abspath(args.output),
+                                      selection=skey, pt_cut=args.pt_cut,
+                                      eta_cut=args.eta_cut)), fh, indent=1)
+        print(f"[condker] acceptance ({skey}) -> {args.acceptance}")
+
+
 def fit_bernstein(m, a, lo, hi, degree):
     """Least-squares Bernstein fit of a tabulated ``A(m)``, unweighted in m."""
     from math import comb
@@ -794,12 +1195,46 @@ def main():
     k.add_argument("--sigma-cap", type=float, default=None)
     k.add_argument("--empirical-leg", default=None,
                    help="per-leg gen npz: use its measured D instead")
+    k.add_argument("--mc-leg", default=None,
+                   help="`legsqrt` npz: use the numerical convolution square "
+                        "root of a tabulated kernel as D")
     k.add_argument("--leg-band-width", type=float, default=10.0,
                    help="m_pre band width the empirical D is measured in; the "
                         "leg radiator depends on m only through beta(m), so it "
                         "is measured in wide bands while h keeps the narrow "
                         "ones (a 1 GeV empirical D carries a 7 %% band-to-band "
                         "statistical jitter that the smooth K(m) cannot absorb)")
+
+    s = sub.add_parser("legsqrt",
+                       help="D from a tabulated kernel by convolution sqrt")
+    s.add_argument("--run", required=True,
+                   help="a `photos_standalone/merge.py` run npz")
+    s.add_argument("-o", "--output", default=None)
+    s.add_argument("--du", type=float, default=KSQRT_DU)
+    s.add_argument("--u-max", type=float, default=KSQRT_UMAX)
+    s.add_argument("--n-leg", type=int, default=3000)
+    s.add_argument("--method", default="spectral",
+                   choices=("spectral", "fixedpoint"))
+    s.add_argument("--check-band", type=int, default=None,
+                   help="run the grid scan and the fixed-point cross-check on "
+                        "this band instead of writing a file")
+    s.add_argument("--du-scan", type=float, nargs="*",
+                   default=(1e-4, 4e-5, 2e-5, 1e-5, 5e-6))
+
+    d = sub.add_parser("condker",
+                       help="the MC's own conditional kernel, in the model's "
+                            "mass and selection variables")
+    d.add_argument("--gen", required=True, help="a per-leg gen record")
+    d.add_argument("-o", "--output", required=True)
+    d.add_argument("--mode", required=True, choices=tuple(COND_MODES))
+    d.add_argument("--acceptance", default=None)
+    d.add_argument("--pt-cut", type=float, default=25.0)
+    d.add_argument("--eta-cut", type=float, default=2.4)
+    d.add_argument("--sigma-cap", type=float, default=3.3e-4)
+    d.add_argument("--wclip", type=float, default=100.0)
+    d.add_argument("--acc-lo", type=float, default=50.0)
+    d.add_argument("--acc-hi", type=float, default=200.0)
+    d.add_argument("--acc-width", type=float, default=1.0)
 
     f = sub.add_parser("accfit", help="Bernstein fit of a tabulated A(m)")
     f.add_argument("--acceptance", required=True)
@@ -817,6 +1252,10 @@ def main():
         _htable_cmd(args)
     elif args.cmd == "kernel":
         _kernel_cmd(args)
+    elif args.cmd == "legsqrt":
+        _legsqrt_cmd(args)
+    elif args.cmd == "condker":
+        _condker_cmd(args)
 
 
 if __name__ == "__main__":

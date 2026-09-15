@@ -19,6 +19,25 @@ ALT=(
  "inclusive analytic (data cfg)=data/kern_cfg_data_vb6e-10.npz"
 )
 OUT=data/fit_perleg_physics.json
+elif [ "$WHICH" = "machinery" ]; then
+# The machinery-only benchmark: the same QED as the MC on both sides, so the
+# difference is the collinear factorisation and nothing else.  `cond:` rows are
+# the MC's OWN conditional kernel read in the model's mass and selection
+# variables, which decomposes the residual into its two approximations.
+ALT=(
+ "per-leg, mc D=data/kern_perleg_mc_1gev.npz:data/acc_perleg_mc_1gev.json"
+ "per-leg, analytic D (data cfg)=data/kern_perleg_data_1gev.npz:data/acc_perleg_1gev.json"
+ "per-leg, mc D, du 4e-5=data/kern_perleg_mc_du4.npz:data/acc_perleg_mc_du4.json"
+ "per-leg, mc D, 2 GeV bands=data/kern_perleg_mc_2gev.npz:data/acc_perleg_mc_2gev.json"
+ "MC-conditional, banded=data/kern_fid_band3.3e-4.npz"
+ "cond: true mass, true selection=data/kern_cond_true.npz:data/acc_cond_true.json"
+ "cond: collinear mass=data/kern_cond_collmass.npz:data/acc_cond_collmass.json"
+ "cond: collinear selection=data/kern_cond_collsel.npz:data/acc_cond_collsel.json"
+ "cond: collinear mass + selection=data/kern_cond_coll.npz:data/acc_cond_coll.json"
+ "inclusive mc standalone=data/kern_cfg_mc_sc3.3e-4.npz"
+ "inclusive empirical kernel=data/kern_incl_sc3.3e-4.npz"
+)
+OUT=data/fit_perleg_machinery.json
 else
 ALT=(
  "per-leg, 1 GeV bands=data/kern_perleg_data_1gev.npz:data/acc_perleg_1gev.json"

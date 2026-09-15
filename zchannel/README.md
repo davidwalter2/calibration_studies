@@ -1705,19 +1705,26 @@ loss. Weighted by the band population, as the fit sees them:
 
 | `m_pre` band | `A` (MC) | `A` model / MC | `<u>` (MC) | `<u>` model / MC |
 |---|---|---|---|---|
-| | | analytic `D` / empirical `D` | | analytic / empirical |
-| 60-70 | 0.19855 | 0.9995 / 0.9978 | 5.699e-3 | 0.9492 / 1.0735 |
-| 70-80 | 0.29151 | 0.9988 / 0.9987 | 7.867e-3 | 0.9519 / 1.0573 |
-| 80-86 | 0.34070 | 0.9986 / 0.9994 | 9.379e-3 | 0.9449 / 1.0338 |
-| 86-90 | 0.36644 | 0.9983 / 0.9994 | 10.146e-3 | 0.9511 / 1.0315 |
-| 90-92 | 0.37546 | 0.9986 / 0.9999 | 10.539e-3 | 0.9490 / 1.0232 |
-| 92-96 | 0.38396 | 0.9984 / 0.9998 | 10.866e-3 | 0.9495 / 1.0186 |
-| 96-105 | 0.40163 | 0.9987 / 1.0002 | 11.762e-3 | 0.9453 / 1.0071 |
-| 105-120 | 0.42811 | 0.9983 / 1.0000 | 13.288e-3 | 0.9468 / 1.0010 |
-| 120-140 | 0.45573 | 0.9985 / 0.9998 | 15.513e-3 | 0.9305 / 0.9746 |
+| | | analytic / empirical / mc `D` | | analytic / empirical / mc |
+| 60-70 | 0.19855 | 0.9921 / 0.9908 / 0.9914 | 5.699e-3 | 0.9385 / 1.0600 / 0.9379 |
+| 70-80 | 0.29151 | 0.9997 / 0.9996 / 0.9991 | 7.868e-3 | 0.9459 / 1.0511 / 0.9445 |
+| 80-86 | 0.34070 | 0.9994 / 1.0003 / 0.9991 | 9.379e-3 | 0.9441 / 1.0307 / 0.9412 |
+| 86-90 | 0.36644 | 0.9987 / 0.9997 / 0.9983 | 10.146e-3 | 0.9510 / 1.0315 / 0.9497 |
+| 90-92 | 0.37546 | 0.9986 / 0.9999 / 0.9984 | 10.539e-3 | 0.9489 / 1.0231 / 0.9463 |
+| 92-96 | 0.38396 | 0.9991 / 1.0005 / 0.9988 | 10.866e-3 | 0.9493 / 1.0186 / 0.9470 |
+| 96-105 | 0.40163 | 0.9972 / 0.9987 / 0.9969 | 11.762e-3 | 0.9444 / 1.0068 / 0.9423 |
+| 105-120 | 0.42811 | 0.9921 / 0.9940 / 0.9915 | 13.288e-3 | 0.9475 / 0.9992 / 0.9454 |
+| 120-140 | 0.45573 | 0.9922 / 0.9931 / 0.9912 | 15.513e-3 | 0.9353 / 0.9821 / 0.9362 |
+| `A`-weighted | | 0.9965 / 0.9975 / 0.9960 | | 0.9451 / 1.0182 / 0.9435 |
 
-`A(m)` closes to 0.15 %. The `<u>` column is the price of the two collinear
-approximations, and they pull in opposite directions:
+`A(m)` closes to 0.4 %, and to 0.15 % over 70-105 GeV. The `mc` column is the
+numerical square root of the standalone Photos kernel -- the *same* QED as the
+MC -- and it reproduces the analytic `D` to 0.3 % in both columns: **the `<u>`
+deficit is the collinear machinery, not the kernel physics** (see "The
+machinery-only benchmark").
+
+The `<u>` column is the price of the two collinear approximations, and they
+pull in opposite directions:
 
 * with the **empirical** per-leg `D` -- the sample's own `x` spectrum, so the
   QED content is exactly the MC's -- the only error left is **leg
@@ -1818,18 +1825,162 @@ is where the mass peak lives, so it costs **+29 / −60 MeV**. The same row is
 reproduced to 0.2 MeV with the leg measured in 1, 10 or 20 GeV windows and with
 1 or 2 GeV kernel bands, so it is the independence assumption and not statistics.
 With the effective `D`, `D (x) D` gives 0.63571 against the same 0.63643, and
-the fit closes to **+1.5 / −5.5 MeV** of the MC-conditional kernel --
-of which the inclusive `mc` → `data` QED difference is already +0.97 / −0.80
-(see "Fit level" above), leaving about +0.5 / −4.7 MeV for the factorisation
-itself.
+the fit closes to **+1.5 / −5.5 MeV** of the MC-conditional kernel. That
+difference is the factorisation and not the QED: see the next section.
 
-The full `mc` → `data` step cannot be taken inside the per-leg construction --
-there is no per-leg `D` for Photos, because `D` is defined by `D (x) D = K` and
-Photos' `K` is a table, not a closed form. What *can* be compared are the
-analytic proxies, and they behave as they do inclusively: replacing the exact
-O(α²) pair radiator by the **eikonal** limit Photos actually generates
-(`e`, `μ` only) moves the per-leg fit by −0.22 / −0.57 MeV, against −0.31 /
-−0.11 for the same replacement in the inclusive fit.
+The `mc` → `data` step *can* be taken inside the per-leg construction --
+`legsqrt` supplies the per-leg `D` of Photos' tabulated `K` -- and it is small
+under this selection, −0.07 / −0.50 MeV against +0.97 / −0.83 inclusively. The
+analytic proxies behave as they do inclusively: replacing the exact O(α²) pair
+radiator by the **eikonal** limit Photos actually generates (`e`, `μ` only)
+moves the per-leg fit by −0.22 / −0.57 MeV, against −0.31 / −0.11 for the same
+replacement in the inclusive fit.
+
+### The effective leg of a tabulated kernel
+
+`fsr_perleg.py legsqrt`. `D` is *defined* by `D (x) D = K`, so for a kernel
+that is a table rather than a closed form it is the **numerical convolution
+square root**, and the `mc` configuration gets a per-leg radiator carrying
+exactly the MC's own QED.
+
+Everything is a measure on a uniform grid in `u` of step `du`; the leg's own
+variable is `u_leg = 2 u`, because `u = (u_+ + u_-)/2`. The standalone Photos
+histograms (`photos_standalone/`, 52.8 M events per 2 GeV band) become one atom
+per filled bin at the bin's exact conditional mean, plus a genuine `delta(u)` of
+weight `P(Photos emitted nothing)`, and are deposited on the grid by splitting
+each atom linearly between its two neighbouring nodes -- **mass and mean exact**,
+and the sum of two nodes is a node, so the convolution of two deposited measures
+is their exact convolution.
+
+With `g = g_0 e_0 + g_c` and `D = d_0 e_0 + D_c`, `D_c` lives on nodes `>= 1`
+and `D_c (x) D_c` on nodes `>= 2`, so `d_0 = sqrt(g_0)` and
+
+```
+D_c = (g_c - D_c (x) D_c) / (2 sqrt(g_0))
+```
+
+is a contraction with factor `||D_c||/sqrt(g_0)` = 0.352. In Fourier space the
+same equation is the scalar quadratic `d^2 + 2 sqrt(g_0) d - g_c = 0` whose
+contracting root is `d = -sqrt(g_0) + sqrt(g^)`, i.e. the iteration is the
+branch selection of `sqrt(g^)`; `conv_sqrt(..., method=)` runs either. In the
+peak band the fixed point converges in **21 iterations** to a step of 7.5e-16
+and agrees with the spectral root to **1.9e-16**. Over all 78 bands
+`|g^| >= 0.4348` and `|arg g^| <= 0.115` rad, so the principal square root is
+the right branch by a wide margin.
+
+**The grid is the kernel's own resolution**, `du` = 2e-5 = the histogram's bin
+width, and that is not a convenience: on a *finer* grid the tabulated kernel is
+a comb -- isolated atoms with empty nodes between them -- and a comb is not
+infinitely divisible, so its square root rings at the lattice scale. Peak band,
+`legsqrt --check-band 20`:
+
+| `du` | `\|g^\|` min | max `\|arg g^\|` | `D[0]` | negative mass | `D (x) D - g` | `W_1(g, atoms)` |
+|---|---|---|---|---|---|---|
+| 1e-4 | 0.5638 | 0.092 | 0.775225 | −5.9e-5 | 1.1e-16 | 1.20e-5 |
+| 4e-5 | 0.5346 | 0.092 | 0.754876 | −7.1e-5 | 1.1e-16 | 5.24e-6 |
+| **2e-5** | **0.5136** | **0.092** | **0.739863** | **−9.8e-5** | **4.4e-17** | **5.22e-6** |
+| 1e-5 | 0.0563 | 0.512 | 0.718124 | −1.0e-1 | 1.1e-16 | 1.01e-6 |
+| 5e-6 | 0.1232 | 1.205 | 0.672540 | −1.3e-1 | 1.1e-16 | 5.14e-7 |
+
+`D (x) D` reproduces the deposited kernel to **4.4e-17** and `<u>` to 2.2e-16
+(`<u>_leg / <u>_K - 1` is below 1.3e-13 in every band) -- the root is *exact*,
+against the analytic `D`'s genuine O(α³) residual of ~1e-4. What the numerical
+root costs instead is the grid representation of `K`: a Wasserstein-1 distance
+of **5.2e-6** in `u`, 1.9e-4 of `<u>` = 2.73e-2 and 1.6 % of the reference
+kernel's own atom width `sigma_cap` = 3.3e-4; in `P(u > u_0)` that is −1.4e-3
+at `u_0` = 1.1e-3, +2.6e-4 at 1.07e-2 and +9.6e-5 at 5.3e-2 (figure
+`11_dconvd_mc`). At fit level the whole of it is **+0.01 / +0.03 MeV**
+(`du` 4e-5 against 2e-5).
+
+The residual negative mass, −8.2e-5 (50 GeV) to −1.6e-4 (320 GeV and above), is
+**all above `u_leg` = 4**, where the standalone's tail block is binned at 0.05
+and *is* a comb on a 2e-5 grid: about 250 of the 3000 ladder cells come out
+negative there. `merge_positive` folds each into its neighbours, exactly in the
+mass and in the first two moments, so what the provider sees is a positive
+measure on ~1710 cells with `d_0` = `sqrt(g_0)` and `<u_leg>` = `<u>_K` to
+machine precision.
+
+`D_mc` tracks the analytic `D` to **5 %** from `u_leg` = 4e-4 to the kinematic
+limit, while the *physical* per-leg spectrum is 50 % denser at `u_leg` = 1e-3
+and 10 % thinner above 0.5 (figure `10_leg_D_mc`): the effective leg is an
+object of the kernel, not of the generator record.
+
+### The machinery-only benchmark
+
+The same `fit_gen.py fit --suite perleg` run, same events. With `D_mc` the QED
+is the MC's on both sides, so the difference is the collinear factorisation and
+nothing else. The `cond:` rows are the MC's **own** conditional kernel read in
+the model's variables (`fsr_perleg.py condker`, measured on the 20.8 M-event
+per-leg record, banded like the reference): `collinear mass` histograms
+`u = (u_+ + u_-)/2` instead of `-ln(m'/m)`, `collinear selection` takes the
+`p_T` decision on `x p_T^{pre}` and the `eta` decision on the pre-FSR muons.
+
+| model, fiducial `pT` > 25, \|η\| < 2.4, window 60-120 | Δ`m_Z` [MeV] | Δ`Γ_Z` [MeV] |
+|---|---|---|
+| pre-FSR + `A(m)` control | −1.01 ± 0.78 | +1.86 ± 1.50 |
+| MC-conditional, inclusive in `m_pre` + `A(m)` | −0.31 ± 0.87 | +2.61 ± 1.75 |
+| **MC-conditional, banded + `A(m)`** | **−0.17 ± 0.84** | **+1.83 ± 1.74** |
+| `cond`: true mass, true selection (per-leg record) | +0.29 ± 0.84 | +2.08 ± 1.74 |
+| `cond`: collinear mass | +0.22 ± 0.83 | +0.91 ± 1.74 |
+| `cond`: collinear selection | +0.42 ± 0.83 | +2.11 ± 1.74 |
+| `cond`: collinear mass + selection | +0.10 ± 0.84 | +0.80 ± 1.74 |
+| **per-leg, `mc` `D` (numerical root)** | **+1.23 ± 0.83** | **−2.39 ± 1.74** |
+| per-leg, analytic `D` (data cfg) | +1.16 ± 0.83 | −2.89 ± 1.74 |
+| per-leg, `mc` `D`, `du` = 4e-5 | +1.24 ± 0.83 | −2.36 ± 1.74 |
+| per-leg, `mc` `D`, 2 GeV bands | +1.20 ± 0.83 | −1.69 ± 1.74 |
+| inclusive `mc` standalone kernel + `A(m)` | −3.18 ± 0.88 | +2.19 ± 1.82 |
+| inclusive empirical kernel + `A(m)` | −3.48 ± 0.88 | +3.39 ± 1.81 |
+
+Same-run differences:
+
+| | Δ`m_Z` | Δ`Γ_Z` |
+|---|---|---|
+| **the machinery: per-leg `mc` − `cond`: true** | **+0.95** | **−4.47** |
+| … `z = x_+ x_-` (`cond`: collinear mass − `cond`: true) | −0.07 | −1.17 |
+| … the acceptance decision (`cond`: collinear selection − true) | +0.13 | +0.03 |
+| … both (`cond`: collinear mass + selection − true) | −0.19 | −1.28 |
+| … **independent legs** (per-leg `mc` − `cond`: collinear both) | **+1.14** | **−3.19** |
+| the kernel physics: per-leg `data` − per-leg `mc` | −0.07 | −0.50 |
+| … the same difference inclusively | +0.97 | −0.83 |
+| standalone against the sample's own `K` (inclusive rows) | +0.31 | −1.20 |
+| the per-leg record against the full one (`cond`: true − MC-cond. banded) | +0.46 | +0.25 |
+| banding the MC-conditional kernel (banded − inclusive) | +0.14 | −0.78 |
+| the square-root grid (`du` 4e-5 − 2e-5) | +0.01 | +0.03 |
+| the kernel band width (2 GeV − 1 GeV) | −0.03 | +0.71 |
+
+The **independent-legs** row is the model's whole joint law against the
+generator's: the model draws `u_+` and `u_-` independently from `D` *and*
+independently of the pre-FSR `p_T` pair, integrating them against the aggregate
+`G(u_+, u_-|m)`, whereas `cond`: collinear both keeps the generator's own joint
+`(u_+, u_-, p_T^{pre})` event by event. It also carries the one floor the
+`cond` rows do not, the standalone kernel against the sample's own, measured at
++0.31 / −1.20 by the two inclusive rows.
+
+**Verdict.** The factorisation and the selection-conditional construction are
+validated to **+0.95 MeV on `m_Z`** -- at the level of the two floors the test
+carries, +0.46 from the per-leg record's own statistics and +0.31 from the
+standalone kernel against the sample's, so of order +0.2 MeV once they are
+taken out -- and are **not** validated on `Γ_Z`, where they cost **−4.5 MeV**
+(−3.3 MeV with the standalone floor removed). Three quarters of that is
+treating the two legs as independent; one quarter, −1.3 MeV, is `z = x_+ x_-`.
+The acceptance *decision* costs nothing (+0.13 / +0.03), confirming the 1.9e-4
+closure of `A` measured on the record. All of it is the same power correction:
+a wide-angle photon takes energy from both muons at once, so it correlates the
+legs *and* makes the pair mass fall further than `x_+ x_-` alone.
+
+The selected `<u|m>` says the same thing without a fit: `D_mc` gives
+0.938-0.950 of the MC's and the analytic `D` 0.935-0.951, the two agreeing to
+0.3 % (table above, figure `08_mean_u`). The deficit does not move when the QED
+is made identical to the MC's, so it is not the kernel.
+
+What would remove it is a per-leg law with the correct correlation. For a single
+photon the exact O(α) 3-body matrix element -- `fsr_analytic._T_rad`, spin
+summed with the exact muon mass -- gives the joint density in
+(`z`, `cos θ*`) and hence the joint density of the two muons' momentum fractions
+at fixed `z`; the multi-photon remainder stays collinear. That replaces
+`D(u_+) D(u_-)` by a correlated two-leg density with the same marginals and the
+same `D (x) D = K`, and leaves the rest of the construction (`G`, the `h` table,
+the atoms) untouched.
 
 ### What the detector level needs on top
 
@@ -1857,24 +2008,36 @@ python3 merge_perleg.py -i "/ceph/submit/data/user/d/david_w/ZMass/zgen_perleg/p
 python3 fsr_perleg.py check --n-leg 4000
 # 3. h(a_+,a_-|m) and the selection-conditional kernels (numpy only, ~25 min)
 ./build_perleg.sh
-# 4. the fit benchmark (~5 min each) and the figures
+# 4. the mc leg: the numerical square root of the standalone Photos kernel,
+#    the per-leg kernels it feeds, and the MC's own conditional kernel read in
+#    the model's variables (~3 min all together)
+python3 fsr_perleg.py legsqrt --run data/photos/gen_mcMix.npz --check-band 20
+./build_machinery.sh
+# 5. the fit benchmarks (~4 min each) and the figures
 ./run_perleg_fit.sh physics
 ./run_perleg_fit.sh disc
-./run_tf_z.sh python3 -u cmp_perleg.py \
-     --kernel "per-leg, analytic D (data cfg)=data/kern_perleg_data_1gev.npz" \
-     --kernel "per-leg, empirical D=data/kern_perleg_emp_1gev.npz" \
-     --kernel "MC-conditional=data/kern_fid_sc3.3e-4.npz"
+./run_perleg_fit.sh machinery
+ssh submit51 "cd $Z && ./run_tf_z.sh python3 -u cmp_perleg.py \
+     --kernel 'per-leg, mc D=data/kern_perleg_mc_1gev.npz' \
+     --kernel 'per-leg, analytic D (data cfg)=data/kern_perleg_data_1gev.npz' \
+     --kernel 'per-leg, empirical D=data/kern_perleg_emp_1gev.npz'"
 # the Photos-like pair content, for the mc <-> data comparison
 python3 fsr_perleg.py kernel --htable data/ht_pt25_1.0gev.npz \
      -o data/kern_perleg_paireik.npz --acceptance data/acc_perleg_paireik.json \
      --variant exp2nll --pair e mu --pair-table data/fsr/pairkern_eik.npz
 ```
 
+`cmp_perleg.py` needs a node that can mount `/ceph` (the container's own hook
+binds it whether or not `run_tf_z.sh` asks for it).
+
 Figures: `01_angles` (the directions), `02_leg_x` (the measured per-leg `x`
 against `D`), `03_leg_corr` (the legs are correlated), `04_z_vs_xx`
 (`z = x_+ x_-`), `05_dconvd` (`D (x) D` against `K`), `06_ksel_peak`
 (`K_sel(u|m)` in the peak band), `07_acceptance`, `08_mean_u`, `09_htable`,
-and `00_perleg.txt` with every number above.
+`10_leg_D_mc` (the effective leg of `K_mc` against the analytic `D` and against
+the physical per-leg spectrum), `11_dconvd_mc` (`D_mc (x) D_mc` against
+`K_mc`), and `00_perleg.txt`, `00_bands.txt`, `00_legsqrt.txt` with every
+number above.
 
 ---
 
@@ -1890,10 +2053,15 @@ and `00_perleg.txt` with every number above.
   settled by `fsr_analytic.py` and the selection-conditional shape by
   `fsr_perleg.py` (see above): `K_sel` and `A(m)` follow from the same radiator
   plus one boson-kinematics table `h(a_+, a_- | m)`, and close against this MC
-  to +1.5 / −5.5 MeV. What is *not* settled is the detector-level version of
-  `h`, whose thresholds act on the reconstructed `p_T` and therefore carry the
-  resolution. `kern_from_selected.py` remains the MC-measured alternative,
-  which needs a selected gen record at every calibration point.
+  to +1.5 / −5.5 MeV. Run with the MC's own per-leg radiator the closure is
+  +0.95 / −4.5 MeV, so that number is the **collinear factorisation** and not
+  the QED; −3.2 MeV of the `Γ_Z` part is the independence of the two legs, and
+  the fix is the correlated two-leg density of the exact O(α) 3-body matrix
+  element. `A(m)` itself is not the problem (+0.13 / +0.03). What is also *not*
+  settled is the detector-level version of `h`, whose thresholds act on the
+  reconstructed `p_T` and therefore carry the resolution.
+  `kern_from_selected.py` remains the MC-measured alternative, which needs a
+  selected gen record at every calibration point.
 * **Background.** `UniformBackground` / `BernsteinBackground` are wired up with
   a fixed or floating fraction, but the shape and normalisation of the real
   background (Z→ττ, top, QCD) are not measured.

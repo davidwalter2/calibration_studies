@@ -20,6 +20,12 @@ r"""The two FSR kernel configurations of the Z channel.
 Both are written as ``(r, w, m_lo, m_hi)`` atom files for the
 ``rabbit.lineshapes.zgamma`` provider, banded in ``m_pre``.
 
+Both also have a **per-leg** form, the radiator ``D`` with ``D (x) D = K`` that
+`fsr_perleg` needs under a lepton ``p_T`` cut: for ``data`` it is the closed
+form `fsr_perleg.LegRadiator`, for ``mc`` the numerical convolution square root
+of the tabulated kernel (``fsr_perleg.py legsqrt --run`` on the same
+`MC_RUN`, then ``kernel --mc-leg``).
+
     python3 fsr_config.py --config mc   -o data/kern_cfg_mc.npz
     python3 fsr_config.py --config data -o data/kern_cfg_data.npz
 """
