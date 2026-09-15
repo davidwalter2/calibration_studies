@@ -656,7 +656,15 @@ def clip_negative(ker, acc=None):
         tot = w[s].sum()
         c = np.maximum(w[s], 0.0)
         w[s] = c * (tot / c.sum()) if c.sum() > 0 and tot > 0 else c
-    ker = dict(ker, w=w)
+    # a band whose content was entirely numerical noise now sums to zero, and
+    # the provider rejects an empty band; drop its atoms outright
+    keep = np.ones(len(w), bool)
+    for a, b in sorted(set(zip(lo.tolist(), hi.tolist()))):
+        s = (lo == a) & (hi == b)
+        if w[s].sum() <= 0.0:
+            keep &= ~s
+    ker = dict(ker, r=np.asarray(ker["r"], float)[keep], w=w[keep],
+               m_lo=lo[keep], m_hi=hi[keep])
     if acc is not None:
         acc = dict(acc, a=[max(float(v), 0.0) for v in acc["a"]])
     return ker, acc
