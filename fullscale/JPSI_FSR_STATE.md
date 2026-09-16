@@ -1,4 +1,15 @@
-# J/psi FSR kernel — state, jobs and collection commands
+# The two FSR single changes of the phase-2 card — state, jobs and collection
+
+Two independent single changes, one per fit, in a 2x2:
+
+| | Z fold = banded ATOMS (as P2XP) | Z fold = the `mc` kernel TABLE |
+|---|---|---|
+| J/psi = **delta** at MJPSI | `P2N` (`joint_nok`) — the same-code reference | `P2XT` (`joint_ztab`) |
+| J/psi = the **`mc` kernel** | `P2K` (`joint_fsrmc`) | `P2B` (`joint_both`) — built only after both singles certify |
+
+plus the J/psi-only trio `J0`/`JK`/`JD`, in which `m_Z` and `Gamma_Z` are not
+in the likelihood at all so a J/psi-side change is attributable to the J/psi
+leg alone.
 
 Closes `SUMMARY.md` open item 2's precondition: *"before its first quotable
 number, the J/psi term's FSR treatment (a delta at the PDG mass against a
@@ -23,6 +34,7 @@ radiating MC) must be quantified"*.
 | `cards/joint_ok_full.hdf5` | quad + J/psi + Z | 10.733 GB | delta — the HISTORICAL reference (`P2XP`), built 2026-09-07 |
 | `cards/joint_nok.hdf5` | quad + J/psi + Z | 10.733 GB | delta — the SAME-CODE reference (`P2N`) |
 | `cards/joint_fsrmc.hdf5` | quad + J/psi + Z | 10.733 GB | `mc` |
+| `cards/joint_ztab.hdf5` | quad + J/psi + Z | 10.736 GB | delta J/psi, **Z fold = the `mc` TABLE** (`P2XT`) |
 | `cards/jpsi_nok.hdf5` | quad + J/psi | 4.764 GB | delta |
 | `cards/jpsi_fsrmc.hdf5` | quad + J/psi | 4.764 GB | `mc` |
 | `cards/jpsi_fsrdata.hdf5` | quad + J/psi | 4.764 GB | `data` (exact QED, truncated to the cache's gen window) |
@@ -37,6 +49,7 @@ Kernels: `zchannel/data/jpsi_kern_{mc,data,data_trunc}.npz`.
 | **22824029** | `P2K` | `joint_fsrmc` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
 | **22824626** | `P2N` | `joint_nok` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
 | **22825078** | `JD` | `jpsi_fsrdata` | `-G h200:1 --time=0-06:00:00`, `mit_preemptable` |
+| **22830065** | `P2XT` | `joint_ztab` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
 
 **Why `P2N` and not just `P2XP`.** `joint_ok_full` was written on 2026-09-07,
 **before** `65319ab` gave every card a real positivity floor, so its J/psi leg
@@ -66,7 +79,7 @@ eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -p mit_preemptable \
 eng 'squeue -u david_w -o "%.10i %.9P %.8j %.2t %.10M %R"'
 FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
 mkdir -p $FS/runs/engaging_260916
-rsync -a engaging:orcd/pool/zmass/fitresults/native/rabbit_{J0,JK,JD,P2K,P2N}.hdf5 \
+rsync -a engaging:orcd/pool/zmass/fitresults/native/rabbit_{J0,JK,JD,P2K,P2N,P2XT}.hdf5 \
       $FS/runs/engaging_260916/
 rsync -a 'engaging:orcd/pool/zmass/engaging/zprecond_2282*.out' \
       $FS/runs/engaging_260916/
@@ -81,6 +94,7 @@ python3 $FS/jpsi_fsr_table.py --ref P2XP \
     P2XP=$FS/runs/engaging_260913/rabbit_P2XP.json \
     P2N=$FS/runs/engaging_260916/rabbit_P2N.json \
     P2K=$FS/runs/engaging_260916/rabbit_P2K.json \
+    P2XT=$FS/runs/engaging_260916/rabbit_P2XT.json \
     J0=$FS/runs/engaging_260916/rabbit_J0.json \
     JK=$FS/runs/engaging_260916/rabbit_JK.json \
     JD=$FS/runs/engaging_260916/rabbit_JD.json
@@ -291,3 +305,41 @@ What it means is that with ONE kernel the model is not exact for either: the
 sample's kernel is class dependent (rms 1.343 MeV over the 64 norm classes,
 above), and a kernel with a heavier hard tail partly absorbs that. The
 quantity that IS interpretable is the scale, and it moves by 3.4e-5.
+
+
+## The Z fold representation (`P2XT`)
+
+`make_joint_card.py --fsr` already accepted either kernel representation --
+`ZGammaLineshape` dispatches on the npz keys -- so the change is the file:
+
+| | `P2N` / `P2K` / `P2XP` | `P2XT` |
+|---|---|---|
+| file | `kern_loose_band3.3e-4.npz` | `ktab_mc_dm10.npz` |
+| form | banded **atoms** `(r, w, m_lo, m_hi)`, 14 315 atoms in 11 bands, `sigma_cap = 3.3e-4` | cell-integrated **table** `(m_nodes, u_edges, K, u_mean, p0)`, 151 x 1268 |
+| source | the DY production's OWN gen record, 13 032 784 events | the `mc` configuration: standalone Photos++ 3.61 reproducing the sample at unlimited statistics (`data/photos/gen_mcMix.npz`) |
+| nodes / bands | 11 bands, 70-130 GeV, outermost opened to `(0, inf)` | 1 GeV nodes, **50-200 GeV**, i.e. the whole Born grid |
+| `p0` | — (the atom at `r = 1`) | a genuine delta, 0.366-0.445 across the nodes |
+
+**So this row changes two things at once and the report says so**: the
+representation (atoms -> cells) and the statistical precision of the source
+(13 M events -> unlimited). The pure-representation part is the atom-minus-table
+bias already measured at gen level, `+0.66 / +0.89 MeV` on `m_Z` / `Gamma_Z`
+for the inclusive `mc` kernel with these very discretisations.
+
+**The Born support is unchanged.** `m_hi_born = min(window_hi / r_min, cap)`
+with `cap` the luminosity table's upper edge: the atoms give `130/0.004607`
+and the table `130/exp(-7)`, both far above the cap, so both saturate it and
+both build the SAME extended Born grid -- measured, `m_hi_born = 200.0 GeV`,
+`n_born = 15360`, `nm = 8192`, `dm = 9.767 MeV` for each. The table's nodes
+cover 50-200 GeV exactly, so nothing is continued as a constant.
+
+**`--fsr-inline` (new, default ON) is REQUIRED for a card that travels.**
+`ZGammaLineshape._table_config` writes the table **by reference** -- just the
+npz path -- whenever that file is on disk, and on Engaging
+`/work/submit/david_w/...` does not resolve, so the card could not be read
+back. `make_card.py --fsr-inline` passes the arrays instead of the path, which
+puts the table in the card as zlib'd base64: **3.756 MB** of config JSON for
+151 x 1268, and the round trip is exact -- `m_nodes`, `u_edges` and `u_mean`
+bit-identical, `K` and `p0` to **4.4e-16** relative, which is the provider's
+own row renormalisation and nothing else. Atom kernels were always inline and
+are unaffected.

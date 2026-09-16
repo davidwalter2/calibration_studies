@@ -241,7 +241,14 @@ def parse_args(argv=None):
     p.add_argument("--coeffs", default=None, help="mode dump for --whiten")
     p.add_argument("--whiten", action="store_true", default=True)
     p.add_argument("--no-whiten", dest="whiten", action="store_false")
-    p.add_argument("--fsr", default=None)
+    p.add_argument("--fsr", default=None,
+                   help="the Z term's multiplicative FSR kernel npz, either "
+                        "form: banded ATOMS or a cell-integrated TABLE "
+                        "(`zchannel/fsr_table.py`). Forwarded to make_card.py")
+    p.add_argument("--fsr-inline", action="store_true", default=True,
+                   help="carry a kernel TABLE inside the card rather than as "
+                        "a path -- see make_card.py --fsr-inline")
+    p.add_argument("--no-fsr-inline", dest="fsr_inline", action="store_false")
     p.add_argument("--acc", default=None)
     p.add_argument("--shape", type=int, default=5)
     p.add_argument("--jpsi-maxn", type=int, default=0)
@@ -1379,6 +1386,8 @@ def main():
     zargv += _selargv(args, "z")
     if args.fsr:
         zargv += ["--fsr", args.fsr]
+        if not args.fsr_inline:
+            zargv += ["--no-fsr-inline"]
     if args.acc:
         zargv += ["--acc", args.acc]
     zargs = make_card.parse_args(zargv)

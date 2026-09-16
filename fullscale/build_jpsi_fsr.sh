@@ -24,7 +24,7 @@ KMC=$Z/data/jpsi_kern_mc.npz
 KDATA=$Z/data/jpsi_kern_data_trunc.npz
 CARDS=$FS/cards; LOGS=$FS/logs
 mkdir -p "$CARDS" "$LOGS"
-STAGES=${*:-kernel p2 jpsi}
+STAGES=${*:-kernel p2 jpsi ztab}
 
 # the phase-2 reference's own arguments (logs/card_joint_ok_full.log)
 common=(--jpsi-pairs "$FS/runs/jpairs_v2_n600.npz"
@@ -33,6 +33,16 @@ common=(--jpsi-pairs "$FS/runs/jpairs_v2_n600.npz"
         --groups "$GRP" --whiten)
 zleg=(--z-pairs "$FS/runs/zpairs_dyv2_jac_full.npz" --shape 5
       --fsr "$Z/data/kern_loose_band3.3e-4.npz"
+      --acc "$Z/data/acc_loose_d8.json")
+# THE Z FOLD, second single change.  The phase-2 Z term folds the empirical
+# banded ATOMS of the DY gen record (11 bands, sigma_cap 3.3e-4, 13.03 M
+# events).  `ktab_mc_dm10.npz` is the cell-integrated TABLE of the `mc`
+# configuration -- the standalone Photos++ 3.61 run that reproduces the sample
+# at unlimited statistics -- on 1 GeV nodes from 50 to 200 GeV with the run's
+# own 1268 cells, which is the converged setting of the fold-table study
+# (node spacing worth 0.014 MeV on m_Z for `mc` between 4 and 0.5 GeV).
+ztab=(--z-pairs "$FS/runs/zpairs_dyv2_jac_full.npz" --shape 5
+      --fsr "$Z/data/ktab_mc_dm10.npz"
       --acc "$Z/data/acc_loose_d8.json")
 
 card () {   # card <name> <extra args...>
@@ -65,6 +75,15 @@ p2)
   # rebuilt today, so `P2N` vs `P2K` differ by the kernel and nothing else.
   card joint_nok  "${zleg[@]}"
   card joint_fsrmc "${zleg[@]}" --jpsi-fsr "$KMC"
+  ;;
+ztab)
+  # the Z fold representation, ALONE: delta J/psi kernel, table Z fold
+  card joint_ztab "${ztab[@]}"
+  ;;
+both)
+  # BOTH single changes together -- the candidate for the end-to-end rerun.
+  # Build it only after the two singles have certified.
+  card joint_both "${ztab[@]}" --jpsi-fsr "$KMC"
   ;;
 jpsi)
   # J/psi + the 92 calibration parameters: no kernel, the sample's own, and

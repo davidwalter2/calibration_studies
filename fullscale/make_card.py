@@ -73,7 +73,23 @@ def parse_args(argv=None):
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--pairs", required=True, help="cf_inmaker.py pairs cache")
     p.add_argument("--fsr", default=None,
-                   help="banded multiplicative FSR kernel npz (fit_gen.py kernel)")
+                   help="multiplicative FSR kernel npz. Either form the "
+                        "`ZGammaLineshape` provider dispatches on: banded "
+                        "ATOMS (r, w, m_lo, m_hi; `fit_gen.py kernel`, "
+                        "`fsr_analytic.py kernel`, `fsr_config.py`) or a "
+                        "cell-integrated TABLE (m_nodes, u_edges, K, u_mean, "
+                        "p0; `fsr_table.py`)")
+    p.add_argument("--fsr-inline", action="store_true", default=True,
+                   help="carry a kernel TABLE inside the card (zlib'd base64) "
+                        "instead of as the path to the npz. REQUIRED for a "
+                        "card that is fitted anywhere but this filesystem: "
+                        "`ZGammaLineshape._table_config` writes the path "
+                        "whenever the file is on disk, and on a machine where "
+                        "that path does not resolve the card cannot be read "
+                        "back. Costs ~1 MB of JSON for a 151 x 1268 table. "
+                        "Atom kernels are always inline and are unaffected.")
+    p.add_argument("--no-fsr-inline", dest="fsr_inline",
+                   action="store_false")
     p.add_argument("--acc", default=None, help="acceptance json (fit_gen.py acceptance)")
     p.add_argument("-o", "--output", default=None, help="datacard (.hdf5)")
     p.add_argument("--dump", default=None, help="also write the assembled arrays")
@@ -785,10 +801,26 @@ def build(args, log=print):
         kw["shape_window"] = tuple(args.shape_window or args.window)
     if vkw:
         kw["vpow"] = vkw["vpow"]
+    fsr = args.fsr
+    if fsr and args.fsr_inline:
+        with np.load(fsr, allow_pickle=False) as fh:
+            if "K" in fh.files:
+                # pass the arrays, NOT the path: the provider serialises a
+                # table by reference whenever its npz exists, and this card
+                # is read back on another filesystem
+                fsr = {k: fh[k] for k in
+                       ("m_nodes", "u_edges", "K", "u_mean", "p0")
+                       if k in fh.files}
+                log(f"  FSR kernel TABLE {os.path.basename(args.fsr)} carried "
+                    f"INLINE: {fsr['K'].shape[0]} m nodes "
+                    f"[{fsr['m_nodes'].min():g}, {fsr['m_nodes'].max():g}] GeV, "
+                    f"{fsr['K'].shape[1]} cells to u = "
+                    f"{fsr['u_edges'][-1]:g}, p0 in "
+                    f"[{fsr['p0'].min():.5f}, {fsr['p0'].max():.5f}]")
     provider = ZGammaLineshape(
         m_ref=args.mref, window=tuple(args.born_window), nm=args.nm,
         tau_max=args.tau_max, width_scheme=args.width_scheme,
-        fsr=args.fsr, acceptance=acc, **kw)
+        fsr=fsr, acceptance=acc, **kw)
     if vkw:
         # `check_tau_range` compares against the provider's tau_max in MASS
         # units; in v the same physical range is `tau_max * window_hi^p`, which

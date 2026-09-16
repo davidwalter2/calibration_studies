@@ -119,6 +119,8 @@ declare -A CARDS=(
   # attributable to the J/psi FSR treatment alone.
   [P2N]=joint_nok                # phase 2, full, delta -- SAME CODE as P2K
   [P2K]=joint_fsrmc              # phase 2, full, J/psi kernel = mc
+  [P2XT]=joint_ztab              # phase 2, full, Z fold = the mc kernel TABLE
+  [P2B]=joint_both               # phase 2, full, BOTH single changes
   [J0]=jpsi_nok                  # J/psi + the 92, delta kernel
   [JK]=jpsi_fsrmc                # J/psi + the 92, mc kernel
   [JD]=jpsi_fsrdata              # J/psi + the 92, analytic (exact-QED) kernel
@@ -129,6 +131,8 @@ declare -A MODELS=(
   [P2XP]="ExternalParams bundle:global_params"
   [P2N]="ExternalParams bundle:global_params"
   [P2K]="ExternalParams bundle:global_params"
+  [P2XT]="ExternalParams bundle:global_params"
+  [P2B]="ExternalParams bundle:global_params"
   [J0]="ExternalParams bundle:global_params"
   [JK]="ExternalParams bundle:global_params"
   [JD]="ExternalParams bundle:global_params"
@@ -144,6 +148,7 @@ declare -A FREEZES=(
   [SVs12P]="k_hit k_ms k_ioni k_rad" [Ss9P]="k_hit k_ms k_ioni k_rad"
   [P2XP]="$_P2FREEZE"
   [P2N]="$_P2FREEZE"  [P2K]="$_P2FREEZE"
+  [P2XT]="$_P2FREEZE"  [P2B]="$_P2FREEZE"
   [J0]="$_P2FREEZE"  [JK]="$_P2FREEZE"  [JD]="$_P2FREEZE"
 )
 
