@@ -121,6 +121,20 @@ but written without `phik_t/phik_re/phik_im` comes back with a delta and
 nothing says so — the first `jpsi_fsrmc` card was byte-identical to
 `jpsi_nok`.
 
+## What the kernel is worth to the likelihood, at theta = 0
+
+200 000 of the card's own candidates, the card's 64 resolution classes and its
+truncation normalisation, corrections off so the two differ by the kernel
+alone:
+
+| | `-sum log(L/Z)` | per candidate | min `L` |
+|---|---:|---:|---:|
+| delta at `MJPSI` | -354 553.65 | -1.772768 | 1.53e-4 |
+| `mc` kernel | **-363 236.27** | **-1.816181** | 7.58e-4 |
+
+`2 dNLL = 17 365` over 200 000 candidates = **0.0868 per candidate**, ~260 000
+over the card's 3 M.
+
 ## PRE-REGISTERED prediction, written before the fits landed
 
 From the card's own J/psi Jacobian on the 3 000 000 selected candidates

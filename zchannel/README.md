@@ -1406,6 +1406,23 @@ blend in `_density` — which `MassCFTerm` does not have: `phik_grid` is the
 per-candidate form and it is refused together with a parameter-dependent
 `sigma`, which the J/psi leg has.
 
+### What it is worth to the likelihood
+
+At `theta = 0`, on 200 000 of the card's own candidates with the card's
+64 resolution classes and its truncation normalisation (corrections off, so
+the two differ by the kernel alone):
+
+| | `-sum log(L/Z)` | per candidate | min `L` |
+|---|---:|---:|---:|
+| delta at `MJPSI` | -354 553.65 | -1.772768 | 1.53e-4 |
+| `mc` kernel | **-363 236.27** | **-1.816181** | 7.58e-4 |
+
+`2 dNLL = 17 365` over 200 000 candidates, i.e. **0.0868 per candidate** and
+~260 000 over the card's 3 M. The kernel is not a refinement of the J/psi
+model, it is the difference between a model that describes the sample and one
+that does not. It also lifts the smallest reconstructed density by 5x, which
+is the same defect the positivity floor was put in for.
+
 ### The one caveat: the correction form
 
 `rabbit_fit.py`'s `--unbinnedDeltaKernelForm auto` keys on
