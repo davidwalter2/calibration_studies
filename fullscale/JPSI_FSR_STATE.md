@@ -51,6 +51,15 @@ Kernels: `zchannel/data/jpsi_kern_{mc,data,data_trunc}.npz`.
 | **22825078** | `JD` | `jpsi_fsrdata` | `-G h200:1 --time=0-06:00:00`, `mit_preemptable` |
 | **22830065** | `P2XT` | `joint_ztab` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
 
+**`P2N` reproduces `P2XP` digit for digit while it descends**, which settles
+the question the row was built to answer. Its EDM sequence
+`... 7361.428509941325, 137225.37080812445, 134131.79006991247 ...` is
+`P2XP`'s iterations 5-7 to ten digits (`7361.428509941325`,
+`137225.37080812445`, `134131.79006991247`), so the positivity-floor
+difference between the two cards really is inert on the trajectory -- it
+touches 2 of 3 000 000 candidates -- and `P2N` may be read as the same-code
+`P2XP`.
+
 **Why `P2N` and not just `P2XP`.** `joint_ok_full` was written on 2026-09-07,
 **before** `65319ab` gave every card a real positivity floor, so its J/psi leg
 ran at rabbit's `1e-9` default instead of `make_card`'s `1e-7`. That is a
@@ -239,6 +248,22 @@ residual                   = -0.6043 MeV = -1.95e-4
 -1.95e-4 as an upper bound.** The remedy is a per-class kernel, which rabbit
 does not have (`phik_grid` is per candidate and is refused together with a
 parameter-dependent `sigma`, which this leg has).
+
+## How the phase-2 rows descend, and how long they take
+
+`P2XP` needed **24 Hessians / 8 h 01** on an H200, and its EDM sequence is
+`137291, 136935, 135996, 134389, 7361, 137225, 134132, 133710, 132486,
+130304, 126006, 117673, 102013, 74415, 30063, 37.0, 27.6, 21.1, 2.81, 0.230,
+2.35e-5, 1.05e-11, 2.47e-22, 1.05e-11`. **The first ten iterations are a
+shelf**, the descent starts at 11 and the collapse at 15. A flat EDM before
+iteration 11 on this card family is therefore expected and is not a stall;
+`--stallRelTol 1e-4` and the spectral preconditioner (condition number
+5.21e14 -> 11 on every phase-2 row) are what carry it off the shelf.
+A single NEGATIVE EDM en route (`P2XP` iteration 5, `P2K` iteration 7) is the
+trust-region step meeting a direction of negative curvature; both cards
+recover on the next Hessian.
+
+Budget from that: ~21 min per Hessian, ~8 h per phase-2 row.
 
 ## Results as they land
 
