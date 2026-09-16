@@ -47,9 +47,9 @@ Kernels: `zchannel/data/jpsi_kern_{mc,data,data_trunc}.npz`.
 |---:|---|---|---|
 | **22823944** | `J0 JK` | `jpsi_nok`, `jpsi_fsrmc` | `-G h200:1 --time=1-00:00:00`, `mit_preemptable` |
 | **22824029** | `P2K` | `joint_fsrmc` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
-| ~~22824626~~ -> **22843136** | `P2N` | `joint_nok` | `-G h200:1 --time=6:00:00`, **`mit_normal_gpu`**, warm-started with `FRESH=0` from its iteration-15 snapshot after 22824626 was preempted at 13:57 |
+| ~~22824626~~ -> **22847975** | `P2N` | `joint_nok` | `mit_preemptable`, `-G h200:1 --time=1-00:00:00`, `FRESH=0` from its iteration-15 snapshot (22824626 was preempted at 13:57, one Hessian before its collapse) |
 | **22825078** | `JD` | `jpsi_fsrdata` | `-G h200:1 --time=0-06:00:00`, `mit_preemptable` |
-| ~~22830065~~ -> **22838715** | `P2XT` | `joint_ztab` | `-G h200:1 --time=6:00:00`, **`mit_normal_gpu`** (22830065 was preempted twice) |
+| ~~22830065~~ -> **22847976** | `P2XT` | `joint_ztab` | `mit_preemptable`, `-G h200:1 --time=1-12:00:00`, `FRESH=0` from its 3-Hessian snapshot (22830065 was preempted twice) |
 
 **`P2N` reproduces `P2XP` digit for digit while it descends**, which settles
 the question the row was built to answer. Its EDM sequence
@@ -287,16 +287,18 @@ start and a preempted row loses only the Hessian it was in the middle of. The
 snapshot stores PHYSICAL values, not the preconditioner's internal
 coordinates, so the resume is exact.
 
-`22830065` was preempted **twice inside 40 minutes** (12:19 on node4300 after
-3 Hessians, 12:58 on node5200 before its first), so `P2XT` was moved to
-**`mit_normal_gpu`** -- H200s, NOT preemptable, 6 h limit -- as
-**22838715**. Six hours is about three quarters of a phase-2 row, so it is
-expected to hit the wall; the continuation is one warm start from its own
-snapshot:
+**`mit_normal_gpu` is not the answer**, though it is the only non-preemptable
+partition with H200s: its walltime caps at 6 h, three quarters of a phase-2
+row, and it was **442 jobs deep** -- both rows sat there 50 minutes without
+starting. `mit_preemptable` with `FRESH=0` is strictly better once snapshots
+exist: it starts in minutes and a preemption now costs **one Hessian**, ~21
+min, rather than the run.
+
+The standing recovery for any preempted phase-2 row is therefore
 
 ```bash
-eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -p mit_normal_gpu \
-     -G h200:1 --time=6:00:00 --export=ALL,FRESH=0,ROWS="P2XT" precond_refit.sbatch'
+eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -p mit_preemptable \
+     -G h200:1 --time=1-12:00:00 --export=ALL,FRESH=0,ROWS="<TAG>" precond_refit.sbatch'
 ```
 
 ## Results as they land
@@ -308,7 +310,7 @@ eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -p mit_normal_gpu \
 | `JK` | `jpsi_fsrmc` | `mc` | 2.06e-11 | **39 min** | -0.75376 +- 0.02633 | **+0.4537** | — (no Z term) |
 | `JD` | `jpsi_fsrdata` | `data` | 7.23e-13 | **69 min** | -0.86590 +- 0.02639 | +0.5578 | — (no Z term) |
 | `P2N` | `joint_nok` | delta | | | | | |
-| `P2K` | `joint_fsrmc` | `mc` | | | | | |
+| `P2K` | `joint_fsrmc` | `mc` | 8.49e-13 | **8 h 34** | -1.31131 +- 0.02556 | +0.8804 | **-45.594 +- 2.132** |
 
 `J0`: converged at EDM 6.5e-23 in the minimiser and 1.10e-12 as reported,
 condition number 4.31e7 -> 1 under the preconditioner, `rc=0`, postfit
@@ -402,3 +404,91 @@ puts the table in the card as zlib'd base64: **3.756 MB** of config JSON for
 bit-identical, `K` and `p0` to **4.4e-16** relative, which is the provider's
 own row renormalisation and nothing else. Atom kernels were always inline and
 are unaffected.
+
+
+## PHASE 2 WITH THE J/psi KERNEL (`P2K`) -- certified
+
+`rc=0`, EDM **8.49e-13**, postfit covariance computed, 24 Hessians in
+**8 h 34** on a preemptable H200.
+
+| | `P2XP` (delta) | `P2K` (`mc` kernel) | difference |
+|---|---:|---:|---:|
+| `m_Z` [MeV] | +20.692 +- 2.134 | **-45.594 +- 2.132** | **-66.286** |
+| `Gamma_Z` [MeV] | -4.377 +- 3.787 | -6.053 +- 3.776 | -1.676 |
+| `bfield_mode0` [1e-3] | +1.40124 +- 0.02563 | -1.31131 +- 0.02556 | -2.71255 |
+| `<D_card>.theta` [MeV] | -1.5105 | +0.8804 | +2.3909 = **+7.72e-4** |
+| NLL | 5 616 702.7582 | 5 499 700.3370 | (not comparable, see below) |
+| material pulls | `bpix_active_L2 +2.65 %` (324 sigma) | +2.65 % (324 sigma) | unchanged |
+
+**The transfer is 1:1 and that is the check.** The J/psi leg's scale moves by
+`+7.72e-4` and `m_Z` moves by `-66.286 / 91 188 = -7.27e-4`: a multiplicative
+momentum-scale change has to appear on `m_Z` with the opposite sign and the
+same magnitude, and it does, to 6 %. The J/psi-only pair gives the same step
+independently (`+7.616e-4`), on a card with no `m_Z` in it at all.
+
+**So a delta at the PDG mass was costing `m_Z` +66.3 MeV, and the `+20.69` was
+not the FSR -- it was the SUM of an FSR-induced `+66.3` and a residual
+`-45.6`.** Decomposing with the measured J/psi scale, `-(scale) x m_Z` predicts
+`+44.5` for `P2XP` and `-25.9` for `P2K` against the fitted `+20.69` and
+`-45.59`: a common Z-side offset of **-23.8 / -19.7 MeV** that does not move
+when the J/psi leg changes, which is where `SUMMARY.md` open item 1 (the `K(m)`
+truncation) lives.
+
+The two NLLs are not comparable: the J/psi term's model changed, so its
+normalisation did.
+
+## The residual scale after the kernel, and what it is not
+
+`JK` leaves `<D_card>.theta = +0.4537 MeV = +1.465e-4` where truth is 0, and
+`bfield_mode0` overshoots to `-0.754e-3`. Two cheap, certain measurements
+narrow it, neither needing a new fit.
+
+**It is not the hit-chi2 term.** That term's own minimum is a 92x92 linear
+solve on the card's own `grad_values`/`hess_dense` plus the card's priors, and
+it sits at
+
+```
+<D_card> . theta = -41.20 MeV = -1.330e-2     (bfield_mode0 alone: -41.45 MeV)
+```
+
+i.e. the hit-chi2 curvature on this MC wants a momentum scale **1.3 % off**,
+and the mass term drags it back by a factor ~90. `bfield_mode0` is pulled from
+`+50.7e-3` to `-0.75e-3`; its overshoot past zero is 1.5 % of that pull and is
+not a separate effect.
+
+**It is intrinsic to the J/psi mass term.** At the joint minimum
+`dL_mass/dtheta = -(g + H_quad theta*)` and `H_mass = H_total - H_quad` with
+`H_total` the inverse of the certified postfit covariance, so the mass term's
+OWN stationary point follows without refitting:
+
+| | fitted `<D>.theta` | the MASS TERM alone |
+|---|---:|---:|
+| `J0` (delta) | -1.9049 MeV | -2.2267 MeV = -7.190e-4 |
+| `JK` (`mc` kernel) | +0.4537 MeV | **+0.5300 MeV = +1.711e-4** |
+
+The hit-chi2 term contributes only `-0.076 MeV` (`-2.5e-5`) of the residual.
+**The J/psi mass likelihood's own answer is `+1.71e-4` where truth is 0.**
+
+What is left, with sizes:
+
+| candidate | size | sign | status |
+|---|---:|---|---|
+| the two mass-likelihood corrections' own residual | **+5.1e-5** (the gun closure with both first-principles terms, `+0.051 +- 0.017e-3`) | same | ~30 % of it, measured elsewhere |
+| ONE kernel for 64 resolution classes | <= 1.95e-4 on the kernel MEAN, ~2.5e-5 realised | **opposite** | makes the unexplained part larger, not smaller |
+| `k_ms` frozen at 1 where the MC truth is 1.0298 | 0.5 MeV on `m_Z` = 5.5e-6 | — | negligible |
+| `f_ang` | — | — | excluded: the J/psi leg reads `Jpsi_fang` per candidate |
+| the field-mode basis | — | — | excluded: on MC the truth of all 92 is 0 and the basis is the production's own |
+| **the correction FORM under a kernel** | unbounded analytically | — | **the open one** |
+
+The last is the caveat already in `zchannel/README.md`:
+`--unbinnedDeltaKernelForm auto` keys on `term.kernel.kind == "delta"`, a
+`phik` does not change that, so a kernelled J/psi term still takes the
+**residual** form -- which is exact only where `delta_i` IS the resolution
+fluctuation, and with a kernel it is the fluctuation PLUS the FSR
+displacement.
+
+**The one check that decides it is one CLI flag and 45 minutes**, and it is
+running as `JKF` (**22854490**): the same `jpsi_fsrmc` card with
+`EXTRA="--unbinnedDeltaKernelForm fluctuation"`. If the residual moves by
+~1e-4 the correction form under a kernel is the explanation; if it does not,
+what is left is the corrections' own `+5.1e-5` and ~`+1.2e-4` still unassigned.
