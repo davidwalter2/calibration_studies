@@ -47,9 +47,9 @@ Kernels: `zchannel/data/jpsi_kern_{mc,data,data_trunc}.npz`.
 |---:|---|---|---|
 | **22823944** | `J0 JK` | `jpsi_nok`, `jpsi_fsrmc` | `-G h200:1 --time=1-00:00:00`, `mit_preemptable` |
 | **22824029** | `P2K` | `joint_fsrmc` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
-| **22824626** | `P2N` | `joint_nok` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
+| ~~22824626~~ -> **22843136** | `P2N` | `joint_nok` | `-G h200:1 --time=6:00:00`, **`mit_normal_gpu`**, warm-started with `FRESH=0` from its iteration-15 snapshot after 22824626 was preempted at 13:57 |
 | **22825078** | `JD` | `jpsi_fsrdata` | `-G h200:1 --time=0-06:00:00`, `mit_preemptable` |
-| **22830065** | `P2XT` | `joint_ztab` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
+| ~~22830065~~ -> **22838715** | `P2XT` | `joint_ztab` | `-G h200:1 --time=6:00:00`, **`mit_normal_gpu`** (22830065 was preempted twice) |
 
 **`P2N` reproduces `P2XP` digit for digit while it descends**, which settles
 the question the row was built to answer. Its EDM sequence
@@ -264,6 +264,40 @@ trust-region step meeting a direction of negative curvature; both cards
 recover on the next Hessian.
 
 Budget from that: ~21 min per Hessian, ~8 h per phase-2 row.
+
+**Preemption.** `mit_preemptable` is the only partition with an H200 and a
+walltime above 6 h (`mit_normal_gpu` has H200s but caps at 6 h, which does not
+fit an 8 h row without a handover), so a phase-2 row can be killed mid-flight:
+`P2XT` was preempted at 12:19 after 3 Hessians and requeued. The sbatch writes
+a snapshot every 0.25 h and `FRESH=0` turns it into
+`--externalPostfit <snapshot>`, so the recovery for a repeat is
+
+```bash
+eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -p mit_preemptable \
+     -G h200:1 --time=1-12:00:00 --export=ALL,FRESH=0,ROWS="P2XT" precond_refit.sbatch'
+```
+
+`FRESH` defaults to **1** in this script, so a plain requeue restarts from
+scratch.
+
+**`--externalPostfit <snapshot>` CARRIES ON MINIMISING** from the snapshot's
+parameter values; it is only with `--noFit` that it runs the postfit alone
+(`rabbit/snapshot.py`, `bin/rabbit_fit.py:653`). So `FRESH=0` is a true warm
+start and a preempted row loses only the Hessian it was in the middle of. The
+snapshot stores PHYSICAL values, not the preconditioner's internal
+coordinates, so the resume is exact.
+
+`22830065` was preempted **twice inside 40 minutes** (12:19 on node4300 after
+3 Hessians, 12:58 on node5200 before its first), so `P2XT` was moved to
+**`mit_normal_gpu`** -- H200s, NOT preemptable, 6 h limit -- as
+**22838715**. Six hours is about three quarters of a phase-2 row, so it is
+expected to hit the wall; the continuation is one warm start from its own
+snapshot:
+
+```bash
+eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -p mit_normal_gpu \
+     -G h200:1 --time=6:00:00 --export=ALL,FRESH=0,ROWS="P2XT" precond_refit.sbatch'
+```
 
 ## Results as they land
 
