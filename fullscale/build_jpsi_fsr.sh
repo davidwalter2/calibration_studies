@@ -54,7 +54,12 @@ kernel)
       --report 2>&1 | tee "$LOGS/jpsi_kern_data_trunc.log"
   ;;
 p2)
-  # phase 2 with the J/psi kernel; the no-kernel reference is `joint_ok_full`
+  # phase 2, the SAME code on both sides.  `joint_ok_full` (the P2XP reference)
+  # was built on 2026-09-07, BEFORE `65319ab` gave every card a real positivity
+  # floor, so its J/psi leg ran at rabbit's 1e-9 default -- a second difference,
+  # and one that makes the NLLs incomparable.  `joint_nok` is the same card
+  # rebuilt today, so `P2N` vs `P2K` differ by the kernel and nothing else.
+  card joint_nok  "${zleg[@]}"
   card joint_fsrmc "${zleg[@]}" --jpsi-fsr "$KMC"
   ;;
 jpsi)

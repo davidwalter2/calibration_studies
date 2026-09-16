@@ -17,6 +17,12 @@ compared (`resolution/pubhtml.savefig`).
     marked; this is the number the delta kernel forces onto the scale.
   * `jpsi_cf`           -- ``|phi_K(t)|`` and ``arg phi_K(t)`` over the ``t``
     the term actually reads (``max(tau)/sigma``), MC against analytic.
+  * `jpsi_pure_fsr`     -- the PURE FSR kernel, with the generator lineshape
+    divided out candidate by candidate through the status-746 pre-FSR muons
+    (`data/jpsi_fsr_from_746.npz`, the whole 21.7 M-candidate production),
+    against the analytic one.  This is the clean QED comparison; the two
+    truncations -- the cache's gen window and the ALCARECO's own
+    ``Jpsitrk_mass`` window -- are marked.
   * `jpsi_massexact`    -- ``R_exact/R1 - 1`` against ``z`` at the J/psi, the
     Upsilon and the Z: why `FSRKernel(mass_exact=True)` is a narrow-resonance
     option.
@@ -175,6 +181,11 @@ def fig_u_tail(dm, ub, wj, dm_an, out):
     with np.errstate(divide="ignore", invalid="ignore"):
         a1.plot(u0, p_mc / p_an, color=C_MC, lw=2)
         a1.plot(u0, p_mc / p_anbw, color=C_AN2, lw=1.6, ls="--")
+    for ax in (a0, a1):
+        ax.axvline(-np.log((MJPSI - WINDOW) / MJPSI), color="grey", lw=1.3,
+                   ls="--")
+    a0.text(0.62, 0.30, "the cache's gen window\n"
+            r"truncates the MC here", transform=a0.transAxes, fontsize=12)
     a1.axhline(1.0, color="k", lw=1, ls=":")
     a1.set_xscale("log")
     a1.set_ylim(0.0, 2.2)
@@ -267,6 +278,53 @@ def fig_cf(kmc, kan, sigmin, out):
     plt.close(fig)
 
 
+U_CACHE = -np.log((3.0969 - 0.35) / 3.0969)     # the pairs cache's gen window
+U_ALCA = np.log(3.0969 / 2.7019)                 # the ALCARECO Jpsitrk window
+
+
+def fig_pure_fsr(path, out):
+    """The 746-derived FSR-only kernel against the analytic one."""
+    if not os.path.exists(path):
+        logger.warning(f"{path} is not there; skipping jpsi_pure_fsr")
+        return
+    z = np.load(path, allow_pickle=True)
+    e = np.asarray(z["u_edges"], float)
+    c = np.asarray(z["u_centres"], float)
+    y = np.asarray(z["dens"], float)
+    ey = np.asarray(z["dens_err"], float)
+    ya = np.asarray(z["dens_analytic"], float)
+    n = int(z["n"])
+
+    fig, a0, a1 = _ratio_fig()
+    a0.errorbar(c, y, yerr=ey, fmt="o", ms=3, color=C_MC, lw=0,
+                elinewidth=1.2,
+                label=f"MC, lineshape divided out ({n / 1e6:.1f} M)")
+    a0.step(e[:-1], ya, where="post", color=C_AN, lw=2,
+            label=r"analytic: exp2nll + $e^+e^-\!/\mu^+\mu^-$ pairs, mass-exact")
+    for x, lab, ls in ((U_CACHE, r"cache gen window", "--"),
+                       (U_ALCA, r"ALCARECO $m_{\mu\mu}$ window", ":")):
+        a0.axvline(x, color="grey", lw=1.3, ls=ls, label=lab)
+        a1.axvline(x, color="grey", lw=1.3, ls=ls)
+    a0.set_xscale("log")
+    a0.set_yscale("log")
+    a0.set_ylim(1e-3, 6e-2)
+    a0.set_ylabel(r"$u\,\mathrm{d}P/\mathrm{d}u$")
+    a0.legend(fontsize=12, loc="lower left")
+    a0.text(0.03, 0.93, r"$u=-\ln(m_{\mathrm{post}}/m_{\mathrm{pre}})$, "
+            r"$m_{\mathrm{pre}}$ from the status-746 muons",
+            transform=a0.transAxes, fontsize=12, va="top")
+    with np.errstate(divide="ignore", invalid="ignore"):
+        a1.errorbar(c, y / ya, yerr=ey / ya, fmt="o", ms=3, color=C_MC, lw=0,
+                    elinewidth=1.2)
+    a1.axhline(1.0, color="k", lw=1, ls=":")
+    a1.set_xscale("log")
+    a1.set_ylim(0.0, 1.6)
+    a1.set_xlabel(r"$u$")
+    a1.set_ylabel("MC / QED")
+    pubhtml.savefig(fig, os.path.join(out, "jpsi_pure_fsr.pdf"))
+    plt.close(fig)
+
+
 def fig_massexact(out):
     z = np.geomspace(0.01, 0.999, 240)
     fig, ax = plt.subplots(figsize=(9, 7))
@@ -313,6 +371,7 @@ def main():
     fig_dm_core(dm, dm_an, out)
     fig_meanshift(dm, ub, wj, out)
     fig_cf(np.load(a.kern_mc), np.load(a.kern_data), a.sigmin, out)
+    fig_pure_fsr(os.path.join(_HERE, "data", "jpsi_fsr_from_746.npz"), out)
     fig_massexact(out)
     logger.info("done")
 

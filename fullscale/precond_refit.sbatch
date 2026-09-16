@@ -117,6 +117,7 @@ declare -A CARDS=(
   # delta (x) K with the sample's own kernel.  J0/JK are the same J/psi term
   # and the same quadratic term with NO Z leg, so what moves between them is
   # attributable to the J/psi FSR treatment alone.
+  [P2N]=joint_nok                # phase 2, full, delta -- SAME CODE as P2K
   [P2K]=joint_fsrmc              # phase 2, full, J/psi kernel = mc
   [J0]=jpsi_nok                  # J/psi + the 92, delta kernel
   [JK]=jpsi_fsrmc                # J/psi + the 92, mc kernel
@@ -125,6 +126,7 @@ declare -A MODELS=(
   [SVs7P]="UnbinnedParams"  [SVs9P]="UnbinnedParams"  [SVs12P]="UnbinnedParams"
   [Ss9P]="UnbinnedParams"
   [P2XP]="ExternalParams bundle:global_params"
+  [P2N]="ExternalParams bundle:global_params"
   [P2K]="ExternalParams bundle:global_params"
   [J0]="ExternalParams bundle:global_params"
   [JK]="ExternalParams bundle:global_params"
@@ -139,7 +141,8 @@ declare -A FREEZES=(
   [SVs7P]="k_hit k_ms k_ioni k_rad"  [SVs9P]="k_hit k_ms k_ioni k_rad"
   [SVs12P]="k_hit k_ms k_ioni k_rad" [Ss9P]="k_hit k_ms k_ioni k_rad"
   [P2XP]="$_P2FREEZE"
-  [P2K]="$_P2FREEZE"  [J0]="$_P2FREEZE"  [JK]="$_P2FREEZE"
+  [P2N]="$_P2FREEZE"  [P2K]="$_P2FREEZE"
+  [J0]="$_P2FREEZE"  [JK]="$_P2FREEZE"
 )
 
 METHOD=${METHOD:-trust-exact}
