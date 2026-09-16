@@ -96,9 +96,11 @@ def fig_dmean(rows, dbar, dnames, out):
     ax.barh(y, [dm[t] for t in tags],
             color=[COL.get(t, "#1f77b4") for t in tags], height=0.6)
     for i, t in enumerate(tags):
-        ax.text(dm[t] + (0.12 if dm[t] >= 0 else -0.12), i,
+        # always to the RIGHT of the bar's far end, so a negative bar's label
+        # cannot run into the row name on the axis
+        ax.text(max(dm[t], 0.0) + 0.14, i,
                 f"{dm[t]:+.3f} MeV = {dm[t] / (MJPSI * 1e3):+.2e}",
-                va="center", ha="left" if dm[t] >= 0 else "right", fontsize=12)
+                va="center", ha="left", fontsize=12)
     for j, b in enumerate(bound):
         ax.axvline(b, color="k", lw=1.4, ls="--",
                    label=(r"$-\langle dm\rangle$: what a MEAN-matching "
@@ -107,12 +109,11 @@ def fig_dmean(rows, dbar, dnames, out):
     ax.set_yticks(y)
     ax.set_yticklabels(tags)
     ax.invert_yaxis()
-    ax.set_xlabel(r"$\langle D_{\rm card}\rangle\cdot\theta$  [MeV]"
-                  "\n(the mean predicted J/$\\psi$ mass shift the fitted "
-                  "calibration vector produces)")
+    ax.set_xlabel(r"$\langle D_{\rm card}\rangle\cdot\theta$  [MeV] --- the "
+                  r"mean predicted J/$\psi$ mass shift")
     lo = min(list(dm.values()) + [0.0])
     hi = max(list(dm.values()) + bound + [0.0])
-    ax.set_xlim(lo - 1.4, hi + 1.4)
+    ax.set_xlim(lo - 0.6, hi + 1.2)
     h, lab = ax.get_legend_handles_labels()
     if h:
         ax.legend(h[:1], lab[:1], fontsize=12, loc="lower right")

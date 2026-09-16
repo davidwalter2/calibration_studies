@@ -233,7 +233,7 @@ parameter-dependent `sigma`, which this leg has).
 | `P2XP` | `joint_ok_full` | delta | 1.05e-11 | 8 h 01 | +1.40124 +- 0.02563 | -1.5105 | +20.692 +- 2.134 |
 | `J0` | `jpsi_nok` | delta | 1.10e-12 | **43 min** | +1.91544 +- 0.02562 | -1.9049 | — (no Z term) |
 | `JK` | `jpsi_fsrmc` | `mc` | 2.06e-11 | **39 min** | -0.75376 +- 0.02633 | **+0.4537** | — (no Z term) |
-| `JD` | `jpsi_fsrdata` | `data` | | | | | — |
+| `JD` | `jpsi_fsrdata` | `data` | 7.23e-13 | **69 min** | -0.86590 +- 0.02639 | +0.5578 | — (no Z term) |
 | `P2N` | `joint_nok` | delta | | | | | |
 | `P2K` | `joint_fsrmc` | `mc` | | | | | |
 
@@ -263,3 +263,31 @@ against the `+1.5 MeV` estimated from the reference's realised fraction and
 inside the `+1.4` to `+8.8e-3` band quoted for `bfield_mode0`), and the
 material pulls do NOT go away (prediction 3) -- they are a 50-sigma feature of
 this MC that a mean mass shift cannot reach.
+
+### The KERNEL MODEL dependence: `JD - JK`
+
+`JD` is the same card with the exponentiated exact-QED kernel (truncated to
+the same gen window), so `JD - JK` is the model dependence of the kernel
+itself, measured on the extracted scale:
+
+| | `JK` (`mc`) | `JD` (`data`, exact QED) | difference |
+|---|---:|---:|---:|
+| the kernel's own `<dm>` [MeV] | -7.1969 | -8.0089 | -0.8120 |
+| `bfield_mode0` [1e-3] | -0.75376 +- 0.02633 | -0.86590 +- 0.02639 | -0.11214 (4.3 sigma) |
+| `<D_card>.theta` [MeV] | +0.4537 | +0.5578 | +0.1041 |
+| the same, relative | +1.465e-4 | +1.801e-4 | **+3.36e-5** |
+| NLL | -5 574 341.0470 | -5 574 635.2937 | 588 for `data` |
+
+**The kernel-model systematic on the scale is `3.4e-5`, not the `2.6e-4` the
+two kernels' means differ by**: the likelihood realises 12.8 % of a
+mean-matching response against a one-sided tail, the same fraction the
+`JK - J0` step shows, so a kernel-mean difference is suppressed by ~8 in the
+answer.
+
+**The NLL is NOT the arbiter of which kernel is right here.** `data` is
+preferred by 588 units with no extra parameter, and that cannot mean exact QED
+describes this MC's radiation better than the MC's own measured radiation.
+What it means is that with ONE kernel the model is not exact for either: the
+sample's kernel is class dependent (rms 1.343 MeV over the 64 norm classes,
+above), and a kernel with a heavier hard tail partly absorbs that. The
+quantity that IS interpretable is the scale, and it moves by 3.4e-5.
