@@ -1227,19 +1227,92 @@ truncated to the same window (contributions to `<dm>`, MeV):
 | **total** | | | **-7.1969** | **-8.0089** | **+0.812** |
 
 Below `u = 1e-2` the two agree to 0.04 MeV in total. **The whole difference is
-the HARD tail**, where PHOTOS runs 6 % short at `u ~ 0.02` and 20 % short at
-`u ~ 0.1` — which is exactly the piece
-the exact matrix-element correction supplies and which this sample does not
-switch on at the J/psi. (The `dm > 0` row is the resonance's own Breit-Wigner
-upper half plus a 0.03 % tail of candidates whose gen mass sits far above the
-generator's `mMax`, i.e. a gen-matching contamination; the pure-FSR analytic
-kernel has no counterpart, the `data` kernel's Breit-Wigner factor supplies the
-first part of it and contributes nothing to the mean.)
+the HARD tail**, where the MC runs 6 % short at `u ~ 0.02` and 20 % short at
+`u ~ 0.1`. (The `dm > 0` row is the resonance's own Breit-Wigner upper half
+plus a 0.03 % tail of candidates whose gen mass sits far above the generator's
+`mMax`, i.e. a gen-matching contamination; the pure-FSR analytic kernel has no
+counterpart, the `data` kernel's Breit-Wigner factor supplies the first part of
+it and contributes nothing to the mean.)
+
+**That hard-tail deficit is NOT established to be a QED-accuracy statement.**
+It is the difference between the *selected sample's* kernel and the
+*unconditional* QED one, and two things are folded into it that this production
+cannot separate: PHOTOS' missing matrix-element correction at the J/psi vertex,
+and the **selection's acceptance for hard radiation** -- a radiating J/psi has
+softer muons and the ALCARECO's own cuts see them less often. Every variable in
+the file that could bin it (`Jpsigen_pt`, the gen muon `pT` and `eta`) is a
+*post*-FSR quantity, so binning in it migrates radiating candidates and
+manufactures a dependence: the conditional ratio at `u0 = 3e-2` runs 1.05 at
+`min gen-muon pT < 3.5 GeV` to 0.86 above 8 GeV purely from that migration, and
+is flat in J/psi `pT` from 8 to 30 GeV. This is the J/psi's version of the Z
+channel's `K_sel/K`, and it is why the **`mc` kernel is the right object for an
+MC closure fit** -- it is a measurement of the selected sample and exact for it
+-- while a *data* fit needs the analytic kernel times the same acceptance
+ratio.
 
 Below `u ~ 3e-4` the MC's "kernel" is not radiation at all: it is the
 generator's own truncated Breit-Wigner, and `analytic (x) Breit-Wigner`
 reproduces the MC density there to a few per cent
 (`jpsi_u_density`, `jpsi_dm_core`).
+
+### The pure FSR kernel, with the lineshape divided out candidate by candidate
+
+`Jpsigenpre_masslep` -- the invariant mass of the two **status-746** muons,
+which is PHOTOS' own pre-radiation copy -- is filled in exactly the radiating
+candidates (31.82 %), and in the rest `Jpsigen_mass` *is* the pre-FSR mass. So
+`u = -ln(m_post/m_pre)` is measurable per candidate and the lineshape drops
+out. Measured over the **whole production** (21 678 062 candidates, 6580 stream
+files; `production/extract_jpsi_gen_fsr.py`, `production/analyze_jpsi_fsr_746.py`,
+`data/jpsi_fsr_from_746.npz`), after `chi2/ndof < 3` (21 485 543 candidates):
+
+| | |
+|---|---:|
+| `P(PHOTOS emitted)` | 0.318193 |
+| `<u>` | 2.624091e-3 |
+| `<u \| u != 0>` | 8.343576e-3 |
+| `<m_post> - m_0` | **-7.928866 MeV** |
+| of which the **lineshape** | **-0.0003 MeV** |
+| of which **FSR** | -7.881141 MeV (the remainder is `m_0 <u^2>/2`) |
+
+so the whole mean shift is radiation and none of it is the resonance width,
+which is what a symmetric Breit-Wigner has to give. The construction is
+verified rather than assumed: `m_pre` reproduces the generator's truncated
+Breit-Wigner to **0.5 keV in every quantile from 1 % to 99 %**, and a free fit
+returns `m0 = 3.09689969` (-0.31 keV against the card's `MJPSI`, 1e-7 of the
+scale) and `Gamma = 9.278e-5` (1.002x the fragment's). Two contaminations are
+measured and bounded: the ~0.6 % of radiating candidates that lose `masslep` to
+a competing status-746 muon move `<u>` by +0.6 to +1.0 % (<= 0.08 MeV), and a
+0.24 % mispairing background (`u < 0`) by -0.09 %.
+
+**Where the comparison with exact QED is clean it agrees.** The sample's kernel
+is truncated at `u = ln(3.0969/2.7019) = 0.1376` by the ALCARECO's own
+`Jpsitrk_mass` window, and 76 % of the analytic kernel's inclusive `<u>` sits
+above `u = 0.113`, so the inclusive ratio 0.242 is a truncation and not a
+disagreement. Conditioned on a common cut:
+
+| `u_cut` | `<u \| u < cut>` measured | analytic | ratio |
+|---|---:|---:|---:|
+| 0.003 | 7.7446e-5 | 7.7730e-5 | **0.9963** |
+| 0.010 | 2.5402e-4 | 2.5624e-4 | **0.9913** |
+| 0.030 | 7.2901e-4 | 7.4503e-4 | 0.9785 |
+| 0.0566 | 1.2959e-3 | 1.3497e-3 | 0.9602 |
+| 0.113 | 2.2885e-3 | 2.4819e-3 | 0.9221 |
+
+and the density ratio is 1.01-1.03 over the four decades from `u = 7e-6` to
+`1e-2`. PHOTOS' exponentiated eikonal and the exponentiated exact `O(alpha)`
+kernel agree to **0.4 % on `<u | u < 0.003>` and 0.9 % on `<u | u < 0.01>`**;
+the deficit appears only above `u ~ 0.02` and there it is not separable from
+the selection.
+
+One float32 artefact to know about: the branches are float32, `ulp/m` is
+7.7e-8, and PHOTOS' softest emission at `setInfraredCutOff = 1e-7` is
+`u = 5e-8`, **below one ulp**. `P(u == 0) = 0.6855` therefore exceeds the true
+no-emission probability `1 - 0.3182 = 0.6818` by 0.37 % of all candidates, and
+the density below `u ~ 1e-5` shows a two-bin alternation. Nothing at
+`u >= 1e-5` is affected, and the kernel the card carries is built from
+`Jpsigen_mass` directly, where the artefact is a sub-ulp displacement of an
+unradiated candidate and cannot matter.
+
 
 ### `mass_exact`: the muon-mass terms of the O(alpha) spectrum
 
