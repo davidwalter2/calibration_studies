@@ -86,12 +86,16 @@ def main():
     print(f"{'row':8s} {'cert':>5s} {'m_Z [MeV]':>20s} {'Gamma_Z [MeV]':>20s} "
           f"{'bfield_mode0':>22s} {'NLL':>18s} {'EDM':>10s}")
     print("-" * 110)
+    def fmt(v, e, sc=1.0, w=11, p=3):
+        if not np.isfinite(v):
+            return f"{'--':>{w}}   {'':6s}"
+        return f"{v * sc:+{w}.{p}f} +-{e * sc:6.{p}f}"
+
     for tag, r in rows.items():
         m, gz, b0 = get(r, "m_Z"), get(r, "Gamma_Z"), get(r, "bfield_mode0")
         cert = "OK" if r["edm"] < EDM_TOL else "NO"
-        print(f"{tag:8s} {cert:>5s} {m[0]:+11.3f} +-{m[1]:6.3f} "
-              f"{gz[0]:+11.3f} +-{gz[1]:6.3f} "
-              f"{b0[0] * 1e3:+13.5f} +-{b0[1] * 1e3:6.5f} "
+        print(f"{tag:8s} {cert:>5s} {fmt(*m)} {fmt(*gz)} "
+              f"{fmt(*b0, sc=1e3, w=13, p=5)} "
               f"{r['nll']:18.4f} {r['edm']:10.2e}")
     print("\n(bfield_mode0 in 1e-3 card units; `cert` is EDM < 1e-3 -- the "
           "positive-definite Hessian is the fit's own covariance step, check "
@@ -104,9 +108,12 @@ def main():
             continue
         m, gz, b0 = get(r, "m_Z"), get(r, "Gamma_Z"), get(r, "bfield_mode0")
         mr, gr, br = get(R, "m_Z"), get(R, "Gamma_Z"), get(R, "bfield_mode0")
-        print(f"  {tag} - {ref}:  d m_Z = {m[0] - mr[0]:+8.3f} MeV   "
-              f"d Gamma_Z = {gz[0] - gr[0]:+8.3f} MeV   "
-              f"d bfield_mode0 = {(b0[0] - br[0]) * 1e3:+9.5f} e-3")
+        def d(a, b, sc=1.0, p=3):
+            return "--" if not (np.isfinite(a) and np.isfinite(b)) \
+                else f"{(a - b) * sc:+8.{p}f}"
+        print(f"  {tag} - {ref}:  d m_Z = {d(m[0], mr[0])} MeV   "
+              f"d Gamma_Z = {d(gz[0], gr[0])} MeV   "
+              f"d bfield_mode0 = {d(b0[0], br[0], 1e3, 5)} e-3")
 
     if os.path.exists(a.dbar):
         z = np.load(a.dbar, allow_pickle=True)

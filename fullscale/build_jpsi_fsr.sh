@@ -18,6 +18,10 @@ FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
 Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
 GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt
 KMC=$Z/data/jpsi_kern_mc.npz
+# the exact-QED kernel, truncated to the SAME +-0.35 GeV gen acceptance the
+# pairs cache has -- the untruncated one models a population this sample does
+# not contain
+KDATA=$Z/data/jpsi_kern_data_trunc.npz
 CARDS=$FS/cards; LOGS=$FS/logs
 mkdir -p "$CARDS" "$LOGS"
 STAGES=${*:-kernel p2 jpsi}
@@ -63,9 +67,12 @@ p2)
   card joint_fsrmc "${zleg[@]}" --jpsi-fsr "$KMC"
   ;;
 jpsi)
-  # J/psi + the 92 calibration parameters, with and without the kernel
+  # J/psi + the 92 calibration parameters: no kernel, the sample's own, and
+  # exact QED.  The third is the MODEL dependence of the kernel measured on
+  # the extracted scale rather than only on the kernel's mean.
   card jpsi_nok
-  card jpsi_fsrmc --jpsi-fsr "$KMC"
+  card jpsi_fsrmc   --jpsi-fsr "$KMC"
+  card jpsi_fsrdata --jpsi-fsr "$KDATA"
   ;;
 esac
 done

@@ -25,6 +25,7 @@ radiating MC) must be quantified"*.
 | `cards/joint_fsrmc.hdf5` | quad + J/psi + Z | 10.733 GB | `mc` |
 | `cards/jpsi_nok.hdf5` | quad + J/psi | 4.764 GB | delta |
 | `cards/jpsi_fsrmc.hdf5` | quad + J/psi | 4.764 GB | `mc` |
+| `cards/jpsi_fsrdata.hdf5` | quad + J/psi | 4.764 GB | `data` (exact QED, truncated to the cache's gen window) |
 
 Kernels: `zchannel/data/jpsi_kern_{mc,data,data_trunc}.npz`.
 
@@ -35,6 +36,7 @@ Kernels: `zchannel/data/jpsi_kern_{mc,data,data_trunc}.npz`.
 | **22823944** | `J0 JK` | `jpsi_nok`, `jpsi_fsrmc` | `-G h200:1 --time=1-00:00:00`, `mit_preemptable` |
 | **22824029** | `P2K` | `joint_fsrmc` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
 | **22824626** | `P2N` | `joint_nok` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
+| **22825078** | `JD` | `jpsi_fsrdata` | `-G h200:1 --time=0-06:00:00`, `mit_preemptable` |
 
 **Why `P2N` and not just `P2XP`.** `joint_ok_full` was written on 2026-09-07,
 **before** `65319ab` gave every card a real positivity floor, so its J/psi leg
@@ -64,7 +66,7 @@ eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -p mit_preemptable \
 eng 'squeue -u david_w -o "%.10i %.9P %.8j %.2t %.10M %R"'
 FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
 mkdir -p $FS/runs/engaging_260916
-rsync -a engaging:orcd/pool/zmass/fitresults/native/rabbit_{J0,JK,P2K,P2N}.hdf5 \
+rsync -a engaging:orcd/pool/zmass/fitresults/native/rabbit_{J0,JK,JD,P2K,P2N}.hdf5 \
       $FS/runs/engaging_260916/
 rsync -a 'engaging:orcd/pool/zmass/engaging/zprecond_2282*.out' \
       $FS/runs/engaging_260916/
@@ -80,7 +82,8 @@ python3 $FS/jpsi_fsr_table.py --ref P2XP \
     P2N=$FS/runs/engaging_260916/rabbit_P2N.json \
     P2K=$FS/runs/engaging_260916/rabbit_P2K.json \
     J0=$FS/runs/engaging_260916/rabbit_J0.json \
-    JK=$FS/runs/engaging_260916/rabbit_JK.json
+    JK=$FS/runs/engaging_260916/rabbit_JK.json \
+    JD=$FS/runs/engaging_260916/rabbit_JD.json
 ```
 
 **Certification**: `EDM < 1e-3` AND a finite positive-definite Hessian (the
@@ -101,6 +104,15 @@ The reference row `P2XP` is already collected:
 | difference | | **+0.812 MeV = +2.62e-4** |
 | `<u>` inclusive | 2.3887e-3 (truncated at the cache's gen window) | 1.0842e-2 (untruncated) |
 | `P(u > 0.0566)` | 0.013496 | 0.038700 (untruncated) / 0.015704 (truncated) |
+
+## ONE change, verified dataset by dataset
+
+Read back with `hdf5plugin` registered and compared array by array:
+
+| pair | result |
+|---|---|
+| `jpsi_nok` vs `jpsi_fsrmc` | **23/23** numeric datasets bit-identical (`mobs`, `sigma`, `vgf`, `a_res`, `jensen_s2`, `norm_*`, `weights`, `tgrid`, the 218 914 119 sparse-`D` values and their 437 828 238 indices, all five resolution-family blocks and their norm-class versions); the term `config` string identical; the ONLY difference is that B carries `phik_t/phik_re/phik_im` |
+| `joint_nok` vs `joint_fsrmc` | **54/54** across BOTH mass terms, both `config` strings identical, and the external `hitchi2` gradient and dense Hessian identical (`param_prior_sigmas` compares unequal only because 54 of its 96 entries are `NaN`) |
 
 ## Gates passed
 
@@ -213,3 +225,20 @@ residual                   = -0.6043 MeV = -1.95e-4
 -1.95e-4 as an upper bound.** The remedy is a per-class kernel, which rabbit
 does not have (`phik_grid` is per candidate and is refused together with a
 parameter-dependent `sigma`, which this leg has).
+
+## Results as they land
+
+| row | card | kernel | EDM | wall | `bfield_mode0` [1e-3] | `<D_card>.theta` [MeV] | `m_Z` [MeV] |
+|---|---|---|---:|---:|---:|---:|---:|
+| `P2XP` | `joint_ok_full` | delta | 1.05e-11 | 8 h 01 | +1.40124 +- 0.02563 | -1.5105 | +20.692 +- 2.134 |
+| `J0` | `jpsi_nok` | delta | 1.10e-12 | **43 min** | +1.91544 +- 0.02562 | -1.9049 | — (no Z term) |
+| `JK` | `jpsi_fsrmc` | `mc` | | | | | — |
+| `JD` | `jpsi_fsrdata` | `data` | | | | | — |
+| `P2N` | `joint_nok` | delta | | | | | |
+| `P2K` | `joint_fsrmc` | `mc` | | | | | |
+
+`J0`: converged at EDM 6.5e-23 in the minimiser and 1.10e-12 as reported,
+condition number 4.31e7 -> 1 under the preconditioner, `rc=0`, postfit
+covariance computed. Its material pulls are the reference's to two digits
+(`bpix_active_L2 +2.66 %` at 324 sigma, `bpix_support7 +2.66 %`,
+`tec_structure +0.32 %`), as pre-registered.

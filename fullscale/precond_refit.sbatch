@@ -121,6 +121,7 @@ declare -A CARDS=(
   [P2K]=joint_fsrmc              # phase 2, full, J/psi kernel = mc
   [J0]=jpsi_nok                  # J/psi + the 92, delta kernel
   [JK]=jpsi_fsrmc                # J/psi + the 92, mc kernel
+  [JD]=jpsi_fsrdata              # J/psi + the 92, analytic (exact-QED) kernel
 )
 declare -A MODELS=(
   [SVs7P]="UnbinnedParams"  [SVs9P]="UnbinnedParams"  [SVs12P]="UnbinnedParams"
@@ -130,6 +131,7 @@ declare -A MODELS=(
   [P2K]="ExternalParams bundle:global_params"
   [J0]="ExternalParams bundle:global_params"
   [JK]="ExternalParams bundle:global_params"
+  [JD]="ExternalParams bundle:global_params"
 )
 # The phase-2 freeze list is the one phase 2 was run with: the four resolution
 # knobs plus the four material groups the hit-chi2 term carries NO information
@@ -142,7 +144,7 @@ declare -A FREEZES=(
   [SVs12P]="k_hit k_ms k_ioni k_rad" [Ss9P]="k_hit k_ms k_ioni k_rad"
   [P2XP]="$_P2FREEZE"
   [P2N]="$_P2FREEZE"  [P2K]="$_P2FREEZE"
-  [J0]="$_P2FREEZE"  [JK]="$_P2FREEZE"
+  [J0]="$_P2FREEZE"  [JK]="$_P2FREEZE"  [JD]="$_P2FREEZE"
 )
 
 METHOD=${METHOD:-trust-exact}
