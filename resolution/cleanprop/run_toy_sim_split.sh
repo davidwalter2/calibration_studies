@@ -43,7 +43,7 @@ TAG=${1:?usage: $0 <tag> [nevents] [njobs] [outdir]}
 NEV=${2:-100000}
 NJOB=${3:-32}
 OUT=${4:-${SCRATCH:-/tmp}}
-TESTDIR=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/test
+TESTDIR=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/test
 LOCK=$TESTDIR/cmsswlock.sh
 
 PER=$(( (NEV + NJOB - 1) / NJOB ))
@@ -56,7 +56,7 @@ echo "[split] tag=$TAG  $NEV events over $NJOB jobs = $PER each  -> $OUT/hs${TAG
 echo "[split] geometry: $TOYGEOM"
 
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-cd /work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src
+cd /work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src
 eval "$(scramv1 runtime -sh)"
 cd "$TESTDIR"
 mkdir -p "$OUT"

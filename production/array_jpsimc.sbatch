@@ -26,7 +26,7 @@
 #SBATCH --time=12:00:00
 set -uo pipefail
 : "${CHUNKLIST:?}" ; : "${OUTBASE:?}"
-export CMSSW_AREA=${CMSSW_AREA:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev}
+export CMSSW_AREA=${CMSSW_AREA:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2}
 CFG=${CFG:-$CMSSW_AREA/src/Analysis/HitAnalyzer/test/runCvhJpsiGenMC.py}
 RUN_ONE=/work/submit/david_w/ZMass/calibration_studies/slurm/run_one.sh
 

@@ -30,7 +30,7 @@ from wums import logging                                       # noqa: E402
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
 
-GROUPFILE = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/"
+GROUPFILE = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/"
              "Analysis/HitAnalyzer/data/materialGroups50.txt")
 AUX = ["gradmax", "hessmax", "ptp", "etap", "ptm", "etam",
        "dErefp", "dErefm", "ndof", "chisqval"]

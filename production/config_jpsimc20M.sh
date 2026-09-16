@@ -9,7 +9,7 @@
 
 TAG=jpsimc_20M_260905
 OUTBASE=/ceph/submit/data/user/d/david_w/ZMass/cvh/$TAG
-CMSSW_AREA=${CMSSW_AREA:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev}
+CMSSW_AREA=${CMSSW_AREA:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2}
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
 MAXARRAY=1000          # MaxArraySize here is 1001 -> indices 0..1000
 MAXRUNNING=200         # concurrent tasks PER ARRAY

@@ -113,7 +113,7 @@ GEOMS = {
     # things it drops. Its planes are the sensor MID-planes (production's own
     # target surface), so it needs its own plane file -- hence the `planes` key.
     "realmat": dict(kind="toy", model="model_realmat.root", sim="hsRM_*.root",
-                    planes=("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/"
+                    planes=("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/"
                             "src/Analysis/HitAnalyzer/test/toyPlanes_realmat_pt3.py"),
                     label="real-material toy, 18 mid-planes, 100k events"),
     # the CONTROL for the one convention that differs from `real`: entry-face
@@ -122,7 +122,7 @@ GEOMS = {
     "realmat_entry": dict(kind="toy", model="model_realmat_entry.root",
                           sim="hsRME_*.root",
                           planes=("/work/submit/david_w/ZMass/"
-                                  "CMSSW_15_0_19_patch2_dev/src/Analysis/"
+                                  "CMSSW_15_0_19_patch2_dev2/src/Analysis/"
                                   "HitAnalyzer/test/toyPlanes_realmat_entry_pt3.py"),
                           label="real-material toy, 18 entry faces, 100k events"),
     # realmat + a 19th plane at the traversal's outer edge, so the real
@@ -131,7 +131,7 @@ GEOMS = {
     "realmat_full": dict(kind="toy", model="model_realmat_full.root",
                          sim="hsRMF_*.root",
                          planes=("/work/submit/david_w/ZMass/"
-                                 "CMSSW_15_0_19_patch2_dev/src/Analysis/"
+                                 "CMSSW_15_0_19_patch2_dev2/src/Analysis/"
                                  "HitAnalyzer/test/toyPlanes_realmat_full_pt3.py"),
                          label="real-material toy, 19 planes (final edge), 100k"),
     "real":    dict(kind="real",

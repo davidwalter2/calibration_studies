@@ -126,7 +126,7 @@ if __name__ == "__main__":
                    help="toyPlanes_*.py; default = the pt3 one in the CMSSW test dir")
     args = p.parse_args()
 
-    pl = args.planes or ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/"
+    pl = args.planes or ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/"
                          "Analysis/HitAnalyzer/test/toyPlanes_pt3.py")
     ns = {}
     exec(open(pl).read(), ns)

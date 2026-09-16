@@ -20,7 +20,7 @@ INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18
 GOODRUNS=/work/submit/david_w/ZMass/repack/goodruns_cosmics_2016GH.txt
 FILELIST=${1:-/work/submit/david_w/ZMass/repack/cosmics_ceph_filelist.txt}
 OUTDIR=${2:-/ceph/submit/data/user/d/david_w/ZMass/cvh/cosmics_calib2016_grads50_260718}
-CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 
 [[ -s "$FILELIST" ]] || { echo "filelist missing/empty: $FILELIST" >&2; exit 1; }
 

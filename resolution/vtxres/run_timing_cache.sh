@@ -15,7 +15,7 @@ set -uo pipefail
 NEV=${1:-400}
 CPU=${2:-3}
 DEV2=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
-DEV3=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev3
+DEV3=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev23
 RUN_ONE=/work/submit/david_w/ZMass/calibration_studies/slurm/run_one.sh
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
 FILELIST=/work/submit/david_w/ZMass/calibration_studies/production/filelist_dymc_8p5M_260905.txt

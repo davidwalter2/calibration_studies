@@ -40,7 +40,7 @@ import uproot
 import prodfiles
 
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh"
-RULES = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/"
+RULES = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/"
          "Analysis/HitAnalyzer/data/materialGroups50.txt")
 
 BRANCHES = ["run", "lumi", "event",

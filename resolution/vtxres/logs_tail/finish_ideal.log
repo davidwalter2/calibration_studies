@@ -1,0 +1,82 @@
+# 6 files
+# absent in this production: Jpsi_bsfree
+#   task_0000: 1686  (total 1686)
+#   task_0001: 1725  (total 3411)
+#   task_0002: 1745  (total 5156)
+#   task_0003: 1761  (total 6917)
+#   task_0004: 1761  (total 8678)
+#   task_0005: 1735  (total 10413)
+# wrote /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/tail/dy_ideal.npz: 10413 candidates, 124 columns
+# real 10413 candidates, ideal 10413
+# matched 10413
+# both pass the baseline: 10301
+
+=== THE SAME CANDIDATES, the two geometries
+
+  aligned (UL16 MC alignment):  N 10301
+    chi2/ndof median 1.0140  p90 1.6669  P(prob<0.01) 0.08533 +- 0.00275 (879/10301)  P(prob<1e-3) 0.05116 +- 0.00217 (527/10301)
+    z_1: Var  2.2503  P>3 0.01621 +- 0.00124 (167/10301)  P>5 0.00427 +- 0.00064 (44/10301)
+    z_2: Var  1.3174  P>3 0.01311 +- 0.00112 (135/10301)  P>5 0.00223 +- 0.00047 (23/10301)
+    z_v: Var  1.2091  P>3 0.01107 +- 0.00103 (114/10301)  P>5 0.00146 +- 0.00038 (15/10301)
+
+  IDEAL geometry:  N 10301
+    chi2/ndof median 1.0138  p90 1.6581  P(prob<0.01) 0.08504 +- 0.00275 (876/10301)  P(prob<1e-3) 0.04970 +- 0.00214 (512/10301)
+    z_1: Var  2.2619  P>3 0.01718 +- 0.00128 (177/10301)  P>5 0.00485 +- 0.00068 (50/10301)
+    z_2: Var  1.3179  P>3 0.01291 +- 0.00111 (133/10301)  P>5 0.00262 +- 0.00050 (27/10301)
+    z_v: Var  1.2155  P>3 0.01184 +- 0.00107 (122/10301)  P>5 0.00146 +- 0.00038 (15/10301)
+
+  per-candidate chi2/ndof(ideal) - chi2/ndof(aligned): median +0.0012  mean -0.0025
+  the candidates with prob < 1e-3 under the ALIGNED geometry: 527; of those, still < 1e-3 under the IDEAL one: 483
+  the |z_1| > 3 candidates under the ALIGNED geometry: 167; still > 3 under the IDEAL one: 157; median |z_1| there 3.85 against 3.81
+
+=== the chi2 excess against |eta|, both geometries
+  |eta| 0.0-1.4  N   4408   aligned 0.04333 +- 0.00307 (191/4408)   ideal 0.04061 +- 0.00297 (179/4408)
+  |eta| 1.4-1.8  N   2244   aligned 0.04545 +- 0.00440 (102/2244)   ideal 0.04456 +- 0.00436 (100/2244)
+  |eta| 1.8-2.4  N   3397   aligned 0.06417 +- 0.00420 (218/3397)   ideal 0.06388 +- 0.00420 (217/3397)
+
+=== DY, gen signal (NO chi2 cut): 10301 candidates
+  ndof (reduced) median 27   chi2/ndof median 1.0138  mean 1.1890  p90 1.6581  p99 2.8968
+  the chi2 PROBABILITY, which must be FLAT on [0,1]:
+    P in [0.000,0.100) = 0.07514   expected 0.10000   ratio    0.75
+    P in [0.400,0.600) = 0.18950   expected 0.20000   ratio    0.95
+    P in [0.900,0.990) = 0.10980   expected 0.09000   ratio    1.22
+    P in [0.990,0.999) = 0.03534   expected 0.00900   ratio    3.93
+    P in [0.999,1.000) = 0.04854   expected 0.00100   ratio   48.54
+  P(chi2 prob < 1e-3) = 0.04970 +- 0.00214 (512/10301)  (expected 0.001)
+
+  the ladder Var(z | chi2/ndof) -- the model says SLOPE 1, INTERCEPT 0
+    z_1   slope +1.0529 +- 0.0561   intercept -0.0434 +- 0.0525
+    z_2   slope +0.8254 +- 0.0498   intercept +0.1688 +- 0.0481
+    z_v   slope +0.5128 +- 0.0540   intercept +0.5702 +- 0.0553
+
+  the SCALE-MIXTURE prediction from the measured chi2/ndof, against the measured tail (no free parameter)
+       t    predicted       obs z_1   ratio       obs z_2   ratio       obs z_v   ratio
+       2      0.06063       0.06504    1.07       0.05786    0.95       0.06504    1.07
+       3      0.00845       0.01718    2.03       0.01291    1.53       0.01184    1.40
+       4      0.00148       0.00748    5.04       0.00466    3.14       0.00252    1.70
+       5      0.00054       0.00485    9.01       0.00262    4.86       0.00146    2.70
+    (a single Gaussian would give 0.04550 / 0.00270 / 0.000063 / 0.0000006)
+
+=== DY, gen signal (chi2/ndof < 3, the published baseline): 10226 candidates
+  ndof (reduced) median 27   chi2/ndof median 1.0105  mean 1.1050  p90 1.6261  p99 2.6222
+  the chi2 PROBABILITY, which must be FLAT on [0,1]:
+    P in [0.000,0.100) = 0.07569   expected 0.10000   ratio    0.76
+    P in [0.400,0.600) = 0.19089   expected 0.20000   ratio    0.95
+    P in [0.900,0.990) = 0.11060   expected 0.09000   ratio    1.23
+    P in [0.990,0.999) = 0.03550   expected 0.00900   ratio    3.94
+    P in [0.999,1.000) = 0.04283   expected 0.00100   ratio   42.83
+  P(chi2 prob < 1e-3) = 0.04283 +- 0.00200 (438/10226)  (expected 0.001)
+
+  the ladder Var(z | chi2/ndof) -- the model says SLOPE 1, INTERCEPT 0
+    z_1   slope +1.0233 +- 0.0560   intercept -0.0176 +- 0.0524
+    z_2   slope +0.8153 +- 0.0505   intercept +0.1771 +- 0.0486
+    z_v   slope +0.4821 +- 0.0545   intercept +0.5952 +- 0.0557
+
+  the SCALE-MIXTURE prediction from the measured chi2/ndof, against the measured tail (no free parameter)
+       t    predicted       obs z_1   ratio       obs z_2   ratio       obs z_v   ratio
+       2      0.05856       0.06063    1.04       0.05378    0.92       0.06200    1.06
+       3      0.00723       0.01330    1.84       0.00958    1.33       0.00988    1.37
+       4      0.00079       0.00420    5.34       0.00225    2.86       0.00127    1.61
+       5      0.00008       0.00196   24.04       0.00108   13.22       0.00049    6.01
+    (a single Gaussian would give 0.04550 / 0.00270 / 0.000063 / 0.0000006)
+FULL IDEAL LEG DONE

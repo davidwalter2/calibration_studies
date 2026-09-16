@@ -24,7 +24,7 @@ CHUNK=${4:-50}
 TAG=${5:-}
 EXTRA=${6:-}
 
-CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 CFG=$CMSSW_AREA/src/Analysis/HitAnalyzer/test/runCvhSingleTrackJpsiX.py
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
 MCDIR=/ceph/submit/data/group/cms/store/mc/inclusive_btojpsix_2016postvfp_v3

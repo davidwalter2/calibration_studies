@@ -497,7 +497,7 @@ def cmd_shape(args):
 
 # ==================================================== model export + bit-id
 
-CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev"
+CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2"
 SRCTEST = f"{CMSSW}/src/Analysis/HitAnalyzer/test"
 TOYAREA = os.path.join(CMSSW, "tailhunt")        # tail_probe.py's private areas
 REALAREA = os.path.join(CMSSW, "tailhunt_real")

@@ -9,7 +9,7 @@ NPAR=${1:-12}
 FROM=${2:-0}
 TO=${3:-11}
 NEVT=${4:-4000}
-CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 SIMPROD=/work/submit/david_w/ZMass/calibration_studies/resolution/simprod
 OUTROOT=/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_simprod_260803
 

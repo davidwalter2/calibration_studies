@@ -50,7 +50,7 @@ import fisher_norm as fn                                        # noqa: E402
 import geom_closure as gc                                       # noqa: E402
 from cf_propagation_test import FUNCTIONALS, load_model         # noqa: E402
 
-CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev"
+CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2"
 SRCTEST = f"{CMSSW}/src/Analysis/HitAnalyzer/test"
 AREA = os.path.join(CMSSW, "radoff_real")     # must be under CMSSW_BASE
 CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop"

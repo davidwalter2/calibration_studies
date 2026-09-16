@@ -63,7 +63,7 @@ def main():
                         "block alone (like-for-like with the residual term, "
                         "which floats no field modes) or over all 92")
     p.add_argument("--groups", default="/work/submit/david_w/ZMass/"
-                   "CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/"
+                   "CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/"
                    "materialGroups50.txt")
     p.add_argument("-o", "--output", default=None)
     a = p.parse_args()

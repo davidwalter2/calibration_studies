@@ -78,7 +78,7 @@ def main():
                    default=_SEL.MAX_CHI2_NDOF)
     p.add_argument("--mass-max-cands", type=int, default=0)
     p.add_argument("--groups", default="/work/submit/david_w/ZMass/"
-                   "CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/"
+                   "CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/"
                    "materialGroups50.txt")
     p.add_argument("--prune-frac", type=float, default=0.001)
     p.add_argument("--amount-mode", default="exp")

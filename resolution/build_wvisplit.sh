@@ -3,7 +3,7 @@
 # build_barkas.sh).  Nothing in CMSSW or Geant4 is written to.
 set -e
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-cd /work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src
+cd /work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src
 eval $(scramv1 runtime -sh)
 
 G4BASE=$(scram tool tag geant4core GEANT4CORE_BASE)

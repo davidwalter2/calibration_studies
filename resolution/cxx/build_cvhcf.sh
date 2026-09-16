@@ -8,7 +8,7 @@
 # same object code, not two transcriptions of one formula.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-SRC=${CMSSW_SRC:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src}
+SRC=${CMSSW_SRC:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src}
 OUT=$HERE/libcvhcfshim.so
 
 ARCH=${SCRAM_ARCH:-el9_amd64_gcc12}

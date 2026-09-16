@@ -7,7 +7,7 @@
 set -e
 HERE=/work/submit/david_w/ZMass/calibration_studies/resolution/matres
 RUNS=/work/submit/david_w/ZMass/calibration_studies/resolution/runs/matres
-GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt
+GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/materialGroups50.txt
 GNPZ=${GNPZ:-$RUNS/gun_groups_probe.npz}
 QNPZ=$RUNS/gun_quad.npz
 COMMON="--groups-npz $GNPZ --groups $GRP --whiten --max-chi2-ndof 3 \

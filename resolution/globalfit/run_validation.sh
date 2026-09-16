@@ -28,7 +28,7 @@ NTASKS=${NTASKS:-48}
 JOBS=${JOBS:-16}
 TAG=${TAG:-btojpsix_v3_260904f}
 PARMTYPES=${PARMTYPES:-"14 15"}
-GROUPS=${GROUPS:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt}
+GROUPS=${GROUPS:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/materialGroups50.txt}
 # one unit of bfield_mode0 = dB/B 8.2e-4, so dB/B = 1e-4 is 0.12195
 INJ=${INJ:-bfield_mode0:0.12195}
 

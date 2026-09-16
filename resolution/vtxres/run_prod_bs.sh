@@ -23,7 +23,7 @@ set -uo pipefail
 NPAR=${1:-6}
 TASKS_FROM=${2:-0}
 TASKS_TO=${3:-5}
-CMSSW_AREA=${CMSSW_AREA:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev3}
+CMSSW_AREA=${CMSSW_AREA:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev23}
 CFG=${CFG:-$CMSSW_AREA/src/Analysis/HitAnalyzer/test/runCvhDimuonMiniAOD.py}
 RUN_ONE=/work/submit/david_w/ZMass/calibration_studies/slurm/run_one.sh
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt

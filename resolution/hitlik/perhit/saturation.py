@@ -54,7 +54,7 @@ def main():
                    help="tracks the fisher npz was built on")
     p.add_argument("--hit-prior", type=float, default=1.0)
     p.add_argument("--groups", default="/work/submit/david_w/ZMass/"
-                   "CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/"
+                   "CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/"
                    "materialGroups50.txt")
     p.add_argument("--sweep", type=float, nargs="*",
                    default=[2e4, 1e5, 3e5, 1e6, 7e6, 4.1e7])

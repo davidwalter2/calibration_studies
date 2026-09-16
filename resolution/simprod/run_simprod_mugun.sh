@@ -36,7 +36,7 @@ PTMAX=${6:-60}
 # AddAntiParticle=True, which would mirror the momentum (eta -> -eta,
 # phi -> phi+pi) and correlate the two charges' kinematics.
 PARTICLE_IDS=${PARTICLE_IDS:-13, -13}
-CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 SIMPROD=/work/submit/david_w/ZMass/calibration_studies/resolution/simprod
 OUTROOT=${OUTROOT:-/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_simprod_mugun2q260807}
 

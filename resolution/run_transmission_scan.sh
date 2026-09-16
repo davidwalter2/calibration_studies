@@ -22,8 +22,8 @@ NEVENTS=${3:--1}
 
 SCALES=${SCALES:-"1.000 0.950 0.900 1.050 1.100"}
 
-CFG=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/test/runCvhJpsiGenMC.py
-export CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CFG=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/test/runCvhJpsiGenMC.py
+export CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 RUN_ONE=/work/submit/david_w/ZMass/calibration_studies/slurm/run_one.sh
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
 SIMROOT=/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_simprod_jpsigun_ul16

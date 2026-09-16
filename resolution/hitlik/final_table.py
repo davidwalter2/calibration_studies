@@ -54,7 +54,7 @@ def main():
     p.add_argument("--ntrk-fisher", type=int, default=20000)
     p.add_argument("--ntrk-fit", type=int, default=6000)
     p.add_argument("--groups", default="/work/submit/david_w/ZMass/"
-                   "CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/"
+                   "CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/"
                    "materialGroups50.txt")
     p.add_argument("--top", type=int, default=13)
     a = p.parse_args()

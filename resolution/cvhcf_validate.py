@@ -38,7 +38,7 @@ TWO LEVELS, deliberately separate:
 
 usage:
   source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
-  export CMSSW_SRC=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src
+  export CMSSW_SRC=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src
   ./cxx/build_cvhcf.sh
   python3 cvhcf_validate.py --file <globalcor.root> [--ntracks 30] [--mass]
 """

@@ -24,8 +24,8 @@ PARTID=${7:-13}
 # effect, not physics). Keep it at or below 100.
 NPAR=${NPAR:-64}
 
-CFG=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/test/runCleanPropSim.py
-AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CFG=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/test/runCleanPropSim.py
+AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 OUT=/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/sim_${TAG}_pt${PT}_eta${ETA}_phi${PHI}
 [[ "$PARTID" != "13" ]] && OUT="${OUT}_pdg${PARTID}"
 mkdir -p "$OUT"

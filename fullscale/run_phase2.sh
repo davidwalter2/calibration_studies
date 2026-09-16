@@ -29,7 +29,7 @@ JV2=$CEPH/jpsimc_20M_260906_v2
 JV2LIST=$FS/runs/jpsiv2_tasks_ok.txt
 JV2_BAD=""
 DYV2=$CEPH/dymc_8p5M_260906_v2
-GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt
+GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/materialGroups50.txt
 STAGES=${*:-pairs quad}
 
 # `prodfiles` skips any task without its `.complete` sentinel, so an extraction

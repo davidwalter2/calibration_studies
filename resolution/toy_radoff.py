@@ -68,7 +68,7 @@ from cf_propagation_test import (FUNCTIONALS, load_model,       # noqa: E402
                                  model_variance)
 import cgf_channels as cc                                       # noqa: E402
 
-CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev"
+CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2"
 SRCTEST = f"{CMSSW}/src/Analysis/HitAnalyzer/test"
 SCRATCH = fn.SCRATCH
 AREAS = os.path.join(CMSSW, "toyradoff")     # must be under CMSSW_BASE

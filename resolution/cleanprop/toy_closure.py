@@ -42,7 +42,7 @@ from cf_propagation_test import (load_model, model_variance, model_phi,
                                  REF_BRANCH, TAU)
 from toy_loader import load_toy_sim
 
-PLANES = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/"
+PLANES = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/"
           "Analysis/HitAnalyzer/test/toyPlanes_pt3.py")
 
 

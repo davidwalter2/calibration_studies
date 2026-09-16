@@ -3,7 +3,7 @@
 # muon gun.
 #
 # Reproduces the `mugun_ul16_260903x_m0` production arm EXACTLY --
-# same cfg (CMSSW_15_0_19_patch2_dev, commit ca6058d96fc, identical to dev2),
+# same cfg (CMSSW_15_0_19_patch2_dev2, commit ca6058d96fc, identical to dev2),
 # same filelist, same COMMON block, same E_MUGUN extras, CgfQoPMode=0 -- and
 # changes ONLY the Gauss-Newton convergence knobs per variant:
 #
@@ -28,8 +28,8 @@ VARIANT=$1
 NTASK=${2:-40}
 NPAR=${3:-24}
 RES=/work/submit/david_w/ZMass/calibration_studies/resolution
-CFG=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/test/runCvhResClosure.py
-export CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CFG=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/test/runCvhResClosure.py
+export CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 RUN_ONE=/work/submit/david_w/ZMass/calibration_studies/slurm/run_one.sh
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
 FILELIST=$RES/simprod/filelist_mugun_ul16.txt

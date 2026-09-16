@@ -31,7 +31,7 @@ from matplotlib.patches import Circle
 
 hep.style.use(hep.style.ROOT)
 
-CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer"
+CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "slides", "assets")
 DATED = os.path.expanduser(
     f"~/public_html/ZMass/cvh/{datetime.date.today().strftime('%y%m%d')}_toygeom/")

@@ -7,7 +7,7 @@
 set -uo pipefail
 TAG=$1; OUT=$2; shift 2
 CFG=/work/submit/david_w/ZMass/calibration_studies/production/profiling/runCvhProfile.py
-AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 mkdir -p "$OUT/$TAG"; cd "$OUT/$TAG" || exit 1
 rm -f .done
 source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1

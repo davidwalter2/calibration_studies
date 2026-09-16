@@ -16,7 +16,7 @@
 set -euo pipefail
 FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
 Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
-GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt
+GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/materialGroups50.txt
 KMC=$Z/data/jpsi_kern_mc.npz
 # the exact-QED kernel, truncated to the SAME +-0.35 GeV gen acceptance the
 # pairs cache has -- the untruncated one models a population this sample does

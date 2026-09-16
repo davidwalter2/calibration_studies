@@ -22,7 +22,7 @@ export QNPZ=${QNPZ:-$R/perhit_quad.npz}
 export COMPS=${COMPS:-hit}
 export NTRK=${NTRK:-0}
 export PROD=${PROD:-resolution_trackres_mugun_ul16_260910_perhit}
-GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/data/materialGroups50.txt
+GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/materialGroups50.txt
 CEPH=/ceph/submit/data/user/d/david_w/ZMass/cvh
 mkdir -p $R/cards $R/fits $R/figs $HERE/logs
 step=${1:-help}; shift || true

@@ -107,7 +107,7 @@ import geom_closure as gc                                       # noqa: E402
 from cf_propagation_test import (FUNCTIONALS, REF_BRANCH,       # noqa: E402
                                  SIM_BRANCH, load_model, model_variance)
 
-CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev"
+CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2"
 SRCTEST = f"{CMSSW}/src/Analysis/HitAnalyzer/test"
 SCRATCH = fn.SCRATCH
 # must be under CMSSW_BASE -- see the FileInPath note in the module docstring

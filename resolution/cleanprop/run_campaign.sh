@@ -19,7 +19,7 @@ NEVTOT=${2:-200000}
 TAG=${3:-$(date +%y%m%d)}
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 # The two sides need different environments: cmsRun needs the CMSSW area,
 # cf_propagation_test.py needs the calibration_studies venv (uproot, wums).
 # Each is sourced inside its own subshell so they never collide.

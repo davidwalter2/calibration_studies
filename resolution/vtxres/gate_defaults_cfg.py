@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 DEV2 = '/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2'
-DEV3 = '/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev3'
+DEV3 = '/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev23'
 
 # (label, module import, extra kwargs applied on TOP -- the dev3 leg supplies
 # the flag explicitly, the dev2 leg relies on the new default)

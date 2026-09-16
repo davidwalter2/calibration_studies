@@ -50,7 +50,7 @@ from wums import logging as _wums_logging                        # noqa: E402
 
 logger = _wums_logging.child_logger(__name__)
 
-CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev"
+CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2"
 SRCTEST = os.path.join(CMSSW, "src/Analysis/HitAnalyzer/test")
 # runs/ is gitignored; SCRATCH in fisher_norm points at a session scratchpad
 # whose contents do not survive (NOTES_CGFFIT s0.4), so outputs land here.

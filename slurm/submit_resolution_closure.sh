@@ -17,7 +17,7 @@ set -euo pipefail
 SLURM_DIR=$(dirname "$(readlink -f "$0")")
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
 FILELIST=/work/submit/david_w/ZMass/calibration_studies/pixelhits/filelist_mc_all_chunk50.txt
-CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 DATE_TAG=$(date +%y%m%d)
 OUTBASE=/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_closure_${DATE_TAG}
 

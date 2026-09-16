@@ -28,8 +28,8 @@ PARTID=${5:-13}
 OUT=${6:-/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop/rayscan}
 NPAR=${NPAR:-18}
 
-CFG=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/Analysis/HitAnalyzer/test/runCleanPropSim.py
-AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CFG=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/test/runCleanPropSim.py
+AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 
 mkdir -p "$OUT"
 run_one() {

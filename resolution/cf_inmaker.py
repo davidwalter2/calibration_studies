@@ -846,7 +846,7 @@ def main():
                         "the physical parmtype-15 amounts. `pairs` only. "
                         "~27 kB/candidate raw against 1.4 kB flat.")
     p.add_argument("--groups-file",
-                   default="/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/"
+                   default="/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/"
                            "src/Analysis/HitAnalyzer/data/materialGroups50.txt",
                    help="materialGroups tier file, for the group NAMES only "
                         "(the ids come from the file). The names must be the "

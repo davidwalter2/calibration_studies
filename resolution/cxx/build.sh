@@ -9,7 +9,7 @@
 # `configure`, which the shim never calls.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-SRC=${CMSSW_SRC:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src}
+SRC=${CMSSW_SRC:-/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src}
 OUT=$HERE/libcgfshim.so
 
 # CLHEP is header-only for PhysicalConstants; take it from the CMSSW externals

@@ -20,7 +20,7 @@ NEVT=${4:-4000}
 # TkAlJpsiMuMu ALCARECO range the calibration actually uses.
 PTMIN=${5:-5}
 PTMAX=${6:-30}
-CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev
+CMSSW_AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
 SIMPROD=/work/submit/david_w/ZMass/calibration_studies/resolution/simprod
 OUTROOT=${OUTROOT:-/ceph/submit/data/user/d/david_w/ZMass/cvh/resolution_simprod_jpsigun_ul16}
 

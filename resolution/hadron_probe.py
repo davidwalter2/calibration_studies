@@ -125,7 +125,7 @@ import geom_closure as gc                                       # noqa: E402
 import deltaspec as ds                                          # noqa: E402
 import tail_probe as tp                                         # noqa: E402
 
-CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev"
+CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2"
 SRCTEST = f"{CMSSW}/src/Analysis/HitAnalyzer/test"
 SCRATCH = fn.SCRATCH
 OUT = os.path.join(SCRATCH, "had")

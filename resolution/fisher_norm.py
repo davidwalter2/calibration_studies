@@ -67,7 +67,7 @@ logger = _wums_logging.child_logger(__name__)
 
 SCRATCH = ("/tmp/claude-125124/-work-submit-david-w-ZMass/"
            "40621a07-b09b-46d9-b7b3-4189252bcf3e/scratchpad")
-PLANES = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/src/"
+PLANES = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/"
           "Analysis/HitAnalyzer/test/toyPlanes_pt3.py")
 
 # Probe grid for the closure curve. The three headline probes (0.01, 0.1, 1)

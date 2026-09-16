@@ -193,7 +193,7 @@ def planes_path(area):
 # ==========================================================================
 
 def _libhash():
-    p = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev/lib/"
+    p = ("/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/lib/"
          "el9_amd64_gcc12/libTrackPropagationGeant4e.so")
     return hashlib.md5(open(p, "rb").read()).hexdigest(), p
 

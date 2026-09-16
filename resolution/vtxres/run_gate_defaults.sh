@@ -13,7 +13,7 @@
 # Run from a submit node (ceph + el9 arch).  usage: ./run_gate_defaults.sh
 set -uo pipefail
 DEV2=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
-DEV3=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev3
+DEV3=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev23
 RUN_ONE=/work/submit/david_w/ZMass/calibration_studies/slurm/run_one.sh
 INIT=/work/submit/david_w/ZMass/mfs/data/fitresults/polyfit3d_full_coeffs_lmax18_custom50.txt
 OUT=${OUT:-/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/gate_defaults}
