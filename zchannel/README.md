@@ -1132,6 +1132,186 @@ fitted against radiates (`../fullscale/SUMMARY.md`, open item 2).
 
 ---
 
+## The J/psi kernel, and the delta the joint card used to carry
+
+`jpsi_fsr_kernel.py` builds the kernel the **J/psi** mass term of
+`fullscale/make_joint_card.py` takes, and `make_joint_card.py --jpsi-fsr`
+folds it in. Figures: `~/public_html/ZMass/cvh/260916_jpsi_fsr/`.
+
+### Why a delta lineshape makes the kernel exact and additive
+
+The J/psi term's physics kernel is a `DeltaKernel` at `MJPSI = 3.0969` and it
+has no scale parameter: the candidates can only move through the field modes
+and the material amounts. With `m_pre == M` the post-FSR density is
+`p(m') = K(m'/M)/M` and its characteristic function is
+
+```
+phi_K(t) = Int K(r) exp(i t M (r - 1)) dr = < exp(i t dm) > ,   dm = m' - M
+```
+
+— one function of `t`, no `m_pre` dependence, which is exactly the object
+`MassCFTerm(phik=(t, re, im))` multiplies into the resolution CF. That is the
+whole implementation: nothing else about the term changes, and the *same*
+`phik` path also carries the kernel into the truncated-window normalisation
+`_norm_z`. (For the **Z** this form does not exist — `m_pre` varies there and
+the kernel is multiplicative — which is why that channel needs the banded fold
+of "Fold matrix from the kernel table" and this one does not.)
+
+**`phik` is a DATASET, not part of `config()`.** A term constructed with a
+kernel but written without `phik_t`/`phik_re`/`phik_im` in its data block comes
+back from `read_unbinned_terms_from_h5` with a **delta**, the fit runs, and
+nothing says so — the first `jpsi_fsrmc` card written this way was
+byte-for-byte identical to the kernel-less one. `make_joint_card.py --verify`
+now re-reads the written card and checks that the J/psi term carries the
+kernel, and what mean shift it implies.
+
+### What the sample radiates, and what generated it
+
+The production is `JPsiToMuMu_Pt8toInf-pythia8`, RunIISummer20UL16 (McM
+`TRK-RunIISummer20UL16GEN-00002`). Its GEN fragment settles the provenance,
+and the gen record confirms it:
+
+| | |
+|---|---|
+| resonance lineshape | `443:m0 = 3.0969`, `443:mWidth = 9.26e-5`, **truncated** to `443:mMin/mMax = 3.0960/3.0978` |
+| Pythia's own decay QED | **off** — `ParticleDecays:allowPhotonRadiation = off`, `TimeShower:QEDshowerByL/ByOther = off` |
+| FSR | **PHOTOS++ 3.61**, `setExponentiation = True`, `setPairEmission = True`, `setInfraredCutOff = 1e-7` (of the decaying mass, ~0.31 keV) |
+| matrix-element correction | **none at the J/psi**: only `setMeCorrectionWtForW/Z` are set, so the J/psi vertex gets the eikonal/leading-log PHOTOS kernel plus exponentiation |
+
+Measured, not inferred: every status-1 photon in the record hangs off the
+*decaying hadron* and none off a muon (Pythia's own shower would attach it to
+the muon as a status-51 branching), and the pre-radiation muons carry status
+**746**, which is PHOTOS' history tag
+(`GeneratorInterface/PhotosInterface/plugins/PhotosppInterface.cc:52`,
+`createHistoryEntries(true, 746)`) and not a Pythia status code at all. A
+standalone Pythia 8.230 control run with `allowPhotonRadiation` on produces
+statuses `±51/±52/91` and **zero** at 746.
+
+**`Jpsigenpre_mass` is a pure sentinel in this sample** (-99 everywhere,
+`Jpsigenpre_status = -1`). The two-track maker accepts only a status-22/62
+hard-process resonance
+(`ResidualGlobalCorrectionMakerTwoTrackG4e.cc:6095`), and a J/psi is a
+*hadron* — it appears at status 2, 23 and 44 and never at 22 or 62. It is not
+a pruning problem: the ALCARECO carries the full unpruned record.
+`Jpsigen_massdressed` is dead for the same block's second reason — the FSR
+photons of a hadron decay are `isPrompt() == false`, so the dressing list is
+always empty. **None of this matters for the kernel**, because the delta
+lineshape needs only the post-FSR mass: `dm = Jpsigen_mass - MJPSI` is the
+kernel, and it carries the resonance's own lineshape and the radiation
+together, which is what a fit against this MC has to model.
+
+### The two kernels
+
+| | `mc` | `data` |
+|---|---|---|
+| what it is | the sample's own, from 7 853 326 candidates of the gen record | exponentiated exact QED: `exp2nll` + `e+e-`/`mu+mu-` pairs, **mass-exact**, times the resonance Breit-Wigner |
+| build | `jpsi_fsr_kernel.py mc --pairs runs/jpairs_v2_n600.npz` | `jpsi_fsr_kernel.py analytic --variant exp2nll --pair e mu --gamma 9.26e-5` |
+| file | `data/jpsi_kern_mc.npz` | `data/jpsi_kern_data.npz` (`_trunc` for the same +-0.35 GeV gen acceptance the cache has) |
+| `<dm>` in the card's +-0.35 GeV window | **-7.1969 MeV = -2.3239e-3** | **-8.0089 MeV = -2.5861e-3** |
+
+The difference between them is **+0.812 MeV = +2.62e-4** of the momentum
+scale — 26 times the 1e-5 target, so which kernel a *data* fit uses is not a
+free choice either.
+
+Decomposed by `u = -ln(m_gen/M)`, against the mass-exact analytic kernel
+truncated to the same window (contributions to `<dm>`, MeV):
+
+| `u` range | `P` (MC) | `P` (QED) | MC | QED | difference |
+|---|---:|---:|---:|---:|---:|
+| 0 - 1e-2 | 0.5511 | 0.9422 | -0.7816 | -0.7460 | -0.036 |
+| 1e-2 - 3e-2 | 0.02599 | 0.02762 | -1.4435 | -1.5282 | +0.085 |
+| 3e-2 - 5.7e-2 | 0.01377 | 0.01452 | -1.7407 | -1.8384 | +0.098 |
+| 5.7e-2 - 8.5e-2 | 0.00781 | 0.00861 | -1.6229 | -1.7921 | +0.169 |
+| 8.5e-2 - 0.12 | 0.00569 | 0.00709 | -1.6880 | -2.1016 | +0.414 |
+| `dm > 0` | 0.39565 | — | +0.0806 | — | +0.081 |
+| **total** | | | **-7.1969** | **-8.0089** | **+0.812** |
+
+Below `u = 1e-2` the two agree to 0.04 MeV in total. **The whole difference is
+the HARD tail**, where PHOTOS runs 6 % short at `u ~ 0.02` and 20 % short at
+`u ~ 0.1` — which is exactly the piece
+the exact matrix-element correction supplies and which this sample does not
+switch on at the J/psi. (The `dm > 0` row is the resonance's own Breit-Wigner
+upper half plus a 0.03 % tail of candidates whose gen mass sits far above the
+generator's `mMax`, i.e. a gen-matching contamination; the pure-FSR analytic
+kernel has no counterpart, the `data` kernel's Breit-Wigner factor supplies the
+first part of it and contributes nothing to the mean.)
+
+Below `u ~ 3e-4` the MC's "kernel" is not radiation at all: it is the
+generator's own truncated Breit-Wigner, and `analytic (x) Breit-Wigner`
+reproduces the MC density there to a few per cent
+(`jpsi_u_density`, `jpsi_dm_core`).
+
+### `mass_exact`: the muon-mass terms of the O(alpha) spectrum
+
+`FSRKernel(mass_exact=True)` replaces the massless closed form (1) by the
+exact-mass matrix element. Two pieces, both required together:
+
+* `L` becomes `coll_log_exact(m)`, the **exact massive eikonal**
+  `(1+b^2)/(2b) ln((1+b)/(1-b))` with `b = sqrt(1 - 4 m_mu^2/s)` the muon
+  velocity. This is what makes `R_exact - beta/x` regular: with the massless
+  `L` the two differ by `(beta_exact - beta)/x`, which diverges;
+* the remainder `dh(z) = R_exact(z) - r1(z)` is tabulated in `ln x` from
+  `r1_fast`. It tends to a CONSTANT as `x -> 0` (-7.3e-5 at the J/psi) and is
+  continued as that constant below `x_min`, which is **derived** from the
+  cancellation floor (`DH_RTOL * beta / x` against the plateau) rather than
+  fixed: 5.5e-7 at the J/psi, 5.2e-4 at the Z. A fixed `x_min` would continue
+  NOISE over the ~60 % of the kernel's weight that sits below it.
+
+`int_h` takes the same table's integral, so `C` and the normalisation stay
+exact and nothing is rescaled. Effect on `<u>`:
+
+| | `<u>` massless | `<u>` mass-exact | relative |
+|---|---:|---:|---:|
+| J/psi, 3.0969 | 1.058841e-2 | 1.055856e-2 | **-2.82e-3** |
+| Y(1S), 9.4603 | 1.579499e-2 | 1.579070e-2 | -2.72e-4 |
+| Z, 91.1876 | 2.639971e-2 | 2.639961e-2 | < 1e-5 |
+
+so it is a narrow-resonance option and the Z is untouched, which is the
+`mass_exact=False` default. `<u>` is converged in the table size to 2e-6 of
+the correction at the default `mass_exact_n = 20000`.
+
+### Discretisation, and the gate
+
+`phi_K` is tabulated on a **uniform** `t` grid, which is what
+`MassCFTerm._interp_phik` and `_build_norm` both require, and it must reach
+`max(tgrid)/min(sigma)` = `7.8926 / 0.0103` = **767 GeV^-1** on the J/psi
+cache or `_build_norm` refuses the card (`load_fsr_kernel` checks it at build
+time, on both the per-candidate and the per-class minimum). The default is
+50 001 points to `t = 1000`, step 0.02.
+
+The empirical CF is one real FFT of a fine `dm` histogram with the bin's exact
+sinc divided out, not `exp` over 7.8 M x 50 k. Checked against the direct sum
+over every sample at six values of `t`: worst **9.0e-7**, against the kernel's
+own statistical noise `1/sqrt(N) = 3.6e-4`.
+
+`fullscale/gate_jpsi_fsr.py` checks the path under the term itself, with the
+two corrections off so the density is a pure convolution:
+
+| check | result |
+|---|---|
+| `L_K == sum_j w_j L_delta(m - dm_j)` for 48 exact atoms, `dt = 0.02` (the card's) | max 2.39e-7 |
+| the same at `dt = 0.01` / `0.005` | 5.20e-8 / 1.38e-8 — exactly `dt^2`, i.e. the tabulation's linear interpolation and nothing else |
+| against the empirical `dm` sample directly (200 k draws) | median 1.3e-4, at the direct sum's own noise floor |
+| `_norm_z` (Gil-Pelaez) against Simpson on the mass grid, kernel ON | worst 8.4e-5 over 8 resolution classes, unchanged from 4001 to 8001 mass points |
+
+### The one caveat: the correction form
+
+`rabbit_fit.py`'s `--unbinnedDeltaKernelForm auto` keys on
+`term.kernel.kind == "delta"` and puts such a term in the **residual** form.
+A `phik` does not change `term.kernel`, so a kernelled J/psi term still takes
+it. The residual form is exact only where `delta_i` IS the resolution
+fluctuation, and with a kernel it is not: it is the fluctuation plus the FSR
+displacement, so the self-consistent width over-corrects by `a_i dm_i`, i.e.
+by `0.012 x 7.2 MeV = 0.086 MeV` on average — **0.25 % of the median
+`sigma = 34 MeV`**. It is identical on both sides of every comparison below
+(the with- and without-kernel cards take the same branch), so it does not
+enter the difference; it is a second-order term in the absolute numbers. The
+clean fix is to key `auto` on "delta kernel AND no `phik`", at the price of
+the fluctuation form's first-order truncation, and it is not made here because
+it would be a second change in the same fit.
+
+---
+
 ## Photos++ standalone and the two kernel configurations
 
 `photos_standalone/` runs **Photos++ 3.61 outside CMSSW** — the same build

@@ -53,6 +53,12 @@
 #   # phase 2, its own allocation -- 6 h+ and a 141.4 GB Hessian on a 143.8 GB H200
 #   sbatch -A mit_general -p mit_preemptable -G h200:1 --time=1-12:00:00 \
 #          --export=ALL,ROWS="P2XP" precond_refit.sbatch
+#   # the J/psi FSR kernel: phase 2 with the kernel (its own allocation), and
+#   # the two J/psi-only rows together (3 M candidates, ~63 GB Hessian)
+#   sbatch -A mit_general -p mit_preemptable -G h200:1 --time=1-12:00:00 \
+#          --export=ALL,ROWS="P2K" precond_refit.sbatch
+#   sbatch -A mit_general -p mit_preemptable -G h200:1 --time=1-00:00:00 \
+#          --export=ALL,ROWS="J0 JK" precond_refit.sbatch
 #
 # WHAT TO LOOK FOR, in order:
 #   1. `INFO:preconditioner.py: Preconditioned N of 1 block(s), M parameters;
@@ -106,11 +112,22 @@ declare -A CARDS=(
   [SVs12P]=z_V_s12               # the next rung, if 9 certifies
   [Ss9P]=z_full380_fl_s9         # the m-form K=9, converged -- a second control
   [P2XP]=joint_ok_full           # phase 2, full
+  # --- the J/psi FSR kernel (`build_jpsi_fsr.sh`) ---------------------------
+  # P2K is P2XP with ONE change: the J/psi term's delta at MJPSI becomes
+  # delta (x) K with the sample's own kernel.  J0/JK are the same J/psi term
+  # and the same quadratic term with NO Z leg, so what moves between them is
+  # attributable to the J/psi FSR treatment alone.
+  [P2K]=joint_fsrmc              # phase 2, full, J/psi kernel = mc
+  [J0]=jpsi_nok                  # J/psi + the 92, delta kernel
+  [JK]=jpsi_fsrmc                # J/psi + the 92, mc kernel
 )
 declare -A MODELS=(
   [SVs7P]="UnbinnedParams"  [SVs9P]="UnbinnedParams"  [SVs12P]="UnbinnedParams"
   [Ss9P]="UnbinnedParams"
   [P2XP]="ExternalParams bundle:global_params"
+  [P2K]="ExternalParams bundle:global_params"
+  [J0]="ExternalParams bundle:global_params"
+  [JK]="ExternalParams bundle:global_params"
 )
 # The phase-2 freeze list is the one phase 2 was run with: the four resolution
 # knobs plus the four material groups the hit-chi2 term carries NO information
@@ -122,6 +139,7 @@ declare -A FREEZES=(
   [SVs7P]="k_hit k_ms k_ioni k_rad"  [SVs9P]="k_hit k_ms k_ioni k_rad"
   [SVs12P]="k_hit k_ms k_ioni k_rad" [Ss9P]="k_hit k_ms k_ioni k_rad"
   [P2XP]="$_P2FREEZE"
+  [P2K]="$_P2FREEZE"  [J0]="$_P2FREEZE"  [JK]="$_P2FREEZE"
 )
 
 METHOD=${METHOD:-trust-exact}

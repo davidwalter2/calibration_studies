@@ -17,8 +17,18 @@ Three terms over one parameter vector:
   `globalfit/make_global_term.py` writes it -- same `chi2 -> NLL` factor of
   1/2, same whitening, same `D_card = -dm/dtheta` sign convention;
 * the **J/psi mass term**: delta kernel at `MJPSI`, `scale_param=None`, both
-  corrections, and the sparse `D` on the 92 parameters;
-* the **Z mass term** of `make_card.py`: the `ZGammaLineshape` provider with
+  corrections, and the sparse `D` on the 92 parameters.  `--jpsi-fsr` folds an
+  FSR kernel into it: for a DELTA lineshape the kernel is exact and additive,
+  `p(m') = K(m'/M)/M` with CF `<exp(i t dm)>`, so it goes in through the same
+  `phik` path the Z term uses and nothing else about the term changes.  The MC
+  the term is fitted against radiates -- its post-FSR gen mass sits 7.20 MeV
+  (2.32e-3) below `MJPSI` in the +-0.35 GeV window -- and a delta at the PDG
+  mass makes the momentum scale absorb that.  `zchannel/jpsi_fsr_kernel.py`
+  builds both kernels (`mc`, the sample's own; `data`, exponentiated exact
+  QED);
+* the **Z mass term** of `make_card.py` (omitted with no `--z-pairs`, which
+  leaves the quadratic + J/psi card in which a J/psi-side change is
+  attributable to the J/psi leg alone): the `ZGammaLineshape` provider with
   the banded FSR fold, the acceptance, a floated 5-term `K(m)`, `m_Z` and
   `Gamma_Z` as POIs, both corrections, and the same sparse `D`.
 
@@ -208,7 +218,20 @@ def parse_args(argv=None):
                         "is the quadratic term + the Z term only, which is the "
                         "configuration that can be built today (there is no "
                         "J/psi pairs cache until jpsimc_20M_260906_v2 lands).")
-    p.add_argument("--z-pairs", required=True)
+    p.add_argument("--z-pairs", default=None,
+                   help="OPTIONAL: without it the card is the quadratic term "
+                        "+ the J/psi term only, i.e. the momentum scale and "
+                        "the calibration parameters with no Z. That is the "
+                        "card in which the J/psi FSR kernel's effect on the "
+                        "global parameters is attributable to the J/psi leg "
+                        "alone.")
+    p.add_argument("--jpsi-fsr", default=None,
+                   help="kernel CF npz from `zchannel/jpsi_fsr_kernel.py` "
+                        "(keys phik_t/phik_re/phik_im). It REPLACES the J/psi "
+                        "term's delta at MJPSI by delta (x) K, which is exact "
+                        "for a delta lineshape: with m_pre = M the post-FSR "
+                        "density is K(m'/M)/M and its CF is <exp(i t dm)>. "
+                        "Default off, so every existing card is unchanged.")
     p.add_argument("--quad", nargs="+", required=True,
                    help="one or more globalfit/extract.py --no-mass outputs; "
                         "they are SUMMED (the parameter map is bit-identical "
@@ -899,6 +922,44 @@ def norm_classes(sigma, vgf, arrays, nt, nclasses, log=print):
     return norm, extra
 
 
+def load_fsr_kernel(path, tgrid, sigma, sigma_class, log=print):
+    """The J/psi FSR kernel CF, checked against the ``t`` the term will ask for.
+
+    Returns ``(t, re, im)`` for ``MassCFTerm(phik=...)``, or ``None``.
+
+    The term reads the tabulation at ``t = tau/sigma``, so it needs it out to
+    ``max(tgrid)/min(sigma)`` -- both per candidate and, through
+    ``_build_norm``, per resolution class, where a short tabulation is a hard
+    error rather than a silent clamp.  Checking both here turns that into one
+    legible message at card-build time.
+    """
+    if not path:
+        return None
+    k = np.load(path, allow_pickle=True)
+    t = np.asarray(k["phik_t"], dtype=np.float64)
+    dt = np.diff(t)
+    if not np.allclose(dt, dt[0], rtol=1e-9, atol=0.0):
+        raise SystemExit(f"{path}: the kernel CF grid is not uniform; "
+                         "`MassCFTerm._interp_phik` requires a uniform grid")
+    need = float(np.max(tgrid)) / float(min(sigma.min(), sigma_class.min()))
+    log(f"  FSR kernel {os.path.basename(path)}: {len(t)} points to "
+        f"t = {t[-1]:g} 1/GeV (step {dt[0]:g}); the term needs {need:.1f}")
+    if t[-1] < need:
+        raise SystemExit(
+            f"{path} is tabulated to t = {t[-1]:g} but the term needs "
+            f"{need:.1f} 1/GeV (max(tgrid) {np.max(tgrid):g} / min sigma "
+            f"{min(sigma.min(), sigma_class.min()):g}); rebuild it with a "
+            "larger --tmax")
+    if "meta" in k.files:
+        log(f"    {str(k['meta'])}")
+    re = np.asarray(k["phik_re"], dtype=np.float64)
+    im = np.asarray(k["phik_im"], dtype=np.float64)
+    dm = (im[1] - im[0]) / dt[0]
+    log(f"    <dm> from the CF = {dm * 1e3:+.4f} MeV = {dm / MJPSI:+.4e} "
+        "relative to MJPSI")
+    return (t, re, im)
+
+
 def build_jpsi(args, log=print, matctx=None):
     """The J/psi mass term: delta kernel at MJPSI, NO scale parameter.
 
@@ -983,9 +1044,20 @@ def build_jpsi(args, log=print, matctx=None):
     norm, extra = norm_classes(sigma, vgf, arrays, nt, jargs.norm_classes, log)
     datasets.update(extra)
 
+    phik = load_fsr_kernel(args.jpsi_fsr, tgrid, sigma, norm["sigma"], log)
+    if phik is not None:
+        # THE TABULATION IS A DATASET, not part of `config()`.
+        # `read_unbinned_terms_from_h5` rebuilds `phik` from `phik_t`/`phik_re`/
+        # `phik_im` in the term's data block, so a term constructed with a
+        # kernel but written without these three arrays comes back WITH A DELTA
+        # and nothing says so -- the card is even byte-identical to the
+        # kernel-less one.  `verify_kernel` is the gate that makes that
+        # impossible to ship.
+        datasets["phik_t"], datasets["phik_re"], datasets["phik_im"] = phik
+
     common = dict(
         sigma=sigma, mobs=mobs, tgrid=tgrid,
-        vgf=vgf, phik=None,
+        vgf=vgf, phik=phik,
         kernel=unbinned.DeltaKernel(),
         background=None, m_ref=MJPSI,
         # NO alpha: the scale is carried by the field modes and the material
@@ -1278,6 +1350,19 @@ def main():
             "constrained only by K -- this card is the plumbing test, not the "
             "physics measurement.")
 
+    if not args.z_pairs:
+        log("NO --z-pairs: building the QUADRATIC + J/psi card. `m_Z` and "
+            "`Gamma_Z` are not in this card at all; what it measures is the "
+            "momentum scale and the calibration parameters from the J/psi "
+            "alone, against the hit-chi2 curvature.")
+        if not args.jpsi_pairs:
+            raise SystemExit("neither --jpsi-pairs nor --z-pairs: nothing to "
+                             "build but the quadratic term")
+        return finish(args, entries, names, nfit, cat, parmtype, subidx,
+                      pscale, prior_sigmas, poi_set, inject, G, K, J, nquad,
+                      matctx, dead, jacinfo, fangsrc, cond, cond_eff, nnull,
+                      t_start, log)
+
     log("--- Z term ---")
     zargv = ["--pairs", args.z_pairs,
              "--name", "zmass", "--channel", "z",
@@ -1328,6 +1413,45 @@ def main():
         + (f" ({len(zshared)} of them SHARED with the term's own material "
            "amounts)" if zshared else ""))
     del zterm
+
+    return finish(args, entries, names, nfit, cat, parmtype, subidx, pscale,
+                  prior_sigmas, poi_set, inject, G, K, J, nquad, matctx, dead,
+                  jacinfo, fangsrc, cond, cond_eff, nnull, t_start, log)
+
+
+def verify_kernel(args, terms, log):
+    """The re-read J/psi term carries the kernel the card was asked for.
+
+    A kernel that does not survive the round trip is INVISIBLE: the term falls
+    back to its delta, the fit runs, and the answer is the un-kernelled one.
+    So the check is on the object the fitter will actually build, and it
+    compares the mean shift the tabulation implies, not just its presence.
+    """
+    j = next((t for t in terms if t.name == "jpsi"), None)
+    if j is None:
+        return
+    has = j.phik_tab is not None
+    if bool(args.jpsi_fsr) != has:
+        raise SystemExit(
+            f"--jpsi-fsr {'given' if args.jpsi_fsr else 'NOT given'} but the "
+            f"re-read J/psi term {'HAS' if has else 'has NO'} kernel CF")
+    if not has:
+        return
+    t, re_, im_ = j.phik_tab
+    dm = (im_[1] - im_[0]) / (t[1] - t[0])
+    log(f"  kernel round trip: the re-read J/psi term carries {len(t)} CF "
+        f"points to t = {t[-1]:g} 1/GeV, <dm> = {dm * 1e3:+.4f} MeV "
+        f"= {dm / MJPSI:+.4e}")
+
+
+def finish(args, entries, names, nfit, cat, parmtype, subidx, pscale,
+           prior_sigmas, poi_set, inject, G, K, J, nquad, matctx, dead,
+           jacinfo, fangsrc, cond, cond_eff, nnull, t_start, log):
+    """Everything after the mass terms: the quadratic term, the declarations
+    and the write.  Split out of `main` so a card with no Z leg takes exactly
+    the same path from here on."""
+    from rabbit import tensorwriter
+    import make_global_term as mgt
 
     # -- 4. the injection into the quadratic term ---------------------------
     if args.inject and not args.inject_mass_only:
@@ -1405,9 +1529,12 @@ def main():
                   else np.asarray(J, dtype=np.float64)),
         "provenance": [json.dumps({
             "quad": [os.path.abspath(f) for f in args.quad],
-            "z_pairs": os.path.abspath(args.z_pairs),
+            "z_pairs": (os.path.abspath(args.z_pairs)
+                        if args.z_pairs else None),
             "jpsi_pairs": (os.path.abspath(args.jpsi_pairs)
                            if args.jpsi_pairs else None),
+            "jpsi_fsr": (os.path.abspath(args.jpsi_fsr)
+                         if args.jpsi_fsr else None),
             "nglobal": int(cat["nglobal"]),
             "ncand_quadratic": int(nquad),
             "terms": [nm for nm, _, _, _, _ in entries],
@@ -1459,6 +1586,7 @@ def main():
                 raise SystemExit(
                     f"term '{t.name}' does not carry {len(miss)} of the "
                     f"calibration parameters, e.g. {miss[:3]}")
+        verify_kernel(args, terms, log)
         log(f"  verified: {len(terms)} term(s) re-read in {time.time()-t0:.1f} "
             "s, each parameter list is the one its configuration implies")
 

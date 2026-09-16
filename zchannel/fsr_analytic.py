@@ -380,6 +380,23 @@ def coll_log(m):
     return 2.0 * np.log(np.asarray(m, float) / M_MU)
 
 
+def coll_log_exact(m, mmu=M_MU):
+    """The collinear log with the muon mass kept exactly.
+
+    The angular integral of the soft eikonal factor of a back-to-back massive
+    pair is ``(1+b^2)/(2b) ln((1+b)/(1-b))`` with ``b = sqrt(1 - 4 m_mu^2/s)``
+    the muon velocity.  It reduces to `coll_log` as ``m_mu^2/s -> 0`` and is
+    what the exact matrix element's soft limit contains, so it is the ``L``
+    that makes ``R_exact - beta/x`` regular.  At the Z it differs from
+    `coll_log` by 6e-8 of ``L-1``; at the J/psi by -4.3e-4.
+    """
+    s = float(m) * float(m)
+    b = math.sqrt(max(1.0 - 4.0 * mmu * mmu / s, 0.0))
+    if b <= 0.0:
+        return 0.0
+    return (1.0 + b * b) / (2.0 * b) * math.log((1.0 + b) / (1.0 - b))
+
+
 def beta_fsr(m, minus_one=True):
     """beta(m) = (2 alpha/pi) (L - 1); ``minus_one=False`` drops the -1.
 
@@ -566,24 +583,41 @@ class FSRKernel:
     zmin : float
         lower end of the support; the default is the exact 2-muon threshold
         ``4 m_mu^2/s``.
+    mass_exact : bool
+        keep the muon mass in the O(alpha) spectrum: ``L`` becomes the exact
+        massive eikonal `coll_log_exact` and the hard remainder gets
+        ``R_exact - r1`` from the exact matrix element (`r1_fast`).  It moves
+        ``<u>`` by -2.8e-3 at the J/psi, -2.7e-4 at the Upsilon and below 1e-5
+        at the Z, so it is the option a NARROW resonance needs and the Z does
+        not.  ``mass_exact_xmin`` (derived from the cancellation floor when
+        left at ``None``) and ``mass_exact_n`` control the ``dh`` tabulation.
     """
 
     def __init__(self, m, variant="exp1", pair=(), minus_one=True,
-                 x_cut=1e-7, zmin=None, beta_at=None, pair_table=None):
+                 x_cut=1e-7, zmin=None, beta_at=None, pair_table=None,
+                 mass_exact=False, mass_exact_xmin=None, mass_exact_n=20000):
         self.m = float(m)
         self.variant = variant
         if variant not in VARIANTS:
             raise ValueError(f"variant must be one of {VARIANTS}")
         mb = self.m if beta_at is None else float(beta_at)
         self.beta_at = beta_at
-        self.L = float(coll_log(mb))
-        self.beta = self.beta_gam = float(beta_fsr(mb, minus_one))
+        self.mass_exact = bool(mass_exact)
+        self.L = float(coll_log_exact(mb) if self.mass_exact else coll_log(mb))
+        self.beta = self.beta_gam = float(
+            2.0 * A_PI * (self.L - (1.0 if minus_one else 0.0)))
         self.pair = tuple(pair)
         #: R_pair(z), the exact O(alpha^2) real-pair spectrum, added to the
         #: kernel with its integral taken out of the delta(1-z)
         self._pair = PairTerm(mb, pair, path=pair_table)
         self.x_cut = float(x_cut)
         self.zmin = float(zmin) if zmin is not None else 4.0 * M_MU**2 / self.m**2
+        #: the exact-mass remainder of the O(alpha) spectrum, `_build_dh`
+        self._dh_lx = self._dh_v = None
+        self.dh_xmin = None
+        self._int_dh = 0.0
+        if self.mass_exact:
+            self._build_dh(mass_exact_xmin, mass_exact_n)
         self.pair_rate = self.int_pair()
         #: (alpha/pi)^2 L, the prefactor of the O(alpha^2) NLL remainder (8).
         #: Photonic only - the n_f sector is the exact `pair_radiator`.
@@ -603,16 +637,78 @@ class FSRKernel:
         x = (1.0 - z) if x is None else np.asarray(x, float)
         return A_PI * (1.0 + z * z) / x * (self.L - 1.0 + np.log1p(-x))
 
+    # -- the exact-mass remainder -----------------------------------------
+    # `r1` is the MASSLESS closed form.  With `L` set to `coll_log_exact` its
+    # soft limit is already the exact massive eikonal `beta/x`, so
+    #
+    #     dh(z) = R_exact(z) - r1(z)
+    #
+    # is REGULAR at x -> 0, where it tends to a CONSTANT (-7.32e-5 at the
+    # J/psi, 2.7e-3 of beta).  It is nevertheless computed there as the
+    # difference of two numbers of size beta/x, so below `x_min` -- 1e-6, where
+    # the plateau is still clean to four digits and the cancellation has not
+    # yet eaten it -- the constant is continued rather than re-evaluated.
+    # Everything above is tabulated in ln x and interpolated, and `int_h` gets
+    # the same table's integral, so `C` and the normalisation stay exact.
+    #: relative accuracy of `r1_fast`; the cancellation floor of `dh` is
+    #: `DH_RTOL * r1(x)`, which is what sets `x_min`
+    DH_RTOL = 3e-11
+
+    def _dh_xmin(self):
+        """Smallest ``x`` at which ``R_exact - r1`` still has two clean digits.
+
+        The cancellation error is ``DH_RTOL * r1 ~ DH_RTOL * beta/x`` while the
+        plateau is ``dh(x -> 0)``, so the usable range ends where the two are
+        within a factor 50 of each other.  Derived rather than fixed because
+        the plateau is 7.3e-5 at the J/psi and 1.7e-7 at the Z -- one constant
+        cannot serve both, and a too-small ``x_min`` continues NOISE over the
+        60 % of the kernel's weight that sits below it.
+        """
+        x0 = 1e-3                                  # safely on the plateau
+        p = abs(float(r1_fast(self.m, np.array([1.0 - x0]))[0]
+                      - self.r1(np.array([1.0 - x0]), np.array([x0]))[0]))
+        if p <= 0.0:
+            return 1e-4
+        # DH_RTOL * beta / x = p / 50
+        return min(max(50.0 * self.DH_RTOL * self.beta / p, 1e-8), 1e-2)
+
+    def _build_dh(self, x_min, n):
+        # the grid stops at the 2-muon threshold: above it `pdf_z` is zero
+        # anyway, and `r1` itself diverges at x = 1.  `n` has to resolve the
+        # bottom decades: `<u>` is converged to 2e-6 of the correction at
+        # n = 20000 (the default) and to 3 % of it at n = 5000.
+        x_min = self._dh_xmin() if x_min is None else float(x_min)
+        self.dh_xmin = x_min
+        lx = np.linspace(math.log(x_min), math.log1p(-self.zmin), n)
+        x = np.exp(lx)
+        z = 1.0 - x
+        v = r1_fast(self.m, z) - self.r1(z, x)
+        self._dh_lx, self._dh_v = lx, v
+        # int_0^1 dh dz = int_0^1 dh dx = int dh x dlnx  (z = 1 - x)
+        self._int_dh = float(np.trapezoid(v * x, lx)
+                             if hasattr(np, "trapezoid")
+                             else np.trapz(v * x, lx))
+
+    def dh(self, z, x=None):
+        """``R_exact(z) - r1(z)``, continued as a constant below ``x_min``."""
+        if self._dh_v is None:
+            return 0.0
+        x = (1.0 - np.asarray(z, float)) if x is None else np.asarray(x, float)
+        lx = np.log(np.maximum(x, 1e-300))
+        return np.interp(lx, self._dh_lx, self._dh_v)
+
     def h(self, z, x=None):
         """Hard remainder of eq. (2): O(alpha) minus the exponentiated soft."""
         z = np.asarray(z, float)
         x = (1.0 - z) if x is None else np.asarray(x, float)
         out = (-0.5 * self.beta * (1.0 + z)
                + A_PI * (1.0 + z * z) * np.log1p(-x) / x)
+        if self.mass_exact:
+            out = out + self.dh(z, x)
         return out
 
     def int_h(self):
-        return -0.75 * self.beta + A_PI * INT_F
+        return -0.75 * self.beta + A_PI * INT_F + self._int_dh
 
     def q2(self, z, x=None):
         """Regular part of the O(alpha^2) LL term, (beta^2/8) x eq. (3)."""
