@@ -426,12 +426,62 @@ to those two cells and is not a property of every Engaging row.
 
 ---
 
+### 5.11 The J/psi FSR kernel — **+66.3 MeV on `m_Z`, and it is CLOSED**
+
+The J/psi mass term carried a `delta` at the PDG mass against an MC that
+radiates. Measured on the production's own gen record over 7 853 326
+candidates, the post-FSR gen mass sits **7.1969 MeV = 2.3239e-3 below
+`MJPSI`** in the term's own +-0.35 GeV window, and of the -7.93 MeV mean shift
+of `Jpsigen_mass` over the whole 21.7 M-candidate production **the generator's
+lineshape contributes -0.0003 MeV** — it is all radiation. For a delta
+lineshape the kernel is exact and additive, `p(m') = K(m'/M)/M` with CF
+`<exp(i t dm)>`, so it enters through `MassCFTerm`'s existing `phik` path and
+nothing else about the term changes (`zchannel/jpsi_fsr_kernel.py`,
+`make_joint_card.py --jpsi-fsr`; the density IS the convolution to 2.4e-7 and
+`_norm_z` matches Simpson to 8.4e-5, `fullscale/gate_jpsi_fsr.py`).
+
+| row | card | J/psi kernel | `m_Z` [MeV] | `bfield_mode0` [1e-3] | `<D_card>.theta` [MeV] | EDM |
+|---|---|---|---:|---:|---:|---:|
+| `P2XP` | `joint_ok_full` | delta | +20.692 +- 2.134 | +1.40124 +- 0.02563 | -1.5105 | 1.05e-11 |
+| `P2K` | `joint_fsrmc` | `mc` | **-45.594 +- 2.132** | -1.31131 +- 0.02556 | +0.8804 | 8.49e-13 |
+| `J0` | `jpsi_nok` | delta | — (no Z term) | +1.91544 +- 0.02562 | -1.9049 | 1.10e-12 |
+| `JK` | `jpsi_fsrmc` | `mc` | — | -0.75376 +- 0.02633 | +0.4537 | 2.06e-11 |
+| `JD` | `jpsi_fsrdata` | exact QED | — | -0.86590 +- 0.02639 | +0.5578 | 7.23e-13 |
+
+`<D_card>.theta` is the mean predicted J/psi mass shift the fitted calibration
+vector produces — the quantity a delta forces to equal `-<dm>` and a kernelled
+term does not. **The transfer is 1:1**: the J/psi scale moves `+7.72e-4` and
+`m_Z` moves `-66.286/91 188 = -7.27e-4`, and the J/psi-only pair gives the same
+step (`+7.616e-4`) on a card with no `m_Z` in it. The **42 material amounts do
+not move** — every one inside 1 sigma — so the 50-sigma material pulls are not
+an FSR effect.
+
+Three further numbers:
+
+* **the kernel-MODEL systematic is 3.4e-5**, not the 2.6e-4 the `mc` and
+  exact-QED kernels' means differ by (`JD - JK`): the likelihood realises
+  12.8 % of a mean-matching response against a one-sided tail;
+* **what is left on the J/psi side is the two mass-likelihood corrections**.
+  A fit-free scan of the term's own `-sum log(L/Z)` in a common
+  predicted-mass shift (`fullscale/jpsi_scale_pref.py`) gives, with the
+  kernel in, **-1.76e-5 with the corrections OFF** and `-1.80e-4` with them
+  ON — so the FSR is fully accounted for and the residual is the corrections
+  **in the residual form**, worth `-1.6e-4`;
+* that form cannot simply be switched: `--unbinnedDeltaKernelForm fluctuation`
+  on the same card (`JKF`) died with a `nan` EDM and a non-positive-definite
+  postfit Hessian, i.e. the fluctuation form's first-order truncation is not
+  small on this term. The fix is the exact map applied to the FLUCTUATION
+  inside the convolution, a code change rather than a configuration.
+
+Full reference, provenance and job IDs: `fullscale/JPSI_FSR_STATE.md`;
+figures `~/public_html/ZMass/cvh/260916_jpsi_fsr/`.
+
 ## 6. Open items, ranked by their size on `m_Z`
 
 | # | item | size on `m_Z` | next step |
 |---|---|---:|---|
 | 1 | **`K(m)` truncation** | **2.4 MeV** over 5 -> 7 in the v form, which is the number to quote; +26.6 MeV over 7 -> 9 in the m form | **the v-form ladder ENDS at 7**: the 9-term rung runs 65 Hessians with no density NaN and fails on an indefinite Hessian whose diagonal spans 14 orders of magnitude (5.3). Two consequences — **preconditioning (item 6) is promoted from a robustness item to the blocker on the truncation systematic**, and the structural cure, a theory-predicted `K(m)` in place of the floated LO kernel (which also returns the x1.5 statistical penalty), is the only route to a `K`-independent number |
-| 2 | the momentum scale from J/psi (phase 2) | not yet measured | the full-card fit descends (EDM 1.4e5 -> 150 over 19 Hessians, condition number 3.1e19 -> 1.0e15) and is **not converged**. Read its plateau carefully: a flat EDM on this card family is a shelf, not a stall — the converged m-form 9-term rung sat on one for twenty iterations — but 5.3 shows that leaving the shelf is not sufficient either. The one quantitative reason to expect it to fare better is its condition number, 1.0e15 against the K-ladder card's 1e17-1e20. **The named remedy is preconditioning at the trust-region level or the 2-GPU candidate sharding; NOT a resubmit.** And before its first quotable number, the J/psi term's FSR treatment (a delta at the PDG mass against a radiating MC) must be quantified on the extracted scale |
+| 2 | the momentum scale from J/psi (phase 2) | **measured, and the FSR precondition is CLOSED** | the full card converges with the spectral preconditioner (`P2XP`, EDM 1.05e-11, 8 h 01) and again with the J/psi FSR kernel (`P2K`, EDM 8.49e-13, 8 h 34). **The delta at the PDG mass was costing `m_Z` +66.3 MeV**: `m_Z` = +20.69 +- 2.13 -> **-45.59 +- 2.13**, a 1:1 transfer of the J/psi leg's +7.7e-4 scale step. So the `+20.69` was the SUM of an FSR-induced +66.3 and a residual -45.6, and what is left is a Z-side offset of -20 to -24 MeV that does not move when the J/psi leg changes — i.e. item 1. On the J/psi side the FSR is now fully accounted for: with the kernel and the two mass-likelihood corrections off, the J/psi term's preferred scale is -1.8e-5. See section 5.10 |
 | 3 | the material amounts (phase 3) | not yet measured | **the card IS built and verified**: `joint_mat_v3.hdf5`, **28.37 GB**, written in 54 s and re-read term by term (10 min total) — 645 517 J/psi + 481 020 Z candidates, 18 hit-resolution parameters and the 92 calibration parameters, 42 material amounts SHARED between the quadratic curvature and both mass terms. The fit is **not attempted**. The memory blocker is re-opened rather than settled: the 141.4 GB figure was measured on the phase-2 FULL card and this one has ~6x fewer candidates (34.8 GB of exponents in total), so whether it needs the 2-GPU sharding is one cheap job. The card reports that **nothing constrains `material_pp1_cables`, `material_support_tube`, `material_thermal_screen`** — freeze them |
 | 4 | residual `eta` spread | -12.5 +- 5.9 MeV (2.1 sigma), an **upper bound** | a band variable cleaner than `max(\|eta_p\|,\|eta_m\|)` needs a gen predictor a card cannot cut on |
 | 5 | GN second-order (Box) charge-odd bias | ~4 MeV uncalibrated (4.7e-5), ~0.4-0.7 MeV after the J/psi anchors the scale | analytic per-track correction from the exported steps; no new production |
