@@ -1294,6 +1294,45 @@ two corrections off so the density is a pure convolution:
 | against the empirical `dm` sample directly (200 k draws) | median 1.3e-4, at the direct sum's own noise floor |
 | `_norm_z` (Gil-Pelaez) against Simpson on the mass grid, kernel ON | worst 8.4e-5 over 8 resolution classes, unchanged from 4001 to 8001 mass points |
 
+### What ONE kernel cannot carry: the class dependence
+
+`MassCFTerm` holds a single `phi_K` tabulation, read at `t = tau/sigma` for
+every candidate and at `t = tau/sigma_c` for every resolution class. The
+sample's kernel is **not** the same for every class:
+
+| | `<dm>` [MeV] |
+|---|---:|
+| inclusive | **-7.1969** |
+| the 64 norm classes | span **-12.15 to -5.00**, rms over classes **1.343** |
+| `sigma` octile 1 (10.3-20.5 MeV) / octile 8 (47.7-382 MeV) | -8.18 / -5.55 |
+| reco `J/psi pT` octile 1 (< 8.48 GeV) / the other seven | **-11.90** / -6.5 |
+
+The `pT` row is the driver and it has a cause: the generator filter is
+`PythiaFilter(ParticleID=443, Status=2, MinPt=8.0)` on the **gen** J/psi, so
+a candidate whose *reconstructed* `pT` is below 8 GeV is one that radiated. The
+low-`pT` octile is a radiation-enriched selection, and the `sigma` classes
+inherit it.
+
+What a single kernel then gets wrong is **not** the 1.343 MeV rms: the model's
+inclusive mean is right by construction, and what survives is the correlation
+between a class's kernel offset and its weight in the scale estimate. Weighting
+by the Fisher information for a common mass scale (`1/sigma^2`),
+
+```
+plain mean            <dm> = -7.1969 MeV = -2.3239e-3
+1/sigma^2-weighted    <dm> = -7.8012 MeV = -2.5190e-3
+residual                   = -0.6043 MeV = -1.95e-4
+```
+
+so **one kernel removes about 92 % of the FSR effect on the scale and leaves
+-1.95e-4**, which is the leading remaining FSR modelling term on the J/psi leg
+and is quoted as an upper bound (the fit realises ~21 % of a mean-matching
+response, section above, so the realised residual is smaller). The remedy is a
+per-class kernel — a `(K, nt)` tabulation in `_build_norm` and a per-candidate
+blend in `_density` — which `MassCFTerm` does not have: `phik_grid` is the
+per-candidate form and it is refused together with a parameter-dependent
+`sigma`, which the J/psi leg has.
+
 ### The one caveat: the correction form
 
 `rabbit_fit.py`'s `--unbinnedDeltaKernelForm auto` keys on

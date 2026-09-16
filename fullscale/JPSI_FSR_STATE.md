@@ -54,10 +54,17 @@ rsync -a engaging:orcd/pool/zmass/fitresults/native/rabbit_{J0,JK,P2K}.hdf5 \
 rsync -a 'engaging:orcd/pool/zmass/engaging/zprecond_2282*.out' \
       $FS/runs/engaging_260916/
 cd /work/submit/david_w/ZMass/calibration_studies/zchannel
-for t in J0 JK P2K; do
-  ./run_tf_z.sh python3 $FS/native_dump.py \
-      $FS/runs/engaging_260916/rabbit_$t.hdf5 -o $FS/runs/engaging_260916/rabbit_$t.json
-done
+# `-o` is an OUTPUT DIRECTORY: one json per result, named after the hdf5
+./run_tf_z.sh python3 $FS/native_dump.py \
+    "$FS/runs/engaging_260916/rabbit_*.hdf5" -o $FS/runs/engaging_260916
+
+# the comparison table
+source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
+python3 $FS/jpsi_fsr_table.py --ref P2XP \
+    P2XP=$FS/runs/engaging_260913/rabbit_P2XP.json \
+    P2K=$FS/runs/engaging_260916/rabbit_P2K.json \
+    J0=$FS/runs/engaging_260916/rabbit_J0.json \
+    JK=$FS/runs/engaging_260916/rabbit_JK.json
 ```
 
 **Certification**: `EDM < 1e-3` AND a finite positive-definite Hessian (the
@@ -121,11 +128,27 @@ other 91 directions (the mass-coherent direction is not `mode0` alone:
 `|<D_card>|` over the 92 is 3285 MeV/unit, with `mode38` +1882, `mode40` +1728,
 `mode24` +1390, `mode42` +1093 ahead of `mode0`).
 
+**The better projection**, also computed before the fits landed
+(`jpsi_Dbar.npz`, `jpsi_fsr_table.py`): the fitted calibration vector's mean
+predicted J/psi mass shift is
+
+```
+<D_card> . theta  =  -1.5105 MeV  =  -4.877e-4 of the momentum scale   (P2XP)
+```
+
+against the `-7.1969 MeV` a **mean-matching** estimator would have to absorb.
+A likelihood is not mean-matching against a one-sided tail -- it sits nearer
+the mode -- so 21 % of the bound is what this one realises, and `-7.20 MeV`
+is an upper bound rather than a prediction (the same distinction
+`zchannel/README.md` draws for `<u | in window>`). `-4.88e-4` is the number to
+compare against, and it is twice the `m_Z` pull's own `+2.27e-4`.
+
 So, **if the FSR treatment is the explanation of the phase-2 pulls**:
 
-1. `bfield_mode0` moves DOWN (toward zero) when the kernel is switched on, in
-   both the J/psi-only pair and phase 2. Its J/psi-only difference
-   `JK - J0` should be of order `-1.4e-3` and at most `-8.8e-3`.
+1. `<D_card> . theta` moves toward **zero** when the kernel is switched on, by
+   about `+1.5 MeV`, in both the J/psi-only pair and phase 2. `bfield_mode0`
+   moves DOWN with it; its J/psi-only difference `JK - J0` should be of order
+   `-1.4e-3` and at most `-8.8e-3`.
 2. `m_Z` in phase 2 moves DOWN from `+20.69 +- 2.13 MeV` toward zero. In the
    reference the whole pull is `+2.27e-4` of `m_Z`, an order below the
    kernel's own `-2.32e-3`, which is the same ~1/6 response the field mode
@@ -136,3 +159,27 @@ So, **if the FSR treatment is the explanation of the phase-2 pulls**:
 
 Anything that contradicts 1 or 2 says the FSR treatment is **not** the
 explanation and the pulls have another source.
+
+## What one kernel cannot carry (measured, before the fits)
+
+`MassCFTerm` holds ONE `phi_K` tabulation. The sample's kernel is class
+dependent: over the card's 64 norm classes `<dm>` spans **-12.15 to -5.00 MeV**
+(rms 1.343). The driver is the generator filter — `PythiaFilter(443, status 2,
+MinPt = 8.0)` is on the **gen** J/psi, so a candidate whose *reconstructed* `pT`
+is below 8 GeV is one that radiated, and the lowest reco-`pT` octile has
+`<dm> = -11.90 MeV` against `-6.5` for the other seven.
+
+What a single kernel gets wrong is not that rms — the inclusive mean is right
+by construction — but the correlation between a class's offset and its weight
+in the scale estimate:
+
+```
+plain mean            <dm> = -7.1969 MeV = -2.3239e-3
+1/sigma^2-weighted    <dm> = -7.8012 MeV = -2.5190e-3
+residual                   = -0.6043 MeV = -1.95e-4
+```
+
+**One kernel therefore removes ~92 % of the FSR effect on the scale and leaves
+-1.95e-4 as an upper bound.** The remedy is a per-class kernel, which rabbit
+does not have (`phik_grid` is per candidate and is refused together with a
+parameter-dependent `sigma`, which this leg has).
