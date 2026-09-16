@@ -487,8 +487,59 @@ The last is the caveat already in `zchannel/README.md`:
 fluctuation, and with a kernel it is the fluctuation PLUS the FSR
 displacement.
 
-**The one check that decides it is one CLI flag and 45 minutes**, and it is
-running as `JKF` (**22854490**): the same `jpsi_fsrmc` card with
-`EXTRA="--unbinnedDeltaKernelForm fluctuation"`. If the residual moves by
-~1e-4 the correction form under a kernel is the explanation; if it does not,
-what is left is the corrections' own `+5.1e-5` and ~`+1.2e-4` still unassigned.
+### `JKF`: the flag cannot be run, and that is itself the answer's first half
+
+`JKF` (**22854490**) is the same `jpsi_fsrmc` card with
+`EXTRA="--unbinnedDeltaKernelForm fluctuation"`. It **FAILED, rc=1, NOT
+certified**: `Condition number: nan`, `edmval: nan`,
+`Minimizer raised: array must not contain infs or NaNs`, and the postfit died
+on `Cholesky decomposition failed, Hessian is not positive-definite`.
+
+That is the failure mode the `auto` rule exists to prevent, and it says
+something: **the fluctuation form's first-order Fourier truncation is NOT
+small on the kernelled J/psi term.** So the residual form is the only usable
+one today, the mismatch it carries under a kernel cannot be removed with a
+flag, and removing it needs a code change -- the exact map applied to the
+FLUCTUATION inside the convolution rather than to the residual.
+
+### The fit-free scan that decides the rest
+
+`jpsi_scale_pref.py` scans the term's own truncated `-sum log(L_i/Z_i)` in a
+common predicted-mass shift `s` -- the one number a momentum-scale error is --
+and reads off the minimum. 300 000 candidates, the card's own `a_res`,
+`jensen_s2`, 64 norm classes and truncation window, no fit anywhere:
+
+| | preferred shift [MeV] | relative |
+|---|---:|---:|
+| delta, corrections ON | -2.7794 | -8.97e-4 |
+| **kernel, corrections ON** | **-0.5589** | **-1.80e-4** |
+| delta, corrections OFF | -2.3945 | -7.73e-4 |
+| **kernel, corrections OFF** | **-0.0545** | **-1.76e-5** |
+
+| the pieces | | |
+|---|---:|---:|
+| the FSR kernel, corrections ON | +2.2205 MeV | **+7.17e-4** |
+| the two corrections, kernel ON | -0.5043 MeV | **-1.63e-4** |
+| the two corrections, delta | -0.3849 MeV | -1.24e-4 |
+
+**The FSR step agrees with the fits**: +7.17e-4 here, +7.616e-4 from
+`JK - J0`, +7.72e-4 from `P2K - P2XP`.
+
+**And with the kernel in and the two corrections OFF, the J/psi term's
+preferred scale is `-1.8e-5`** -- consistent with zero at the level this scan
+resolves. So the residual is **the two mass-likelihood corrections as applied
+in the RESIDUAL form**: they move the preferred scale by `-1.63e-4` with the
+kernel and by `-1.24e-4` with the delta, which is the correction-form caveat
+above, not a separate effect.
+
+*Scope of the scan*: it measures the best COMMON shift, while the fit
+optimises 92 directions against the hit-chi2 curvature as well, so the
+absolute preferred shift here (`-0.56 MeV`) is not the fit's
+`<D_card>.theta` (`+0.53 MeV`, mass term alone) and should not be read as
+such. The DIFFERENCES are what the scan establishes, and those are what the
+fits reproduce.
+
+**Verdict on the residual**: the J/psi FSR is fully accounted for by the
+kernel; what remains is the two corrections in the residual form, worth
+`-1.6e-4`, and the fix is the code change named above rather than a
+configuration choice.
