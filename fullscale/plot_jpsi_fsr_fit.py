@@ -74,6 +74,7 @@ def fig_shift(rows, ref, out):
         a1.step(x, np.where(e > 0, (v - v0) / e, 0.0), where="mid", lw=1.8,
                 color=COL.get(tag, None), label=f"{tag} - {ref}")
     a1.axhline(0.0, color="k", lw=1)
+    a1.set_yscale("symlog", linthresh=1)
     for ax in (a0, a1):
         ax.axvline(nb - 0.5, color="grey", lw=1.4, ls="--")
     a1.set_ylabel(r"$(\theta - \theta_{\rm ref})/\sigma_\theta$")
@@ -86,34 +87,35 @@ def fig_shift(rows, ref, out):
 
 
 def fig_dmean(rows, dbar, dnames, out):
+    """`<D_card> . theta` per row, against the mean-matching bound."""
     dm = T.dmean(rows, dbar, dnames)
     tags = list(rows)
     y = np.arange(len(tags))
-    fig, ax = plt.subplots(figsize=(10, 1.1 * len(tags) + 3))
+    bound = sorted({-v for t, v in DM_KERNEL.items() if t in rows and v})
+    fig, ax = plt.subplots(figsize=(11, 1.1 * len(tags) + 3.4))
     ax.barh(y, [dm[t] for t in tags],
             color=[COL.get(t, "#1f77b4") for t in tags], height=0.6)
     for i, t in enumerate(tags):
-        k = DM_KERNEL.get(t)
-        if k:
-            ax.plot([-k], [i], marker="|", ms=26, mew=2.5, color="k",
-                    zorder=5,
-                    label=(r"$-\langle dm\rangle$ of the kernel"
-                           if i == 0 or "lab" not in dir() else None))
-        ax.text(dm[t] + (0.06 if dm[t] >= 0 else -0.06), i,
-                f"{dm[t]:+.3f} MeV", va="center",
-                ha="left" if dm[t] >= 0 else "right", fontsize=13)
+        ax.text(dm[t] + (0.12 if dm[t] >= 0 else -0.12), i,
+                f"{dm[t]:+.3f} MeV = {dm[t] / (MJPSI * 1e3):+.2e}",
+                va="center", ha="left" if dm[t] >= 0 else "right", fontsize=12)
+    for j, b in enumerate(bound):
+        ax.axvline(b, color="k", lw=1.4, ls="--",
+                   label=(r"$-\langle dm\rangle$: what a MEAN-matching "
+                          r"estimator would absorb" if j == 0 else None))
     ax.axvline(0.0, color="k", lw=1)
     ax.set_yticks(y)
     ax.set_yticklabels(tags)
     ax.invert_yaxis()
     ax.set_xlabel(r"$\langle D_{\rm card}\rangle\cdot\theta$  [MeV]"
-                  "\n(the mean predicted J/$\\psi$ mass shift the fit produces)")
-    lo = min(list(dm.values()) + [-v for v in DM_KERNEL.values()])
-    hi = max(list(dm.values()) + [0.0])
-    ax.set_xlim(lo - 1.2, hi + 1.2)
+                  "\n(the mean predicted J/$\\psi$ mass shift the fitted "
+                  "calibration vector produces)")
+    lo = min(list(dm.values()) + [0.0])
+    hi = max(list(dm.values()) + bound + [0.0])
+    ax.set_xlim(lo - 1.4, hi + 1.4)
     h, lab = ax.get_legend_handles_labels()
     if h:
-        ax.legend(h[:1], lab[:1], fontsize=13, loc="lower right")
+        ax.legend(h[:1], lab[:1], fontsize=12, loc="lower right")
     pubhtml.savefig(fig, os.path.join(out, "fsrfit_dmean.pdf"))
     plt.close(fig)
 

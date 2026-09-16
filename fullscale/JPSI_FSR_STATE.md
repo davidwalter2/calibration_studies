@@ -232,7 +232,7 @@ parameter-dependent `sigma`, which this leg has).
 |---|---|---|---:|---:|---:|---:|---:|
 | `P2XP` | `joint_ok_full` | delta | 1.05e-11 | 8 h 01 | +1.40124 +- 0.02563 | -1.5105 | +20.692 +- 2.134 |
 | `J0` | `jpsi_nok` | delta | 1.10e-12 | **43 min** | +1.91544 +- 0.02562 | -1.9049 | — (no Z term) |
-| `JK` | `jpsi_fsrmc` | `mc` | | | | | — |
+| `JK` | `jpsi_fsrmc` | `mc` | 2.06e-11 | **39 min** | -0.75376 +- 0.02633 | **+0.4537** | — (no Z term) |
 | `JD` | `jpsi_fsrdata` | `data` | | | | | — |
 | `P2N` | `joint_nok` | delta | | | | | |
 | `P2K` | `joint_fsrmc` | `mc` | | | | | |
@@ -242,3 +242,24 @@ condition number 4.31e7 -> 1 under the preconditioner, `rc=0`, postfit
 covariance computed. Its material pulls are the reference's to two digits
 (`bpix_active_L2 +2.66 %` at 324 sigma, `bpix_support7 +2.66 %`,
 `tec_structure +0.32 %`), as pre-registered.
+
+### THE ATTRIBUTABLE NUMBER: `JK - J0`
+
+The two cards are bit-identical apart from the kernel CF, both certified, so
+the difference is the FSR treatment and nothing else.
+
+| | `J0` (delta) | `JK` (`mc` kernel) | difference |
+|---|---:|---:|---:|
+| `bfield_mode0` [1e-3] | +1.91544 +- 0.02562 | **-0.75376 +- 0.02633** | **-2.66920** (104 sigma of its own error) |
+| `<D_card>.theta` [MeV] | -1.9049 | **+0.4537** | **+2.3586** |
+| the same, relative | -6.151e-4 | +1.465e-4 | **+7.616e-4** |
+| NLL | -5 460 317.0356 | -5 574 341.0470 | `2 dNLL = 228 048` for the kernel |
+| largest material pulls | `bpix_active_L2 +2.66 %` (324 sigma), `bpix_support7 +2.66 %`, `bpix_active_L1 +2.10 %` | +2.66 %, +2.64 %, +2.07 % | **unchanged** |
+
+**A delta at the PDG mass costs the extracted momentum scale
+`7.62e-4`** on this MC. Both pre-registered predictions hold: the
+mean predicted mass shift moves toward zero (prediction 1, `+2.36 MeV`
+against the `+1.5 MeV` estimated from the reference's realised fraction and
+inside the `+1.4` to `+8.8e-3` band quoted for `bfield_mode0`), and the
+material pulls do NOT go away (prediction 3) -- they are a 50-sigma feature of
+this MC that a mean mass shift cannot reach.
