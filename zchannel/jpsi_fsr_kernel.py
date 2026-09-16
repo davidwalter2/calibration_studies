@@ -156,7 +156,8 @@ def cf_from_samples(dm, tmax, npoints, nbins_pow=25, dt_dft=0.25, log=print):
     np.clip(b, 0, n - 1, out=b)
     w = np.bincount(b, minlength=n).astype(np.float64)
     w /= w.sum()
-    # sum_b w_b e^{+i t_k (lo + (b+1/2) dbin)} = conj(rfft(w)[k]) e^{i t_k (lo + dbin/2)}
+    # sum_b w_b e^{+i t_k (lo + (b+1/2) dbin)}
+    #   = conj(rfft(w)[k]) e^{i t_k (lo + dbin/2)}
     F = np.conjugate(np.fft.rfft(w))
     tk = 2.0 * np.pi * np.arange(len(F)) / period
     F *= np.exp(1j * tk * (lo + 0.5 * dbin))

@@ -243,7 +243,8 @@ def fig_meanshift(dm, ub, wj, out):
                label=r"the card's window, $\pm 0.35$ GeV")
     ax.set_xscale("log")
     ax.set_xlabel(r"window halfwidth $w$  [GeV]")
-    ax.set_ylabel(r"$\langle m_{\mathrm{gen}}-M\,|\,|m_{\mathrm{gen}}-M|<w\rangle$  [MeV]")
+    ax.set_ylabel(r"$\langle m_{\mathrm{gen}}-M\,|\,"
+                  r"|m_{\mathrm{gen}}-M|<w\rangle$  [MeV]")
     sec = ax.secondary_yaxis(
         "right", functions=(lambda y: y * 1e-3 / MJPSI * 1e3,
                             lambda y: y * MJPSI / 1e-3 / 1e3))
