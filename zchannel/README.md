@@ -1160,10 +1160,11 @@ of "Fold matrix from the kernel table" and this one does not.)
 **`phik` is a DATASET, not part of `config()`.** A term constructed with a
 kernel but written without `phik_t`/`phik_re`/`phik_im` in its data block comes
 back from `read_unbinned_terms_from_h5` with a **delta**, the fit runs, and
-nothing says so — the first `jpsi_fsrmc` card written this way was
-byte-for-byte identical to the kernel-less one. `make_joint_card.py --verify`
+nothing says so — the first `jpsi_fsrmc` card written this way came out the
+same size as the kernel-less one to the byte. `make_joint_card.py --verify`
 now re-reads the written card and checks that the J/psi term carries the
-kernel, and what mean shift it implies.
+kernel and what mean shift it implies; with the kernel actually in, the card
+is exactly 518 608 bytes larger and every other dataset is bit-identical.
 
 ### What the sample radiates, and what generated it
 
