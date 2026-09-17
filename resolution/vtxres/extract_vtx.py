@@ -22,6 +22,14 @@ Output (npz), per functional
     families, group_names, hit_classes, functional
     run, lumi, event                          the candidate key
     genpt_plus/minus, geneta_plus/minus       GEN kinematics (MC only)
+    bsmean (n,3), vbs (n,)                    THIS functional's influence
+                                              weights on the three beam rows
+                                              (`-w`, i.e. d functional/d(x0,
+                                              y0, z0)) and the luminous
+                                              region's nominal variance share
+    bsvtx, bsspot, bswidth, bsslope           the fitted vertex, the beam-spot
+                                              record's centre, widths and
+                                              tilts -- the 3x3 block's inputs
     vtxz, vtxsig, massz                       the two pulls, for the joint
     mass_unc, covmassvtx, vtxd                only with the vertex constraint
                                               ON: the mass the unconstrained
@@ -268,22 +276,46 @@ def process_file(fn):
         # arms already store below; the card reads the two transverse ones
         res["bswidth"] = _bw
         res["bswidtherr"] = _be
+    # THE LUMINOUS REGION AS A 3x3 BLOCK.  The beam line is registered as
+    # resolution family 16 with `dV = covBS`, so this functional's variance
+    # share from it is EXACTLY `w^T covBS w = sum_ab covBS_ab Q_ab` with
+    # `Q_ab = w_a w_b` and `w` its own influence weight on the three beam
+    # rows.  The maker exports `-w` per functional and the record `covBS` was
+    # built from, so a FULL parameterisation of the block -- the two widths,
+    # the x-y correlation the record does not carry, and the two tilts --
+    # needs nothing new from the maker.  `bsmean` is THIS functional's `-w`
+    # (3, and `Q` follows from it), `vbs` its nominal share, and
+    # `bsvtx`/`bsspot` carry `z_v - z0`, the lever arm of the tilt's response.
+    # Written for EVERY functional, not only the two beam ones.
+    _meanbr = {"mass": "Jpsi_bsmeanmass", "vtx": "Jpsi_bsmeanvtx"}.get(a.functional)
+    _vbsbr = {"mass": "Jpsi_massvbs", "vtx": "Jpsi_vtxvbs"}.get(a.functional)
     if bscomp is not None:
         res["vbs"] = np.asarray(d["Jpsi_bsvbs"], np.float64)[idx]
+        if "Jpsi_bsmeanbs" in d:
+            res["bsmean"] = np.asarray(
+                d["Jpsi_bsmeanbs"], np.float64
+            ).reshape(-1, 6)[idx, 3 * bscomp:3 * bscomp + 3]
         res["bsz"] = (np.asarray(d["Jpsi_bsz"], np.float64)
                       .reshape(-1, 2)[idx, bscomp])
         for nm, br, ncol in (("bscov", "Jpsi_bscov", 3),
                              ("bsres", "Jpsi_bsres", 2),
-                             ("bsvtx", "Jpsi_bsvtx", 3),
-                             ("bsspot", "Jpsi_bsspot", 3),
-                             ("bswidth", "Jpsi_bswidth", 3),
-                             ("bsslope", "Jpsi_bsslope", 2),
                              ("bsmeanmass", "Jpsi_bsmeanmass", 3),
                              ("bsmeanvtx", "Jpsi_bsmeanvtx", 3),
                              ("bsmeanbs", "Jpsi_bsmeanbs", 6),
                              ("covvtx", "Jpsi_covvtx", 6)):
             if br in d:
                 res[nm] = np.asarray(d[br], np.float64).reshape(-1, ncol)[idx]
+    else:
+        if _vbsbr in d:
+            res["vbs"] = np.asarray(d[_vbsbr], np.float64)[idx]
+        if _meanbr in d:
+            res["bsmean"] = np.asarray(d[_meanbr], np.float64).reshape(-1, 3)[idx]
+    for nm, br, ncol in (("bsvtx", "Jpsi_bsvtx", 3),
+                         ("bsspot", "Jpsi_bsspot", 3),
+                         ("bswidth", "Jpsi_bswidth", 3),
+                         ("bsslope", "Jpsi_bsslope", 2)):
+        if br in d:
+            res[nm] = np.asarray(d[br], np.float64).reshape(-1, ncol)[idx]
     res["mgen"] = (np.asarray(d["Jpsigen_mass"], np.float64)[idx]
                    if "Jpsigen_mass" in d else np.zeros(n))
     for nm in ("run", "lumi", "event"):

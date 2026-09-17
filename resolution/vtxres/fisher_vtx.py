@@ -57,6 +57,9 @@ def main():
     p.add_argument("--bsx-npz", default=None)
     p.add_argument("--bsy-npz", default=None)
     p.add_argument("--groups", required=True)
+    p.add_argument("--beam3", action="store_true",
+                   help="float the luminous region as the full 3x3 covariance "
+                        "(make_vtx_card.py --beam3)")
     p.add_argument("--channels", nargs="+", default=["vtx", "mass", "joint"])
     p.add_argument("--arms", nargs="+", default=["cf", "gauss", "gaussq"])
     p.add_argument("--maxn", type=int, default=8000)
@@ -110,7 +113,13 @@ def main():
             max_chi2_ndof=a.max_chi2_ndof,
             # the two LUMINOUS-REGION WIDTH scales float here too, so the
             # sandwich is computed over the SAME parameter vector the cards fit
-            no_beamwidth=a.no_beamwidth)
+            no_beamwidth=a.no_beamwidth,
+            # `--beam3` replaces those two classes by the FULL 3x3 covariance
+            # plus the two centre offsets; the sandwich has to be able to see
+            # the new parameters or it is measuring a different model from the
+            # one that was fitted
+            beam3=a.beam3, mass_corrections=False, corr_form="residual",
+            m_ref=a.m_ref, m_window=a.m_window, keep_mask=None, inject=[])
 
     res, params = {}, None
     idx = None

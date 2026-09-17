@@ -165,6 +165,134 @@ def _vtx_norm_block(args, wnorm, sigma, tg, nt, ngroups, seg, gid, drop, arrs,
 # from the beam-spot record (or --beamwidth-prior)
 BWPRIOR = [-1.0]
 
+# ---------------------------------------------------------------------------
+# THE LUMINOUS REGION AS A 3x3 COVARIANCE (`--beam3`)
+#
+# The beam line is a Gaussian noise block registered as resolution family 16
+# with `dV = covBS`, so a functional's variance share from it is EXACTLY
+#
+#     Var_bs = w^T covBS w = sum_ab covBS_ab Q_ab ,   Q_ab = w_a w_b
+#
+# with `w` the functional's own influence weight on the three beam rows.  The
+# maker exports `-w` (`Jpsi_bsmean{mass,vtx,bs}`), the share itself, and the
+# beam-spot record the block was built from -- so the FULL 3x3 can be floated
+# with NO maker change, and `gate_beam3.py` proves the rebuild against the
+# maker's own exported share candidate by candidate (2e-8, the float32 export
+# precision).
+#
+# THE FIVE COVARIANCE PARAMETERS, and why each one is where it is:
+#   beamwidth_x / beamwidth_y   variance scales `k = 1 + eps`, EXACT (the
+#                               share is linear in sigma^2), prior from the
+#                               record's own BeamWidthError unless overridden
+#   beamcorr_xy                 `rho = tanh(eta)`, nominal 0.  FREE: the
+#                               beam-spot record DOES NOT STORE rho and the
+#                               maker fixes it at zero (a FIXME in the CMS
+#                               beam-spot fitter interface), so there is no
+#                               prior to take.
+#   beamtilt_x / beamtilt_y     OFFSETS from the record's dxdz / dydz.  FREE:
+#                               the fit's own vertices measure the tilt far
+#                               better than the record does -- ~10 um per
+#                               candidate over a 3.6 cm lever arm.
+# and TWO more that act only on the MEAN:
+#   beamcentre_x / beamcentre_y offsets of x0 / y0.  FREE, same argument.
+#
+# THE MEAN.  A shift `delta` of x0 moves the beam row by `-delta`, so
+# `d theta / d x0 = -w_x`, which IS `Jpsi_bsmean*[0]`; the tilt's is the same
+# weight times `(z_v - z0)`.  Those go in through the term's sparse `D`, with
+# the CARD convention `D_card = -d theta / d p` (`delta = mobs - D theta`).
+# A tilt therefore appears in BOTH the covariance and the mean, and
+# `MassCFTerm` de-duplicates the name so ONE parameter drives both.
+BEAM3_PACK = ((0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2))
+BEAM3_MULT = np.array([1.0, 2.0, 2.0, 1.0, 2.0, 1.0])
+BEAM3_COV = ["beamwidth_x", "beamwidth_y", "beamcorr_xy",
+             "beamtilt_x", "beamtilt_y"]
+BEAM3_MEAN = ["beamcentre_x", "beamcentre_y", "beamtilt_x", "beamtilt_y"]
+# physical unit of one card unit: the two widths and the correlation are
+# dimensionless, the tilts are 1e-5, the centres 1e-4 cm (= 1 um).  Chosen so
+# every beam parameter is O(1) at the size the data can measure it, which is
+# what keeps the joint Hessian conditioned.
+BEAM3_UNITS = {"beamwidth_x": 1.0, "beamwidth_y": 1.0, "beamcorr_xy": 1.0,
+               "beamtilt_x": 1e-5, "beamtilt_y": 1e-5,
+               "beamcentre_x": 1e-4, "beamcentre_y": 1e-4}
+
+
+def beam3_cov(sigx, sigy, sigz, dxdz, dydz, rho=0.0):
+    """The CMS beam-spot-fitter luminous-region covariance, packed
+    (xx, xy, xz, yy, yz, zz).
+
+    `RecoVertex/BeamSpotProducer/src/FcnBeamSpotFitPV.cc`, and verbatim what
+    `ResidualGlobalCorrectionMakerTwoTrackG4e.cc` builds -- except that the
+    maker fixes `rho = 0` because the record does not carry it.
+    """
+    vx, vy, vz = sigx ** 2, sigy ** 2, sigz ** 2
+    cxy = rho * sigx * sigy
+    cxz = dxdz * (vz - vx) - dydz * cxy
+    cyz = dydz * (vz - vy) - dxdz * cxy
+    return np.stack([vx, cxy, cxz, vy, cyz, vz], axis=-1)
+
+
+def beam3_block(d, idx, sigma, inject, log=print):
+    """`(q, ref, v0, mean)` of the 3x3 block for the selected candidates.
+
+    `q` is `Q_ab / sigma_i^2` (the share is what the term adds to `vgf`, which
+    is in units of the functional's own variance), `ref` the record
+    `(sigma_x, sigma_y, sigma_z, dxdz, dydz)` in cm, `v0` the block's nominal
+    share as the MAKER computed it, and `mean` the four `d theta/d p` columns
+    of the mean response in the order `BEAM3_MEAN`.
+
+    AN INJECTION shifts `v0` by the share difference the injected parameters
+    make, uniformly over all five roles: the model at `p = 0` then carries the
+    injected covariance and the fit has to return `-injection`.  Injecting
+    through `v0` rather than through `ref` is what lets `beamcorr_xy` -- which
+    has no record value to perturb -- be injected at all.
+    """
+    for k in ("bsmean", "vbs", "bswidth", "bsslope", "bsvtx", "bsspot"):
+        if k not in d.files:
+            sys.exit(f"--beam3 needs `{k}` in the npz; re-run extract_vtx.py "
+                     "(the beam-line exports must be on in the production)")
+    bm = np.asarray(d["bsmean"], np.float64)[idx]        # = -w
+    v0 = np.asarray(d["vbs"], np.float64)[idx]
+    wd = np.asarray(d["bswidth"], np.float64)[idx]
+    sl = np.asarray(d["bsslope"], np.float64)[idx]
+    vtx = np.asarray(d["bsvtx"], np.float64)[idx]
+    spot = np.asarray(d["bsspot"], np.float64)[idx]
+    w = -bm
+    s2 = np.maximum(sigma, 1e-300) ** 2
+    q = np.stack([w[:, a] * w[:, b] for a, b in BEAM3_PACK], axis=-1) / s2[:, None]
+    ref = np.stack([wd[:, 0], wd[:, 1], wd[:, 2], sl[:, 0], sl[:, 1]], axis=-1)
+
+    # GATE, on every card: the rebuilt share against the maker's own
+    chk = (beam3_cov(*[ref[:, i] for i in range(5)]) * q * BEAM3_MULT).sum(-1)
+    rel = np.abs(chk - v0) / np.maximum(np.abs(chk) + np.abs(v0), 1e-300)
+    log(f"  beam3 assembly gate: |rebuilt - exported| / |sum| median "
+        f"{np.median(rel):.3e}, max {rel.max():.3e} "
+        f"(share median {np.median(v0):.6f})")
+    if np.median(rel) > 1e-5:
+        sys.exit("beam3 assembly gate FAILED -- Q or the record is wrong")
+
+    if inject:
+        pars = {k: inject.get(k, 0.0) for k in BEAM3_COV}
+        cin = beam3_cov(ref[:, 0] * np.sqrt(1.0 + pars["beamwidth_x"]),
+                        ref[:, 1] * np.sqrt(1.0 + pars["beamwidth_y"]),
+                        ref[:, 2],
+                        ref[:, 3] + pars["beamtilt_x"] * BEAM3_UNITS["beamtilt_x"],
+                        ref[:, 4] + pars["beamtilt_y"] * BEAM3_UNITS["beamtilt_y"],
+                        rho=np.tanh(pars["beamcorr_xy"]))
+        c0 = beam3_cov(*[ref[:, i] for i in range(5)])
+        dv = ((cin - c0) * q * BEAM3_MULT).sum(-1)
+        log(f"  beam3 injection {pars}: d(share) median {np.median(dv):+.5g}")
+        v0 = v0 + dv
+
+    lever = vtx[:, 2] - spot[:, 2]
+    mean = np.stack([bm[:, 0] * BEAM3_UNITS["beamcentre_x"],
+                     bm[:, 1] * BEAM3_UNITS["beamcentre_y"],
+                     bm[:, 0] * lever * BEAM3_UNITS["beamtilt_x"],
+                     bm[:, 1] * lever * BEAM3_UNITS["beamtilt_y"]], axis=-1)
+    log(f"  beam3 mean terms: |d theta/d x0| median "
+        f"{np.median(np.abs(mean[:,0])):.4g} per um, tilt lever "
+        f"<|z_v - z0|> = {np.mean(np.abs(lever)):.3f} cm")
+    return q, ref, v0, mean
+
 
 def _keep_mask(args, n, name, log=print):
     """`--keep-mask`, as a boolean over the extraction's rows (all-True if none).
@@ -346,10 +474,21 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     # variance scale is `k = 1 + eps`).  They are appended AFTER the hit
     # classes so the class index of every hit class is unchanged.
     bw_params = []
+    b3 = None
+    b3_mean = None
+    # THE 3x3 FORM replaces the two linear width classes entirely: the block's
+    # WHOLE share (the two transverse directions AND the z part that used to
+    # sit inert in `vg_other`) becomes one parameterised number.
+    if args.beam3 and not args.no_hits:
+        q3, ref3, v03, b3_mean = beam3_block(
+            d, idx, sigma, {k: v for k, v in (inj_hits or {}).items()
+                            if isinstance(k, str)}, log)
+        b3 = {"q": q3, "ref": ref3, "v0": v03}
+        vother = vother - v03
     # `--no-hits` drops the whole per-class share vector, and the two width
     # scales live in it (their class indices sit just past the hit classes),
     # so the two options are taken together rather than half-applied.
-    if (not args.no_beamwidth) and (not args.no_hits) \
+    if (not args.no_beamwidth) and (not args.no_hits) and not args.beam3 \
             and ("vbsx" in d.files) and ("vbsy" in d.files):
         vbx = d["vbsx"][idx].astype(np.float64)
         vby = d["vbsy"][idx].astype(np.float64)
@@ -462,6 +601,36 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
             data["norm_vgf"] = norm["vgf"]
             data["norm_vg_other"] = norm["vg_other"]
             data["norm_hit_v"] = norm["hit_v"]
+            if b3 is not None:
+                # THE CLASS-LEVEL BLOCK.  `Z_c` must carry the beam parameters
+                # for the same reason it carries the material ones: a window
+                # normalisation independent of the width leaves the truncated
+                # fit exactly as biased as the untruncated one.  The share is
+                # LINEAR in `covBS` at fixed `Q`, so the class row is the class
+                # MEAN of `Q` and of the nominal share; the record is one row
+                # per IOV, so its class mean IS the record.
+                _cl = norm["class"].astype(np.int64)
+                _K = len(norm["sigma"])
+                # THE EMPTY-CLASS FALLBACK, the same one `_vtx_norm_block`
+                # applies to every other class-level array: a class with no
+                # members takes the WHOLE sample.  Doing it differently here
+                # would give that class a zero record -- `sigma_z = 0`, no
+                # tilt -- while its `vg_other` and hit shares were the full
+                # sample's, i.e. a class-level model that is not any
+                # candidate's.  The beam channels hit this every time: their
+                # `sigma` is identically 1, so the quantile edges collapse and
+                # all but one class come out empty.
+                _mem = [np.flatnonzero(_cl == c) for c in range(_K)]
+                _mem = [m if len(m) else np.arange(len(_cl)) for m in _mem]
+
+                def _classmean(A):
+                    return np.stack([A[m].mean(axis=0) for m in _mem])
+                norm["beam3_q"] = _classmean(q3)
+                norm["beam3_ref"] = _classmean(ref3)
+                norm["beam3_v0"] = _classmean(v03[:, None]).ravel()
+                data["norm_beam3_q"] = norm["beam3_q"]
+                data["norm_beam3_ref"] = norm["beam3_ref"]
+                data["norm_beam3_v0"] = norm["beam3_v0"]
             for m in norm["group_families"]:
                 for c in ("re", "im"):
                     if c in m:
@@ -505,6 +674,23 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
         data["phik_im"] = phik.imag.copy()
         kw.update(background=unbinned.UniformBackground((MREF[0] - MREF[1], MREF[0] + MREF[1])),
                   phik=(tabs, phik.real.copy(), phik.imag.copy()))
+
+    if b3 is not None:
+        # D_card = -d theta/d p, the convention `delta = mobs - D theta` needs
+        jm = -b3_mean
+        rows, cols = np.nonzero(jm)
+        data["jac_indices"] = np.stack([rows, cols], 1).astype(np.int64)
+        data["jac_values"] = jm[rows, cols]
+        data["jac_shape"] = np.asarray([n, len(BEAM3_MEAN)], np.int64)
+        data["beam3_q"] = b3["q"]
+        data["beam3_ref"] = b3["ref"]
+        data["beam3_v0"] = b3["v0"]
+        kw.update(beam3_params=list(BEAM3_COV),
+                  beam3_units=[BEAM3_UNITS[p_] for p_ in BEAM3_COV],
+                  beam3=b3,
+                  jac=(data["jac_indices"], data["jac_values"],
+                       (n, len(BEAM3_MEAN))),
+                  jac_params=list(BEAM3_MEAN))
 
     term = unbinned.MaterialCFTerm(
         name, sigma=sigma, mobs=mobs, tgrid=tg, families=[], vgf=vgf,
@@ -607,6 +793,14 @@ def main():
     # sigma and the parameter scales sigma^2); --beamwidth-prior overrides it.
     p.add_argument("--no-beamwidth", action="store_true",
                    help="do NOT float the two luminous-region width scales")
+    p.add_argument("--beam3", action="store_true",
+                   help="float the luminous region as the FULL 3x3 covariance "
+                        "-- the two width scales (same names, same linear "
+                        "variance semantics), the x-y correlation the record "
+                        "does not carry, and the two tilts -- plus the two "
+                        "transverse centre offsets, which act on the MEAN "
+                        "through the term's sparse D. Default OFF, so every "
+                        "published card is unchanged.")
     p.add_argument("--beamwidth-prior", type=float, default=-1.0,
                    help="prior sigma on the two width variance scales; "
                         "<0 = take it from the beam-spot record's own errors, "
@@ -722,7 +916,7 @@ def main():
     # the two width scales are keyed by NAME (they are not hit classes and do
     # not have a `hitres_classes` index), and `build_term` looks them up so
     # `--inject beamwidth_x:0.10` works exactly like a hit-class injection
-    for _nm in ("beamwidth_x", "beamwidth_y"):
+    for _nm in BEAM3_COV:
         if _nm in inject_card:
             inj_hits[_nm] = inject_card[_nm]
     if inject_card:
@@ -772,7 +966,18 @@ def main():
             sys.exit(f"the {nm} term is not finite at theta = 0")
         poi_set = _poi_set(args.poi, term.param_names)
         prior_by_name = dict(zip(gparams, gprior_card))
+        # THE PRIORS.  The two widths keep the record's (or --beamwidth-prior);
+        # the correlation, the tilts and the centre are FREE and stay free.
+        # rho has no prior because the beam-spot record does not store it at
+        # all; the tilts and the centre have none because the fit's own
+        # vertices measure them far better than the record does (~10 um per
+        # candidate over a 3.6 cm lever arm), so a record prior would measure
+        # the tension rather than the luminous region -- the same argument
+        # section 14.18 makes for the widths.
         sig = [BWPRIOR[0] if q.startswith("beamwidth_")
+               else np.nan if (q.startswith("beamcorr_")
+                               or q.startswith("beamtilt_")
+                               or q.startswith("beamcentre_"))
                else args.hit_prior if q.startswith("hitres_")
                else prior_by_name.get(q, np.nan) for q in term.param_names]
         # `alpha` is FREE: it is the measurement, not a nuisance
@@ -786,19 +991,21 @@ def main():
             param_is_poi=[1 if q in poi_set else 0 for q in term.param_names])
         declared = sorted(set(declared) | set(term.param_names))
 
-    bwp = ["beamwidth_x", "beamwidth_y"] if any(
-        q.startswith("beamwidth_") for q in declared) else []
+    bwp = [q for q in (BEAM3_COV + [b for b in BEAM3_MEAN if b not in BEAM3_COV])
+           if q in declared]
     allp = list(gparams) + hparams + bwp
-    units = np.concatenate([group_units, np.ones(len(hparams) + len(bwp))])
+    units = np.concatenate([group_units, np.ones(len(hparams)),
+                            np.array([BEAM3_UNITS[q] for q in bwp])])
     inj = np.zeros(len(allp))
     for i, nm in enumerate(allp):
         if nm in inject_card:
             inj[i] = inject_card[nm]
     writer.add_auxiliary("global_index_map", {
         "params": allp,
-        "prior_sigmas": np.concatenate([gprior_card,
-                                        np.full(len(hparams), args.hit_prior),
-                                        np.full(len(bwp), BWPRIOR[0])]),
+        "prior_sigmas": np.concatenate([
+            gprior_card, np.full(len(hparams), args.hit_prior),
+            np.array([BWPRIOR[0] if q.startswith("beamwidth_") else np.nan
+                      for q in bwp])]),
         "scale": np.concatenate([gscale, np.ones(len(hparams) + len(bwp))]),
         "units": units, "injected": inj,
         "group_params": list(gparams), "group_units": group_units,
