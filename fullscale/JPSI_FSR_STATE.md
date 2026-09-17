@@ -589,3 +589,43 @@ fits reproduce.
 kernel; what remains is the two corrections in the residual form, worth
 `-1.6e-4`, and the fix is the code change named above rather than a
 configuration choice.
+
+## `P2B` -- the combination
+
+`joint_both.hdf5` (10.736 GB, built and verified: the J/psi `mc` kernel round
+trips and the Z `mc` table is carried inline) was submitted as **22886298**
+once all three singles certified, on `mit_preemptable`, `-G h200:1
+--time=1-12:00:00`. Collect and certify exactly as the others:
+
+```bash
+FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
+rsync -a engaging:orcd/pool/zmass/fitresults/native/rabbit_P2B.hdf5 \
+      $FS/runs/engaging_260916/
+rsync -a engaging:orcd/pool/zmass/engaging/zprecond_22886298.out \
+      $FS/runs/engaging_260916/
+cd /work/submit/david_w/ZMass/calibration_studies/zchannel
+./run_tf_z.sh python3 $FS/native_dump.py \
+    "$FS/runs/engaging_260916/rabbit_*.hdf5" -o $FS/runs/engaging_260916
+source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
+python3 $FS/jpsi_fsr_table.py --ref P2N \
+    P2N=$FS/runs/engaging_260916/rabbit_P2N.json \
+    P2K=$FS/runs/engaging_260916/rabbit_P2K.json \
+    P2XT=$FS/runs/engaging_260916/rabbit_P2XT.json \
+    P2B=$FS/runs/engaging_260916/rabbit_P2B.json
+```
+
+Recovery if preempted: `--export=ALL,FRESH=0,ROWS="P2B"`.
+
+**PRE-REGISTERED**: if the two changes are additive, `P2B` lands at
+`P2K + (P2XT - P2N)` = `-45.594 + 0.245` = **-45.35 MeV** on `m_Z`, with
+`bfield_mode0` at `P2K`'s `-1.311e-3` and `<D_card>.theta` at `+0.880 MeV`.
+The two touch different terms, so a departure from additivity above the
+0.2 MeV level would be a genuine interaction and worth chasing.
+
+## What was NOT needed
+
+**rabbit needed no change.** The `phik` path of `MassCFTerm` and the table
+dispatch of `ZGammaLineshape` both already existed and both round-trip; the
+staged commit is `d36ba27` on `vmass-conditioning` throughout, unchanged, and
+`stage_native.sh code` was never re-run. Every change is in
+`calibration_studies` on `resolution-energy-loss-corrections`.
