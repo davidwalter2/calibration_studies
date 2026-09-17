@@ -1025,6 +1025,364 @@ def build_banded(edges, variant="exp1", pair=(), minus_one=True,
 
 
 # --------------------------------------------------------------------------
+# scalar QED: spin-0 -> two charged SCALARS, exact inner bremsstrahlung
+# --------------------------------------------------------------------------
+# K_S -> pi+ pi- (gamma) is the case this was written for.  NOTHING about it is
+# soft or collinear: ln(M^2/m_pi^2) = 2.54 is O(1) and the pion velocity in the
+# pair frame is beta_0 = 0.828, so the quasi-collinear structure-function forms
+# of `FSRKernel` do not apply and the spectrum has to be the EXACT scalar-QED
+# matrix element integrated over the three-body phase space at fixed z.
+#
+# THE MATRIX ELEMENT.  With a CONSTANT (s-wave, non-derivative) weak vertex
+# ``M_0 = G`` the two bremsstrahlung diagrams give, in a gauge with
+# ``eps.k = 0``, the Low amplitude
+#
+#     M = e G [ p_+.eps/(p_+.k) - p_-.eps/(p_-.k) ] ,                      (S1)
+#
+# which is already gauge invariant on its own (``eps -> k`` gives 1 - 1 = 0),
+# so a neutral spin-0 parent needs no seagull at O(e): the scalar-QED
+# ``e^2 A^2 phi* phi`` vertex first contributes with TWO photons.  Summing the
+# photon polarisations with ``-g^{mu nu}``,
+#
+#     sum_pol |M|^2 = e^2 |G|^2 [ 2 p_+.p_-/((p_+.k)(p_-.k))
+#                                 - m^2/(p_+.k)^2 - m^2/(p_-.k)^2 ] ,      (S2)
+#
+# the classic ``-e^2 |G|^2 J^2`` eikonal current squared -- which here is not an
+# approximation but the complete O(alpha) real-emission matrix element, because
+# Low's theorem is saturated by a pointlike constant vertex.  (Structure
+# dependence is DIRECT EMISSION, which for K_S -> pi+ pi- gamma is bounded by
+# measurement below 2.3 % of IB -- see `ks_fsr_kernel`.)
+#
+# THE ANGULAR INTEGRAL IN CLOSED FORM.  Work in the pi-pi rest frame, where the
+# pions are back to back with energy ``E = sqrt(s')/2`` and momentum
+# ``q = E beta``, ``beta = sqrt(1 - 4 m^2/s')``, and the photon has energy
+# ``w = (M^2 - s')/(2 sqrt(s'))``.  Then ``p_-.k = w(E - q c)``,
+# ``p_+.k = w(E + q c)``, ``p_+.p_- = E^2 + q^2`` with ``c = cos theta*``, and
+# (S2) collapses to the dipole pattern
+#
+#     sum_pol |M|^2 = e^2 |G|^2 . 4 beta^2 sin^2 theta*
+#                                 / ( w^2 (1 - beta^2 cos^2 theta*)^2 ) .  (S3)
+#
+# Its angular average is elementary,
+#
+#     int_-1^1 dc (1-c^2)/(1-beta^2 c^2)^2 = [ (1+beta^2) Lam/(2 beta) - 1 ]
+#                                    / beta^2 ,  Lam = ln((1+beta)/(1-beta))
+#
+# and folding in the two-body x two-body phase space of
+# ``dPhi_3 = (ds'/2pi) dPhi_2(M; s', 0) dPhi_2(s'; m, m)`` against
+# ``Gamma_0 = |G|^2 beta_0/(16 pi M)`` leaves, with ``z = s'/M^2``,
+#
+#     R1(z) = (1/Gamma_0) dGamma/dz
+#           = (alpha/pi) (beta/beta_0) Bcal(beta) z/(1-z) ,                (S4)
+#     Bcal(beta) = (1+beta^2)/beta ln((1+beta)/(1-beta)) - 2 ,
+#
+# i.e. the YFS soft function of the pair evaluated at the OUTGOING pair
+# velocity, times the scalar-QED splitting weight ``z/(1-z)`` and the
+# phase-space ratio ``beta/beta_0``.  (S4) is exact in the pion mass.
+#
+# Two rewritings make it numerically clean.  With ``r = 4 m^2/M^2`` (= z_min)
+# and ``beta(z) = sqrt(1 - r/z)``,
+#
+#     R1(z) = (alpha/pi) g(z)/(beta_0 (1-z)) ,
+#     g(z)  = (2z - r) Lam(z) - 2 z beta(z) ,   dg/dz = 2 Lam(z) ,         (S5)
+#
+# the second identity exact and elementary.  The soft limit of (S5) is
+# ``R1 -> b/(1-z)`` with
+#
+#     b = (alpha/pi) g(1)/beta_0 = (alpha/pi) Bcal(beta_0) ,               (S6)
+#
+# the exact YFS exponent of the pi+ pi- pair -- so the hard remainder
+# ``h = R1 - b/(1-z)`` is regular at z = 1 BY CONSTRUCTION, with no massless
+# limit taken anywhere and no tabulated cancellation of the kind
+# `FSRKernel.dh` needs.  This is the scalar analogue of the `mass_exact` path:
+# the eikonal is the exact massive one, evaluated at the Born configuration.
+# `ScalarIBKernel.h` evaluates it through
+#
+#     g(z) - g(1) = (2z-r) . 2 artanh(y)
+#                   + 2 (1-z) [ r/(beta+beta_0) + beta_0 - Lam_0 ] ,
+#     y = (beta - beta_0)/(1 - beta beta_0) ,
+#     (beta - beta_0)/(1-z) = -r/(z (beta + beta_0)) ,                     (S7)
+#
+# where every difference is written in a cancellation-free form, so ``h`` is
+# accurate to machine precision down to x = 1e-300.
+#
+# EXPONENTIATION.  ``K(z) = C b (1-z)^{b-1} + h(z)`` on the physical support
+# ``[r, 1]``, with ``C = (1 - int h)/(1-r)^b`` fixing ``int_r^1 K dz = 1``.  The
+# soft factor resums the eikonal to all orders (YFS); expanding it to O(alpha)
+# returns (S4) plus the delta(1-z) that unitarity fixes.  ``b = 6.526e-3`` at
+# the K_S, so the resummation itself is a 0.65 % effect and the uncontrolled
+# O(alpha^2) hard remainder is a further factor b down.
+
+#: PDG K^0_S mass [GeV], the parent `ScalarIBKernel` was written for
+M_KS = 0.497611
+
+
+def soft_B_scalar(beta):
+    """``Bcal(beta) = (1+beta^2)/beta ln((1+beta)/(1-beta)) - 2``.
+
+    The YFS soft-photon exponent of a pair of opposite unit charges with
+    velocity ``beta`` in their own rest frame: the number of photons radiated
+    between ``w`` and ``w + dw`` is ``(alpha/pi) Bcal(beta) dw/w``.  Goes to
+    ``(8/3) beta^2`` at threshold (dipole radiation switches off when the pair
+    is at rest) and to ``2[ln(s'/m^2) - 1]`` in the ultrarelativistic limit.
+    """
+    beta = np.asarray(beta, float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out = np.where(beta > 0.0,
+                       (1.0 + beta * beta) * 2.0 * np.arctanh(np.minimum(
+                           beta, 1.0 - 1e-16)) / np.maximum(beta, 1e-300) - 2.0,
+                       0.0)
+    # the beta -> 0 limit, (8/3) beta^2 + O(beta^4), where the form above
+    # cancels 2 against 2 and loses every digit
+    small = beta < 1e-4
+    return np.where(small, (8.0 / 3.0) * beta * beta, out)
+
+
+class ScalarIBKernel(FSRKernel):
+    """K(z): inner bremsstrahlung of spin-0 -> two charged scalars, exact.
+
+    ``z = (m'/M)^2`` with ``m'`` the post-radiation invariant mass of the two
+    charged tracks, so ``u = -ln(m'/M)`` and ``dm = M(e^{-u} - 1)`` exactly as
+    in `FSRKernel`; the whole quadrature, cell and atom machinery of the parent
+    is reused unchanged -- only the O(alpha) spectrum, the soft exponent and
+    the support differ.
+
+    Parameters
+    ----------
+    m : float
+        parent mass ``M``.
+    mch : float
+        charged-daughter mass ``m`` (default the charged pion).
+    variant : {"exp1", "oalpha", "born"}
+        ``exp1`` exponentiates the exact eikonal (S6); ``oalpha`` is the
+        fixed-order spectrum (S4) with an explicit soft cutoff ``x_cut``.
+        There is no ``exp2``/``exp2nll`` here: the O(alpha^2) structure
+        functions of `FSRKernel` are collinear objects and ``ln(M^2/m^2)``
+        is 2.54 at the K_S, so they have nothing to resum.
+    coulomb : bool
+        multiply by the ratio of Sommerfeld factors ``S(z)/S(1)`` for the
+        pi+ pi- final state and renormalise.  OFF by default: it is a pure
+        normalisation at O(alpha) and its z dependence is 2e-4 across the
+        whole radiating range (`ks_fsr_kernel validate` measures it).
+    """
+
+    def __init__(self, m, mch=M_PI_CH, variant="exp1", x_cut=1e-7,
+                 coulomb=False):
+        if variant not in ("exp1", "oalpha", "born"):
+            raise ValueError("ScalarIBKernel variant must be exp1/oalpha/born")
+        self.m = float(m)
+        self.mch = float(mch)
+        self.variant = variant
+        self.coulomb = bool(coulomb)
+        #: r = 4 m^2/M^2 is both the threshold z and 1 - beta_0^2
+        self.r = 4.0 * self.mch**2 / self.m**2
+        if not 0.0 < self.r < 1.0:
+            raise ValueError(f"2 m_ch = {2*self.mch} is not below M = {self.m}")
+        self.zmin = self.r
+        self.beta0 = math.sqrt(1.0 - self.r)
+        self.lam0 = 2.0 * math.atanh(self.beta0)
+        #: g(1) = (1 + beta_0^2) Lam_0 - 2 beta_0
+        self.g1 = (2.0 - self.r) * self.lam0 - 2.0 * self.beta0
+        #: the soft exponent, (S6).  `FSRKernel` calls it `beta`, and every
+        #: inherited method means THIS by it (the quadrature variable is
+        #: t = x^beta), so the name is kept.
+        self.beta = self.beta_gam = A_PI * self.g1 / self.beta0
+        #: ln(M^2/m^2), quoted because it is what is NOT large here
+        self.L = 2.0 * math.log(self.m / self.mch)
+        self.x_cut = float(x_cut)
+        self.mass_exact = True          # there is no massless limit anywhere
+        self._pair = PairTerm(self.m, (), path=None)
+        self.pair_rate = 0.0
+        self._c_nll = 0.0
+        self._coul0 = float(self._coulomb(np.array([1.0]))[0]) if coulomb else 1.0
+        self._int_h = self.int_h()
+        #: int_r^1 C b x^{b-1} dz = C (1-r)^b, NOT C: the support stops at the
+        #: two-pion threshold and (1-r)^b is 0.9975, a 2.5e-3 effect
+        self._C = (1.0 - self._int_h) / (1.0 - self.r) ** self.beta
+
+    # -- kinematics --------------------------------------------------------
+    def beta_of_z(self, z):
+        """Daughter velocity in the pair rest frame at pair mass^2 = z M^2."""
+        z = np.asarray(z, float)
+        return np.sqrt(np.maximum(1.0 - self.r / np.maximum(z, 1e-300), 0.0))
+
+    def egamma(self, z):
+        """Photon energy in the PARENT rest frame, ``E*_gamma = M(1-z)/2``."""
+        return 0.5 * self.m * (1.0 - np.asarray(z, float))
+
+    # -- the O(alpha) spectrum --------------------------------------------
+    def r1(self, z, x=None):
+        """Exact O(alpha) IB spectrum (S4)/(S5): ``(1/Gamma_0) dGamma/dz``."""
+        z = np.asarray(z, float)
+        x = (1.0 - z) if x is None else np.asarray(x, float)
+        b = self.beta_of_z(z)
+        g = (2.0 * z - self.r) * 2.0 * np.arctanh(b) - 2.0 * z * b
+        with np.errstate(divide="ignore", invalid="ignore"):
+            out = A_PI * g / (self.beta0 * x)
+        return np.where(z >= self.r, out, 0.0)
+
+    def r1_egamma(self, eg):
+        """``(1/Gamma_0) dGamma/dE*_gamma`` -- the form the K -> pi pi gamma
+        literature is written in: ``(alpha/pi)(beta/beta_0) Bcal(beta) z/E*``.
+        """
+        eg = np.asarray(eg, float)
+        z = 1.0 - 2.0 * eg / self.m
+        return self.r1(z) * 2.0 / self.m
+
+    def h(self, z, x=None):
+        """``R1(z) - b/(1-z)``: the hard remainder, regular at z = 1.
+
+        Evaluated through (S7), where every difference is cancellation-free,
+        so the result is accurate down to ``x = 1e-300`` without the tabulated
+        continuation `FSRKernel.dh` needs.
+        """
+        z = np.asarray(z, float)
+        x = (1.0 - z) if x is None else np.asarray(x, float)
+        b = self.beta_of_z(z)
+        sb = b + self.beta0
+        d_over_x = -self.r / (np.maximum(z, 1e-300) * sb)      # (beta-beta0)/x
+        y = d_over_x * x / (1.0 - b * self.beta0)
+        # artanh(y)/y, exactly 1 in floating point for |y| below ~1e-8
+        ay = np.where(np.abs(y) > 1e-8,
+                      np.arctanh(np.clip(y, -1.0 + 1e-16, 1.0 - 1e-16))
+                      / np.where(np.abs(y) > 1e-8, y, 1.0),
+                      1.0 + y * y / 3.0)
+        yx = d_over_x / (1.0 - b * self.beta0)                 # y/x
+        out = (A_PI / self.beta0) * (
+            (2.0 * z - self.r) * 2.0 * ay * yx
+            + 2.0 * (self.r / sb + self.beta0 - self.lam0))
+        return np.where(z >= self.r, out, 0.0)
+
+    # -- normalisation -----------------------------------------------------
+    #: Gauss-Legendre panels in beta for `int_h` (beta removes the sqrt branch
+    #: point of the spectrum at the two-daughter threshold exactly)
+    INT_H_PANELS, INT_H_NG = 400, 16
+
+    def int_h(self, npan=None, ng=None):
+        """``int_r^1 h dz``, by quadrature in ``beta``.
+
+        ``z = r/(1-beta^2)``, ``dz = 2 r beta/(1-beta^2)^2 dbeta``: ``h`` is a
+        smooth function of ``beta`` on ``[0, beta_0]`` with no endpoint
+        structure at all, so plain Gauss-Legendre converges geometrically.
+        `int_h_parts` is the independent cross-check.
+        """
+        npan = self.INT_H_PANELS if npan is None else npan
+        ng = self.INT_H_NG if ng is None else ng
+        e = np.linspace(0.0, self.beta0, npan + 1)
+        g, wg = np.polynomial.legendre.leggauss(ng)
+        b = 0.5 * (e[1:] - e[:-1])[:, None] * (g[None, :] + 1.0) + e[:-1][:, None]
+        w = 0.5 * (e[1:] - e[:-1])[:, None] * wg[None, :]
+        z = self.r / (1.0 - b * b)
+        jac = 2.0 * self.r * b / (1.0 - b * b) ** 2
+        return float(np.sum(w * self.h(z, 1.0 - z) * jac))
+
+    def int_h_parts(self, npan=None, ng=None, zsplit=0.5):
+        """``int_r^1 h dz`` again, from ``dg/dz = 2 Lam`` by parts:
+
+            int h dz = (alpha/pi beta_0) [ -g(1) ln(1-r)
+                                           + 2 int_r^1 Lam(z) ln(1-z) dz ] .
+
+        A different integrand, a different singularity structure and a
+        different quadrature, so agreement with `int_h` tests the identity
+        ``dg/dz = 2 Lam`` -- the one piece of algebra behind (S5) and (S7) --
+        as well as both quadratures.  ``Lam ln(1-z)`` has a sqrt branch point
+        at ``z = r`` and a log one at ``z = 1``, so the range is split: below
+        ``zsplit`` in ``beta`` (which removes the first exactly), above it in
+        ``v = -ln(1-z)`` (which removes the second exactly).
+        """
+        npan = self.INT_H_PANELS if npan is None else npan
+        ng = self.INT_H_NG if ng is None else ng
+        g, wg = np.polynomial.legendre.leggauss(ng)
+
+        def _gl(lo, hi):
+            e = np.linspace(lo, hi, npan + 1)
+            n = 0.5 * (e[1:] - e[:-1])[:, None]
+            return n * (g[None, :] + 1.0) + e[:-1][:, None], n * wg[None, :]
+
+        b, w = _gl(0.0, math.sqrt(1.0 - self.r / zsplit))
+        z = self.r / (1.0 - b * b)
+        lo = float(np.sum(w * 2.0 * (2.0 * np.arctanh(b)) * np.log1p(-z)
+                          * (2.0 * self.r * b / (1.0 - b * b) ** 2)))
+        x_lo = 1e-14
+        lx, w = _gl(math.log(x_lo), math.log1p(-zsplit))
+        x = np.exp(lx)
+        hi = float(np.sum(w * 2.0 * (2.0 * np.arctanh(self.beta_of_z(1.0 - x)))
+                          * lx * x))                  # dx = x dlnx
+        # the sliver below x_lo, where Lam is Lam_0 to 13 digits and
+        # int_0^X ln x dx = X(ln X - 1) exactly
+        hi += 2.0 * self.lam0 * x_lo * (math.log(x_lo) - 1.0)
+        return (A_PI / self.beta0) * (-self.g1 * math.log1p(-self.r) + lo + hi)
+
+    # -- the pieces the parent's quadrature expects to exist ---------------
+    def q2(self, z, x=None):
+        return np.zeros_like(np.asarray(z, float))
+
+    def int_q2(self):
+        return 0.0
+
+    def nll(self, z, x=None):
+        return np.zeros_like(np.asarray(z, float))
+
+    def int_nll(self):
+        return 0.0
+
+    def dh(self, z, x=None):
+        return 0.0
+
+    def int_pair(self, n=4000):
+        return 0.0
+
+    # -- the final-state Coulomb (Sommerfeld) factor -----------------------
+    def _coulomb(self, z):
+        """``S(eta) = 2 pi eta/(e^{2 pi eta} - 1)``, ``eta = -alpha/v_rel``.
+
+        The attractive pi+ pi- Coulomb enhancement at pair mass^2 = z M^2, with
+        ``v_rel = 2 beta/(1+beta^2)`` the relative velocity.  Returned RAW;
+        `pdf_z` divides by its value at z = 1, so only the z DEPENDENCE ever
+        enters the normalised kernel.
+        """
+        b = self.beta_of_z(z)
+        v = np.where(b > 0.0, 2.0 * b / (1.0 + b * b), 1e-12)
+        a = -2.0 * math.pi * ALPHA / v
+        return np.where(np.abs(a) > 1e-12, a / np.expm1(a), 1.0)
+
+    def pdf_z(self, z, x=None):
+        out = FSRKernel.pdf_z(self, z, x)
+        if self.coulomb:
+            out = out * self._coulomb(z) / self._coul0
+        return out
+
+    def _panel(self, t_lo, t_hi, ng, clip=True):
+        # for `oalpha` the parent already went through `pdf_z`, which carries
+        # the factor; only the exponentiated branch is built from `h` and `_C`
+        # directly and needs it applied here
+        u, x, w = FSRKernel._panel(self, t_lo, t_hi, ng, clip)
+        if self.coulomb and self.variant in EXP_VARIANTS:
+            w = w * self._coulomb(1.0 - x) / self._coul0
+        return u, x, w
+
+    # -- rates, for the PDG normalisation gate -----------------------------
+    def rate_above(self, egamma_cut, npan=4000, ng=16):
+        """``Gamma(parent -> 2 charged + gamma, E*_gamma > cut)/Gamma_0``.
+
+        The fixed-order O(alpha) integral of (S4).  This is the number the PDG
+        ratio ``Gamma(K_S -> pi+ pi- gamma)/Gamma(K_S -> pi+ pi-)`` measures.
+        Quadrature in ``beta``, as `int_h`.
+        """
+        zc = 1.0 - 2.0 * float(egamma_cut) / self.m
+        if zc <= self.r:
+            return 0.0
+        bmax = math.sqrt(1.0 - self.r / zc)
+        e = np.linspace(0.0, bmax, npan + 1)
+        g, wg = np.polynomial.legendre.leggauss(ng)
+        b = 0.5 * (e[1:] - e[:-1])[:, None] * (g[None, :] + 1.0) + e[:-1][:, None]
+        w = 0.5 * (e[1:] - e[:-1])[:, None] * wg[None, :]
+        z = self.r / (1.0 - b * b)
+        jac = 2.0 * self.r * b / (1.0 - b * b) ** 2
+        return float(np.sum(w * self.r1(z, 1.0 - z) * jac))
+
+
+# --------------------------------------------------------------------------
 # exact O(alpha) V* -> mu+ mu- gamma, by numerical Dirac traces
 # --------------------------------------------------------------------------
 # Ground truth for eq. (1): the spin-summed squared matrix element with the

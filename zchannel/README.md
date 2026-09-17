@@ -1497,6 +1497,313 @@ kernel.
 
 ---
 
+## The K_S kernel: exact scalar QED for pi+ pi-(gamma)
+
+`ks_fsr_kernel.py` builds the kernel a **K_S** mass term takes, from
+`fsr_analytic.ScalarIBKernel`. Figures:
+`~/public_html/ZMass/cvh/260917_ks_fsr/`.
+
+The term's physics kernel is a `DeltaKernel` at `MKS = 0.497611` (the K_S total
+width is `7.35e-15` GeV, eleven orders below any resolution), so the kernel CF
+is the same exact, additive object the J/psi uses,
+
+```
+phi_K(t) = Int K(r) exp(i t M (r - 1)) dr = < exp(i t dm) > ,   dm = m' - M
+```
+
+with `m' = m_pipi` the post-radiation invariant mass of the two tracks. One
+function of `t`, no `m_pre` dependence — so the banded fold matrix of "Fold
+matrix from the kernel table" does **not** apply here either, and what the npz
+stores next to `phik_*` are the same `(u, w, var)` cells `cf_from_cells`
+integrates, not a fold table. In CMS simulation the K_S is decayed by Geant4
+**without** radiation, so an MC term's delta is exact and its kernel is 1; the
+kernel below is what a **data** term needs.
+
+### Why the fermion kernel cannot be reused
+
+Nothing about this decay is soft or collinear:
+
+| | |
+|---|---:|
+| `M` | 497.611 MeV |
+| `m_pi` | 139.57039 MeV, `m_pi/M = 0.2805` |
+| `z_min = 4 m_pi^2/M^2` | 0.31467818 |
+| `beta_0` (pion velocity in the pair frame) | 0.82784166 |
+| `L = ln(M^2/m_pi^2)` | **2.542499** |
+| `E*_gamma,max = (M^2 - 4 m_pi^2)/2M` | 170.512 MeV |
+| `u_max = ln(M/2 m_pi)` | 0.578102, i.e. `dm` down to **-218.470 MeV** |
+
+`FSRKernel`, its `exp2`/`exp2nll` structure functions and its `mass_exact`
+remainder are all an expansion in `1/L` around a massless collinear splitting.
+At `L = 2.54` there is nothing to expand, and the two legs are *heavy and
+slow*: the whole apparatus has to be replaced, not retuned.
+
+### The matrix element, and why it is complete
+
+With a **constant (s-wave, non-derivative) weak vertex** `M_0 = G`, the two
+scalar-QED bremsstrahlung diagrams give, in a gauge with `eps.k = 0`, the Low
+amplitude
+
+```
+M = e G [ p_+.eps/(p_+.k) - p_-.eps/(p_-.k) ]                             (S1)
+```
+
+which is gauge invariant on its own (`eps -> k` gives `1 - 1 = 0`), so a
+**neutral spin-0 parent needs no seagull at O(e)**: the scalar-QED `e^2 A^2
+phi* phi` vertex first contributes with two photons. Summing polarisations with
+`-g^{mu nu}`,
+
+```
+sum_pol |M|^2 = e^2 |G|^2 [ 2 p_+.p_-/((p_+.k)(p_-.k))
+                            - m^2/(p_+.k)^2 - m^2/(p_-.k)^2 ]             (S2)
+              = - e^2 |G|^2 J^2 ,   J^mu = p_+^mu/(p_+.k) - p_-^mu/(p_-.k) .
+```
+
+This is the *complete* O(alpha) real-emission matrix element, not a soft
+approximation: Low's theorem is saturated by a pointlike constant vertex, and
+everything beyond it is structure dependence, i.e. direct emission. (Low,
+Phys. Rev. 110 (1958) 974; the standard K -> pi pi gamma decomposition into IB
+and DE, e.g. D'Ambrosio-Isidori, Int. J. Mod. Phys. A13 (1998) 1.)
+
+**A CP argument does not apply here and is not used.** For K_L the IB is CP
+suppressed and the CP-allowed direct emission is M1 (which is why KTeV/NA48
+measure it there, and why the E1 term in K_L is the CP-violating one). For K_S
+it is the other way round: the IB is the CP-allowed amplitude and the E1 direct
+emission is CP allowed as well. What makes direct emission small for K_S is the
+chiral counting — O(p^4) against the `DeltaI = 1/2` enhanced O(p^2) of the IB —
+and what this note relies on is the *measured* bound plus the `E*^3` shape,
+both quoted below.
+
+In the pi-pi rest frame the pions are back to back with `E = sqrt(s')/2`,
+`q = E beta`, `beta = sqrt(1 - 4 m^2/s')`, and the photon has
+`w = (M^2 - s')/(2 sqrt(s'))`. Then `p_+-.k = w(E -+ q c)`,
+`p_+.p_- = E^2 + q^2`, and (S2) collapses to the **dipole pattern**
+
+```
+sum_pol |M|^2 = e^2 |G|^2 . 4 beta^2 sin^2 theta*
+                            / ( w^2 (1 - beta^2 cos^2 theta*)^2 )         (S3)
+```
+
+whose angular average is elementary,
+`int_-1^1 dc (1-c^2)/(1-beta^2 c^2)^2 = [(1+beta^2) Lam/(2 beta) - 1]/beta^2`
+with `Lam = ln((1+beta)/(1-beta))`. Folding in
+`dPhi_3 = (ds'/2pi) dPhi_2(M; s', 0) dPhi_2(s'; m, m)` against
+`Gamma_0 = |G|^2 beta_0/(16 pi M)` gives, with `z = s'/M^2 = (m'/M)^2`,
+
+```
+R1(z) = (1/Gamma_0) dGamma/dz
+      = (alpha/pi) (beta(z)/beta_0) Bcal(beta(z)) z/(1-z) ,               (S4)
+Bcal(beta) = (1+beta^2)/beta ln((1+beta)/(1-beta)) - 2 ,
+```
+
+the **YFS soft function of the pair evaluated at the OUTGOING pair velocity**,
+times the scalar splitting weight `z/(1-z)` and the phase-space ratio
+`beta/beta_0`. (S4) is exact in the pion mass. In the photon-energy variable it
+is the form the K -> pi pi gamma literature (NA48/KTeV/KLOE) writes,
+`dGamma_IB/dE* = Gamma_0 (alpha/pi)(beta/beta_0) Bcal(beta) (1 - 2E*/M)/E*`.
+
+How far that is from the soft approximation — the ratio of (S4) to the pure
+eikonal `b/E*`, which is what keeping only `Bcal(beta_0)` and the `1/E*` would
+give (`ks_egamma`):
+
+| `E*_gamma` [MeV] | 1 | 5 | 10 | 20 | 50 | 100 | 150 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| exact / eikonal | 0.9918 | 0.9594 | 0.9192 | 0.8402 | 0.6147 | 0.2864 | 0.0472 |
+| `beta(z)` | 0.8271 | 0.8239 | 0.8198 | 0.8111 | 0.7786 | 0.6884 | 0.4556 |
+
+so at the PDG's own 50 MeV cut a soft treatment would be **63 % too high**, and
+the rate gate below would fail by that much. The windows a K_S term uses sit at
+`E*_gamma <= 20 MeV`, where the correction is at most 16 %.
+
+The compact form used everywhere in the code is, with `r = 4 m^2/M^2` (which is
+*both* `z_min` and `1 - beta_0^2`),
+
+```
+R1(z) = (alpha/pi) g(z)/(beta_0 (1-z)) ,
+g(z)  = (2z - r) Lam(z) - 2 z beta(z) ,     dg/dz = 2 Lam(z)              (S5)
+```
+
+— the second identity exact and elementary, and the one piece of algebra the
+whole construction rests on (validated below to 9e-16 by integrating `h` two
+different ways). Its soft limit is
+
+```
+b = (alpha/pi) g(1)/beta_0 = (alpha/pi) Bcal(beta_0) = 6.526042e-3        (S6)
+```
+
+the **exact YFS exponent of the pi+ pi- pair** — so the hard remainder
+`h = R1 - b/(1-z)` is regular at `z = 1` *by construction*, with no massless
+limit taken anywhere. This is the scalar counterpart of the `mass_exact` path,
+except that here it needs no tabulated cancellation: `h` is evaluated through
+
+```
+g(z) - g(1) = (2z-r) . 2 artanh(y) + 2 (1-z) [ r/(beta+beta_0) + beta_0 - Lam_0 ]
+y = (beta - beta_0)/(1 - beta beta_0) ,
+(beta - beta_0)/(1-z) = -r/(z (beta + beta_0))                            (S7)
+```
+
+where every difference is written cancellation-free. Measured: `h` agrees with
+the direct `R1 - b/x` to 1.4e-15 at `x = 1e-1` and 3.6e-10 at `x = 1e-6` (where
+the direct form has already lost six digits), and stays exact down to
+`x = 1e-300`, tending to `h(1) = -(2 alpha/pi beta_0) Lam_0 = -1.3258e-2`.
+`FSRKernel.dh`'s plateau-continuation machinery is not needed and is not used.
+
+### The kernel
+
+`K(z) = C b (1-z)^{b-1} + h(z)` on the physical support `[r, 1]`, with
+`C = (1 - int h)/(1-r)^b` fixing `int_r^1 K dz = 1`. The `(1-r)^b` matters here
+and does not at the Z: the support stops at the two-pion threshold and
+`(1-r)^b = 0.997537`, a 2.5e-3 effect, where the muon threshold at the Z costs
+3e-7.
+
+| | |
+|---|---:|
+| soft exponent `b` | 6.526042e-3 |
+| `int_r^1 h dz` | -8.0465266e-3 |
+| `C` | 1.01053541 |
+| inclusive `<u>` | 1.0531473e-3 |
+| inclusive `<u^2>` | 1.4198942e-4 |
+| inclusive `<dm>` | **-0.491219 MeV = -9.8715e-4** |
+
+There is no `exp2`/`exp2nll` and no pair term: the O(alpha^2) structure
+functions are collinear objects with nothing to resum at `L = 2.54`, and the
+real-pair channel is bounded by measurement instead (below). The exponentiation
+of the eikonal is the only resummation, and `ks_kernel_u` shows exactly what it
+is worth — the Sudakov factor `C x^b`, 0.916 of the fixed-order density at
+`u = 1e-7`, 1.000 by `u ~ 0.1`.
+
+### What a K_S term sees, window by window
+
+`u = -ln(m'/M)`, `dm = M(e^{-u} - 1) <= 0`; the K_S mass resolution is ~1 %
+(5 MeV), so these windows are 1-4 sigma.
+
+The **unradiated-like soft fraction** first, since the exponentiated kernel has
+no delta to quote: the K_S pair loses less than
+
+| | 5 keV | 50 keV | 0.5 MeV | 5 MeV | 10 MeV | 20 MeV |
+|---|---:|---:|---:|---:|---:|---:|
+| `P(\|dm\| < .)` | 0.94164 | 0.95589 | 0.97034 | 0.98480 | 0.98897 | 0.99288 |
+
+— 94 % of decays are within 5 keV of the PDG mass and 1.5 % leave a ±5 MeV
+window, against 12.3 % for the J/psi.
+
+| window | `P(in)` | radiated out | `<dm \| in>` | relative | `E*_gamma` at the edge |
+|---|---:|---:|---:|---:|---:|
+| ±5 MeV | 0.984799 | **1.520e-2** | **-0.031684 MeV** | **-6.3673e-5** | 4.975 MeV |
+| ±10 MeV | 0.988968 | **1.103e-2** | **-0.061884 MeV** | **-1.2436e-4** | 9.900 MeV |
+| ±20 MeV | 0.992881 | **7.119e-3** | **-0.118192 MeV** | **-2.3752e-4** | 19.598 MeV |
+| everything | 1 | 0 | -0.491219 MeV | -9.8715e-4 | 170.512 MeV |
+
+So the shift a delta lineshape would force onto the momentum scale is
+**6 to 24 times the 1e-5 target** — far above it, and the term cannot be built
+without the kernel. Note where the windows sit: their edges are at
+`E*_gamma` of 5-20 MeV, deep in the region where the exact spectrum is within
+16 % of the pure eikonal and where direct emission (`~E*^3`) has essentially no
+weight.
+
+### K_S against the J/psi
+
+| | `b` | `L` | `<u>` | `<dm>` in ±5 MeV | in ±10 MeV | in ±20 MeV | `P(out)` at ±5 MeV |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| K_S → π⁺π⁻ | 6.526e-3 | 2.542 | 1.0531e-3 | -6.367e-5 | -1.244e-4 | -2.375e-4 | 1.52e-2 |
+| J/psi → μ⁺μ⁻ | 2.673e-2 | 6.754 | 1.0842e-2 | -4.193e-5 | -8.370e-5 | -1.666e-4 | 1.23e-1 |
+
+Both readings are true and they point opposite ways, which is the whole point
+of quoting them together:
+
+* **the K_S radiates 4.1x less** (`b` ratio 0.244) and its inclusive relative
+  shift is 2.6x smaller (-9.87e-4 against the J/psi's -2.586e-3 in its own
+  ±350 MeV card window); the fraction radiating out of a ±5 MeV window is
+  **8x smaller**, 1.5 % against 12.3 %.
+* **but at a fixed window in MeV the relative shift is LARGER**, by 1.5x,
+  because the K_S mass is 6.2x smaller and the same ±5 MeV is a 6.2x wider
+  window *in units of the mass*. The heavy slow pions do not rescue the term;
+  they only make the tail shorter.
+
+### Validation
+
+Every number below is produced by `python3 ks_fsr_kernel.py validate`
+(`data/ks_fsr_validate.log`, `.json`).
+
+| check | result |
+|---|---|
+| **(a) soft limit.** `(alpha/pi) Bcal(beta_0)` against `b = (alpha/pi) g(1)/beta_0` | agree to **1.1e-16** |
+| `R1(z)(1-z)/b` at `x = 1e-2 / 1e-4 / 1e-6 / 1e-20` | 0.97974 / 0.99980 / 0.999998 / 1.000000 — the O(x) approach to the classic `dn = (alpha/pi) Bcal dw/w` |
+| threshold: `Bcal(beta)/((8/3)beta^2)` at `beta = 1e-3` | 1 + 4.0e-7 (dipole radiation switches off as `beta^3` when the pair is at rest) |
+| **(b) normalisation.** `int_r^1 K dz - 1`, Gauss-Legendre in `t = x^b` | **-3.3e-16** |
+| `int h dz`: quadrature in `beta` vs by parts through `dg/dz = 2 Lam` | -8.046526638406725e-3 vs -8.046526638406718e-3, **8.9e-16** |
+| **(c) IB rate gate**, `E*_gamma > 50 MeV`: this work vs PDG `Gamma(pi+pi-gamma)/Gamma(pi+pi-)` = (2.59 ± 0.08)e-3 | **2.55115e-3, ratio 0.9850, -0.49 sigma** |
+| the same at `E*_gamma > 20 MeV` vs RAMBERG 93 E731 (7.10 ± 0.22)e-3 | **6.99376e-3, ratio 0.9850, -0.48 sigma** |
+| **(d) O(alpha) expansion** of the exponentiated kernel: `<u>/lam` against `int u R1 dz = 1.0466980e-3` | residual +6.45e-6 at `lam = 1`, falling by exactly 0.30 per factor 0.3 in `lam` — linear, i.e. pure O(alpha^2) |
+| **(e) direct 3-body MC** of `sum|M|^2` from explicit four-vectors, `z = 0.95/0.70/0.40` | -4.8e-5 / -1.1e-4 / -8.4e-5 against MC errors 8.6e-5 / 1.1e-4 / 1.9e-4 |
+| gauge invariance `k.J` | **1.6e-17** |
+| the closed form (S3) against `-J^2` from the vectors | **6.6e-12** |
+| **(i) CF tabulation**: cells at `n_fine = 20000` against `60000`, at `t` up to 6000 | worst **7.9e-9** |
+| linear interpolation at `dt = 0.05` | worst **8.9e-9**, against the bound `dt^2 E[dm^2]/8 = 1.1e-8` |
+| **(j) what the resummation is worth** — the exponentiated `<dm\|in>` against the FIXED-ORDER one (cutoff independent: the soft cutoff only moves weight at `dm ~ 0`) | **+1.41e-6 / +2.28e-6 / +3.26e-6** of the scale at ±5 / ±10 / ±20 MeV |
+
+**(j) is the kernel's QED theory uncertainty**, and it is the last row for a
+reason. The eikonal exponentiates *exactly* (YFS), so the only uncontrolled
+piece is the non-eikonal O(alpha^2), which is a further factor `b = 6.5e-3`
+below the whole size of the resummation — i.e. **below 1e-8 of the momentum
+scale**. There is no tuning, no variant to scan and nothing to assign a
+nuisance to: the difference between "exponentiated" and "fixed order" is
+already 3e-6 at its largest, and the truth is between them.
+
+### What is bounded out, and how
+
+The kernel is inner bremsstrahlung and nothing else. Every other QED effect is
+bounded — by measurement or by the window geometry — below the 1e-5 target:
+
+| | size | why it cannot bias the window mean |
+|---|---|---|
+| **virtual corrections** | O(alpha) | proportional to `delta(1-z)`: a normalised kernel is untouched, exactly |
+| **direct emission** | bounded by MEASUREMENT: `< 0.06e-3` of `Gamma(pi+pi-)` above 50 MeV, 90 % CL (TAUREG 76), i.e. **< 2.3 % of IB** there (BURGUN 73: `0.3 ± 0.6` in the same units) | its SPECTRUM keeps it out: direct emission rises as `E*^3`, so the fraction below a window edge is `E*_w^4/(E*_max^4 - (50 MeV)^4)` = 1.8e-4 at ±20 MeV, and `|d<dm>| <= 4.5e-13 / 1.4e-11 / 4.3e-10` of the scale. A deliberately **flat** spectrum — a ceiling, not a model — still gives only 2.5e-8 / 1.0e-7 / 3.9e-7 |
+| **`e+e-` conversion** (K_S → π⁺π⁻e⁺e⁻) | `P = 4.79e-5/0.6920 = 6.92e-5` of `pi+pi-` (PDG, NA48) | a pair event losing more than the halfwidth *leaves* the window, so `|d<dm>| <= P.w`: **3.5e-4 / 7.0e-4 / 1.4e-3 MeV** = 7.1e-7 / 1.4e-6 / 2.8e-6 of the scale at ±5 / ±10 / ±20 MeV — **the largest of the non-IB terms** |
+| **pi+ pi- Coulomb (Sommerfeld)** | `S(beta_0) = 1.023517`, i.e. +2.35 % on the rate | it is a normalisation, and its `z` DEPENDENCE is what a normalised kernel sees: `S(z)/S(1) - 1` is **+1.0e-5** at `dm = -2.5 MeV` and +3.1e-4 at the 50 MeV point. Measured end to end (`--coulomb`), it moves `<dm|in>` by **-6.4e-10 / -2.5e-9 / -9.9e-9** of the scale |
+| **strong pi-pi FSI** (the `s'` dependence of the weak amplitude) | — | this *is* structure dependence in the Low decomposition and is covered by the DE bound above |
+
+The -1.5 % the rate gate shows at *both* photon-energy cuts is a single
+normalisation offset, not a shape problem: the ratio to measurement is 0.9850
+at 50 MeV and 0.9850 at 20 MeV, and the kernel is normalised to 1 regardless.
+
+### The CF a `MassCFTerm` reads
+
+`phi_K` is tabulated on a **uniform** `t` grid (what `_interp_phik` and
+`_build_norm` both require) reaching `tmax = 6000 GeV^-1` with 120 001 points,
+`dt = 0.05`. The grid must cover `max(tgrid)/min(sigma)`: at a 2 MeV K_S mass
+resolution that is `7.8926/0.002 = 3946`, and `_build_norm` refuses the card
+otherwise. Measured on the written file: `phi_K(0) = 1.000000000000`,
+`|phi_K(6000)| = 0.959880`, and `d Im phi_K/dt` at 0 reproduces the cells'
+`<dm> = -0.491218 MeV` to 2e-6 relative.
+
+### Reproducing
+
+```bash
+source setup_env.sh && cd zchannel
+
+# the kernel and its CF (~4 min: 30 k cells x 120 k frequencies)
+python3 ks_fsr_kernel.py analytic -o data/ks_kern_data.npz --report
+
+# every validation number in the tables above (~8 min with the 4 M-point MC)
+python3 ks_fsr_kernel.py validate --mc-n 4000000 \
+    -o data/ks_fsr_validate.json | tee data/ks_fsr_validate.log
+
+# the figures
+python3 plot_ks_fsr.py            # -> ~/public_html/ZMass/cvh/260917_ks_fsr/
+```
+
+Systematics are switches, not refits: `--coulomb` folds in `S(z)/S(1)` and
+`--mch` moves the daughter mass (the class is written for any spin-0 → two
+charged scalars, not only the K_S). The **fixed-order** comparison is *not* a
+`--variant` of `analytic`: a fixed-order kernel carries a `delta(1-z)` whose
+weight depends on the IR cutoff, so renormalising the bare `R1` to one would be
+a different (and wrong) object. The cutoff-independent fixed-order
+window-conditional mean is what `validate` (j) computes, and that is the number
+in the table above.
+
+---
+
 ## Photos++ standalone and the two kernel configurations
 
 `photos_standalone/` runs **Photos++ 3.61 outside CMSSW** — the same build
