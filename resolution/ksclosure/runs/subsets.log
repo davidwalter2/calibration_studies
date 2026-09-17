@@ -1,0 +1,20 @@
+ks_fromb > 0: keeps 501 of 887 (56.48 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_fromb.npz
+ks_fromb == 511: keeps 426 of 887 (48.03 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_fromb0.npz
+ks_fromb == 0: keeps 386 of 887 (43.52 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_prompt.npz
+ks_rdec < 2: keeps 224 of 887 (25.25 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_r0_2.npz
+(ks_rdec >= 2) & (ks_rdec < 4): keeps 205 of 887 (23.11 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_r2_4.npz
+(ks_rdec >= 4) & (ks_rdec < 10): keeps 219 of 887 (24.69 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_r4_10.npz
+ks_rdec >= 10: keeps 239 of 887 (26.94 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_r10_60.npz
+np.minimum(ks_pgenp, ks_pgenm) < 0.8: keeps 204 of 887 (23.00 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_plo.npz
+(np.minimum(ks_pgenp, ks_pgenm) >= 0.8) & (np.minimum(ks_pgenp, ks_pgenm) < 1.5): keeps 297 of 887 (33.48 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_pmid.npz
+np.minimum(ks_pgenp, ks_pgenm) >= 1.5: keeps 386 of 887 (43.52 %)
+wrote /work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/kspairs_phi.npz

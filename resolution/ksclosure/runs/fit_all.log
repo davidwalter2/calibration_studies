@@ -1,0 +1,13 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789678953.987517 2014729 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789678965.322504 2014729 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789678979.785136 2014729 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+[33;21mWARNING:rabbit_fit.py: No GPU is visible to TensorFlow although it was built with CUDA: the fit will run on the CPU. If that is not intended, check CUDA_VISIBLE_DEVICES and that LD_LIBRARY_PATH carries the CUDA runtime (TF reports a failed dlopen only at a log level that TF_CPP_MIN_LOG_LEVEL usually hides).[0m
+ks_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
+[38;21mINFO:unbinned.py: Loaded unbinned term 'ks' (kind MassCF, channel ks): 882 candidates, 1 chunk(s) of 882, parameters ['alpha', 'k_hit', 'k_ms', 'k_ioni', 'k_rad'][0m
+[38;21mINFO:unbinned_params.py: UnbinnedParams: 1 POI(s) ['alpha'], 4 nuisance(s) ['k_hit', 'k_ms', 'k_ioni', 'k_rad'], 0 with a Gaussian prior[0m
+[38;21mINFO:fitter.py: Unblinding 1 parameters: ['alpha'][0m
+[38;21mINFO:fitter.py: unbinned term 'ks': kernel is 'delta', so the corrections move from the fluctuation form to the residual form -- exact there, and not a first-order truncation that can go negative[0m
+[38;21mINFO:fitter.py: unbinned term 'ks': 882 candidates in 1 chunk(s) of 882, graph loop[0m
+[38;21mINFO:fitter.py: 1 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m

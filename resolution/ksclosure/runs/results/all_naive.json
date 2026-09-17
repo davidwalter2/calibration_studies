@@ -1,0 +1,27 @@
+{
+ "params": [
+  "alpha",
+  "k_hit",
+  "k_ms",
+  "k_ioni",
+  "k_rad"
+ ],
+ "fitted": [
+  0.4403072871119906,
+  1.0,
+  1.0,
+  1.0,
+  1.0
+ ],
+ "err": [
+  0.3224206509008459,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "source": "/work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/results/rabbit_all_naive.hdf5",
+ "edmval": 1.7497321547094056e-20,
+ "nllvalreduced": -3204.699703564906,
+ "ndfsat": 0.0
+}

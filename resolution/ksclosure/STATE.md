@@ -133,6 +133,27 @@ Production output:
 `/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260917_ideal/`
 (`task_NNNN/` refit output, `truth/truth_NNNN.npz` truth, `chunks/` input lists).
 
+## 4b. Production (slurm, 500 chunks of 252 files)
+
+`/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260917_ideal/`,
+`prod/submit_ks.sh` + `prod/submit_truth.sh`, resubmission with
+`prod/resubmit_failed.sh`.  Per chunk (measured on the first completed task,
+12 986 events):
+
+```
+attempted 716   succeeded 706   failed 10 (1.40 %)
+  fail[prop] 10, everything else 0 (no chargeflip, no NaN, no ndof)
+skipped before the fit: leghits<8 1219, hits<10 274, ndof<1 114
+  -> 2323 candidates in the chunk = 0.179/event, 30.8 % of them fit
+propagation: 211 557 calls, 65 failures (0.031 %); pdrain 54, ierr 6,
+  fieldbound 3, offsurface 2; 174 backward legs
+recovery: 47 leg backtracks, 36 chi2 backtracks, 8 seed inflations, 1 clamp
+```
+
+16 min per chunk, 29 MB of output; the whole sample is ~135 core-hours and
+~14 GB.  The 1.4 % failure rate is far below the 2.5 % of the 2016 DATA V0
+tests -- the B0Ks pairing is a cleaner subset than a V0 skim.
+
 ## 5. The chain, validated end to end
 
 A 240-file local pass (6 x 40 files, 10 795 events) exercised every step:
@@ -150,6 +171,29 @@ A 240-file local pass (6 x 40 files, 10 795 events) exercised every step:
 Projected from that error: sigma(alpha) = 0.948 x sqrt(91/N), i.e. **~0.04e-3 at
 the ~57 k truth-matched candidates the full sample gives** -- about 1.6x the
 J/psi v3 statistical error (0.025e-3).
+
+### Production candidates (first 8 chunks, 887 truth-matched)
+
+| | K_S -> pi pi | J/psi -> mu mu (same MC) |
+|---|---|---|
+| sigma_m | 6.07 MeV | 31 MeV |
+| sigma_m/m | 0.0122 | 0.0101 |
+| pull robust width | 0.965 | 0.977 |
+| pull std | 1.176 | 1.032 |
+| chi2/ndof median (ndof median) | 0.864 (23) | -- |
+| chi2/ndof > 3 | 0.11 % | -- |
+| `vgf` (Gaussian hit share) | 0.043 | 0.100 |
+| `f_ang` | 0.708 | 0.086 (gun) |
+| CF families at tau = 2 | hit 4.5 %, **MS 91.9 %**, ioni 2.0 %, rad 0.0 % | hit 10.8 %, MS 87.4 %, ioni 1.7 %, rad 0.0 % |
+| momentum lever arm `f` | 0.661 (median), 0.634 (1/sigma^2-weighted) | 0.9953 |
+
+`S_rad` is identically zero for pions: `Geant4ePropagator::fillRadiativeSpectrum`
+returns early for non-muons.  There is also NO nuclear-elastic family in the
+in-maker CF, while a pion crossing the tracker takes ~0.05 elastic nuclear
+collisions of 25-35 mrad -- a few per cent of candidates carry one unmodelled
+angular kick on one leg.  That is a tail, not a width, and it is the leading
+known missing resolution effect for a hadron channel; the log-scale
+`ks_pull_model_tails` figure is where it would show.
 
 ### Two things that are genuinely different from the J/psi
 
