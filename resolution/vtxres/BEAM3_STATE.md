@@ -12,6 +12,8 @@ what runs where, what is still in flight, and the exact next command.
 | `tests/test_beam3.py` | 11 tests, all pass |
 | the extraction, the card builder, the gates, the reference, the reports, the plots | DONE, committed |
 | the closure at 8 000 candidates (`dy_bs_final`) | DONE — STATE.md 14.20 |
+| the injections, the frozen-`rho` control, the sandwich | DONE — STATE.md 14.20 |
+| figures | `~/public_html/ZMass/cvh/260917_beam3/` |
 | the two productions for the high-statistics closure | **IN FLIGHT** (below) |
 | the closure at ~1.2e5 candidates | **NOT DONE** — waiting on the productions |
 
