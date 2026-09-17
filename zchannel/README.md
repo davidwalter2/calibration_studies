@@ -1735,7 +1735,7 @@ Every number below is produced by `python3 ks_fsr_kernel.py validate`
 | **(c) IB rate gate**, `E*_gamma > 50 MeV`: this work vs PDG `Gamma(pi+pi-gamma)/Gamma(pi+pi-)` = (2.59 ± 0.08)e-3 | **2.55115e-3, ratio 0.9850, -0.49 sigma** |
 | the same at `E*_gamma > 20 MeV` vs RAMBERG 93 E731 (7.10 ± 0.22)e-3 | **6.99376e-3, ratio 0.9850, -0.48 sigma** |
 | **(d) O(alpha) expansion** of the exponentiated kernel: `<u>/lam` against `int u R1 dz = 1.0466980e-3` | residual +6.45e-6 at `lam = 1`, falling by exactly 0.30 per factor 0.3 in `lam` — linear, i.e. pure O(alpha^2) |
-| **(e) direct 3-body MC** of `sum|M|^2` from explicit four-vectors, `z = 0.95/0.70/0.40` | -4.8e-5 / -1.1e-4 / -8.4e-5 against MC errors 8.6e-5 / 1.1e-4 / 1.9e-4 |
+| **(e) direct 3-body MC** of `sum\|M\|^2` from explicit four-vectors, `z = 0.95/0.70/0.40` | -4.8e-5 / -1.1e-4 / -8.4e-5 against MC errors 8.6e-5 / 1.1e-4 / 1.9e-4 |
 | gauge invariance `k.J` | **1.6e-17** |
 | the closed form (S3) against `-J^2` from the vectors | **6.6e-12** |
 | **(i) CF tabulation**: cells at `n_fine = 20000` against `60000`, at `t` up to 6000 | worst **7.9e-9** |
@@ -1758,9 +1758,9 @@ bounded — by measurement or by the window geometry — below the 1e-5 target:
 | | size | why it cannot bias the window mean |
 |---|---|---|
 | **virtual corrections** | O(alpha) | proportional to `delta(1-z)`: a normalised kernel is untouched, exactly |
-| **direct emission** | bounded by MEASUREMENT: `< 0.06e-3` of `Gamma(pi+pi-)` above 50 MeV, 90 % CL (TAUREG 76), i.e. **< 2.3 % of IB** there (BURGUN 73: `0.3 ± 0.6` in the same units) | its SPECTRUM keeps it out: direct emission rises as `E*^3`, so the fraction below a window edge is `E*_w^4/(E*_max^4 - (50 MeV)^4)` = 1.8e-4 at ±20 MeV, and `|d<dm>| <= 4.5e-13 / 1.4e-11 / 4.3e-10` of the scale. A deliberately **flat** spectrum — a ceiling, not a model — still gives only 2.5e-8 / 1.0e-7 / 3.9e-7 |
-| **`e+e-` conversion** (K_S → π⁺π⁻e⁺e⁻) | `P = 4.79e-5/0.6920 = 6.92e-5` of `pi+pi-` (PDG, NA48) | a pair event losing more than the halfwidth *leaves* the window, so `|d<dm>| <= P.w`: **3.5e-4 / 7.0e-4 / 1.4e-3 MeV** = 7.1e-7 / 1.4e-6 / 2.8e-6 of the scale at ±5 / ±10 / ±20 MeV — **the largest of the non-IB terms** |
-| **pi+ pi- Coulomb (Sommerfeld)** | `S(beta_0) = 1.023517`, i.e. +2.35 % on the rate | it is a normalisation, and its `z` DEPENDENCE is what a normalised kernel sees: `S(z)/S(1) - 1` is **+1.0e-5** at `dm = -2.5 MeV` and +3.1e-4 at the 50 MeV point. Measured end to end (`--coulomb`), it moves `<dm|in>` by **-6.4e-10 / -2.5e-9 / -9.9e-9** of the scale |
+| **direct emission** | bounded by MEASUREMENT: `< 0.06e-3` of `Gamma(pi+pi-)` above 50 MeV, 90 % CL (TAUREG 76), i.e. **< 2.3 % of IB** there (BURGUN 73: `0.3 ± 0.6` in the same units) | its SPECTRUM keeps it out: direct emission rises as `E*^3`, so the fraction below a window edge is `E*_w^4/(E*_max^4 - (50 MeV)^4)` = 1.8e-4 at ±20 MeV, and `\|d<dm>\| <= 4.5e-13 / 1.4e-11 / 4.3e-10` of the scale. A deliberately **flat** spectrum — a ceiling, not a model — still gives only 2.5e-8 / 1.0e-7 / 3.9e-7 |
+| **`e+e-` conversion** (K_S → π⁺π⁻e⁺e⁻) | `P = 4.79e-5/0.6920 = 6.92e-5` of `pi+pi-` (PDG, NA48) | a pair event losing more than the halfwidth *leaves* the window, so `\|d<dm>\| <= P.w`: **3.5e-4 / 7.0e-4 / 1.4e-3 MeV** = 7.1e-7 / 1.4e-6 / 2.8e-6 of the scale at ±5 / ±10 / ±20 MeV — **the largest of the non-IB terms** |
+| **pi+ pi- Coulomb (Sommerfeld)** | `S(beta_0) = 1.023517`, i.e. +2.35 % on the rate | it is a normalisation, and its `z` DEPENDENCE is what a normalised kernel sees: `S(z)/S(1) - 1` is **+1.0e-5** at `dm = -2.5 MeV` and +3.1e-4 at the 50 MeV point. Measured end to end (`--coulomb`), it moves `<dm\|in>` by **-6.4e-10 / -2.5e-9 / -9.9e-9** of the scale |
 | **strong pi-pi FSI** (the `s'` dependence of the weak amplitude) | — | this *is* structure dependence in the Low decomposition and is covered by the DE bound above |
 
 The -1.5 % the rate gate shows at *both* photon-energy cuts is a single
