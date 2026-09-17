@@ -33,6 +33,40 @@ def hist(ax, x, bins, label=None, **kw):
     return h, e, c
 
 
+def model_pull_density(d, zgrid, alpha=0.0, chunk=8192):
+    """Sum of the per-candidate CF model densities on a pull grid.
+
+    Each candidate's log-CF is S_i(tau) = -vgf_i tau^2/2 + S_ms + S_ioni
+    + S_rad, in the variable x = (m_reco - m_true)/sigma_i, so the density of
+    the PULL is the cosine/sine transform of exp(S_i) -- the same construction
+    the likelihood integrates, with every k family at 1.  `alpha` shifts the
+    reference by m_ref*alpha*1e-3 in each candidate's own sigma units.
+    """
+    TG = np.asarray(d['tgrid'], dtype=np.float64)
+    n = len(d['z'])
+    sig = d['sigma'].astype(np.float64)
+    vgf = d['vgf'].astype(np.float64)
+    shift = (M_KS * alpha * 1e-3) / sig
+    w = np.gradient(TG)
+    w[0] *= 0.5
+    w[-1] *= 0.5
+    out = np.zeros(len(zgrid))
+    for lo in range(0, n, chunk):
+        sl = slice(lo, min(lo + chunk, n))
+        S = (-0.5 * vgf[sl][:, None] * TG[None, :] ** 2
+             + d['Sms'][sl].astype(np.float64)
+             + d['Sio_re'][sl].astype(np.float64)
+             + 1j * d['Sio_im'][sl].astype(np.float64))
+        if 'Srad_re' in d.files:
+            S = S + (d['Srad_re'][sl].astype(np.float64)
+                     + 1j * d['Srad_im'][sl].astype(np.float64))
+        phi = np.exp(S)                                   # (nc, nt)
+        arg = TG[None, None, :] * (zgrid[None, :, None] - shift[sl][:, None, None])
+        out += np.einsum('ct,cnt->n', phi.real * w, np.cos(arg)) / np.pi
+        out += np.einsum('ct,cnt->n', phi.imag * w, np.sin(arg)) / np.pi
+    return out / n
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--cache', required=True)
@@ -111,6 +145,31 @@ def main():
         ax.set_ylabel(r'median $(m_{\mathrm{reco}}-m_{\mathrm{gen}})$ [MeV]')
         pubhtml.savefig(fig, os.path.join(out, 'ks_resid_vs_radius.pdf'))
         plt.close(fig)
+
+    # 4b. pull density against the CF model, with a ratio panel
+    try:
+        edges = np.linspace(-5., 5., 51)
+        ctr = 0.5 * (edges[1:] + edges[:-1])
+        h, _ = np.histogram(z, bins=edges)
+        mlo = model_pull_density(d, edges[:-1])
+        mhi = model_pull_density(d, edges[1:])
+        mmid = model_pull_density(d, ctr)
+        mavg = ratiopanel.bin_average(mlo, mmid, mhi)
+        fig, ax, rax = ratiopanel.make_ratio_fig()
+        wbin = edges[1] - edges[0]
+        ax.errorbar(ctr, h, yerr=np.sqrt(np.maximum(h, 1)), fmt='o', ms=3,
+                    color='black', label='candidates')
+        ax.plot(ctr, mavg * len(z) * wbin, color='crimson', lw=1.5,
+                label='per-candidate CF model')
+        ax.set_ylabel('candidates / bin')
+        ax.legend()
+        ratiopanel.draw_ratio(rax, edges, h, mavg, len(z),
+                              ylabel='data / model', clamp=(0.0, 2.0),
+                              xlabel=r'$(m_{\mathrm{reco}}-m_{\mathrm{gen}})/\sigma_m$')
+        pubhtml.savefig(fig, os.path.join(out, 'ks_pull_model.pdf'))
+        plt.close(fig)
+    except Exception as e:
+        print('pull-vs-model plot skipped:', type(e).__name__, e)
 
     # 5. resolution family shares at tau -> the CF exponents
     tg = d['tgrid']

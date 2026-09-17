@@ -94,6 +94,19 @@ def load_truth(files, quiet=False):
     t['rdec'] = np.hypot(t['vx'], t['vy'])
     t['ksp'] = np.sqrt(t['kspx'] ** 2 + t['kspy'] ** 2 + t['kspz'] ** 2)
     t['kspt'] = np.hypot(t['kspx'], t['kspy'])
+    # CONSISTENCY: the two daughters must carry the parent's momentum. 0.014 %
+    # of the dumped rows do not (median 43 % off) -- a SimVertex whose children
+    # are not the K_S decay products -- and their `mgen` is meaningless. They
+    # would be rejected by the daughter-momentum match anyway; dropping them
+    # here keeps the gen mass a clean delta.
+    dp = np.abs(np.sqrt(((pp + pm) ** 2).sum(1)) - t['ksp']) / np.maximum(t['ksp'], 1e-9)
+    keep = dp < 1e-3
+    if not keep.all():
+        nb = int((~keep).sum())
+        for k in list(t):
+            t[k] = t[k][keep]
+        if not quiet:
+            print(f'  dropped {nb} rows whose daughters do not carry the K_S momentum')
     if not quiet:
         print(f'truth: {len(files)} files, {len(t["mgen"])} K_S -> pipi rows; '
               f'sim mass mean {t["mgen"].mean():.7f} std {t["mgen"].std():.2e}')
@@ -215,10 +228,19 @@ def main():
     ap.add_argument('--truth-dir', default=None)
     ap.add_argument('--maxtasks', type=int, default=0)
     ap.add_argument('--cache', required=True)
-    ap.add_argument('--max-dvtx', type=float, default=1.0, help='cm')
-    ap.add_argument('--max-dlam', type=float, default=0.05)
-    ap.add_argument('--max-dphi', type=float, default=0.05)
-    ap.add_argument('--max-dp', type=float, default=0.20)
+    # THE TRUTH MATCH MUST NOT SELECT ON THE OBSERVABLE. The mass resolution of
+    # a K_S is angular-dominated (f_ang ~ 0.74), so a tight cut on the daughter
+    # angles would truncate the very residual the closure measures. Measured on
+    # a 240-file pass: the core is on a plateau -- (0.05, 0.05, 0.20, 1.0) and
+    # (0.20, 0.20, 0.40, 1.0) give the IDENTICAL 92 candidates and the identical
+    # pull -- and only the far tail moves (0.50/0.50/0.80/1.0: +3 candidates,
+    # std 0.894 -> 1.122, robust width 0.712 -> 0.722). The defaults below sit
+    # past the plateau; `run_ks_closure.sh` re-runs a tight and a loose variant
+    # as a systematic.
+    ap.add_argument('--max-dvtx', type=float, default=2.0, help='cm')
+    ap.add_argument('--max-dlam', type=float, default=0.25)
+    ap.add_argument('--max-dphi', type=float, default=0.25)
+    ap.add_argument('--max-dp', type=float, default=0.50)
     ap.add_argument('--keep-unmatched', action='store_true')
     args = ap.parse_args()
 
@@ -243,6 +265,13 @@ def main():
     aux = dict(cf_inmaker._MASS_AUX)
     aux.pop('mpre', None)
     aux.pop('w', None)          # doGen=False -> no genweight; every weight is 1
+    # extra diagnostics of the vertex constraint, which is ON here: the
+    # UNCONSTRAINED mass and the vertex-residual pull let the pull width be
+    # attributed (constrained mass against unconstrained sigma would read as a
+    # too-narrow pull).
+    aux['munc'] = 'Jpsi_mass_unc'
+    aux['vtxres'] = 'Jpsi_vtxres'
+    aux['covmassvtx'] = 'Jpsi_covmassvtx'
     state = {'tgrid': None, 'tag': '', 'aux': aux,
              'auxi': dict(cf_inmaker._MASS_AUX_INT)}
     cols = {}
