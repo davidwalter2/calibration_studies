@@ -17,28 +17,42 @@ r"""The two FSR kernel configurations of the Z channel.
     First-principles throughout, no fitted constant, and its dependence on the
     fitted mass is exact.
 
-Both are written as ``(r, w, m_lo, m_hi)`` atom files for the
-``rabbit.lineshapes.zgamma`` provider, banded in ``m_pre``.
+Both are written as cell-integrated kernel **tables** ``(m_nodes, u_edges, K,
+u_mean, p0)`` for the ``rabbit.lineshapes.zgamma`` provider (`fsr_table`): one
+row per pre-FSR mass node, interpolated at every Born grid point, and each
+``u`` cell integrated rather than collapsed onto an atom.  Neither the band
+width nor ``sigma_cap``/``var_budget`` enters, and the two knobs that are left
+-- the node spacing `fsr_table.DM_NODE` and the cell count `fsr_table.N_CELL`
+-- are convergent (README, "Fold matrix from the kernel table").
+
+``--atoms`` writes the superseded banded ``(r, w, m_lo, m_hi)`` form instead.
+It is kept because the published atom rows were measured on it; it is not what
+a new kernel should be built in.
 
 Under a lepton ``p_T`` cut the kernel has to be resolved **leg by leg**, which
-is `fsr_perleg`.  The selection-conditional form of either configuration is
-``fsr_perleg.py corr --mode`` (`SHARE_MODE`): the pair variable ``z`` keeps the
-kernel below untouched and the two muons' energy fractions are drawn from the
-exact O(alpha) recoil sharing at fixed ``z`` -- carried by EVERY photon of the
-kernel's Levy measure, which makes the law exact at O(alpha) in the angle and
-exactly ``D (x) D`` in the collinear limit -- so that
+is `fsr_perleg`.  ``--htable`` turns either configuration into its
+selection-conditional form with the two-leg law `SHARE_MODE`: the pair variable
+``z`` keeps the kernel below untouched and the two muons' energy fractions are
+drawn from the exact O(alpha) recoil sharing at fixed ``z`` -- carried by EVERY
+photon of the kernel's Levy measure, which makes the law exact at O(alpha) in
+the angle and exactly ``D (x) D`` in the collinear limit -- so that
 
     K_sel(u | m) = K(u | m) Gbar(u | m) ,
 
 with ``Gbar`` the selection weight of the boson-kinematics table.  ``data``
-hands it the closed form, ``mc`` the tabulated histograms of `MC_RUN`
-(``corr --run``).  The collinear product ``D (x) D`` with ``D`` the convolution
-square root -- `fsr_perleg.LegRadiator` for ``data``, ``legsqrt`` for ``mc`` --
-is the superseded form; it treats the two legs as independent and costs
--2.5 MeV on ``Gamma_Z``.
+hands it the closed form, ``mc`` the tabulated histograms of `MC_RUN`.  The
+collinear product ``D (x) D`` with ``D`` the convolution square root --
+`fsr_perleg.LegRadiator` for ``data``, ``legsqrt`` for ``mc`` -- is the
+superseded form; it treats the two legs as independent and costs -2.5 MeV on
+``Gamma_Z``.
 
-    python3 fsr_config.py --config mc   -o data/kern_cfg_mc.npz
-    python3 fsr_config.py --config data -o data/kern_cfg_data.npz
+    python3 fsr_config.py --config mc   -o data/ktab_cfg_mc.npz
+    python3 fsr_config.py --config data -o data/ktab_cfg_data.npz
+    python3 fsr_config.py --config data --htable data/ht_pt25_1.0gev.npz \
+            --pt-cuts 25 25 -o data/ktab_cfg_data_2525.npz \
+            -a data/atab_cfg_data_2525.json
+    python3 fsr_config.py --config data --atoms \
+            -o data/kern_cfg_data_vb6e-10.npz          # the legacy atom form
 """
 import argparse
 import json
@@ -70,8 +84,9 @@ DATA_PAIRS = ("e", "mu", "tau", "had")
 #: unmixed variant; it moves ``m_Z`` by 0.34 MeV.
 MC_RUN = "data/photos/gen_mcMix.npz"
 
-#: the two-leg law the selection-conditional form uses (``fsr_perleg.py corr
-#: --mode``).  ``multi`` is the exponentiated exact O(alpha) sharing: right at
+#: the two-leg law the selection-conditional form uses (``--htable``, and
+#: ``fsr_perleg.py corr --mode``).  ``multi`` is the exponentiated exact
+#: O(alpha) sharing: right at
 #: O(alpha) in the recoil angle AND collapsing exactly to ``D (x) D`` in the
 #: collinear limit, so it needs no matching scale.  ``single`` is the one-photon
 #: sharing it supersedes; the two differ by -0.03 / +0.05 MeV at 25/25 and
@@ -79,16 +94,79 @@ MC_RUN = "data/photos/gen_mcMix.npz"
 #: made on correctness rather than on a measured gain (README).
 SHARE_MODE = "multi"
 
-#: discretisation.  ``mc`` uses the ``sigma_cap`` of the empirical kernels of
-#: `fit_gen.py kernel`, ``data`` the ``var_budget`` of `fsr_analytic.py kernel`,
-#: so each is like for like with its own established control.
+#: discretisation of the LEGACY atom form (``--atoms``).  ``mc`` uses the
+#: ``sigma_cap`` of the empirical kernels of `fit_gen.py kernel`, ``data`` the
+#: ``var_budget`` of `fsr_analytic.py kernel`, so each is like for like with its
+#: own established control.  The table form has neither.
 SIGMA_CAP = 3.3e-4
 VAR_BUDGET = 6e-10
 BAND_WIDTH = 2.0
 
 
 # --------------------------------------------------------------------------
-# the MC configuration: atoms from the standalone Photos histograms
+# the table form (the default): `fsr_table` at this module's settings
+# --------------------------------------------------------------------------
+def build_table(config, htable=None, pt_cuts=None, run=MC_RUN,
+                variant=DATA_VARIANT, pair=DATA_PAIRS, mode=SHARE_MODE,
+                rho=None, resol=None, resol_mode="shape", h4=None,
+                dm_node=None, n_cell=None, u_min=None, u_max=None,
+                m_lo=None, m_hi=None, free_grid=False):
+    """``(table, acceptance, meta)`` of one configuration.
+
+    Inclusive without ``htable``, selection-conditional with it: the same
+    `fsr_table.build_corr` every other ``corr`` producer calls, so the two
+    differ only in which cells go into it -- `fsr_table.build_mc` for ``mc``,
+    `fsr_table.build_analytic` for ``data``.
+
+    The ``u`` grid of the inclusive ``mc`` table is a COARSENING of the
+    standalone run's own histogram bins, which makes the rebinning exact;
+    everywhere else it is the geometric ladder `fsr_table.u_grid`.
+    """
+    import fsr_perleg as PL
+    import fsr_table as FT
+
+    dm_node = FT.DM_NODE if dm_node is None else dm_node
+    n_cell = FT.N_CELL if n_cell is None else n_cell
+    u_min = FT.U_MIN if u_min is None else u_min
+    u_max = FT.U_MAX if u_max is None else u_max
+    m_lo = FT.M_LO if m_lo is None else m_lo
+    m_hi = FT.M_HI if m_hi is None else m_hi
+    pair = tuple(pair)
+    nodes = FT.m_nodes(m_lo, m_hi, dm_node)
+    mc = config == "mc"
+    if mc and htable is None and not free_grid:
+        ue = FT.mc_u_grid(run, n_cell, u_max)
+    else:
+        ue = FT.u_grid(n_cell, u_min, u_max)
+    meta = dict(config=config, dm_node=dm_node, n_cell=len(ue) - 1,
+                u_min=u_min, u_max=u_max, m_lo=m_lo, m_hi=m_hi)
+    meta.update(dict(run=run) if mc else
+                dict(variant=variant, pair=list(pair), var_budget=VAR_BUDGET))
+
+    if htable is None:
+        tab = (FT.build_mc(nodes, ue, run) if mc else
+               FT.build_analytic(nodes, ue, variant, pair,
+                                 var_budget=VAR_BUDGET))
+        return tab, None, dict(meta, kind=config)
+
+    ht = PL.load_htable(htable)
+    pr = PL.make_pass(ht, argparse.Namespace(pt_cuts=pt_cuts, resol=resol,
+                                             resol_mode=resol_mode, h4=h4))
+    cbb = (lambda: PL.tabulated_cells(run, ht["bands"])) if mc else None
+    rt = FT.load_rho(ht, mode, rho, cells_by_band=cbb, variant=variant,
+                     pair=pair, pr=pr)
+    tab, acc = FT.build_corr(nodes, ue, ht, run=run if mc else None,
+                             variant=variant, pair=pair,
+                             var_budget=VAR_BUDGET, pr=pr, rho=rt)
+    acc = dict(acc, _meta=dict(selection=PL._sel_meta(pr, ht),
+                               eta_cut=ht["eta_cut"]))
+    meta.update(kind="corr", htable=os.path.abspath(htable), mode=mode,
+                rho=rho, selection=PL._sel_meta(pr, ht))
+    return tab, acc, meta
+
+
+# --------------------------------------------------------------------------
+# the LEGACY atom form: atoms from the standalone Photos histograms
 # --------------------------------------------------------------------------
 def atoms_from_hist(s0, s1, s2, w_norad, u_fine, sigma_cap=SIGMA_CAP,
                     var_budget=None, tail=None, u_tail0=2.0, u_tail_w=0.05):
@@ -135,9 +213,9 @@ def atoms_from_hist(s0, s1, s2, w_norad, u_fine, sigma_cap=SIGMA_CAP,
     return rj, wj / wj.sum(), wj.sum()
 
 
-def build_mc(run=MC_RUN, band_width=BAND_WIDTH, sigma_cap=SIGMA_CAP,
-             var_budget=None, u_max=None):
-    """Banded atoms from a standalone Photos run.
+def build_mc_atoms(run=MC_RUN, band_width=BAND_WIDTH, sigma_cap=SIGMA_CAP,
+                   var_budget=None, u_max=None):
+    """Banded atoms from a standalone Photos run (the legacy form).
 
     The generated 2 GeV bands are merged into bands of ``band_width`` with the
     *sample's* band weights, so the within-band mass distribution of the
@@ -214,37 +292,32 @@ def _sample_frac(path="data/photos/mpre_bands.bin"):
 
 
 # --------------------------------------------------------------------------
-def build_data(band_width=BAND_WIDTH, sigma_cap=None, var_budget=VAR_BUDGET,
-               lo=50.0, hi=200.0, variant=DATA_VARIANT, pair=DATA_PAIRS):
+def build_data_atoms(band_width=BAND_WIDTH, sigma_cap=None,
+                     var_budget=VAR_BUDGET, lo=50.0, hi=200.0,
+                     variant=DATA_VARIANT, pair=DATA_PAIRS):
+    """Banded atoms of the analytic radiator (the legacy form)."""
     return FA.build_banded(FA.band_edges(lo, hi, band_width), variant=variant,
                            pair=tuple(pair), sigma_cap=sigma_cap,
                            var_budget=var_budget)
 
 
 # --------------------------------------------------------------------------
-def main():
-    ap = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", required=True, choices=("mc", "data"))
-    ap.add_argument("-o", "--output", required=True)
-    ap.add_argument("--run", default=MC_RUN, help="mc: the standalone run npz")
-    ap.add_argument("--band-width", type=float, default=BAND_WIDTH)
-    ap.add_argument("--sigma-cap", type=float, default=None)
-    ap.add_argument("--var-budget", type=float, default=None)
-    ap.add_argument("--variant", default=DATA_VARIANT)
-    ap.add_argument("--pair", nargs="*", default=None)
-    a = ap.parse_args()
-
+def _atoms_main(a):
+    """The legacy ``(r, w, m_lo, m_hi)`` output of ``--atoms``."""
+    if a.htable:
+        raise SystemExit("--atoms is inclusive only; the banded atoms of a "
+                         "selection are `fsr_perleg.py corr --atoms`")
+    a.band_width = BAND_WIDTH if a.band_width is None else a.band_width
     if a.config == "mc":
         sc = a.sigma_cap if (a.sigma_cap or a.var_budget) else SIGMA_CAP
-        k, info = build_mc(a.run, a.band_width, sc, a.var_budget)
+        k, info = build_mc_atoms(a.run, a.band_width, sc, a.var_budget)
         meta = dict(config="mc", run=a.run, band_width=a.band_width,
                     sigma_cap=sc, var_budget=a.var_budget)
     else:
         vb = a.var_budget if (a.sigma_cap or a.var_budget) else VAR_BUDGET
-        k, info = build_data(a.band_width, a.sigma_cap, vb,
-                             variant=a.variant,
-                             pair=DATA_PAIRS if a.pair is None else a.pair)
+        k, info = build_data_atoms(a.band_width, a.sigma_cap, vb,
+                                   variant=a.variant,
+                                   pair=DATA_PAIRS if a.pair is None else a.pair)
         meta = dict(config="data", variant=a.variant,
                     pair=list(DATA_PAIRS if a.pair is None else a.pair),
                     band_width=a.band_width, sigma_cap=a.sigma_cap,
@@ -259,6 +332,77 @@ def main():
                  else f"N_pair = {d.get('pair_rate', 0.0):.4e}")
         print(f"  band {i:3d} [{d['lo']:.1f}, {d['hi']}): "
               f"{d['natoms']} atoms, {extra}, <u> = {d['mean_u']:.6e}")
+
+
+def main():
+    import fsr_table as FT
+
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--config", required=True, choices=("mc", "data"))
+    ap.add_argument("-o", "--output", required=True)
+    ap.add_argument("--run", default=MC_RUN, help="mc: the standalone run npz")
+    ap.add_argument("--variant", default=DATA_VARIANT)
+    ap.add_argument("--pair", nargs="*", default=None)
+    # the selection-conditional form
+    ap.add_argument("--htable", default=None,
+                    help="an `fsr_perleg.py htable` boson-kinematics table: "
+                         "write K_sel(u|m) = K(u|m) Gbar(u|m) and its A(m) "
+                         "instead of the inclusive kernel")
+    ap.add_argument("-a", "--acceptance", default=None,
+                    help="where A(m) goes, required with --htable")
+    ap.add_argument("--pt-cuts", nargs="*", type=float, default=None,
+                    help="leading and trailing pT thresholds [GeV]; one value "
+                         "or none is the symmetric cut at the table's pT ref")
+    ap.add_argument("--mode", default=SHARE_MODE,
+                    choices=("single", "lin", "multi", "coll", "matched"),
+                    help="the two-leg law (`fsr_perleg.py corr --mode`)")
+    ap.add_argument("--rho", default=None,
+                    help="cache file of the two-leg law's correction table")
+    ap.add_argument("--h4", default=None, help="h4 table, required with --resol")
+    ap.add_argument("--resol", default=None,
+                    help="a `ptres.py` resolution npz: the cuts then act on "
+                         "the RECONSTRUCTED pT and the pass region is smooth")
+    ap.add_argument("--resol-mode", default="shape", choices=("shape", "gauss"))
+    # the table's own discretisation, both convergent
+    ap.add_argument("--dm-node", type=float, default=FT.DM_NODE)
+    ap.add_argument("--n-cell", type=int, default=FT.N_CELL)
+    ap.add_argument("--u-min", type=float, default=FT.U_MIN)
+    ap.add_argument("--u-max", type=float, default=FT.U_MAX)
+    ap.add_argument("--m-lo", type=float, default=FT.M_LO)
+    ap.add_argument("--m-hi", type=float, default=FT.M_HI)
+    ap.add_argument("--free-grid", action="store_true",
+                    help="mc: the geometric u grid instead of a coarsening of "
+                         "the run's own bins (then the rebinning is not exact)")
+    # the legacy atom form
+    ap.add_argument("--atoms", action="store_true",
+                    help="LEGACY: write banded (r, w, m_lo, m_hi) atoms "
+                         "instead of a cell-integrated table.  Kept so the "
+                         "published atom rows can be regenerated; --band-width,"
+                         " --sigma-cap and --var-budget apply only to it")
+    ap.add_argument("--band-width", type=float, default=None)
+    ap.add_argument("--sigma-cap", type=float, default=None)
+    ap.add_argument("--var-budget", type=float, default=None)
+    a = ap.parse_args()
+
+    if a.atoms:
+        _atoms_main(a)
+        return
+    for name in ("band_width", "sigma_cap", "var_budget"):
+        if getattr(a, name) is not None:
+            raise SystemExit(f"--{name.replace('_', '-')} is a discretisation "
+                             "of the banded atom form and only applies to "
+                             "--atoms")
+    if a.htable and not a.acceptance:
+        raise SystemExit("--htable needs -a/--acceptance")
+    tab, acc, meta = build_table(
+        a.config, htable=a.htable, pt_cuts=a.pt_cuts, run=a.run,
+        variant=a.variant, pair=DATA_PAIRS if a.pair is None else a.pair,
+        mode=a.mode, rho=a.rho, resol=a.resol, resol_mode=a.resol_mode,
+        h4=a.h4, dm_node=a.dm_node, n_cell=a.n_cell, u_min=a.u_min,
+        u_max=a.u_max, m_lo=a.m_lo, m_hi=a.m_hi, free_grid=a.free_grid)
+    FT.save(a.output, tab, meta, acc=acc, acc_path=a.acceptance)
+    FT.describe(a.output)
 
 
 if __name__ == "__main__":

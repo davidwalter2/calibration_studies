@@ -14,8 +14,10 @@ full model. What is different, and why:
 2. **The FSR fold is MULTIPLICATIVE and lives in the PROVIDER**, not in
    `MassCFTerm`'s additive `phi_K`. The empirical kernel is exactly a rescaling
    (`zchannel/README.md`, "Step 4"), and treating it as additive costs 25 MeV
-   on `m_Z`. So no `phik` is passed at all; `ZGammaLineshape(fsr=...)` folds it,
-   BANDED in `m_pre` at `sigma_cap <= 3.3e-4`, and `acceptance=` carries A(m).
+   on `m_Z`. So no `phik` is passed at all; `ZGammaLineshape(fsr=...)` folds it
+   -- from a cell-integrated TABLE, continuous in `m_pre` and with no
+   `sigma_cap`, or from the legacy banded atoms -- and `acceptance=` carries
+   A(m).
 
 3. **A floated smooth K(m).** The provider is LO in the hard ME and in the
    parton luminosity while the sample is MiNNLO; without a smooth
@@ -74,11 +76,13 @@ def parse_args(argv=None):
     p.add_argument("--pairs", required=True, help="cf_inmaker.py pairs cache")
     p.add_argument("--fsr", default=None,
                    help="multiplicative FSR kernel npz. Either form the "
-                        "`ZGammaLineshape` provider dispatches on: banded "
-                        "ATOMS (r, w, m_lo, m_hi; `fit_gen.py kernel`, "
-                        "`fsr_analytic.py kernel`, `fsr_config.py`) or a "
+                        "`ZGammaLineshape` provider dispatches on: a "
                         "cell-integrated TABLE (m_nodes, u_edges, K, u_mean, "
-                        "p0; `fsr_table.py`)")
+                        "p0), which is what `fsr_config.py`, `fsr_table.py`, "
+                        "`fsr_perleg.py corr` and `fsr_kclass.py` write; or "
+                        "the legacy banded ATOMS (r, w, m_lo, m_hi) of those "
+                        "same producers under `--atoms`, and of "
+                        "`fit_gen.py kernel` / `fsr_analytic.py kernel`")
     p.add_argument("--fsr-inline", action="store_true", default=True,
                    help="carry a kernel TABLE inside the card (zlib'd base64) "
                         "instead of as the path to the npz. REQUIRED for a "

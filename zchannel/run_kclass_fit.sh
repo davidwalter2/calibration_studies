@@ -11,6 +11,10 @@
 # construction for a class read off the OBSERVED muons; `kcl` is the same
 # class built as a restriction of the h table, which makes class membership a
 # pre-FSR property and is kept as the control that shows it is not one.
+#
+# The rows read the LEGACY banded kernels: `fsr_kclass.py build --atoms` /
+# `buildpr --atoms` and `build_selection.sh` write them (`kern_*`/`acc_*`).
+# Without `--atoms` those producers write tables as `ktab_*`/`atab_*`.
 set -u
 Z=/work/submit/david_w/ZMass/calibration_studies/zchannel
 NODE=${NODE:-submit50}

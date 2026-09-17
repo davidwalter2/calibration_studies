@@ -2446,39 +2446,34 @@ def _kernel_cmd(args):
 
 
 def _corr_cmd(args):
+    """The correlated selection-conditional kernel, as a table or as atoms.
+
+    The default is the cell-integrated table `fsr_table.build_corr` writes:
+    ``K(u|m) Gbar(u|m)`` per cell on mass nodes, with ``A(m)`` on the same
+    nodes.  ``--atoms`` is the superseded banded form, kept so the published
+    atom rows can be regenerated.
+    """
+    import fsr_table as FT
+
+    if not args.atoms:
+        if not args.acceptance:
+            raise SystemExit("the table form always carries an A(m) on its "
+                             "own nodes: pass -a/--acceptance")
+        if args.sigma_cap:
+            raise SystemExit("--sigma-cap merges cells onto atoms and only "
+                             "applies to --atoms")
     ht = load_htable(args.htable)
     prov = ht["provenance"]
     pr = make_pass(ht, args)
-    cells = None
-    if args.run:
-        cells = tabulated_cells(args.run, ht["bands"])
     pair = tuple(args.pair if args.pair is not None else ())
-    rho = None
-    if args.mode != "single":
-        if args.rho and os.path.exists(args.rho):
-            with np.load(args.rho) as z:
-                rho = (z["m"], z["u"], z["rho"],
-                       str(z["kind"]) if "kind" in z.files else "ratio")
-            print(f"[corr] {rho[3]} table from {args.rho}")
-        else:
-            rho = variant_ratio(ht, args.mode, cells_by_band=cells,
-                                variant=args.variant, pair=pair,
-                                minus_one=not args.no_minus_one,
-                                pair_table=args.pair_table, u_c=args.u_c,
-                                n_v=args.n_v, pr=pr, multi_h=args.multi_h,
-                                npanel=args.share_npanel, ng=args.share_ng,
-                                share_floor=args.share_floor,
-                                masses=(tuple(args.rho_masses)
-                                        if args.rho_masses else VARIANT_MASSES))
-            if args.rho:
-                np.savez(args.rho, m=rho[0], u=rho[1], rho=rho[2],
-                         kind=np.array(rho[3]))
-    ker, acc, info = build_corr_kernel(
-        ht, cells_by_band=cells, variant=args.variant, pair=pair,
-        minus_one=not args.no_minus_one, pair_table=args.pair_table,
-        var_budget=(None if args.sigma_cap else args.var_budget),
-        sigma_cap=args.sigma_cap, n_gbar=args.n_gbar, npanel=args.npanel,
-        ng=args.ng, rho=rho, pr=pr)
+    cbb = (lambda: tabulated_cells(args.run, ht["bands"])) if args.run else None
+    rho = FT.load_rho(
+        ht, args.mode, args.rho, cells_by_band=cbb, variant=args.variant,
+        pair=pair, pr=pr, minus_one=not args.no_minus_one,
+        pair_table=args.pair_table, u_c=args.u_c, n_v=args.n_v,
+        multi_h=args.multi_h, npanel=args.share_npanel, ng=args.share_ng,
+        share_floor=args.share_floor,
+        masses=(tuple(args.rho_masses) if args.rho_masses else VARIANT_MASSES))
     meta = dict(kind="corr", selection=_sel_meta(pr, ht), variant=args.variant,
                 run=args.run,
                 mode=args.mode, u_c=args.u_c, n_v=args.n_v,
@@ -2486,8 +2481,35 @@ def _corr_cmd(args):
                 share_ng=args.share_ng, share_floor=args.share_floor,
                 pair=list(args.pair or ()), htable=os.path.abspath(args.htable),
                 htable_prov=prov, n_gbar=args.n_gbar, npanel=args.npanel,
-                ng=args.ng, var_budget=args.var_budget,
-                sigma_cap=args.sigma_cap, alpha=ALPHA, m_mu=M_MU, bands=info)
+                ng=args.ng)
+
+    if not args.atoms:
+        nodes = FT.m_nodes(args.m_lo, args.m_hi, args.dm_node)
+        ue = FT.u_grid(args.n_cell, args.u_min, args.u_max)
+        tab, acc = FT.build_corr(
+            nodes, ue, ht, run=args.run, variant=args.variant, pair=pair,
+            minus_one=not args.no_minus_one, pair_table=args.pair_table,
+            var_budget=args.var_budget, n_gbar=args.n_gbar,
+            npanel=args.npanel, ng=args.ng, u_min=args.u_min, rho=rho, pr=pr)
+        acc = dict(acc, _meta=dict(selection=_sel_meta(pr, ht),
+                                   eta_cut=prov["eta_cut"],
+                                   source=os.path.abspath(args.output)))
+        meta.update(dm_node=args.dm_node, n_cell=args.n_cell,
+                    u_min=args.u_min, u_max=args.u_max, m_lo=args.m_lo,
+                    m_hi=args.m_hi, var_budget=args.var_budget,
+                    alpha=ALPHA, m_mu=M_MU)
+        FT.save(args.output, tab, meta, acc=acc, acc_path=args.acceptance)
+        return
+
+    cells = tabulated_cells(args.run, ht["bands"]) if args.run else None
+    ker, acc, info = build_corr_kernel(
+        ht, cells_by_band=cells, variant=args.variant, pair=pair,
+        minus_one=not args.no_minus_one, pair_table=args.pair_table,
+        var_budget=(None if args.sigma_cap else args.var_budget),
+        sigma_cap=args.sigma_cap, n_gbar=args.n_gbar, npanel=args.npanel,
+        ng=args.ng, rho=rho, pr=pr)
+    meta.update(var_budget=args.var_budget, sigma_cap=args.sigma_cap,
+                alpha=ALPHA, m_mu=M_MU, bands=info)
     np.savez(args.output, r=ker["r"], w=ker["w"], m_lo=ker["m_lo"],
              m_hi=ker["m_hi"], provenance=np.array([json.dumps(meta)]))
     if args.acceptance:
@@ -2895,6 +2917,8 @@ def _accfit_cmd(args):
 
 
 def main():
+    import fsr_table as FT
+
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -2981,7 +3005,22 @@ def main():
                                     "kernel: exact O(alpha) recoil sharing")
     r.add_argument("--htable", required=True)
     r.add_argument("-o", "--output", required=True)
-    r.add_argument("--acceptance", default=None, help="write A(m) as a json")
+    r.add_argument("-a", "--acceptance", default=None,
+                   help="where A(m) goes")
+    # the cell-integrated table is the output format; --atoms is the legacy one
+    r.add_argument("--atoms", action="store_true",
+                   help="LEGACY: write banded (r, w, m_lo, m_hi) atoms "
+                        "instead of a cell-integrated table.  Kept so the "
+                        "published atom rows can be regenerated; --sigma-cap "
+                        "and the band staircase apply only to it")
+    r.add_argument("--dm-node", type=float, default=FT.DM_NODE,
+                   help="table: mass node spacing [GeV]")
+    r.add_argument("--n-cell", type=int, default=FT.N_CELL,
+                   help="table: u cells")
+    r.add_argument("--u-min", type=float, default=FT.U_MIN)
+    r.add_argument("--u-max", type=float, default=FT.U_MAX)
+    r.add_argument("--m-lo", type=float, default=FT.M_LO)
+    r.add_argument("--m-hi", type=float, default=FT.M_HI)
     r.add_argument("--pt-cuts", nargs="*", type=float, default=None,
                    help="leading and trailing pT thresholds [GeV]; one value "
                         "or none is the symmetric cut at the table's pT ref")

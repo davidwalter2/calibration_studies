@@ -32,7 +32,11 @@ discretisations at once:
   cell is narrower than the output grid spacing, the exact hat-basis projection
   of its own density once it is wider.
 
-The producers below all write the same format:
+The producers below all write the same format.  `fsr_config.py` is the
+front-end that fixes the channel's two configurations and dispatches to
+`analytic`, `mc` and `corr`; `fsr_perleg.py corr` and `fsr_kclass.py` write
+`corr` with the two-leg law's and the resolution class's own arguments.  Each
+of them takes `--atoms` to write the superseded banded form instead.
 
 `analytic`
     `fsr_analytic.FSRKernel` at each node.  The photonic part is integrated
@@ -297,7 +301,6 @@ def sample_rows(gen, u_edges, bands, cuts=None, eta_cut=2.4, wclip=100.0,
     """
     import fit_gen as FG
 
-    t0 = time.time()
     d = np.load(gen)
     w = FG.clip_weights(np.asarray(d["weight"], np.float64), wclip)
     m = np.asarray(d["m_pre"], np.float64)
@@ -322,6 +325,29 @@ def sample_rows(gen, u_edges, bands, cuts=None, eta_cut=2.4, wclip=100.0,
         ok = tot > 0
         A_m, A_a = mbar[ok], npass[ok] / tot[ok]
         keep = keep & sel
+    out, info = band_rows(m, mp, w, u_edges, bands, keep=keep,
+                          u_norad=u_norad, verbose=verbose,
+                          src=gen + (f" (half {half})" if half else ""))
+    return out, (A_m, A_a), info
+
+
+def band_rows(m, mp, w, u_edges, bands, keep=None, u_norad=U_NORAD,
+              verbose=True, src=""):
+    r"""Cell-integrated rows of a set of events, one per ``m_pre`` band.
+
+    The measurement `sample_rows` and every other per-event table producer go
+    through here: ``u = -ln(m_post/m_pre)`` is deposited into the cells of
+    ``u_edges`` with its **mass and its first moment**, events below
+    ``u_norad`` become the row's ``p0``, and each row sits at its band's
+    weighted mean ``m_pre`` -- the node it belongs at, since the provider
+    interpolates linearly in ``m``.  ``keep`` restricts the events without
+    copying them.
+    """
+    t0 = time.time()
+    m = np.asarray(m, np.float64)
+    mp = np.asarray(mp, np.float64)
+    w = np.asarray(w, np.float64)
+    keep = np.ones(len(w), bool) if keep is None else np.asarray(keep, bool)
     u = -np.log(np.minimum(mp / m, 1.0))
     hard = u > u_norad
     nc = len(u_edges) - 1
@@ -333,7 +359,7 @@ def sample_rows(gen, u_edges, bands, cuts=None, eta_cut=2.4, wclip=100.0,
     lo = np.array([b[0] for b in bands], float)
     hi = np.array([b[1] for b in bands], float)
     if not np.allclose(hi[:-1], lo[1:]):
-        raise ValueError("sample_rows needs bands that tile the mass axis")
+        raise ValueError("band_rows needs bands that tile the mass axis")
     ib = np.searchsorted(np.concatenate([lo, hi[-1:]]), m, "right") - 1
     ok = keep & (ib >= 0) & (ib < nb)
     ib = np.where(ok, ib, 0)
@@ -363,9 +389,8 @@ def sample_rows(gen, u_edges, bands, cuts=None, eta_cut=2.4, wclip=100.0,
                  p0=float(p0[k]), mean_u=float((K[k] * U[k]).sum()),
                  filled=int((s0[k] > 0).sum())) for k in range(nb)]
     if verbose:
-        print(f"[sample] {nb} bands x {nc} cells from {gen}"
-              + (f" (half {half})" if half else "")
-              + f", {time.time() - t0:.0f} s")
+        print(f"[sample] {nb} bands x {nc} cells from {src}"
+              f", {time.time() - t0:.0f} s")
         for b in info:
             print(f"    [{b['lo']:6.1f}, {b['hi']:6.1f})  m_bar = "
                   f"{b['m_bar']:7.3f}  n = {b['n']:9d}  Neff = {b['n_eff']:.3e}"
@@ -384,7 +409,7 @@ def sample_rows(gen, u_edges, bands, cuts=None, eta_cut=2.4, wclip=100.0,
     o = np.argsort(mb)
     out = dict(m_nodes=mb[o], u_edges=np.asarray(u_edges, float), K=K[o],
                u_mean=U[o], p0=p0[o])
-    return out, (A_m, A_a), info
+    return out, info
 
 
 def fix_negative(K, U, u_edges, verbose=True):
@@ -603,6 +628,36 @@ def build_corr(nodes, u_edges, htable, run=None, variant=FC.DATA_VARIANT,
     return cells, dict(kind="grid", m=nodes.tolist(), a=A.tolist())
 
 
+def load_rho(ht, mode, path=None, cells_by_band=None, variant=FC.DATA_VARIANT,
+             pair=FC.DATA_PAIRS, pr=None, verbose=True, **kw):
+    """The two-leg law's correction table `rho`, from its cache or computed.
+
+    `mode = "single"` is the law `rho` corrects and has none.  `cells_by_band`
+    may be a callable, which is then evaluated only when the table has to be
+    computed -- reading a generator record to drive `rho` costs minutes and the
+    cache makes it unnecessary.  Every `corr` producer goes through here, so
+    the cache file and the argument list are one object.
+    """
+    import fsr_perleg as PL
+
+    if mode == "single":
+        return None
+    if path and os.path.exists(path):
+        with np.load(path) as z:
+            rho = (z["m"], z["u"], z["rho"],
+                   str(z["kind"]) if "kind" in z.files else "ratio")
+        if verbose:
+            print(f"[corr] {rho[3]} table from {path}")
+        return rho
+    if callable(cells_by_band):
+        cells_by_band = cells_by_band()
+    rho = PL.variant_ratio(ht, mode, cells_by_band=cells_by_band,
+                           variant=variant, pair=pair, pr=pr, **kw)
+    if path:
+        np.savez(path, m=rho[0], u=rho[1], rho=rho[2], kind=np.array(rho[3]))
+    return rho
+
+
 # --------------------------------------------------------------------------
 # atoms -> table (the identity test)
 # --------------------------------------------------------------------------
@@ -642,20 +697,22 @@ def from_atoms(path, m_lo=M_LO, m_hi=M_HI, eps=1e-9):
 
 
 # --------------------------------------------------------------------------
-def save(path, tab, meta=None, acc=None, acc_path=None):
+def save(path, tab, meta=None, acc=None, acc_path=None, verbose=True):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     d = {k: np.asarray(tab[k], float) for k in
          ("m_nodes", "u_edges", "K", "u_mean", "p0")}
     if meta:
         d["provenance"] = np.array([json.dumps(meta)])
     np.savez(path, **d)
-    sz = os.path.getsize(path) / 1e6
-    print(f"{path}: {d['K'].shape[0]} nodes x {d['K'].shape[1]} cells, "
-          f"{sz:.1f} MB")
+    if verbose:
+        sz = os.path.getsize(path) / 1e6
+        print(f"{path}: {d['K'].shape[0]} nodes x {d['K'].shape[1]} cells, "
+              f"{sz:.1f} MB")
     if acc is not None and acc_path:
         with open(acc_path, "w") as fh:
             json.dump(acc, fh)
-        print(f"{acc_path}: A(m) on {len(acc['m'])} nodes")
+        if verbose:
+            print(f"{acc_path}: A(m) on {len(acc['m'])} nodes")
 
 
 def describe(path):
@@ -950,24 +1007,13 @@ def main():
             rows, _, _ = sample_rows(args.sample, ue, ht["bands"], cuts=None,
                                      wclip=100.0, half=args.sample_half)
             cells = to_nodes(rows, nodes)
-        rho = None
-        if args.mode != "single":
-            if args.rho and os.path.exists(args.rho):
-                with np.load(args.rho) as z:
-                    rho = (z["m"], z["u"], z["rho"],
-                           str(z["kind"]) if "kind" in z.files else "ratio")
-                print(f"[corr] {rho[3]} table from {args.rho}")
-            else:
-                cbb = None
-                if args.run:
-                    cbb = PL.tabulated_cells(args.run, ht["bands"])
-                elif args.sample and args.rho_sample:
-                    cbb = sample_cells(args.sample, ht["bands"], cuts=None)
-                rho = PL.variant_ratio(ht, args.mode, cells_by_band=cbb,
-                                       variant=args.variant, pair=pair, pr=pr)
-                if args.rho:
-                    np.savez(args.rho, m=rho[0], u=rho[1], rho=rho[2],
-                             kind=np.array(rho[3]))
+        cbb = None
+        if args.run:
+            cbb = lambda: PL.tabulated_cells(args.run, ht["bands"])  # noqa: E731
+        elif args.sample and args.rho_sample:
+            cbb = lambda: sample_cells(args.sample, ht["bands"], cuts=None)  # noqa: E731
+        rho = load_rho(ht, args.mode, args.rho, cells_by_band=cbb,
+                       variant=args.variant, pair=pair, pr=pr)
         tab, acc = build_corr(nodes, ue, ht, run=args.run, variant=args.variant,
                               pair=pair, pr=pr, cells=cells, rho=rho)
         save(args.output, tab,

@@ -29,6 +29,8 @@ generator-level validation it rests on.
 | `zfsr_kernel.py` | those samples → the empirical FSR kernel CF `phi_K(t)`, plus diagnostics |
 | `fsr_analytic.py` | the **analytic** QED FSR kernel: exact O(α) + exponentiation + O(α²)LL+NLL + the exact O(α²) pair radiator, and the exact matrix elements both are validated against |
 | `cmp_fsr.py` | the analytic kernel against the Photos++ generator record (figures + moment tables) |
+| `fsr_config.py` | the channel's **two kernel configurations** (`mc`, `data`), inclusive or under a selection — the one place their settings live |
+| `fsr_table.py` | the cell-integrated kernel **table** every producer writes and the provider folds: `analytic`, `mc`, `corr`, `cond`, `atoms`, `check`, `fit` |
 | `fsr_perleg.py` | the **per-leg** radiator `D` (the Mellin square root of `K`), the `h(a_+,a_-\|m)` table and the selection-conditional kernel + `A(m)` |
 | `dump_gen_perleg.py` | the same gen dump with the two legs matched **by charge** (`x = E'/E` per leg) |
 | `run_perleg_dump.sh`, `merge_perleg.py` | shard and merge it |
@@ -37,6 +39,7 @@ generator-level validation it rests on.
 | `cmp_perleg.py` | the per-leg construction against the generator record (figures + tables) |
 | `ptres.py` | the **detector side**: the CVH-refit muon `p_T` resolution on the DY reco MC, its 4-parameter form and its tails, the per-leg pass probability, and the `sigma`-conditioning of the acceptance |
 | `build_selection.sh` | the tables and kernels of the asymmetric cuts and of the resolution in the acceptance |
+| `fsr_kclass.py` | the kernel under the likelihood's own **resolution classes**: the class edges, one table + `A(m)` per class, and the figures |
 | `run_selection_fit.sh` | their fit benchmark, one suite per selection |
 | `fit_gen.py` | **generator-level closure**: FSR kernel, acceptance, and the fit |
 | `kern_from_selected.py` | rebuild the kernel *and* `A(m)` from the gen record of the SELECTED reconstructed candidates |
@@ -1787,21 +1790,36 @@ is the physics Photos leaves out: the O(α²) leading and next-to-leading logs,
 
 ### The two configurations
 
-`fsr_config.py --config mc|data` builds both; the discretisation of each matches
-the control it is read against (`sigma_cap` = 3.3e−4 for `mc`, as for the
-empirical kernels; `var_budget` = 6e−10 for `data`, as for `fsr_analytic.py
-kernel`), banded at 2 GeV over 50–200 GeV.
+`fsr_config.py --config mc|data` builds both as cell-integrated **tables**
+(`fsr_table`, "Fold matrix from the kernel table"): 1 GeV mass nodes over
+50–200 GeV and 2000 `u` cells for `data`, the coarsening of the standalone
+run's own histogram bins (1268 cells) for `mc`. Neither the 2 GeV band
+staircase nor a `sigma_cap`/`var_budget` merge is in them, and both remaining
+knobs are convergent.
 
-* **`mc`** — `data/kern_cfg_mc_sc3.3e-4.npz`. The sample's Photos physics at
-  unlimited statistics: standalone Photos++ 3.61 with the sample's switches,
-  mixed at the measured `f_ME(m)`. Use it to close the likelihood against this
-  MC. It is **not** the best description of nature.
-* **`data`** — `data/kern_cfg_data_vb6e-10.npz`. The analytic radiator of
+* **`mc`** — `data/ktab_cfg_mc.npz`. The sample's Photos physics at unlimited
+  statistics: standalone Photos++ 3.61 with the sample's switches, mixed at the
+  measured `f_ME(m)`. Use it to close the likelihood against this MC. It is
+  **not** the best description of nature.
+* **`data`** — `data/ktab_cfg_data.npz`. The analytic radiator of
   `fsr_analytic.py`: `DATA_VARIANT` = `exp2nll` (exponentiated exact O(α) plus
   the O(α²) leading log and its NLL term) convoluted with the exact O(α²) pair
   radiator for `DATA_PAIRS` = `("e", "mu", "tau", "had")`. First-principles
   throughout, exact mass dependence, and it supplies the three things Photos
   does not.
+* **under a selection** — `--htable` with `--pt-cuts` writes
+  `K_sel(u|m) = K(u|m) Ḡ(u|m)` of either configuration, with the two-leg law
+  `fsr_config.SHARE_MODE` = `multi`, and its `A(m)` on the same nodes. It is
+  the `corr` producer; `fsr_perleg.py corr` is the same object with the law's
+  own knobs exposed.
+
+`--atoms` writes the superseded banded `(r, w, m_lo, m_hi)` form instead —
+`data/kern_cfg_mc_sc3.3e-4.npz` (`sigma_cap` = 3.3e−4, the discretisation of
+the empirical kernels it is read against) and
+`data/kern_cfg_data_vb6e-10.npz` (`var_budget` = 6e−10, as for
+`fsr_analytic.py kernel`), banded at 2 GeV over 50–200 GeV. Those are the files
+the published atom rows below were measured on, and they are bit-identical to
+what `--atoms` writes today.
 
 ### Reproducing
 
@@ -1818,8 +1836,11 @@ python3 photos_standalone/mix.py --run data/photos/gen_mcB.npz \
         -o data/photos/gen_mcMix.npz
 NPROC=240 photos_standalone/run.sh paironly 12 2200000 --me=0 --pairs=1 --phot=0
 photos_standalone/photos_pairdiag --n=1e9 --out=pd.bin   # pair kinematics
-python3 fsr_config.py --config mc   -o data/kern_cfg_mc_sc3.3e-4.npz
-python3 fsr_config.py --config data -o data/kern_cfg_data_vb6e-10.npz
+python3 fsr_config.py --config mc   -o data/ktab_cfg_mc.npz
+python3 fsr_config.py --config data -o data/ktab_cfg_data.npz
+# the legacy banded atoms, for the published atom rows
+python3 fsr_config.py --config mc   --atoms -o data/kern_cfg_mc_sc3.3e-4.npz
+python3 fsr_config.py --config data --atoms -o data/kern_cfg_data_vb6e-10.npz
 ./run_tf_z.sh python3 -u plot_pairs.py            # the pair-emission figures
 ./run_tf_z.sh python3 -u cmp_photos.py --runs "mcMix=Photos, sample cfg" ...
 ```
@@ -2615,7 +2636,8 @@ python3 fsr_perleg.py check --n-leg 4000
 python3 fsr_perleg.py legsqrt --run data/photos/gen_mcMix.npz --check-band 20
 ./build_machinery.sh
 # 5. the correlated two-leg kernels: the model for both configurations, then
-#    the matching-scale scan (numpy only, ~40 min)
+#    the matching-scale scan.  `build_corr.sh` passes `--atoms`: the rows of
+#    this section are the LEGACY banded kernels (numpy only, ~40 min)
 ./build_corr.sh
 # 6. the fit benchmarks (~4 min each) and the figures
 ./run_perleg_fit.sh physics
@@ -3116,7 +3138,9 @@ cd $Z
 python3 ptres.py measure --aux ../fullscale/runs/auxgen_dyv2.npz \
     --pairs ../fullscale/runs/zpairs_dyv2_full.npz \
     --seed ../fullscale/runs/auxseed_dyv2.npz -o data/ptres_dyv2.npz
-# 2. the tables and every kernel of the four selections (numpy only, ~50 min)
+# 2. the tables and every kernel of the four selections.  `build_selection.sh`
+#    passes `--atoms`: the rows of this section are the LEGACY banded kernels
+#    (numpy only, ~50 min)
 ./build_selection.sh
 # 3. the pass region off the table against a direct event count
 python3 fsr_perleg.py gcheck --gen data/genmerged_full.npz \
@@ -3161,11 +3185,25 @@ construction and applied as a single `matvec` per likelihood evaluation. `F` is
 built from either of two representations of the kernel, dispatched on the keys
 of `fsr=` (`rabbit/lineshapes/zgamma.py`):
 
-| | atoms `(r, w, m_lo, m_hi)` | table `(m_nodes, u_edges, K, u_mean, p0)` |
+| | table `(m_nodes, u_edges, K, u_mean, p0)` | atoms `(r, w, m_lo, m_hi)` |
 |---|---|---|
-| in `m_pre` | piecewise constant: one atom set per band | interpolated at every Born grid point |
-| in `u` | point masses, cells merged under `var_budget` / `sigma_cap` | cell-integrated, nothing merged |
-| its discretisations | band width, `sigma_cap`/`var_budget` | node spacing, cell count — both convergent |
+| in `m_pre` | interpolated at every Born grid point | piecewise constant: one atom set per band |
+| in `u` | cell-integrated, nothing merged | point masses, cells merged under `var_budget` / `sigma_cap` |
+| its discretisations | node spacing, cell count — both convergent | band width, `sigma_cap`/`var_budget` |
+| | **what every producer writes** | `--atoms`, the legacy form |
+
+**The table is the representation every kernel of this analysis is produced
+in.** `fsr_config.py`, `fsr_perleg.py corr`, `fsr_kclass.py build`/`buildpr`
+and `fsr_table.py` all write it by default; each takes `--atoms` to write the
+banded form instead, which is what the published atom rows below were measured
+on. The atom **reader** in the provider is untouched, so those files, and every
+card built from one, still load and reproduce.
+
+Two producers still write atoms only, because they *are* the atom form of a
+measurement whose table analogue is `fsr_table.py cond`: `fit_gen.py kernel`
+(the empirical kernel of a reco-like selection, which the full-scale cards
+carry as `data/kern_loose_band3.3e-4.npz`) and `fsr_perleg.py condker` (the
+MC's own conditional kernel in the model's variables).
 
 ### The format
 
@@ -3199,6 +3237,14 @@ base64 of the float64 arrays — 0.07 MB of JSON for 3800 cells, so ~11 MB for a
 ### Producers
 
 ```bash
+# the two configurations of the channel (`fsr_config`), inclusive
+python3 fsr_config.py --config data -o data/ktab_cfg_data.npz
+python3 fsr_config.py --config mc   -o data/ktab_cfg_mc.npz
+# either configuration under a selection: K_sel = K Gbar, and its A(m)
+python3 fsr_config.py --config data --htable data/ht_pt25_1.0gev.npz \
+        --pt-cuts 25 25 -o data/ktab_cfg_data_2525.npz \
+        -a data/atab_cfg_data_2525.json
+# the producers it dispatches to
 python3 fsr_table.py analytic -o data/ktab_data_dm10_c2000.npz --dm-node 1.0
 python3 fsr_table.py mc       -o data/ktab_mc_dm10.npz         --dm-node 1.0
 python3 fsr_table.py corr --htable data/ht_ref10_1.0gev.npz --pt-cuts 25 25 \
@@ -3209,6 +3255,12 @@ python3 fsr_table.py check -i data/ktab_*.npz
 python3 fsr_table.py atoms -i <atom file> -o <table>      # the identity test
 ```
 
+* **`fsr_config.py --config mc|data`** — the channel's two configurations at
+  the converged defaults (1 GeV nodes, 2000 cells; the `mc` grid is a
+  coarsening of the standalone run's own bins, 1268 cells). It sets the
+  variant, the pair species, the standalone run and the two-leg law and
+  dispatches to `analytic`, `mc` and `corr` below; it has no kernel of its own.
+  `--htable` makes it selection-conditional, `--atoms` writes the legacy form.
 * **`analytic`** — `fsr_analytic.FSRKernel` at each node. The photonic part is
   integrated **cell by cell** in `t = (1-z)^beta`, the substitution that removes
   the `C beta (1-z)^{beta-1}` endpoint exactly: the singular piece is
@@ -3245,6 +3297,21 @@ python3 fsr_table.py atoms -i <atom file> -o <table>      # the identity test
   two-leg law of `fsr_perleg corr`.
 * **`atoms`** — an atom file as a table of point-like cells `[u-eps, u+eps]`;
   the identity test of the two paths.
+
+Two front-ends write the same `corr` table with more of the two-leg law's knobs
+exposed, and are what the per-leg and class sections use:
+
+* **`fsr_perleg.py corr`** — `fsr_table.build_corr` with the full argument list
+  of the law: `--mode single|lin|multi|coll|matched`, `--rho` (its cached
+  correction table), `--multi-h`, `--share-npanel/--share-ng/--share-floor`,
+  `--u-c`, `--n-v`, and the smeared pass region `--resol`/`--h4`. `--atoms`
+  writes the banded form.
+* **`fsr_kclass.py build` / `buildpr`** — one table per resolution class,
+  `data/ktab_<tag>_*.npz` with `data/atab_<tag>_*.json`; `--atoms` writes
+  `data/kern_<tag>_*.npz` with `data/acc_<tag>_*.json`. A class row whose
+  content is numerical noise is clipped and renormalised exactly as the atom
+  form clips its bands (`clip_negative_table`), because the provider rejects a
+  negative cell mass and a row with no probability.
 
 ### How a column is built
 
@@ -3415,8 +3482,25 @@ test_zgamma_kernel.py --skip 1 2 3 4 5 6 7      # the table tests
 ```
 
 Nothing downstream has to change to use a table: `fit_gen.py --kernel` /
-`--kernel-alt` and `fullscale/make_card.py --fsr` all pass a path straight to
-`ZGammaLineshape(fsr=)`, which dispatches on the npz keys.
+`--kernel-alt`, `fullscale/make_card.py --fsr` and
+`fullscale/make_joint_card.py --fsr` all pass a path straight to
+`ZGammaLineshape(fsr=)`, which dispatches on the npz keys. The regression gates
+of the representation switch (the three fit rows are the same events in one
+run, so each is a same-run difference against the published row):
+
+| gate | expected | got |
+|---|---|---|
+| `fsr_config --config data` (default) against the published table row | +1.105 / −1.221 | **+1.1048 / −1.2206** |
+| `fsr_config --config mc` (default) against the published table row | −0.249 / −1.106 | **−0.2492 / −1.1059** |
+| `fsr_perleg corr` (default) against `ktab_corr_mc_multi` | −0.435 / +0.803 | **−0.4350 / +0.8028** |
+| `fsr_config --htable` = `fsr_table corr` = `fsr_perleg corr` | — | bit-identical, `A(m)` included |
+| `--atoms` against the same producer before the switch | — | bit-identical (`r`, `w`, `m_lo`, `m_hi`) |
+| `make_card.py --fsr <default table>` + `rabbit_fit.py` | converges | **EDM 3.5e−07** (20 k candidates, table carried inline) |
+
+(The `mc` default reproduces `data/ktab_mc_dm10.npz` bit for bit; the `data`
+default and a rebuild of `data/ktab_data_dm10_c2000.npz` differ by 1e-16 in
+`u_edges` because `np.geomspace` is not bit-reproducible across machines, which
+the fit does not see at the printed precision.)
 
 ---
 
@@ -3919,7 +4003,8 @@ python3 fsr_perleg.py multicheck --htable data/ht_pt25_1.0gev.npz \
 python3 fsr_perleg.py multicheck --htable data/ht_pt25_1.0gev.npz \
         --pair e mu tau had --eps-max 0.021 --h-scan 1e-5 5e-6 2e-5 \
         -o data/multi_check_data_fine.npz
-# 3. the kernels, both configurations and both selections (~40 min)
+# 3. the kernels, both configurations and both selections; `--atoms`
+#    throughout, the form these rows were measured in (~40 min)
 ./build_corr.sh
 # 4. the fit benchmarks (~4 min each) and the figures
 ./run_perleg_fit.sh multi
@@ -4302,13 +4387,16 @@ python3 -u fsr_kclass.py classes --gen data/genmerged_full.npz \
     --res data/ptres_dyv2.npz --nclass 10 --pt-cuts 25 10 -o data/kcl10_2510.json
 # 3. the kernels.  `buildpr` is the model -- the class inside the pass region;
 #    `build` is the control -- the class as a restriction of the h table, which
-#    also writes the MC's own conditional kernel per class (~1 h each)
+#    also writes the MC's own conditional kernel per class (~1 h each).
+#    `--atoms` because the rows below and `run_kclass_fit.sh` read the LEGACY
+#    banded form (`kern_*`/`acc_*`); without it the tables go to
+#    `ktab_*`/`atab_*`.
 python3 -u fsr_kclass.py buildpr --classes data/kcl10_2510.json --tag kpr \
-    --ngroups 5 --cut-sets 25,25 25,10 --nknot 300 --nproc 10
+    --ngroups 5 --cut-sets 25,25 25,10 --nknot 300 --nproc 10 --atoms
 python3 -u fsr_kclass.py buildpr --classes data/kcl10_2510.json --tag kpr \
-    --ngroups 3 10 --cut-sets 25,10 --configs mc --nknot 300 --nproc 13
+    --ngroups 3 10 --cut-sets 25,10 --configs mc --nknot 300 --nproc 13 --atoms
 python3 -u fsr_kclass.py build --gen data/genmerged_full.npz \
-    --classes data/kcl10_2510.json --tag kcl --ngroups 3 5 10 --nproc 12
+    --classes data/kcl10_2510.json --tag kcl --ngroups 3 5 10 --nproc 12 --atoms
 # 4. G of `pass AND class` off the table against a direct event count
 python3 -u fsr_kclass.py ccheck --gen data/genmerged_full.npz \
     --htable data/ht_ref10_1.0gev.npz --h4 data/h4_ref10_1.0gev.npz \
@@ -4318,7 +4406,7 @@ python3 -u fsr_kclass.py ccheck --gen data/genmerged_full.npz \
 # 6. the figures
 ssh submit51 "cd $Z && ./run_tf_z.sh python3 -u fsr_kclass.py figs \
     --check data/kclass_check_2510.npz --classes data/kcl10_2510.json \
-    --tag kpr --control kcl --cuts 2510 --ngroup 5 \
+    --tag kpr --control kcl --cuts 2510 --ngroup 5 --atoms \
     --fits data/fit_kclass_2510_n5.json data/fit_kclass_2525_n5.json \
     --outpath ~/public_html/ZMass/cvh/260916_fsr_kclass"
 ```

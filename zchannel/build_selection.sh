@@ -1,7 +1,10 @@
 #!/bin/bash
 # The tables and kernels of the ASYMMETRIC cuts and of the RESOLUTION in the
 # acceptance.  One reference table at pT_ref = 10 GeV serves every cut above
-# it; the h4 table adds the eta axis the pass PROBABILITY needs.  numpy only.
+# it; the h4 table adds the eta axis the pass PROBABILITY needs.
+#
+# The kernels are built with `--atoms`: they are the LEGACY banded form the
+# published rows of the selection sections were measured on.  numpy only.
 set -eu
 cd /work/submit/david_w/ZMass/calibration_studies/zchannel
 P="python3 -u -W ignore"
@@ -44,10 +47,10 @@ C 2510smg --pt-cuts 25 10 --smear $RES --smear-mode gauss
 
 # --- 3. the model: the correlated two-leg kernel, both configurations -----
 K() { t=$1; shift
-  [ -s data/kern_corr_data_$t.npz ] || $P fsr_perleg.py corr --htable $HT \
+  [ -s data/kern_corr_data_$t.npz ] || $P fsr_perleg.py corr --atoms --htable $HT \
      -o data/kern_corr_data_$t.npz --acceptance data/acc_corr_data_$t.json \
      $PAIRS "$@"
-  [ -s data/kern_corr_mc_$t.npz ] || $P fsr_perleg.py corr --htable $HT \
+  [ -s data/kern_corr_mc_$t.npz ] || $P fsr_perleg.py corr --atoms --htable $HT \
      --run $RUN -o data/kern_corr_mc_$t.npz \
      --acceptance data/acc_corr_mc_$t.json "$@"; }
 K 2525 --pt-cuts 25 25
@@ -56,7 +59,7 @@ K 2525sm --pt-cuts 25 25 --h4 $H4 --resol $RES
 K 2510sm --pt-cuts 25 10 --h4 $H4 --resol $RES
 
 # --- 4. the discretisation and modelling variants of the smeared region ---
-V() { t=$1; shift; [ -s data/kern_corr_mc_$t.npz ] || $P fsr_perleg.py corr \
+V() { t=$1; shift; [ -s data/kern_corr_mc_$t.npz ] || $P fsr_perleg.py corr --atoms \
         --htable $HT --run $RUN -o data/kern_corr_mc_$t.npz \
         --acceptance data/acc_corr_mc_$t.json --pt-cuts 25 10 "$@"; }
 V 2510sm_gauss --h4 $H4     --resol $RES --resol-mode gauss

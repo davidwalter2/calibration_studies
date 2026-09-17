@@ -600,29 +600,80 @@ def _check_cmd(args):
 # --------------------------------------------------------------------------
 # the per-class tables, kernels and acceptances
 # --------------------------------------------------------------------------
+#: the file-name prefixes of the two representations: ``ktab``/``atab`` for the
+#: cell-integrated table (the default), ``kern``/``acc`` for the legacy atoms
+PREFIX = {False: ("ktab", "atab"), True: ("kern", "acc")}
+
+
+def names(tag, stem, atoms=False):
+    """``(kernel, acceptance)`` paths of one class kernel."""
+    kp, ap = PREFIX[bool(atoms)]
+    return f"data/{kp}_{tag}_{stem}.npz", f"data/{ap}_{tag}_{stem}.json"
+
+
+#: what an acceptance json carries about the kernel it belongs to
+ACC_META = ("selection", "eta_cut", "iclass", "cuts", "kclass")
+
+
+def _acc_meta(meta, out):
+    """The ``_meta`` block of an acceptance json."""
+    d = {k: meta[k] for k in ACC_META if k in meta}
+    d["source"] = os.path.abspath(out)
+    return d
+
+
+def _write_kernel(out, accout, tab, acc, meta, atoms, grid):
+    """Write one class kernel in whichever representation built it."""
+    import fsr_table as FT
+
+    if atoms:
+        np.savez(out, r=tab["r"], w=tab["w"], m_lo=tab["m_lo"],
+                 m_hi=tab["m_hi"], provenance=np.array([json.dumps(meta)]))
+        with open(accout, "w") as fh:
+            json.dump(dict(acc, _meta=_acc_meta(meta, out)), fh, indent=1)
+        return len(tab["r"])
+    acc = dict(acc, _meta=_acc_meta(meta, out))
+    FT.save(out, tab, dict(meta, **grid), acc=acc, acc_path=accout,
+            verbose=False)
+    return tab["K"].shape[1]
+
+
+def _corr_grid(dm_node, n_cell):
+    """The table's mass nodes, ``u`` edges and the provenance of both."""
+    import fsr_table as FT
+
+    return (FT.m_nodes(FT.M_LO, FT.M_HI, dm_node),
+            FT.u_grid(n_cell, FT.U_MIN, FT.U_MAX),
+            dict(dm_node=dm_node, n_cell=n_cell,
+                 u_min=FT.U_MIN, u_max=FT.U_MAX, m_lo=FT.M_LO, m_hi=FT.M_HI))
+
+
 def _one_kernel(job):
     """One `fsr_perleg` correlated kernel, in a worker process."""
     import fsr_perleg as FP
+    import fsr_table as FT
 
-    (htpath, out, accout, cuts, run, pair, meta) = job
+    (htpath, out, accout, cuts, run, pair, atoms, dm_node, n_cell, meta) = job
     t0 = time.time()
     ht = FP.load_htable(htpath)
-    cells = FP.tabulated_cells(run, ht["bands"]) if run else None
     pr = FP.PassRegion(ht, cuts=cuts)
-    ker, acc, info = FP.build_corr_kernel(ht, cells_by_band=cells,
-                                          pair=tuple(pair), pr=pr, verbose=False)
     meta = dict(meta, kind="corr", selection=FP._sel_meta(pr, ht),
                 htable=os.path.abspath(htpath), run=run, pair=list(pair),
-                bands=info)
-    np.savez(out, r=ker["r"], w=ker["w"], m_lo=ker["m_lo"], m_hi=ker["m_hi"],
-             provenance=np.array([json.dumps(meta)]))
-    with open(accout, "w") as fh:
-        json.dump(dict(kind="grid", m=acc["m"], a=acc["a"],
-                       _meta=dict(selection=FP._sel_meta(pr, ht),
-                                  eta_cut=ht["eta_cut"],
-                                  source=os.path.abspath(out))), fh, indent=1)
+                eta_cut=ht["eta_cut"])
+    grid = {}
+    if atoms:
+        cells = FP.tabulated_cells(run, ht["bands"]) if run else None
+        tab, acc, info = FP.build_corr_kernel(ht, cells_by_band=cells,
+                                              pair=tuple(pair), pr=pr,
+                                              verbose=False)
+        meta["bands"] = info
+    else:
+        nodes, ue, grid = _corr_grid(dm_node, n_cell)
+        tab, acc = FT.build_corr(nodes, ue, ht, run=run, pair=tuple(pair),
+                                 pr=pr, verbose=False)
+    n = _write_kernel(out, accout, tab, acc, meta, atoms, grid)
     apk = float(np.interp(91.2, acc["m"], acc["a"]))
-    return (os.path.basename(out), len(ker["r"]), apk, time.time() - t0)
+    return (os.path.basename(out), n, apk, time.time() - t0)
 
 
 def groups_of(nfine, ngroup):
@@ -670,36 +721,70 @@ def clip_negative(ker, acc=None):
     return ker, acc
 
 
+def clip_negative_table(tab, acc=None):
+    """`clip_negative` for the cell-integrated form.
+
+    Same origin -- the class staircase is an inclusion-exclusion of survival
+    functions read bilinearly, so a row whose class content is empty can come
+    back slightly negative -- and the provider rejects a negative cell mass or
+    a row with no probability at all outright.  Negatives are clipped and the
+    row renormalised to the total it had; a row that was entirely numerical
+    noise becomes a pure ``delta`` at ``u = 0`` with ``A(m) = 0``, which is the
+    honest statement that the class is never reached at that mass.
+    """
+    K = np.asarray(tab["K"], float).copy()
+    p0 = np.asarray(tab["p0"], float).copy()
+    K[~np.isfinite(K)] = 0.0
+    p0[~np.isfinite(p0)] = 0.0
+    tot = K.sum(1) + p0
+    K = np.maximum(K, 0.0)
+    p0 = np.maximum(p0, 0.0)
+    s = K.sum(1) + p0
+    dead = ~((s > 0.0) & (tot > 0.0))
+    f = np.where(dead, 1.0, tot / np.where(s > 0.0, s, 1.0))
+    K *= f[:, None]
+    p0 = p0 * f
+    K[dead] = 0.0
+    p0[dead] = 1.0
+    tab = dict(tab, K=K, p0=p0)
+    if acc is not None:
+        acc = dict(acc, a=[max(float(v), 0.0) for v in acc["a"]])
+    return tab, acc
+
+
 def _one_kernel_pr(job):
     """One correlated kernel whose pass region carries the class."""
     import fsr_perleg as FP
+    import fsr_table as FT
     import ptres
 
     (htpath, h4path, out, accout, cuts, run, pair, resfile, resmode, ked,
-     iclass, nknot, meta) = job
+     iclass, nknot, atoms, dm_node, n_cell, meta) = job
     t0 = time.time()
     ht = FP.load_htable(htpath)
     h4 = FP.load_h4table(h4path)
     R = ptres.Resolution(resfile, mode=resmode)
     pr = ClassPassRegion(ht, h4, R, cuts, ked, iclass, nknot=nknot)
-    cells = FP.tabulated_cells(run, ht["bands"]) if run else None
-    ker, acc, info = FP.build_corr_kernel(ht, cells_by_band=cells,
-                                          pair=tuple(pair), pr=pr,
-                                          verbose=False)
-    ker, acc = clip_negative(ker, acc)
     meta = dict(meta, kind="corr", pt_lead=pr.cuts[0], pt_trail=pr.cuts[1],
                 eta_cut=ht["eta_cut"], htable=os.path.abspath(htpath),
                 h4=os.path.abspath(h4path), run=run, pair=list(pair),
-                kedges=list(ked), iclass=iclass, nknot=nknot,
-                n_terms=int(pr.n_terms), bands=info)
-    np.savez(out, r=ker["r"], w=ker["w"], m_lo=ker["m_lo"], m_hi=ker["m_hi"],
-             provenance=np.array([json.dumps(meta)]))
-    with open(accout, "w") as fh:
-        json.dump(dict(kind="grid", m=acc["m"], a=acc["a"],
-                       _meta=dict(source=os.path.abspath(out),
-                                  iclass=iclass, cuts=list(cuts))), fh,
-                  indent=1)
-    return (os.path.basename(out), len(ker["r"]),
+                kedges=list(ked), iclass=iclass, nknot=nknot, cuts=list(cuts),
+                n_terms=int(pr.n_terms))
+    grid = {}
+    if atoms:
+        cells = FP.tabulated_cells(run, ht["bands"]) if run else None
+        tab, acc, info = FP.build_corr_kernel(ht, cells_by_band=cells,
+                                              pair=tuple(pair), pr=pr,
+                                              verbose=False)
+        tab, acc = clip_negative(tab, acc)
+        meta["bands"] = info
+    else:
+        nodes, ue, grid = _corr_grid(dm_node, n_cell)
+        tab, acc = FT.build_corr(nodes, ue, ht, run=run, pair=tuple(pair),
+                                 pr=pr, verbose=False)
+        tab, acc = clip_negative_table(tab, acc)
+    n = _write_kernel(out, accout, tab, acc, meta, atoms, grid)
+    return (os.path.basename(out), n,
             float(np.interp(91.2, acc["m"], acc["a"])), time.time() - t0)
 
 
@@ -724,21 +809,23 @@ def _buildpr_cmd(args):
                                        ("data", None, ("e", "mu", "tau", "had"))):
                     if lab not in args.configs:
                         continue
-                    out = f"data/kern_{args.tag}_{lab}_{cs}_n{ng}_c{j}.npz"
-                    acc = f"data/acc_{args.tag}_{lab}_{cs}_n{ng}_c{j}.json"
+                    out, acc = names(args.tag, f"{lab}_{cs}_n{ng}_c{j}",
+                                     args.atoms)
                     if os.path.exists(out) and os.path.exists(acc) \
                             and not args.force:
                         continue
                     jobs.append((args.htable, args.h4, out, acc, list(cuts),
                                  run, pair, cfg["res"],
                                  cfg.get("res_mode", "shape"), ked, j,
-                                 args.nknot,
+                                 args.nknot, args.atoms, args.dm_node,
+                                 args.n_cell,
                                  dict(kclass=dict(cfg, ngroup=ng, igroup=j),
                                       cuts=list(cuts), config=lab)))
+    unit = "atoms" if args.atoms else "cells"
     print(f"[buildpr] {len(jobs)} kernels on {args.nproc} workers")
     with Pool(args.nproc) as p:
         for name, na, apk, dt in p.imap_unordered(_one_kernel_pr, jobs):
-            print(f"    {name:48s} {na:5d} atoms  A(91.2) {apk:.5f}"
+            print(f"    {name:48s} {na:5d} {unit}  A(91.2) {apk:.5f}"
                   f"  ({dt:.0f} s)")
 
 
@@ -817,26 +904,32 @@ def _build_cmd(args):
                                        ("data", None, ("e", "mu", "tau", "had"))):
                     if lab not in args.configs:
                         continue
-                    out = f"data/kern_{tag}_{lab}_{cs}_n{ng}_c{j}.npz"
-                    acc = f"data/acc_{tag}_{lab}_{cs}_n{ng}_c{j}.json"
+                    out, acc = names(tag, f"{lab}_{cs}_n{ng}_c{j}", args.atoms)
                     if os.path.exists(out) and os.path.exists(acc) \
                             and not args.force:
                         continue
                     jobs.append((paths[(ng, j)], out, acc, list(cuts), run,
-                                 pair, dict(kclass=dict(cfg, ngroup=ng,
-                                                        igroup=j),
-                                            cuts=list(cuts), config=lab)))
+                                 pair, args.atoms, args.dm_node, args.n_cell,
+                                 dict(kclass=dict(cfg, ngroup=ng, igroup=j),
+                                      cuts=list(cuts), config=lab)))
     if jobs:
         from multiprocessing import Pool
+        unit = "atoms" if args.atoms else "cells"
         print(f"[build] {len(jobs)} kernels on {args.nproc} workers")
         with Pool(args.nproc) as p:
             for name, na, apk, dt in p.imap_unordered(_one_kernel, jobs):
-                print(f"    {name:48s} {na:5d} atoms  A(91.2) {apk:.5f}"
+                print(f"    {name:48s} {na:5d} {unit}  A(91.2) {apk:.5f}"
                       f"  ({dt:.0f} s)")
 
     # -- 4. the MC's own conditional kernel per class, and its A(m) ------
+    # the same measurement in either representation: the events' own `u`
+    # deposited cell by cell with its first moment (`fsr_table.band_rows`), or
+    # merged onto atoms under `sigma_cap` (`fit_gen.build_banded_kernel`).
+    import fsr_table as FT
+
     cb = list(zip(FP.COND_BANDS[:-1], FP.COND_BANDS[1:]))
     cb = [(0.0, FP.COND_BANDS[0])] + cb + [(FP.COND_BANDS[-1], np.inf)]
+    ue = FT.u_grid(args.n_cell, FT.U_MIN, FT.U_MAX)
     mpost = np.asarray(g["m_post"], float)
     e = np.arange(50.0, 200.0 + 1e-9, 1.0)
     ib = np.clip(np.searchsorted(e, m, "right") - 1, 0, len(e) - 2)
@@ -849,30 +942,29 @@ def _build_cmd(args):
                         seed=cfg.get("smear_seed"))
         for ng in args.ngroups:
             for j, grp in enumerate(groups_of(nfine, ng)):
-                out = f"data/kern_{tag}_cond_{cs}_n{ng}_c{j}.npz"
-                accout = f"data/acc_{tag}_cond_{cs}_n{ng}_c{j}.json"
+                out, accout = names(tag, f"cond_{cs}_n{ng}_c{j}", args.atoms)
                 if os.path.exists(out) and not args.force:
                     continue
                 s = sel & np.isin(cl, grp)
-                ker, info = FG.build_banded_kernel(m[s], mpost[s], w[s], cb,
-                                                   sigma_cap=3.3e-4)
                 meta = dict(kind="condker", mode="true",
                             kclass=dict(cfg, ngroup=ng, igroup=j, fine=grp),
                             cuts=list(cuts), gen=os.path.abspath(args.gen),
                             n=int(s.sum()))
-                np.savez(out, r=ker["r"], w=ker["w"], m_lo=ker["m_lo"],
-                         m_hi=ker["m_hi"],
-                         provenance=np.array([json.dumps(meta)]))
                 npass = np.bincount(ib, w * s, len(e) - 1)
-                with open(accout, "w") as fh:
-                    json.dump(dict(kind="grid", m=mb[good].tolist(),
-                                   a=np.maximum(npass[good] / tot[good],
-                                                0.0).tolist(),
-                                   _meta=dict(source=os.path.abspath(out),
-                                              ngroup=ng, igroup=j,
-                                              cuts=list(cuts))), fh, indent=1)
+                acc = dict(kind="grid", m=mb[good].tolist(),
+                           a=np.maximum(npass[good] / tot[good], 0.0).tolist())
+                grid = {}
+                if args.atoms:
+                    ker, _ = FG.build_banded_kernel(m[s], mpost[s], w[s], cb,
+                                                    sigma_cap=3.3e-4)
+                else:
+                    ker, _ = FT.band_rows(m, mpost, w, ue, cb, keep=s,
+                                          verbose=False)
+                    grid = dict(n_cell=args.n_cell, u_min=FT.U_MIN,
+                                u_max=FT.U_MAX, bands=[list(b) for b in cb])
+                n = _write_kernel(out, accout, ker, acc, meta, args.atoms, grid)
                 print(f"    {os.path.basename(out):48s} {int(s.sum()):9d} "
-                      f"events, {len(ker['r']):5d} atoms")
+                      f"events, {n:5d} {'atoms' if args.atoms else 'cells'}")
 
 
 def _ccheck_cmd(args):
@@ -941,8 +1033,27 @@ def _ccheck_cmd(args):
 # --------------------------------------------------------------------------
 # figures
 # --------------------------------------------------------------------------
+def _table_mean_u(path):
+    """``(m_nodes, <u|m>)`` of a cell-integrated table, or ``None``."""
+    with np.load(path, allow_pickle=False) as d:
+        if "K" not in d.files:
+            return None
+        K = np.asarray(d["K"], float)
+        U = np.asarray(d["u_mean"], float)
+        tot = K.sum(1) + np.asarray(d["p0"], float)
+        return (np.asarray(d["m_nodes"], float),
+                (K * U).sum(1) / np.maximum(tot, 1e-300))
+
+
 def kernel_u_of(path):
-    """Per-band ``(m, <u>, A)`` of a per-leg kernel file, or ``None``."""
+    """Per-node ``(m, <u>, A)`` of a model kernel file, or ``None``.
+
+    ``A`` comes from the atom form's per-band provenance and is ``None`` for a
+    table, whose acceptance lives in its own json.
+    """
+    t = _table_mean_u(path)
+    if t is not None:
+        return t[0], t[1], None
     p = json.loads(str(np.load(path, allow_pickle=False)["provenance"][0]))
     b = p.get("bands")
     if not isinstance(b, list) or not b or not isinstance(b[0], dict):
@@ -954,7 +1065,10 @@ def kernel_u_of(path):
 
 
 def cond_u_of(path):
-    """Per-band ``(m, <u>)`` of a banded MC kernel: its own atoms."""
+    """Per-node ``(m, <u>)`` of the MC's own kernel, table or banded atoms."""
+    t = _table_mean_u(path)
+    if t is not None:
+        return t
     with np.load(path, allow_pickle=False) as d:
         r, w, lo, hi = d["r"], d["w"], d["m_lo"], d["m_hi"]
     out = []
@@ -1104,13 +1218,15 @@ def _figs_cmd(args):
                               (args.control, "17_meanu_class_restricted",
                                "the class as a restriction of the h table")):
         if not mtag or not all(
-                os.path.exists(f"data/kern_{mtag}_mc_{cs}_n{ng}_c{c}.npz")
+                os.path.exists(names(mtag, f"mc_{cs}_n{ng}_c{c}", args.atoms)[0])
                 for c in range(ng)):
             continue
         fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(9.5, 7.6))
         for c in range(ng):
-            mm, um = cond_u_of(f"data/kern_kcl_cond_{cs}_n{ng}_c{c}.npz")
-            got = kernel_u_of(f"data/kern_{mtag}_mc_{cs}_n{ng}_c{c}.npz")
+            mm, um = cond_u_of(names(args.control,
+                                     f"cond_{cs}_n{ng}_c{c}", args.atoms)[0])
+            got = kernel_u_of(names(mtag, f"mc_{cs}_n{ng}_c{c}",
+                                    args.atoms)[0])
             ax.plot(mm, um * 1e3, "o", ms=4, color=cols[c], label=f"class {c}")
             ax.plot(got[0], got[1] * 1e3, color=cols[c], lw=1.6)
             rax.plot(mm, np.interp(mm, got[0], got[1]) / um, "o-", ms=3,
@@ -1128,13 +1244,15 @@ def _figs_cmd(args):
                      loc="left")
         pubhtml.savefig(fig, os.path.join(out, f"{name}_{cs}.pdf"))
         plt.close(fig)
-    if all(os.path.exists(f"data/acc_{tag}_mc_{cs}_n{ng}_c{c}.json")
+    if all(os.path.exists(names(tag, f"mc_{cs}_n{ng}_c{c}", args.atoms)[1])
            for c in range(ng)):
 
         fig, ax, rax = ratiopanel.make_ratio_fig(figsize=(9.5, 7.6))
         for c in range(ng):
-            mm, am = _acc_of(f"data/acc_kcl_cond_{cs}_n{ng}_c{c}.json")
-            ms, asr = _acc_of(f"data/acc_{tag}_mc_{cs}_n{ng}_c{c}.json")
+            mm, am = _acc_of(names(args.control, f"cond_{cs}_n{ng}_c{c}",
+                                   args.atoms)[1])
+            ms, asr = _acc_of(names(tag, f"mc_{cs}_n{ng}_c{c}",
+                                    args.atoms)[1])
             g = (mm > 58) & (mm < 122)
             ax.plot(mm[g], am[g], "o", ms=3.5, color=cols[c], label=f"class {c}")
             ax.plot(ms, asr, color=cols[c], lw=1.6)
@@ -1186,6 +1304,25 @@ def _figs_cmd(args):
 
 
 # --------------------------------------------------------------------------
+def _rep_args(p):
+    """The representation the kernels are written in.
+
+    The default is the cell-integrated table (`fsr_table`): ``ktab_*.npz``
+    plus its ``atab_*.json`` acceptance, continuous in ``m_pre`` and with no
+    ``sigma_cap``.  ``--atoms`` is the superseded banded form ``kern_*.npz``
+    plus ``acc_*.json``, kept so the published atom rows can be regenerated.
+    """
+    import fsr_table as FT
+
+    p.add_argument("--atoms", action="store_true",
+                   help="LEGACY: write banded (r, w, m_lo, m_hi) atoms as "
+                        "kern_*/acc_* instead of tables as ktab_*/atab_*")
+    p.add_argument("--dm-node", type=float, default=FT.DM_NODE,
+                   help="table: mass node spacing [GeV]")
+    p.add_argument("--n-cell", type=int, default=FT.N_CELL,
+                   help="table: u cells")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1236,6 +1373,7 @@ def main():
                         "fine partition in --classes")
     b.add_argument("--configs", nargs="*", default=["mc", "data"])
     b.add_argument("--nproc", type=int, default=10)
+    _rep_args(b)
     b.add_argument("--force", action="store_true")
     b.set_defaults(func=_build_cmd)
 
@@ -1251,6 +1389,7 @@ def main():
     q.add_argument("--configs", nargs="*", default=["mc", "data"])
     q.add_argument("--nknot", type=int, default=300)
     q.add_argument("--nproc", type=int, default=12)
+    _rep_args(q)
     q.add_argument("--force", action="store_true")
     q.set_defaults(func=_buildpr_cmd)
 
@@ -1278,6 +1417,9 @@ def main():
     p.add_argument("--fits", nargs="*", default=None,
                    help="`fit_gen.py fit` output jsons")
     p.add_argument("--outpath", default=None)
+    p.add_argument("--atoms", action="store_true",
+                   help="read the LEGACY kern_*/acc_* files instead of the "
+                        "tables ktab_*/atab_*")
     p.set_defaults(func=_figs_cmd)
 
     args = ap.parse_args()
