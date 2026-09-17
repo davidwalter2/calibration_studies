@@ -210,10 +210,24 @@ eps = alpha_mass / <f>_{1/sigma^2}
 and the statistical error transforms with it.  Ignoring this would understate
 the K_S momentum scale by a factor 1.56.  The J/psi closure never had to
 distinguish the two (f = 0.9953), which is why `make_card.py`'s `alpha` is
-defined on the mass.  **This is not specific to the K_S: any hadronic two-body
-channel near threshold (Lambda -> p pi: f = 0.52; D0 -> K pi: f = 0.83) carries
-the same factor**, and it is a real reduction in momentum-scale information per
-unit of mass resolution, not a bookkeeping convention.
+defined on the mass.  **This is not specific to the K_S**, and for other two-body channels it is
+much more severe.  Scanning the decay angle at a representative parent pT:
+
+| channel | f at cos(theta*) = 0 | f averaged over cos(theta*) | f min |
+|---|---|---|---|
+| Z -> mu mu (pT 20) | 1.0000 | 1.0000 | 1.0000 |
+| J/psi -> mu mu (pT 10) | 0.9953 | 0.9909 | 0.949 |
+| D0 -> K pi (pT 8) | 0.8564 | 0.7824 | 0.145 |
+| K_S -> pi pi (pT 1.7) | 0.6853 | 0.5706 | 0.147 |
+| **Lambda -> p pi (pT 3)** | **0.0623** | **0.0470** | 0.005 |
+
+`Lambda -> p pi` is essentially BLIND to the momentum scale: m_Lambda exceeds
+m_p + m_pi by only 38 MeV, so 97 % of the Lambda mass is rest mass that does
+not move when the momenta are scaled.  A Lambda mass measured to 1 MeV
+constrains the momentum scale no better than a K_S mass measured to 13 MeV.
+This is a real reduction in momentum-scale information per unit of mass
+resolution, not a bookkeeping convention, and it is the first thing to check
+before proposing any hadronic two-body channel as a calibration probe.
 
 Both numbers are printed by `ks_table.py`; `eps` is the one that compares with
 the J/psi closure.
