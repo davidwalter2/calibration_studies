@@ -309,7 +309,7 @@ eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -p mit_preemptable \
 | `J0` | `jpsi_nok` | delta | 1.10e-12 | **43 min** | +1.91544 +- 0.02562 | -1.9049 | — (no Z term) |
 | `JK` | `jpsi_fsrmc` | `mc` | 2.06e-11 | **39 min** | -0.75376 +- 0.02633 | **+0.4537** | — (no Z term) |
 | `JD` | `jpsi_fsrdata` | `data` | 7.23e-13 | **69 min** | -0.86590 +- 0.02639 | +0.5578 | — (no Z term) |
-| `P2N` | `joint_nok` | delta | | | | | |
+| `P2N` | `joint_nok` | delta | 4.29e-11 | 5 h 50 (+ 5 h 03 before its preemption) | +1.40124 +- 0.02563 | -1.5105 | +20.692 +- 2.134 |
 | `P2K` | `joint_fsrmc` | `mc` | 8.49e-13 | **8 h 34** | -1.31131 +- 0.02556 | +0.8804 | **-45.594 +- 2.132** |
 
 `J0`: converged at EDM 6.5e-23 in the minimiser and 1.10e-12 as reported,
@@ -405,6 +405,24 @@ bit-identical, `K` and `p0` to **4.4e-16** relative, which is the provider's
 own row renormalisation and nothing else. Atom kernels were always inline and
 are unaffected.
 
+
+## `P2N` == `P2XP`, exactly
+
+`P2N` -- the same card rebuilt with today's code, warm-started once after a
+preemption -- certifies at EDM **4.294e-11**, `rc=0`, and returns
+
+```
+m_Z  +20.692 +- 2.134 MeV      Gamma_Z  -4.377 +- 3.787 MeV
+NLL  5 616 702.758152          bfield_mode0  +1.40124 +- 0.02563 e-3
+<D_card> . theta  -1.5105 MeV
+```
+
+which is `P2XP`'s answer **to every printed digit** (`P2XP - P2N` is
+`-0.000 MeV` on `m_Z`, `-0.000` on `Gamma_Z`, `+0.00000e-3` on
+`bfield_mode0`, and the NLLs agree to 1e-6). The positivity-floor difference
+between `joint_ok_full` and `joint_nok` is therefore not merely inert on the
+trajectory but on the answer, and **`P2K - P2N` = `P2K - P2XP` = -66.286 MeV
+with the kernel as the only difference**.
 
 ## PHASE 2 WITH THE J/psi KERNEL (`P2K`) -- certified
 
