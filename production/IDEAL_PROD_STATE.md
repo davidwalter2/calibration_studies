@@ -183,3 +183,20 @@ Drop it from `condor_dymc_ideal/config_dymc_v2.sh` if that is not wanted.
 
 The **pairs caches are not affected**: `cf_inmaker.py pairs` is run without
 `--groups`, so none of the per-group blocks is read into them.
+
+## ...and about 4x the CPU, for the same reason
+
+Same chunk, `task_0262`: the Geant4e propagator is called **84 660** times in
+the 260917 run against **22 967** in v2 — 333 calls per candidate against 87,
+i.e. **3.7x**. That is exactly the term count: v2 profiles ONE CF residual (the
+mass), this production profiles FOUR (mass, vertex, and the two transverse
+beam-line residuals). Wall clock on that chunk went 504 s (v2, DESY) to 2919 s
+(IIHE), the rest of the factor being the node.
+
+Expected turnaround, scaling v2's own numbers: the Z leg **~6-10 h** (v2: 4 h),
+the J/psi leg ~7 h for its 600 tasks (v2: 21 h for 1645, i.e. the same per-wave
+rate — the J/psi leg gains no residual terms and is unaffected).
+
+Dropping `exportVtxResidual` would recover about a quarter of both the CPU and
+110 GB; `exportBsResidual`, which the brief asks for, is the other three
+quarters and cannot be dropped without losing the beam-line terms.
