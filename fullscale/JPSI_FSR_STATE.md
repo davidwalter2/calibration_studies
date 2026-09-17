@@ -49,7 +49,8 @@ Kernels: `zchannel/data/jpsi_kern_{mc,data,data_trunc}.npz`.
 | **22824029** | `P2K` | `joint_fsrmc` | `-G h200:1 --time=1-12:00:00`, `mit_preemptable` |
 | ~~22824626~~ -> **22847975** | `P2N` | `joint_nok` | `mit_preemptable`, `-G h200:1 --time=1-00:00:00`, `FRESH=0` from its iteration-15 snapshot (22824626 was preempted at 13:57, one Hessian before its collapse) |
 | **22825078** | `JD` | `jpsi_fsrdata` | `-G h200:1 --time=0-06:00:00`, `mit_preemptable` |
-| ~~22830065~~ -> **22847976** | `P2XT` | `joint_ztab` | `mit_preemptable`, `-G h200:1 --time=1-12:00:00`, `FRESH=0` from its 3-Hessian snapshot (22830065 was preempted twice) |
+| ~~22830065~~ -> **22847976** | `P2XT` | `joint_ztab` | `mit_preemptable`, `FRESH=0` from its 3-Hessian snapshot; **done 02:03, rc=0, 9 h 04** |
+| **22886298** | `P2B` | `joint_both` | `mit_preemptable`, `-G h200:1 --time=1-12:00:00` -- BOTH single changes, submitted once all three singles certified |
 
 **`P2N` reproduces `P2XP` digit for digit while it descends**, which settles
 the question the row was built to answer. Its EDM sequence
@@ -405,6 +406,33 @@ bit-identical, `K` and `p0` to **4.4e-16** relative, which is the provider's
 own row renormalisation and nothing else. Atom kernels were always inline and
 are unaffected.
 
+
+## THE Z FOLD (`P2XT`) -- certified, and it is SMALL
+
+`rc=0`, EDM **4.283e-16**, 27 Hessians, 9 h 04 with one warm restart.
+Against `P2N`, whose only difference is the Z term's kernel file:
+
+| | `P2N` (banded atoms) | `P2XT` (the `mc` TABLE) | difference |
+|---|---:|---:|---:|
+| `m_Z` [MeV] | +20.692 +- 2.134 | +20.937 +- 2.135 | **+0.245** |
+| `Gamma_Z` [MeV] | -4.377 +- 3.787 | -4.264 +- 3.799 | **+0.112** |
+| `bfield_mode0` [1e-3] | +1.40124 +- 0.02563 | +1.40087 +- 0.02563 | -0.00037 |
+| `<D_card>.theta` [MeV] | -1.5105 | -1.5101 | +0.0004 |
+| NLL | 5 616 702.7582 | 5 616 698.7003 | -4.058 |
+
+**+0.245 MeV on `m_Z`** -- a ninth of the statistical error and a third of the
+`+0.66 MeV` gen-level atom-minus-table bias of the inclusive `mc` kernel. The
+J/psi leg does not notice it at all (`bfield_mode0` moves by 0.0004 of its own
+error, `<D_card>.theta` by 0.4 keV), which is what a change confined to the Z
+term's lineshape must do.
+
+Two things go in the caveat rather than the number. The row changes the
+representation AND the source (the DY production's own 13.03 M-event gen
+record -> standalone Photos at unlimited statistics), so `+0.245 MeV` is their
+sum, not the representation alone; and the gen-level comparison that gave
+`+0.66` was atoms and table of the SAME standalone run, which this is not.
+What the row does establish is that **the fold representation is not where the
+`-20` MeV Z-side offset of `P2K` lives**.
 
 ## `P2N` == `P2XP`, exactly
 
