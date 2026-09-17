@@ -152,3 +152,34 @@ index that is already in the queue.
   `Jpsigen_sameDecay` from the per-leg gen match, and `cfmass_grp_vqms`,
   `cfmass_grp_vqio`). No branch was lost;
 * `ndof` rises 28 -> 30 because `doVtxConstraint` is now ON.
+
+## The Z leg costs 2.8x the v2 volume
+
+DY `task_0262` (2349 events, 1031 candidates) against its v2 twin: the tree
+payload goes from **68.8 to 190.6 kB/candidate**, and the file gains 110
+branches and loses none. Where it goes, per candidate:
+
+| block | kB/cand | switch |
+|---|---:|---|
+| `cfbs_grp_{ms,ioni_re,ioni_im,rad_re,rad_im}` + `resinfbsv` | **69.4** | `exportBsResidual` |
+| `cfvtx_grp_*` + `resinfvtxv` + `resinfv` | **38.3** | `exportVtxResidual` |
+| `hessfactorv` | 29.2 (v2: 25.0) | the vertex constraint's extra rows |
+| `cfmass_grp_*` | 30.8 | unchanged from v2 |
+
+Two CF residual terms each carry a FULL per-material-group exponent block, and
+the beam-line term carries TWO residuals. Projected volume: **~730 GB** for the
+380-task Z leg (v2: 267 GB), ~80 GB for the 40-task control, ~515 GB and ~55 GB
+for the two J/psi legs — **~1.4 TB in all**, against 32 TB free under the ceph
+user quota.
+
+`request_disk` was raised **4 -> 6 GB** on the two Z clusters (`condor_qedit`
+and in the configs): the largest chunk (30 929 events) now stages out 2.15 GB
+and peaks near 2.5 GB of scratch against the old 3.81 GiB request.
+
+`exportVtxResidual` is the one switch not named in the brief. It is what the two
+current DY runs on this tip use (`resolution/vtxres/run_prod_tail.sh`,
+`run_prod_beam3.sh`), and it costs 38.3 kB/candidate — ~120 GB over the Z leg.
+Drop it from `condor_dymc_ideal/config_dymc_v2.sh` if that is not wanted.
+
+The **pairs caches are not affected**: `cf_inmaker.py pairs` is run without
+`--groups`, so none of the per-group blocks is read into them.

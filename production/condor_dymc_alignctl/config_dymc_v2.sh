@@ -50,7 +50,10 @@ NTHREADS=${NTHREADS:-4}
 # extra stream, x1.3. The scan's own 2.00 GB peak is NOT the sizing number: a
 # 2000-event arm does not reach the tail that a 22 120-event chunk does.
 REQMEM=${REQMEM:-5000}
-REQDISK=${REQDISK:-4000000}     # KB: 64 MB payload + 228 MB unpacked area + output
+# 6 GB, not the v2 leg's 4: exportBsResidual + exportVtxResidual take the Z
+# payload from 68.8 to 190.6 kB/candidate, so the largest chunk (30 929
+# events) stages out 2.15 GB and peaks near 2.5 GB of scratch.
+REQDISK=${REQDISK:-6000000}     # KB: 74 MB payload + ~300 MB unpacked area + output
 
 # --- grid routing ----------------------------------------------------------
 OUTHOST=${OUTHOST:-root://submit50.mit.edu/}
