@@ -24,11 +24,13 @@ PT_MIN = 0.15
 ETA_MAX = 2.6
 
 
-def main(paths, out, nmax=-1):
+def main(paths, out, nmax=-1,
+         candsrc=('ALCARECOTkAlJpsiXB0KsResonances', '', 'RECO')):
     h_gen = Handle('std::vector<reco::GenParticle>')
     h_bc = Handle('std::vector<int>')
     h_simtrk = Handle('std::vector<SimTrack>')
     h_simvtx = Handle('std::vector<SimVertex>')
+    h_cand = Handle('std::vector<reco::VertexCompositeCandidate>')
 
     cols = {k: [] for k in (
         'run', 'lumi', 'event', 'vx', 'vy', 'vz', 'kspx', 'kspy', 'kspz',
@@ -36,6 +38,7 @@ def main(paths, out, nmax=-1):
         'prodr', 'prodz')}
     nev = 0
     nbad = 0
+    nskip = 0
     # One Events object per file: the production has a tail of zero-length and
     # truncated files (cmsRun handles them with skipBadFiles, FWLite has no
     # such option) and a single bad file must not take the chunk down.
@@ -48,6 +51,17 @@ def main(paths, out, nmax=-1):
                 if nmax > 0 and nev >= nmax:
                     break
                 nev += 1
+                # ONLY events that carry a K_S candidate can contribute a row
+                # to the join, and reading the candidate collection is far
+                # cheaper than the SimTrack/SimVertex containers (7.8 M
+                # vertices per hundred events). 83 % of events are skipped
+                # here, which is what makes the truth pass cheaper than the
+                # refit it has to keep up with.
+                if candsrc:
+                    ev.getByLabel(candsrc, h_cand)
+                    if h_cand.product().size() == 0:
+                        nskip += 1
+                        continue
                 _fill(ev, cols, h_gen, h_bc, h_simtrk, h_simvtx)
         except Exception as e:
             nbad += 1
@@ -57,11 +71,15 @@ def main(paths, out, nmax=-1):
             break
     if nbad:
         print(f'{nbad} input files skipped (unreadable)')
+    if candsrc:
+        print(f'{nskip} of {nev} events had no {candsrc[0]} candidate and '
+              f'were not unpacked')
 
     arr = {k: np.array(v, dtype=(np.int64 if k in ('run', 'lumi', 'event', 'fromb', 'motherpdg')
                                  else np.float64)) for k, v in cols.items()}
     arr['nevents'] = np.array([nev], dtype=np.int64)
     arr['nbadfiles'] = np.array([nbad], dtype=np.int64)
+    arr['nskipped'] = np.array([nskip], dtype=np.int64)
     np.savez_compressed(out, **arr)
     print(f'{nev} events, {len(cols["run"])} K_S -> pipi rows -> {out}')
 
@@ -142,7 +160,7 @@ def _fill(ev, cols, h_gen, h_bc, h_simtrk, h_simvtx):
             cols['prodr'].append(math.hypot(pv.x(), pv.y())); cols['prodz'].append(pv.z())
 
 if __name__ == '__main__':
-    out, nmax, files = None, -1, []
+    out, nmax, files, allev = None, -1, [], False
     for a in sys.argv[1:]:
         if a.startswith('--out='):
             out = a.split('=', 1)[1]
@@ -151,9 +169,12 @@ if __name__ == '__main__':
         elif a.startswith('--filelist='):
             with open(a.split('=', 1)[1]) as f:
                 files += [l.strip() for l in f if l.strip()]
+        elif a == '--all-events':
+            allev = True
         elif a.startswith('--input='):
             files += [p for p in a.split('=', 1)[1].split(',') if p]
         else:
             files.append(a)
     assert out, 'need --out='
-    main(files, out, nmax)
+    main(files, out, nmax,
+         candsrc=None if allev else ('ALCARECOTkAlJpsiXB0KsResonances', '', 'RECO'))
