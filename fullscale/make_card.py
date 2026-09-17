@@ -821,11 +821,25 @@ def build(args, log=print):
                     f"{fsr['K'].shape[1]} cells to u = "
                     f"{fsr['u_edges'][-1]:g}, p0 in "
                     f"[{fsr['p0'].min():.5f}, {fsr['p0'].max():.5f}]")
-    provider = ZGammaLineshape(
-        m_ref=args.mref, window=tuple(args.born_window), nm=args.nm,
-        tau_max=args.tau_max, width_scheme=args.width_scheme,
-        fsr=fsr, acceptance=acc, **kw)
-    if vkw:
+    # RESIDUAL MODE USES NO LINESHAPE: the kernel is a delta, so the provider
+    # is built only to be discarded -- and its tau range is a hard failure for
+    # any narrow resonance, because `check_tau_range` needs
+    # max(tgrid)/sigma_min to be tabulated and a light, well-measured state
+    # (K_S -> pi pi: sigma_m ~ 6 MeV) needs tau ~ 5e3 1/GeV against the 40 the
+    # Z lineshape tabulates. Nothing downstream reads `provider` when
+    # `residual_mode` is set (the kernel is `DeltaKernel`, and the parameter
+    # declarations come from an empty dict).
+    provider = None
+    if args.residual_mode:
+        log("  residual mode: no lineshape provider (delta kernel)")
+    else:
+        provider = ZGammaLineshape(
+            m_ref=args.mref, window=tuple(args.born_window), nm=args.nm,
+            tau_max=args.tau_max, width_scheme=args.width_scheme,
+            fsr=fsr, acceptance=acc, **kw)
+    if provider is None:
+        need, ok = 0.0, True
+    elif vkw:
         # `check_tau_range` compares against the provider's tau_max in MASS
         # units; in v the same physical range is `tau_max * window_hi^p`, which
         # `_build_v` has already applied, so compare against the widths in v.
@@ -835,8 +849,9 @@ def build(args, log=print):
             f"-> {'ok' if ok else 'TOO SMALL'}")
     else:
         need, ok = provider.check_tau_range(tgrid, sigma)
-    log(f"  {provider} in {time.time()-t0:.1f} s; tau needed {need:.2f} 1/GeV "
-        f"-> {'ok' if ok else 'TOO SMALL'}")
+    if provider is not None:
+        log(f"  {provider} in {time.time()-t0:.1f} s; tau needed {need:.2f} 1/GeV "
+            f"-> {'ok' if ok else 'TOO SMALL'}")
     if not ok:
         raise SystemExit("lineshape tau_max too small; raise --tau-max or "
                          "tighten --max-sigma-rel")
@@ -960,7 +975,8 @@ def build(args, log=print):
     info = {"n": n, "n_cache": int(len(d['z'])), "window": [lo, hi],
             "born_window": list(args.born_window), "mreco": mreco,
             "mgen": mgen, "weights_info": winfo,
-            "provider_config": provider.config()}
+            "provider_config": (provider.config() if provider is not None
+                                else {"kind": "delta (residual mode)"})}
     return term, datasets, decl, info
 
 

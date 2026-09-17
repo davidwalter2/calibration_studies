@@ -1,0 +1,27 @@
+{
+ "params": [
+  "alpha",
+  "k_hit",
+  "k_ms",
+  "k_ioni",
+  "k_rad"
+ ],
+ "fitted": [
+  -0.03557614957562539,
+  1.0,
+  1.0,
+  1.0,
+  1.0
+ ],
+ "err": [
+  0.9481516929297098,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "source": "/work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure/runs/results/rabbit_localtest.hdf5",
+ "edmval": 2.8777002699079305e-28,
+ "nllvalreduced": -342.3343412632209,
+ "ndfsat": 0.0
+}
