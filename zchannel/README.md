@@ -1424,6 +1424,51 @@ model, it is the difference between a model that describes the sample and one
 that does not. It also lifts the smallest reconstructed density by 5x, which
 is the same defect the positivity floor was put in for.
 
+### What it does to the fits
+
+Five certified rows (`fullscale/JPSI_FSR_STATE.md` for the job IDs and the
+collection commands; every one `rc=0` with a positive-definite postfit
+Hessian):
+
+| row | terms | J/psi kernel | `m_Z` [MeV] | `bfield_mode0` [1e-3] | `<D_card>.theta` [MeV] | EDM |
+|---|---|---|---:|---:|---:|---:|
+| `P2N` | quad + J/psi + Z | delta | +20.692 +- 2.134 | +1.40124 +- 0.02563 | -1.5105 | 4.29e-11 |
+| `P2K` | quad + J/psi + Z | `mc` | **-45.594 +- 2.132** | -1.31131 +- 0.02556 | +0.8804 | 8.49e-13 |
+| `J0` | quad + J/psi | delta | — | +1.91544 +- 0.02562 | -1.9049 | 1.10e-12 |
+| `JK` | quad + J/psi | `mc` | — | -0.75376 +- 0.02633 | +0.4537 | 2.06e-11 |
+| `JD` | quad + J/psi | exact QED | — | -0.86590 +- 0.02639 | +0.5578 | 7.23e-13 |
+
+`<D_card>.theta` is the mean predicted J/psi mass shift the fitted calibration
+vector produces: the quantity a delta forces to equal `-<dm>` and a kernelled
+term does not.
+
+* **A delta at the PDG mass costs `m_Z` +66.3 MeV.** The J/psi leg's scale
+  moves `+7.72e-4` and `m_Z` moves `-66.286/91 188 = -7.27e-4` — the 1:1
+  transfer a multiplicative momentum-scale change must produce — and the
+  J/psi-only pair gives the same step, `+7.616e-4`, on a card with no `m_Z` in
+  it at all.
+* **The 42 material amounts do not move**, every one inside 1 sigma, so the
+  50-sigma material pulls of this MC are not an FSR effect.
+* **The kernel-MODEL systematic is 3.4e-5** (`JD - JK`), not the `2.6e-4`
+  the two kernels' means differ by: the likelihood realises 12.8 % of a
+  mean-matching response against a one-sided tail.
+* **The FSR is then fully accounted for.** A fit-free scan of the term's own
+  truncated `-sum log(L/Z)` in a common predicted-mass shift
+  (`fullscale/jpsi_scale_pref.py`, 300 000 candidates, the card's own
+  `a_res`/`jensen_s2`/64 classes/window) gives
+
+  | | preferred shift | relative |
+  |---|---:|---:|
+  | delta, corrections ON | -2.7794 MeV | -8.97e-4 |
+  | kernel, corrections ON | -0.5589 MeV | -1.80e-4 |
+  | delta, corrections OFF | -2.3945 MeV | -7.73e-4 |
+  | **kernel, corrections OFF** | **-0.0545 MeV** | **-1.76e-5** |
+
+  the FSR step being `+7.17e-4`, in agreement with both fits. With the kernel
+  in and the two corrections off the term's preferred scale is consistent with
+  zero; what is left, `-1.6e-4`, is the two corrections **in the residual
+  form**.
+
 ### The one caveat: the correction form
 
 `rabbit_fit.py`'s `--unbinnedDeltaKernelForm auto` keys on
@@ -1436,9 +1481,16 @@ by `0.012 x 7.2 MeV = 0.086 MeV` on average — **0.25 % of the median
 `sigma = 34 MeV`**. It is identical on both sides of every comparison below
 (the with- and without-kernel cards take the same branch), so it does not
 enter the difference; it is a second-order term in the absolute numbers. The
-clean fix is to key `auto` on "delta kernel AND no `phik`", at the price of
-the fluctuation form's first-order truncation, and it is not made here because
-it would be a second change in the same fit.
+clean fix is to key `auto` on "delta kernel AND no `phik`" -- **but that is not
+enough, because the fluctuation form does not work on this term either**: the
+same card fitted with `--unbinnedDeltaKernelForm fluctuation` (`JKF`) died with
+a `nan` condition number, a `nan` EDM, `array must not contain infs or NaNs`
+from the minimiser and a non-positive-definite postfit Hessian, `rc=1`. That
+form is a first-order Fourier-space truncation and it is not small here. The
+real fix is the exact map applied to the FLUCTUATION inside the convolution
+rather than to the residual -- a code change, not a configuration -- and until
+it exists the `-1.6e-4` above is the price of the residual form under a
+kernel.
 
 ---
 
