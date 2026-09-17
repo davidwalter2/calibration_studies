@@ -50,7 +50,7 @@ Kernels: `zchannel/data/jpsi_kern_{mc,data,data_trunc}.npz`.
 | ~~22824626~~ -> **22847975** | `P2N` | `joint_nok` | `mit_preemptable`, `-G h200:1 --time=1-00:00:00`, `FRESH=0` from its iteration-15 snapshot (22824626 was preempted at 13:57, one Hessian before its collapse) |
 | **22825078** | `JD` | `jpsi_fsrdata` | `-G h200:1 --time=0-06:00:00`, `mit_preemptable` |
 | ~~22830065~~ -> **22847976** | `P2XT` | `joint_ztab` | `mit_preemptable`, `FRESH=0` from its 3-Hessian snapshot; **done 02:03, rc=0, 9 h 04** |
-| **22886298** | `P2B` | `joint_both` | `mit_preemptable`, `-G h200:1 --time=1-12:00:00` -- BOTH single changes, submitted once all three singles certified |
+| ~~22886298~~ -> **22903561** | `P2B` | `joint_both` | `mit_preemptable`, `-G h200:1 --time=1-12:00:00`, `FRESH=0` from its iteration-13 snapshot (22886298 was preempted at ~12:58 after 13 Hessians and slurm requeued it COLD) -- BOTH single changes |
 
 **`P2N` reproduces `P2XP` digit for digit while it descends**, which settles
 the question the row was built to answer. Its EDM sequence
@@ -614,7 +614,16 @@ python3 $FS/jpsi_fsr_table.py --ref P2N \
     P2B=$FS/runs/engaging_260916/rabbit_P2B.json
 ```
 
-Recovery if preempted: `--export=ALL,FRESH=0,ROWS="P2B"`.
+Recovery if preempted: `--export=ALL,FRESH=0,ROWS="P2B"` on
+`mit_preemptable` -- **not** `mit_normal_gpu`, which caps at 6 h and was 442
+jobs deep.
+
+**A slurm requeue after preemption is COLD.** `FRESH` defaults to 1 in this
+script, so the requeued job restarts from scratch AND its first periodic
+snapshot (0.25 h in) overwrites the good one. The recovery is therefore:
+copy the snapshot aside, `scancel` the requeued job, and resubmit with
+`FRESH=0` -- inside the first 15 minutes. That is what
+`rabbit_P2B.snapshot.i13.hdf5` is.
 
 **PRE-REGISTERED**: if the two changes are additive, `P2B` lands at
 `P2K + (P2XT - P2N)` = `-45.594 + 0.245` = **-45.35 MeV** on `m_Z`, with
