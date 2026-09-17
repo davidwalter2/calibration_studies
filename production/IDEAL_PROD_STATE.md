@@ -125,3 +125,30 @@ configs, so a resume carries them:
 
 `resume_*.sh` re-drives anything left without a sentinel; it refuses to queue an
 index that is already in the queue.
+
+## What the first finished task says (J/psi `task_0463`, 959 events)
+
+| | v2 | 260917 ideal |
+|---|---|---|
+| attempted / succeeded | 955 / 955 | 955 / 955 |
+| `Jpsikin_mass` (pre-refit) | — | **bit-identical**, all 955 |
+| `Jpsi_mass` (refitted) | — | median −0.031 MeV, rms 9.93 MeV (rel. −1.0e-5 / 3.1e-3) |
+| tree payload | 16.12 MB | 16.55 MB (243 branches vs 228) |
+| `runtree` on disk | 13.1 MB | 4.55 MB |
+| file size | 29.2 MB | 21.1 MB |
+| `nParms` median | 246 | 247 |
+| `ndof` = `nRank` median | 28 | 30 |
+
+* **the parameter map is bit-identical** — `iidx`, `parmtype`, `rawdetid`,
+  `subdet`, `layer`, `stereo`, `glued` and `xi` all agree over the 126 452
+  entries, so these files pool with the v2 productions through the same
+  `runtree`;
+* the runtree's GEOMETRY columns differ, as they must: module centres move by
+  up to 1.29 mm with an rms of 16.6 um (`dx`), and `b0`/`bz`/`bradial` move with
+  them. The ideal lattice compresses far better, which is the whole file-size
+  difference — the tree payload is slightly LARGER;
+* the 260917 schema is a SUPERSET of v2's: 15 extra branches
+  (`Mu*gen_{pdgId,idx,motherIdx,motherPdgId,isPrompt,fromHardProcess}`,
+  `Jpsigen_sameDecay` from the per-leg gen match, and `cfmass_grp_vqms`,
+  `cfmass_grp_vqio`). No branch was lost;
+* `ndof` rises 28 -> 30 because `doVtxConstraint` is now ON.
