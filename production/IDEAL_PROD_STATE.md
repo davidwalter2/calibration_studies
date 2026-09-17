@@ -107,3 +107,21 @@ Big caches live on ceph under
   submitted, all idle.
 * 2026-09-17 15:52 — J/psi ideal (3804893, 600) and J/psi alignctl
   (3804894, 60) submitted. 1080 tasks in flight across the four.
+* 2026-09-17 17:00 — 1019 of the 1080 running, none finished yet. Peak
+  `MemoryUsage` over the DY cluster is 2906 MB against `request_memory = 5000`,
+  so the v2 sizing stands and must not be raised.
+
+### Node fences added during the run
+
+All applied to the live clusters with `condor_qedit` AND written into the four
+configs, so a resume carries them:
+
+| fence | rc | what |
+|---|---|---|
+| `hep.wisc.edu` | 132 | SIGILL, 5 nodes — site CPU generation (see above) |
+| `compute-21-23.ultralight.org`, `compute-12n-5.ultralight.org` | 132 | same, two more Caltech nodes |
+| `s1wn17.pi.infn.it` | 132 | same, one Pisa node |
+| `node38-4.wn.iihe.ac.be` | 139 | SIGSEGV, 9 of 9 — black-hole node |
+
+`resume_*.sh` re-drives anything left without a sentinel; it refuses to queue an
+index that is already in the queue.
