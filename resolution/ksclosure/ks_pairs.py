@@ -121,6 +121,7 @@ def match(tab, t, args):
     hi = np.searchsorted(t['_key'], key, 'right')
     out = -np.ones(n, dtype=np.int64)
     dv = np.full(n, np.nan)
+    namb = np.zeros(n, dtype=np.int64)   # how many truth rows passed
     lamp_r = np.arctan(np.sinh(tab['Muplus_eta']))
     lamm_r = np.arctan(np.sinh(tab['Muminus_eta']))
     pp_r = tab['Muplus_pt'] * np.cosh(tab['Muplus_eta'])
@@ -144,11 +145,12 @@ def match(tab, t, args):
                           (t['vx'][j], t['vy'][j], t['vz'][j]))
             if d > args.max_dvtx:
                 continue
+            namb[i] += 1
             if d < bestd:
                 best, bestd = j, d
         out[i] = best
         dv[i] = bestd if best >= 0 else np.nan
-    return out, dv
+    return out, dv, namb
 
 
 def read_one(fn, t, args, cols, state):
@@ -191,7 +193,7 @@ def read_one(fn, t, args, cols, state):
             'Muplus_phi', 'Muminus_phi', 'Jpsi_x', 'Jpsi_y', 'Jpsi_z')}
     for k in ('run', 'lumi', 'event'):
         tab[k] = np.asarray(a[k], dtype=np.int64)
-    jrow, dvtx = match(tab, t, args)
+    jrow, dvtx, namb = match(tab, t, args)
     base = ok & np.isfinite(sig) & (sig > 0.)
     good = base if args.keep_unmatched else (base & (jrow >= 0))
     idx = np.where(good)[0]
@@ -230,6 +232,7 @@ def read_one(fn, t, args, cols, state):
     fmom = 1.0 - M_PI ** 2 * (2.0 + ep / em + em / ep) / np.maximum(mg, 1e-9) ** 2
     push('ks_fmom', np.where(j >= 0, fmom, -99.0))
     push('dvtx', dvtx[idx])
+    push('nambig', namb[idx])
     push('matched', (j >= 0).astype(np.int64))
     push('ks_mreco', mrec[idx])
     for tk, ck in _TRUTH_OUT:
@@ -313,6 +316,12 @@ def main():
     print(f'{ncand} candidates read, {nmatch} truth-matched '
           f'({100.0*nmatch/max(ncand,1):.2f} %), {n} written')
     sel = out['matched'] > 0
+    amb = out['nambig'][sel]
+    print(f'truth ambiguity: {100.0*(amb > 1).mean():.3f} % of matched '
+          f'candidates had more than one passing truth row '
+          f'(max {int(amb.max())}); vertex distance median '
+          f'{1e4*np.median(out["dvtx"][sel]):.0f} um, q99 '
+          f'{1e4*np.quantile(out["dvtx"][sel], 0.99):.0f} um')
     r = out['z'][sel]
     print(f'pull: mean {r.mean():+.4f} median {np.median(r):+.4f} std {r.std():.4f} '
           f'(robust {0.7413*(np.quantile(r,.75)-np.quantile(r,.25)):.4f})')
