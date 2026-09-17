@@ -89,3 +89,6 @@ fullscale/results/nativejson/
 
 # hit-class location study caches (regenerable, ~200 MB)
 resolution/hitclassbias/data/
+
+# K_S closure caches, cards and job logs (regenerable)
+resolution/ksclosure/runs/
