@@ -88,7 +88,8 @@ def main():
         edm = f.get("edmval", np.nan)
         cert = np.isfinite(edm) and edm < a.edm_max
         bad += (not cert)
-        print(f"{lab:18s} {edm:11.2e} {f.get('nllvalfull', np.nan):16.6f} "
+        nll = f.get("nllvalfull", f.get("nllvalreduced", np.nan))
+        print(f"{lab:18s} {edm:11.2e} {nll:16.6f} "
               f"{len(f['names']):5d}  {'YES' if cert else '*** NO ***'}")
 
     print("\n=== THE LUMINOUS-REGION PARAMETERS ===")

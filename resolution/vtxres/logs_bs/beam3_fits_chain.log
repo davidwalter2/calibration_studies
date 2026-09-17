@@ -1,0 +1,7 @@
+skip base_vtxbs (done)
+=== fit b3_vtxbs 15:25:18
+  FAIL
+=== fit base_vtxbsm 15:29:50
+  ok
+=== fit b3_vtxbsm 15:59:43
+  ok

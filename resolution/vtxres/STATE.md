@@ -1274,6 +1274,7 @@ channel (sections 14.17 and 14.15 point 4). It is ON BY DEFAULT there since
 | maker | `src/Analysis/HitAnalyzer/plugins/ResidualGlobalCorrectionMakerTwoTrackG4e.cc` |
 | the base-class doc | the "BEAM-LINE (LUMINOUS-REGION) CONSTRAINT" block of `ResidualGlobalCorrectionMakerBase.h` -- the algebra, the two defects, the "+" form, the whitened pair and the mean-term identity |
 | analysis scripts | `resolution/vtxres/{gates_bs,gate_cache,gate_defaults_cfg,cmp_bson,bkg_bs,bs_genvtx,width_report}.py`, `run_{prod_bs,prod_bs_old,timing_bs,timing_cache,gate_defaults,ladder_bs,all_bs,all_bsfinal}.sh` |
+| the 3x3 covariance (section 14.20) | `resolution/vtxres/{gate_beam3,gate_beam3_card,beam3_gen,beam3_report,beam3_pulls,beam3_plots}.py`, `run_{prod_beam3,all_beam3}.sh`, `mark_complete.sh`; the term is `rabbit/unbinned.py::MaterialCFTerm` (`beam3_params` / `beam3_units` / `beam3`) with `tests/test_beam3.py` |
 | the three NEW gates | `gate_defaults_cfg.py` (the producer PSet expanded in BOTH areas, per channel), `gate_cache.py` (bit-identity on EVERY comparable branch, matched on (run, lumi, event, pT rank), with the beam-functional branches declared expected-to-move under `--rows-on`), `width_report.py` (the width floats with an EDM certification that REFUSES to quote an uncertified fit) |
 | outputs | `/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/` |
 | figures | `~/public_html/ZMass/cvh/260913_beamline/` (the first pass) and `~/public_html/ZMass/cvh/260913_bsfinal/` (the finish) |
@@ -2104,16 +2105,20 @@ are `|shift| / 0.10` computed here.)
 
 #### 14.15 What a DATA fit needs
 
-1. **The beam-spot record, per IOV, as global MEAN parameters.** Five of them
-   -- `x0`, `y0`, `z0`, `dxdz`, `dydz` -- per lumi block (the `offlineBeamSpot`
-   record is per-LS and the maker already reads it per event, so
-   `Jpsi_bsspot` / `Jpsi_bsslope` / `Jpsi_bswidth` carry the right one per
-   candidate). **No new column in the quadratic term is needed**: the
-   response of ANY functional to a centroid shift is minus its own influence
-   weight on the beam block's row, and `Jpsi_bsmean{mass,vtx,bs}` are exactly
-   those weights (3 floats each, 0.04 kB/candidate). The slope response is the
-   same weight times `(z_v - z0)`, and `Jpsi_bsvtx` carries `z_v`.
-2. **The beam WIDTHS as resolution parameters -- DONE, and they float.**
+1. **The beam-spot record, per IOV, as global MEAN parameters -- DONE, and
+   they float** (section 14.20). Four of them -- `x0`, `y0`, `dxdz`, `dydz` --
+   per lumi block (the `offlineBeamSpot` record is per-LS and the maker
+   already reads it per event, so `Jpsi_bsspot` / `Jpsi_bsslope` /
+   `Jpsi_bswidth` carry the right one per candidate); `z0` is inert.
+   **No new column in the quadratic term is needed**: the response of ANY
+   functional to a centroid shift is minus its own influence weight on the
+   beam block's row, and `Jpsi_bsmean{mass,vtx,bs}` are exactly those weights
+   (3 floats each, 0.04 kB/candidate). The slope response is the same weight
+   times `(z_v - z0)`, and `Jpsi_bsvtx` carries `z_v`. They enter the CF terms
+   through the term's own sparse `D` (`make_vtx_card.py --beam3`).
+2. **The beam WIDTHS as resolution parameters -- DONE, and they float**, and
+   with `--beam3` so does the rest of the covariance (the x-y correlation the
+   record does not store, and the two tilts); section 14.20.
    Family 16 is registered as a resolution block with `dV = covBS`, so a scale
    on the luminous region floats in the CF terms exactly as a hit class does.
    There are TWO of them, one per transverse direction, because
@@ -2360,6 +2365,350 @@ is safe.
 5. **`hitlik/recovery.py` prints `nan` in its `/truth` columns** on these
    cards -- a reader bug, not a fit one. STATE open item 5, still open; the
    recoveries in 14.14 are `|shift| / 0.10` computed by hand.
+6. **The luminous region's full 3x3** -- section 14.20 for what is now floated and what it closes to.
+
+#### 14.20 THE LUMINOUS REGION AS A FLOATED 3x3 COVARIANCE (`--beam3`)
+
+The constraint's covariance is a PHYSICAL object with six entries, and only
+two of them floated.  `covBS` is the CMS beam-spot-fitter form
+(`RecoVertex/BeamSpotProducer/src/FcnBeamSpotFitPV.cc`, which the maker copies
+verbatim):
+
+    C_xx = k_x sigma_x^2                C_yy = k_y sigma_y^2
+    C_xy = rho sqrt(C_xx C_yy)          C_zz = sigma_z^2
+    C_xz = dxdz (C_zz - C_xx) - dydz C_xy
+    C_yz = dydz (C_zz - C_yy) - dxdz C_xy
+
+and in the maker `rho` is FIXED AT ZERO -- a `FIXME` at the line, because the
+beam-spot record does not store it -- while `dxdz`, `dydz`, `x0` and `y0` are
+the record's.  `--beam3` floats all of it.
+
+| parameter | what it is | card unit | prior |
+|---|---|---|---|
+| `beamwidth_x` / `beamwidth_y` | `k = 1 + eps` on `sigma_x^2` / `sigma_y^2` | `eps` | the record's `BeamWidthError`; `--beamwidth-prior 0` = FREE |
+| `beamcorr_xy` | `rho = tanh(eta)` | `eta` | **FREE** -- the record has no `rho` to take one from |
+| `beamtilt_x` / `beamtilt_y` | offset of `dxdz` / `dydz` | 1e-5 | **FREE** |
+| `beamcentre_x` / `beamcentre_y` | offset of `x0` / `y0` | 1e-4 cm = 1 um | **FREE** |
+
+`sigma_z` does not float (the z beam row is weightless against a ~100 um
+vertex error, so it is inert) and `z0` is inert for the same reason.
+
+**WHY THE FOUR ARE FREE AND THE TWO WIDTHS ARE NOT.**  `rho` has no prior
+because the record carries no value for it.  The tilts and the centre have
+none because the fit's own vertices measure them far better than the record
+does -- ~10 um per candidate over a 3.6 cm lever arm -- so a record prior
+would measure the TENSION rather than the luminous region, which is the same
+argument section 14.18 makes for the widths and the reason `--beamwidth-prior
+0` is the number to quote.
+
+##### The algebra needs NOTHING new from the maker
+
+Family 16 is registered with `dV = covBS`, so a functional's variance share
+from the block is EXACTLY
+
+    Var_bs = w^T covBS w = sum_ab covBS_ab Q_ab ,   Q_ab = w_a w_b
+
+with `w` its own influence weight on the three beam rows.  `Jpsi_bsmean*` IS
+`-w` (3 floats per functional), `Jpsi_{mass,vtx}vbs` / `Jpsi_bsvbs` are the
+nominal shares, and `Jpsi_bswidth` / `Jpsi_bsslope` / `Jpsi_bsspot` are the
+record.  So the whole 3x3 is a re-reading of exports that already exist, and
+the MEAN responses were already identities in the base-class doc block:
+
+    d theta / d x0   = -w_x                         =  Jpsi_bsmean*[0]
+    d theta / d dxdz = -w_x (z_v - z0)              =  the same x (z_v - z0)
+
+The tilts therefore enter BOTH the covariance (second order) and the mean
+(dominant).  They are ONE parameter: `MassCFTerm` de-duplicates a name that
+appears in both `beam3_params` and `jac_params`, and the gradient is the sum
+of the two contributions (checked exactly, `tests/test_beam3.py`).
+
+##### The gates
+
+| gate | measured |
+|---|---|
+| **ASSEMBLY** `sum_ab covBS_ab Q_ab / Cov_ii` vs the maker's exported share, all four functionals | median **2.2e-8**, max 1.1e-7 (`gate_beam3.py`, 10 254 candidates) -- the float32 export precision, and it is re-run on every card |
+| the same for `d/dk_x` and `d/dk_y` vs `Jpsi_*vbsx` / `*vbsy` | median **2.2e-8** |
+| the FORMULA rebuild vs the maker's `covBS -> D covBS D` width convention | median **2.5e-4** of the derivative, ~5e-5 of the share |
+| **NOMINAL**, card level: `NLL(0)` beam3 vs the two linear width classes | **BIT-IDENTICAL** on `vtx`, `bsx`, `bsy` |
+| **NOMINAL**, gradient on the 60 shared parameters | max **2e-16** relative |
+| gradients of all five covariance parameters vs central FD | 1.5e-9 .. 4.3e-6 (the last is `beamcorr_xy`, FD-limited) |
+| the full 5x5 Hessian vs FD of the analytic gradient | max **1.2e-8** |
+| the in-graph share vs an independent numpy `covBS` over a wide parameter grid | **2e-16** |
+| hdf5 round trip, units, role freezing, the truncation normalisation | pass |
+
+**THE TWO WIDTH CONVENTIONS ARE NOT THE SAME, AND THE DIFFERENCE IS STATED.**
+The maker's exported `*vbsx` is the derivative under `covBS -> D covBS D` with
+`D = diag(sqrt k_x, sqrt k_y, 1)`, which scales the tilt-induced `C_xz` along
+with the width.  `--beam3` REBUILDS `covBS` from the scaled width through the
+fitter expression, which is what a physical change of `sigma_x` does: there
+`C_xz` depends on `k_x` only through `-dxdz sigma_x^2`.  The two differ by
+`2 w_x w_z (dxdz)(sigma_z^2/2 + sigma_x^2)`, measured at **2.5e-4** of the
+derivative and ~5e-5 of the share, because `w_z/w_x ~ 1e-5`.  The physical one
+is used; the gate quotes the difference rather than hiding it.
+
+**THE LINEAR WIDTH SCALE IS EXACT, AND THERE IS NO CLIP.**  The block's
+variance is linear in `sigma^2`, so `k = 1 + eps` is not a first-order form of
+anything: `eps` IS the fractional change of the variance.  The physical domain
+is `eps > -1`; the fits sit at `-0.14 +- 0.06`, fifteen sigma from it, and a
+model asked for a negative variance says so rather than being floored into a
+different model.  `rho = tanh(eta)` is a smooth bijection onto `(-1, 1)` with
+`drho/deta = 1` at the nominal `rho = 0`, so it is a change of variable and
+not a bound, and the fitted error needs no transform to be read as one on
+`rho`.
+
+##### The closure reference is EXACT, not merely measured
+
+This MC's luminous region is known in closed form.
+`BetafuncEvtVtxGenerator` with
+`Realistic25ns13TeV2016CollisionVtxSmearingParameters` draws
+
+    Z = Gauss(0, SigmaZ) + Z0
+    X = Gauss(0, sigma(Z)/sqrt(2)) + X0        <- `+ Z*fdxdz` is COMMENTED OUT
+    Y = Gauss(0, sigma(Z)/sqrt(2)) + Y0           in the source
+    sigma(z) = sqrt(emittance (betastar + (z - Z0)^2/betastar))
+
+with `Phi = Alpha = 0` (they are the event's Lorentz boost, not a rotation of
+the vertex distribution).  Therefore
+
+* **dxdz = dydz = 0 EXACTLY** -- the simulation has no tilt at all;
+* **rho_xy = 0 EXACTLY** -- X and Y are independent draws;
+* `sigma_x = sigma_y` identically, marginal rms
+  `sqrt(emittance (betastar + SigmaZ^2/betastar)/2)` = **9.9467 um**;
+* `X0, Y0, Z0 = 0.09163, 0.16955, 0.9315 cm` to the digit.
+
+The record has `sigma_x != sigma_y`, non-zero tilts and no `rho`, so every one
+of those differences is a NUMBER THE FIT MUST RETURN.  `beam3_gen.py` prints
+the closed form and re-measures the same quantities on the sample's own gen
+vertices (robust: the gen vertex has heavy tails -- rms 32 / 91 um against a
+MAD of 10 um -- so the width is a trimmed standard deviation with its Gaussian
+bias divided out exactly, the tilt is an IRLS fit, and the errors are
+bootstrap).
+
+| parameter | card unit | generator (exact) | gen vertices (10 223) |
+|---|---|---|---|
+| `beamwidth_x` | eps | **-0.1570** | -0.1401 +- 0.0123 |
+| `beamwidth_y` | eps | **-0.0831** | -0.0777 +- 0.0130 |
+| `beamcorr_xy` | eta | **0** | -0.0061 +- 0.0098 |
+| `beamtilt_x` | 1e-5 | **+0.5970** | +0.4304 +- 0.2771 |
+| `beamtilt_y` | 1e-5 | **-0.4718** | -0.4037 +- 0.2671 |
+| `beamcentre_x` | um | **-0.1590** | -0.1210 +- 0.1029 |
+| `beamcentre_y` | um | **+0.1301** | -0.0458 +- 0.1008 |
+
+(the gen-vertex column measures the same thing with the sample's own
+statistical fluctuation, so it is the reference to pull against when the fit
+and the reference share the events.)
+
+##### The fits (`dy_bs_final`, 8 000 candidates, `vtx + bsx + bsy`, FREE widths)
+
+Every one through `rabbit_fit.py`, certified by rabbit's EDM.  The `base` card
+is the published `vtxbsfree_cf` construction (the two linear width classes);
+`b3` is the same candidates and the same 60 material / hit-class parameters
+with the block replaced by the 3x3 plus the two centre offsets.
+
+| fit | parameters | EDM | NLL |
+|---|---|---|---|
+| `base_vtxbs` | 62 | 2.5e-16 | -12480.951 |
+| `b3_vtxbs` | 67 | 7.0e-16 | -12491.451 |
+
+`Delta NLL = -10.50` for five more parameters.
+
+| parameter | unit | generator | gen vertices | `base` | `b3` | pull (b3 vs generator) |
+|---|---|---|---|---|---|---|
+| `beamwidth_x` | eps | -0.1570 | -0.1401 +- 0.0123 | **-0.1394 +- 0.0638** | **-0.1380 +- 0.0640** | +0.30 |
+| `beamwidth_y` | eps | -0.0831 | -0.0777 +- 0.0130 | **-0.0595 +- 0.0567** | **-0.0582 +- 0.0569** | +0.44 |
+| `beamcorr_xy` | atanh(rho) | 0 | -0.0061 +- 0.0098 | -- | **-0.2970 +- 0.0807** | **-3.68** |
+| `beamtilt_x` | 1e-5 | +0.5970 | +0.4304 +- 0.2771 | -- | -0.2530 +- 0.5954 | -1.43 |
+| `beamtilt_y` | 1e-5 | -0.4718 | -0.4037 +- 0.2671 | -- | -0.8038 +- 0.5799 | -0.57 |
+| `beamcentre_x` | um | -0.1590 | -0.1210 +- 0.1029 | -- | +0.4059 +- 0.2144 | **+2.63** |
+| `beamcentre_y` | um | +0.1301 | -0.0458 +- 0.1008 | -- | -0.1451 +- 0.2109 | -1.30 |
+
+**The `base` fit reproduces section 14.18 to the digit** (-0.1394 +- 0.0638 /
+-0.0595 +- 0.0567, `corr` +0.09), which is the statement that the
+re-extraction and the rebuilt card changed nothing.
+
+**FLOATING FIVE MORE PARAMETERS DOES NOT DISTURB THE WIDTHS**: `eps_x` moves
+by 0.0014 and `eps_y` by 0.0013, i.e. **0.02 sigma** each, and their errors
+grow by 0.3 %.  The beam block's seven parameters are mutually ORTHOGONAL --
+the largest off-diagonal correlation in the block is **+0.091**
+(`beamwidth_x`-`beamwidth_y`, which is the pair that was already there) and no
+other exceeds 0.09.  So they are seven separate measurements, not one
+direction seen seven ways.
+
+**The four parameters that were pinned are measured, and three of the four
+close.**  The two tilts and `beamcentre_y` sit within 1.5 sigma of the
+generator's exact values; `beamcentre_x` is at +2.6 sigma.  On 8 000
+candidates the tilt errors (0.60e-5) are comparable to the record-vs-simulation
+offsets themselves (0.60e-5 and 0.47e-5), so the tilt closure is a 1 sigma
+statement at this sample size and needs the larger production to become a test.
+
+**`beamcorr_xy` DOES NOT CLOSE: -0.297 +- 0.081 against an EXACT zero.**  It
+is the one parameter of the seven that is inconsistent with the simulation,
+and the direct check says the luminous region is not the reason: the measured
+`corr(z_1, z_2)` on this sample is **-0.0103 +- 0.0099** in the global basis
+and **+0.0302 +- 0.0099** in the whitened one (section 14.12), neither of
+which is a -0.29 correlation.  The reason is a MODELLING GAP, stated here
+rather than absorbed:
+
+* `rho` enters a functional's variance only through `Q_xy = w_x w_y`.  The
+  first whitened pull `z_1` IS the x pull, so its `w_y` is identically zero
+  (`Jpsi_bsvbsy[0] == 0`, section 14.15) and `rho` cannot move it at all.  So
+  `rho` is a knob on the variance of `z_2` and of the vertex residual that
+  does NOT touch `z_1` -- and `Var(z_1) = 1.181` against `Var(z_2) = 1.109`
+  (section 14.12) is exactly such an imbalance.
+* A true `rho` would also make the two beam terms CORRELATED, and the
+  likelihood multiplies them as if they were independent, so that half of the
+  effect is not in the model at all.
+
+`beamcorr_xy` is therefore reported as what it is -- a measurement of the
+`z_1` / `z_2` variance imbalance, not of the luminous region's `rho` -- and it
+is the reason the two beam terms' joint treatment (section 14.19 item 2) has
+to be settled before `rho` can be read as physical.
+
+##### `beamcorr_xy` -- what it is actually measuring
+
+Freezing it (`--beam3-freeze beamcorr_xy`, which removes the parameter rather
+than pinning it with a prior) and re-fitting the same candidates:
+
+| fit | parameters | EDM | NLL |
+|---|---|---|---|
+| `b3_vtxbs` | 67 | 7.0e-16 | -12491.451 |
+| `b3nc_vtxbs` | 66 | 1.0e-13 | -12483.950 |
+
+`Delta NLL = -7.50` for that ONE parameter (`2 Delta NLL = 15.0`, 3.9 sigma,
+consistent with its own 3.7 sigma error) -- and **nothing else moves**: the
+largest shift over the other 20 floating parameters is **0.10 sigma**
+(`beamwidth_x`, -0.0063), the tilts move by 0.10 and 0.02 sigma, the centres
+by 0.01 and 0.08.
+
+So `rho` is a genuine, ISOLATED direction that the record's model does not
+have, and the data want it at 3.9 sigma -- but it is NOT the luminous
+region's `rho`, which this MC sets to zero by construction and which the gen
+vertices confirm at `-0.0061 +- 0.0098`.  What it is degenerate with is the
+TRANSVERSE ANISOTROPY of the fit's own vertex-covariance deficit: `Var(z_1) =
+1.181` against `Var(z_2) = 1.109` (section 14.12), and `rho` is the only
+parameter in the block that moves `z_2` and the vertex residual without
+touching `z_1` (`z_1` is the x pull, so its `w_y` is identically zero and
+`Q_xy = w_x w_y` vanishes).  **On data `beamcorr_xy` must not be read as the
+luminous region's correlation** unless the `C_{-B}` mis-modelling is
+controlled first, or it will absorb it.
+
+##### The sandwich, with the new parameters
+
+`fisher_vtx.py --beam3` + `hitlik/efficiency.py`, the SAME 8 000 candidates
+and the same 67-parameter vector the cards fit.  Adding five parameters leaves
+the over-counting exactly where it was:
+
+| channel | median sandwich/quoted, `--beam3` | the same, widths only (section 14.14) |
+|---|---|---|
+| `bs` | **1.153** | 1.138 |
+| `vtx` | **0.920** | 0.919 |
+| `vtx + bs` | **1.195** | 1.196 |
+
+`bootstrap/sandwich` is 0.998-1.003, so the sandwich itself is right.  Per
+beam parameter, on `vtx + bs`:
+
+| parameter | `bs` | `vtx` | `vtx + bs` |
+|---|---|---|---|
+| `beamwidth_x` | 1.098 | 1.117 | **1.025** |
+| `beamwidth_y` | 1.068 | 1.197 | **1.047** |
+| `beamcorr_xy` | 1.129 | 1.072 | **1.151** |
+| `beamtilt_x` | 1.095 | 0.940 | **0.990** |
+| `beamtilt_y` | 1.106 | 1.050 | **0.975** |
+| `beamcentre_x` | 0.913 | 0.995 | **0.816** |
+| `beamcentre_y` | 0.976 | 0.961 | **0.891** |
+
+Every one is between 0.82 and 1.15, so the quoted errors on the seven are
+honest to ~15 %.  (This needed one change in rabbit: `rechunk` refused to
+re-partition a term carrying a per-candidate sparse `D`, and the beam centre
+and tilts act through exactly that `D`, so no `--beam3` card could be put
+through a per-batch score covariance at all.  It now re-slices the blocks from
+the whole matrix -- the same reconstruction `candidate_slice` does -- with the
+NLL bit-identical and the gradient to 3e-9 across chunk sizes.)
+
+##### What it does to the MASS term
+
+The same comparison with the constrained MASS channel in the card
+(`vtx + bsx + bsy + mass`, the momentum scale `alpha` floating in units of
+1e-3 and both mandatory mass corrections on), same candidates, same 60
+material / hit-class parameters:
+
+| fit | parameters | EDM | NLL |
+|---|---|---|---|
+| `base_vtxbsm` | 63 | 2.9e-14 | +10673.711 |
+| `b3_vtxbsm` | 68 | 2.3e-06 | +10662.865 |
+
+`Delta NLL = -10.85`, and the beam parameters come out where the beam-only
+channels put them (`rho` -0.3034 +- 0.0813, `beamcentre_x` +0.4331 +- 0.2134),
+i.e. adding the mass channel does not move them.
+
+| parameter | `base` | `b3` | Delta | Delta / sigma |
+|---|---|---|---|---|
+| **`alpha`** (1e-3) | +1.51661 +- 0.34480 | +1.52163 +- 0.34477 | **+0.00501** | **+0.01** |
+| the 18 hit classes | -- | -- | largest 0.018 | largest **0.04** |
+
+**THE MASS SCALE MOVES BY +5.0e-6, which is 0.46 MeV at the Z** -- 0.015 of
+its own statistical error on this sample, and HALF the 1e-5 Z-mass target.
+The error on `alpha` is unchanged in the fourth digit (0.34480 -> 0.34477), so
+floating five more luminous-region parameters costs the momentum scale
+NOTHING in precision.  No hit class moves by more than 0.04 sigma.
+
+Read: the luminous region's shape is nearly orthogonal to the momentum scale,
+which is what makes it safe to float -- but +5e-6 is not zero at the Z-mass
+target, so the beam parameters belong in the joint fit rather than being
+pinned to the record and forgotten.
+
+##### The two beam pulls, before and after
+
+`beam3_pulls.py`, the same 8 000 candidates, the fitted `b3` parameters
+applied as the model says they act: the MEAN through `z -> z + sum_k (dz/dp_k)
+p_k` and the VARIANCE through `1 + Delta v_bs(p) + sum_c eps_c v_c + Delta
+v_mat`.
+
+| | N | Var(z) raw | Var(z + mean) raw | Var trimmed | model Var | raw / model | mean(z) | mean(z + corr) |
+|---|---|---|---|---|---|---|---|---|
+| `z_1` (`bsx`) | 8000 | 1.1552 | 1.1553 | 1.0787 | 1.1017 | 1.0486 | +0.0167 | +0.0006 |
+| `z_2` (`bsy`) | 8000 | 1.1104 | 1.1099 | 1.0467 | 1.0632 | 1.0444 | +0.0031 | +0.0104 |
+
+The variance shares that make the model number: `d v_bs` **-0.031 / -0.027**
+(the luminous region shrinks, which is what the negative `eps` means),
+`d v_hit` **+0.129 / +0.086**, `d v_mat` +0.004 / +0.005.
+
+**The pulls do NOT become unit-variance, and they were never going to.**  The
+excess is `C_{-B}`, the fit's own vertex covariance, which is ~18 % low; the
+luminous region is only 0.21 / 0.37 of `Cov(r_bs)` and the fit moves it in the
+direction that makes the model NARROWER, not wider.  What closes the gap is
+the hit classes, and after both the data/model ratio is **1.049 / 1.044**
+against 1.155 / 1.110 at the record.
+
+**The mean terms are not resolved at this sample size.**  The fitted centre
+and tilts shift the pulls by an rms of 0.008 / 0.018 -- a hundredth of a sigma
+-- and the pull means move from +0.017 / +0.003 to +0.001 / +0.010 against a
+statistical error of 0.012 on each.  The closure of the mean parameters is in
+the fitted VALUES, not in a visible shift of the residual.
+
+##### Two defects found on the way, both fixed
+
+1. **`rho sqrt(C_xx C_yy)` has a NaN SECOND derivative wherever the record's
+   width is zero.**  The value and the gradient stay finite (`0 * inf` only
+   appears at second order), so the minimiser converges normally and
+   `edmval_cov` dies on `array must not contain infs or NaNs` -- which is
+   exactly how it presented.  Measured on the bare expression at `sigma = 0`,
+   `rho = 0`: `rho sqrt(vx) sqrt(vy)` gives value 0, gradient 0, **d2 = NaN**;
+   `rho sqrt(k_x) sqrt(k_y) sigma_x sigma_y` gives 0, 0, 0.  The two are
+   identical for any positive record; the second takes the square root of the
+   PARAMETER, which is 1 at the nominal point.
+2. **A zero record row is not hypothetical -- the truncation normalisation
+   builds them.**  `_vtx_norm_block` gives an EMPTY resolution class the whole
+   sample as its members; the first version of the class-level beam block used
+   a plain `bincount` and gave those classes zero `Q`, zero record, zero
+   share.  The beam channels hit it every time: their `sigma` is identically
+   1, the quantile edges collapse and seven of the eight classes come out
+   empty.
+
+Either fix alone removes the failure.  Both are kept: the first is about the
+expression being differentiable, the second about the class rows being the
+model.
+
 
 ---
 

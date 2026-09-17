@@ -232,7 +232,7 @@ def beam3_cov(sigx, sigy, sigz, dxdz, dydz, rho=0.0):
 
 
 def beam3_block(d, idx, sigma, inject, log=print):
-    """`(q, ref, v0, mean)` of the 3x3 block for the selected candidates.
+    """`(q, ref, v0, mean, dmobs)` of the 3x3 block for the selected candidates.
 
     `q` is `Q_ab / sigma_i^2` (the share is what the term adds to `vgf`, which
     is in units of the functional's own variance), `ref` the record
@@ -240,11 +240,17 @@ def beam3_block(d, idx, sigma, inject, log=print):
     share as the MAKER computed it, and `mean` the four `d theta/d p` columns
     of the mean response in the order `BEAM3_MEAN`.
 
-    AN INJECTION shifts `v0` by the share difference the injected parameters
-    make, uniformly over all five roles: the model at `p = 0` then carries the
-    injected covariance and the fit has to return `-injection`.  Injecting
-    through `v0` rather than through `ref` is what lets `beamcorr_xy` -- which
-    has no record value to perturb -- be injected at all.
+    AN INJECTION acts in BOTH places the parameter does.  On the COVARIANCE it
+    shifts `v0` by the share difference the injected parameters make, uniformly
+    over all five roles -- injecting through `v0` rather than through `ref` is
+    what lets `beamcorr_xy`, which has no record value to perturb, be injected
+    at all.  On the MEAN it returns `dmobs = sum_k (d theta/d p_k) e_k`, which
+    the caller ADDS to `mobs`; with `delta = mobs + (d theta/d p) p` the
+    minimum then sits at `p = -e`, the same sign convention a hit-class
+    injection has.  A tilt injected only into the covariance would be
+    invisible -- the tilt's covariance effect is second order and its mean
+    effect is the whole measurement -- so doing only half of it would not be a
+    weaker test, it would be a wrong one.
     """
     for k in ("bsmean", "vbs", "bswidth", "bsslope", "bsvtx", "bsspot"):
         if k not in d.files:
@@ -291,7 +297,14 @@ def beam3_block(d, idx, sigma, inject, log=print):
     log(f"  beam3 mean terms: |d theta/d x0| median "
         f"{np.median(np.abs(mean[:,0])):.4g} per um, tilt lever "
         f"<|z_v - z0|> = {np.mean(np.abs(lever)):.3f} cm")
-    return q, ref, v0, mean
+    dmobs = np.zeros(len(idx))
+    if inject:
+        e = np.array([inject.get(k, 0.0) for k in BEAM3_MEAN])
+        dmobs = mean @ e
+        if np.any(e):
+            log(f"  beam3 mean injection {dict(zip(BEAM3_MEAN, e))}: "
+                f"d(mobs) rms {dmobs.std():.5g}")
+    return q, ref, v0, mean, dmobs
 
 
 def _keep_mask(args, n, name, log=print):
@@ -480,7 +493,7 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     # WHOLE share (the two transverse directions AND the z part that used to
     # sit inert in `vg_other`) becomes one parameterised number.
     if args.beam3 and not args.no_hits:
-        q3, ref3, v03, b3_mean = beam3_block(
+        q3, ref3, v03, b3_mean, b3_dmobs = beam3_block(
             d, idx, sigma, {k: v for k, v in (inj_hits or {}).items()
                             if isinstance(k, str)}, log)
         b3 = {"q": q3, "ref": ref3, "v0": v03}
@@ -540,6 +553,9 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     isvtx = name != "mass"
     mref = 0.0 if isvtx else MREF[0]
     mobs = d["m0"][idx].astype(np.float64) - mref
+    if b3 is not None and np.any(b3_dmobs):
+        # the MEAN half of a beam3 injection, on the DATA side
+        mobs = mobs + b3_dmobs
     data = {"sigma": sigma, "mobs": mobs, "tgrid": tg, "grp_ptr": nptr,
             "grp_id": ngid, "group_units": group_units,
             "hit_ptr": share[0], "hit_cls": share[1], "hit_v": share[2],
@@ -677,20 +693,34 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
 
     if b3 is not None:
         # D_card = -d theta/d p, the convention `delta = mobs - D theta` needs
-        jm = -b3_mean
+        # A FROZEN role contributes no parameter anywhere: dropping only its
+        # `D` column would leave the name declared with an all-zero column,
+        # i.e. a flat direction and a singular Hessian.  The column and the
+        # name go together.
+        _frz0 = {q.strip() for q in args.beam3_freeze.split(",") if q.strip()}
+        _keep = [i for i, p_ in enumerate(BEAM3_MEAN) if p_ not in _frz0]
+        _mean_params = [BEAM3_MEAN[i] for i in _keep]
+        jm = -b3_mean[:, _keep]
         rows, cols = np.nonzero(jm)
         data["jac_indices"] = np.stack([rows, cols], 1).astype(np.int64)
         data["jac_values"] = jm[rows, cols]
-        data["jac_shape"] = np.asarray([n, len(BEAM3_MEAN)], np.int64)
+        data["jac_shape"] = np.asarray([n, len(_mean_params)], np.int64)
         data["beam3_q"] = b3["q"]
         data["beam3_ref"] = b3["ref"]
         data["beam3_v0"] = b3["v0"]
-        kw.update(beam3_params=list(BEAM3_COV),
+        _frz = {q.strip() for q in args.beam3_freeze.split(",") if q.strip()}
+        _bad = _frz - set(BEAM3_COV)
+        if _bad:
+            sys.exit(f"--beam3-freeze: unknown role(s) {sorted(_bad)}")
+        _cov = ["" if p_ in _frz else p_ for p_ in BEAM3_COV]
+        if _frz:
+            log(f"  beam3: FROZEN at the record: {sorted(_frz)}")
+        kw.update(beam3_params=_cov,
                   beam3_units=[BEAM3_UNITS[p_] for p_ in BEAM3_COV],
                   beam3=b3,
                   jac=(data["jac_indices"], data["jac_values"],
-                       (n, len(BEAM3_MEAN))),
-                  jac_params=list(BEAM3_MEAN))
+                       (n, len(_mean_params))),
+                  jac_params=list(_mean_params))
 
     term = unbinned.MaterialCFTerm(
         name, sigma=sigma, mobs=mobs, tgrid=tg, families=[], vgf=vgf,
@@ -793,6 +823,13 @@ def main():
     # sigma and the parameter scales sigma^2); --beamwidth-prior overrides it.
     p.add_argument("--no-beamwidth", action="store_true",
                    help="do NOT float the two luminous-region width scales")
+    p.add_argument("--beam3-freeze", default="",
+                   help="comma-separated beam3 COVARIANCE roles to hold at the "
+                        "record instead of floating (beamwidth_x, "
+                        "beamwidth_y, beamcorr_xy, beamtilt_x, beamtilt_y). A "
+                        "frozen role contributes no parameter at all, so the "
+                        "fit is the same model with that direction removed -- "
+                        "which is how one asks what a parameter was absorbing.")
     p.add_argument("--beam3", action="store_true",
                    help="float the luminous region as the FULL 3x3 covariance "
                         "-- the two width scales (same names, same linear "

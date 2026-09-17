@@ -1,0 +1,49 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789676036.768393 2691127 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789676042.584935 2691127 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  bsx: standard candidate selection on 10254 candidates
+  bsx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsx:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsx:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  bsx:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsx:     kept                           10254  (100.00 %)
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 2.166e-08, max 7.721e-08 (share median 0.212387)
+  beam3 mean terms: |d theta/d x0| median 0.04255 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789676051.237589 2691127 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 1.893e-08, max 7.931e-08 (share median 0.373129)
+  beam3 mean terms: |d theta/d x0| median 0.01831 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+[16:18:50] bs/cf: H in 276 s, diag -4.51e+04 .. 5.11e+03
+[16:18:56] bs/cf: J from 200 batches, |sum_m g_m - g| = 5.68e-13
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 2.559e-08, max 1.124e-07 (share median 0.026842)
+  beam3 mean terms: |d theta/d x0| median 2.077e-05 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+[16:21:18] vtx/cf: H in 137 s, diag -2.36e+04 .. 1.04e+04
+[16:21:20] vtx/cf: J from 200 batches, |sum_m g_m - g| = 0
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 2.559e-08, max 1.124e-07 (share median 0.026842)
+  beam3 mean terms: |d theta/d x0| median 2.077e-05 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 2.166e-08, max 7.721e-08 (share median 0.212387)
+  beam3 mean terms: |d theta/d x0| median 0.04255 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 1.893e-08, max 7.931e-08 (share median 0.373129)
+  beam3 mean terms: |d theta/d x0| median 0.01831 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+[16:28:30] vtxbs/cf: H in 404 s, diag -6.88e+04 .. 1.55e+04
+[16:28:36] vtxbs/cf: J from 200 batches, |sum_m g_m - g| = 5.68e-13
+[16:28:36] -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_beam3a/fisherHJ_beam3.npz

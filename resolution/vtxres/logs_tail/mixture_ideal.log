@@ -1,0 +1,46 @@
+
+=== DY, gen signal (NO chi2 cut): 10301 candidates
+  ndof (reduced) median 27   chi2/ndof median 1.0138  mean 1.1890  p90 1.6581  p99 2.8968
+  the chi2 PROBABILITY, which must be FLAT on [0,1]:
+    P in [0.000,0.100) = 0.07514   expected 0.10000   ratio    0.75
+    P in [0.400,0.600) = 0.18950   expected 0.20000   ratio    0.95
+    P in [0.900,0.990) = 0.10980   expected 0.09000   ratio    1.22
+    P in [0.990,0.999) = 0.03534   expected 0.00900   ratio    3.93
+    P in [0.999,1.000) = 0.04854   expected 0.00100   ratio   48.54
+  P(chi2 prob < 1e-3) = 0.04970 +- 0.00214 (512/10301)  (expected 0.001)
+
+  the ladder Var(z | chi2/ndof) -- the model says SLOPE 1, INTERCEPT 0
+    z_1   slope +1.0529 +- 0.0561   intercept -0.0434 +- 0.0525
+    z_2   slope +0.8254 +- 0.0498   intercept +0.1688 +- 0.0481
+    z_v   slope +0.5128 +- 0.0540   intercept +0.5702 +- 0.0553
+
+  the SCALE-MIXTURE prediction from the measured chi2/ndof, against the measured tail (no free parameter)
+       t    predicted       obs z_1   ratio       obs z_2   ratio       obs z_v   ratio
+       2      0.06063       0.06504    1.07       0.05786    0.95       0.06504    1.07
+       3      0.00845       0.01718    2.03       0.01291    1.53       0.01184    1.40
+       4      0.00148       0.00748    5.04       0.00466    3.14       0.00252    1.70
+       5      0.00054       0.00485    9.01       0.00262    4.86       0.00146    2.70
+    (a single Gaussian would give 0.04550 / 0.00270 / 0.000063 / 0.0000006)
+
+=== DY, gen signal (chi2/ndof < 3, the published baseline): 10226 candidates
+  ndof (reduced) median 27   chi2/ndof median 1.0105  mean 1.1050  p90 1.6261  p99 2.6222
+  the chi2 PROBABILITY, which must be FLAT on [0,1]:
+    P in [0.000,0.100) = 0.07569   expected 0.10000   ratio    0.76
+    P in [0.400,0.600) = 0.19089   expected 0.20000   ratio    0.95
+    P in [0.900,0.990) = 0.11060   expected 0.09000   ratio    1.23
+    P in [0.990,0.999) = 0.03550   expected 0.00900   ratio    3.94
+    P in [0.999,1.000) = 0.04283   expected 0.00100   ratio   42.83
+  P(chi2 prob < 1e-3) = 0.04283 +- 0.00200 (438/10226)  (expected 0.001)
+
+  the ladder Var(z | chi2/ndof) -- the model says SLOPE 1, INTERCEPT 0
+    z_1   slope +1.0233 +- 0.0560   intercept -0.0176 +- 0.0524
+    z_2   slope +0.8153 +- 0.0505   intercept +0.1771 +- 0.0486
+    z_v   slope +0.4821 +- 0.0545   intercept +0.5952 +- 0.0557
+
+  the SCALE-MIXTURE prediction from the measured chi2/ndof, against the measured tail (no free parameter)
+       t    predicted       obs z_1   ratio       obs z_2   ratio       obs z_v   ratio
+       2      0.05856       0.06063    1.04       0.05378    0.92       0.06200    1.06
+       3      0.00723       0.01330    1.84       0.00958    1.33       0.00988    1.37
+       4      0.00079       0.00420    5.34       0.00225    2.86       0.00127    1.61
+       5      0.00008       0.00196   24.04       0.00108   13.22       0.00049    6.01
+    (a single Gaussian would give 0.04550 / 0.00270 / 0.000063 / 0.0000006)

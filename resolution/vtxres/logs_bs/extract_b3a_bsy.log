@@ -1,0 +1,14 @@
+# 6 files, functional bsy
+[6/6] cumulative 10254 (4 s)
+standard candidate selection on 10413 candidates
+    Jpsi_vtxok                     10413  (100.00 %, -0)
+    finite sigma_m, sigma_v        10413  (100.00 %, -0)
+    min leg hits >= 8              10413  (100.00 %, -0)
+    chi2/ndof < 3                  10258  ( 98.51 %, -155)
+    |z_v| < 5                      10254  ( 98.47 %, -4)
+    kept                           10254  ( 98.47 %)
+
+=== bsy: 10254 candidates, 263054 group rows (25.65/cand), 12.84 hit rows/cand
+    exponent storage 32.07 kB/cand
+    sum_g (vqms+vqio) + vgf closure: median 1.000000  p1 1.000000  p99 1.000000
+    -> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_beam3a/dy_bsy.npz (322.6 MB)

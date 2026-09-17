@@ -1,0 +1,38 @@
+beam-width prior: FREE (--beamwidth-prior 0)
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789674179.957976 1157902 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789674186.081748 1157902 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  vtx: standard candidate selection on 10254 candidates
+  vtx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  vtx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  vtx:     min leg hits >= 8              10254  (100.00 %, -0)
+  vtx:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  vtx:     |z_v| < 5                      10254  (100.00 %, -0)
+  vtx:     kept                           10254  (100.00 %)
+  bsx: standard candidate selection on 10254 candidates
+  bsx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsx:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsx:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  bsx:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsx:     kept                           10254  (100.00 %)
+  bsy: standard candidate selection on 10254 candidates
+  bsy:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsy:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsy:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsy:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  bsy:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsy:     kept                           10254  (100.00 %)
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres/make_vtx_card.py", line 1023, in <module>
+    main()
+    ~~~~^^
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres/make_vtx_card.py", line 936, in main
+    idx = common_index([(nm, npz) for nm, npz in CHANNELS(args) if npz], args)
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres/make_vtx_card.py", line 736, in common_index
+    d = np.load(npz, allow_pickle=False)
+  File "/opt/venv/lib/python3.13/site-packages/numpy/lib/_npyio_impl.py", line 454, in load
+    fid = stack.enter_context(open(os.fspath(file), "rb"))
+                              ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/dy_mass.npz'

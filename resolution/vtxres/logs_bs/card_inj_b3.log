@@ -1,0 +1,54 @@
+beam-width prior: FREE (--beamwidth-prior 0)
+injecting beamtilt_x=+1, beamcorr_xy=+0.05
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789675194.915453 2676364 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789675200.678361 2676364 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  vtx: standard candidate selection on 10254 candidates
+  vtx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  vtx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  vtx:     min leg hits >= 8              10254  (100.00 %, -0)
+  vtx:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  vtx:     |z_v| < 5                      10254  (100.00 %, -0)
+  vtx:     kept                           10254  (100.00 %)
+  bsx: standard candidate selection on 10254 candidates
+  bsx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsx:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsx:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  bsx:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsx:     kept                           10254  (100.00 %)
+  bsy: standard candidate selection on 10254 candidates
+  bsy:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsy:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsy:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsy:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  bsy:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsy:     kept                           10254  (100.00 %)
+--same-candidates: 8000 candidates kept by BOTH functionals
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 2.559e-08, max 1.124e-07 (share median 0.026842)
+  beam3 injection {'beamwidth_x': 0.0, 'beamwidth_y': 0.0, 'beamcorr_xy': 0.05, 'beamtilt_x': 1.0, 'beamtilt_y': 0.0}: d(share) median +4.1185e-06
+  beam3 mean terms: |d theta/d x0| median 2.077e-05 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  beam3 mean injection {'beamcentre_x': np.float64(0.0), 'beamcentre_y': np.float64(0.0), 'beamtilt_x': np.float64(1.0), 'beamtilt_y': np.float64(0.0)}: d(mobs) rms 2.1645e-05
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789675209.660254 2676364 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+  vtx NLL(0) = -35797.786913, max|grad| = 1033
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 2.166e-08, max 7.721e-08 (share median 0.212387)
+  beam3 injection {'beamwidth_x': 0.0, 'beamwidth_y': 0.0, 'beamcorr_xy': 0.05, 'beamtilt_x': 1.0, 'beamtilt_y': 0.0}: d(share) median +0.00028385
+  beam3 mean terms: |d theta/d x0| median 0.04255 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  beam3 mean injection {'beamcentre_x': np.float64(0.0), 'beamcentre_y': np.float64(0.0), 'beamtilt_x': np.float64(1.0), 'beamtilt_y': np.float64(0.0)}: d(mobs) rms 0.015589
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+  bsx NLL(0) = 11871.430264, max|grad| = 816.9
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 1.893e-08, max 7.931e-08 (share median 0.373129)
+  beam3 injection {'beamwidth_x': 0.0, 'beamwidth_y': 0.0, 'beamcorr_xy': 0.05, 'beamtilt_x': 1.0, 'beamtilt_y': 0.0}: d(share) median +0.0002702
+  beam3 mean terms: |d theta/d x0| median 0.01831 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  beam3 mean injection {'beamcentre_x': np.float64(0.0), 'beamcentre_y': np.float64(0.0), 'beamtilt_x': np.float64(1.0), 'beamtilt_y': np.float64(0.0)}: d(mobs) rms 0.0092856
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+  bsy NLL(0) = 11703.800598, max|grad| = 413.6
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_beam3a/cards/inj_b3_vtxbs.hdf5 (554.8 MB, 67 parameters)

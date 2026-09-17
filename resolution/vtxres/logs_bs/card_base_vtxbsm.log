@@ -1,0 +1,52 @@
+beam-width prior: FREE (--beamwidth-prior 0)
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789672268.331419 1680588 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789672284.613945 1680588 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  vtx: standard candidate selection on 10254 candidates
+  vtx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  vtx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  vtx:     min leg hits >= 8              10254  (100.00 %, -0)
+  vtx:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  vtx:     |z_v| < 5                      10254  (100.00 %, -0)
+  vtx:     kept                           10254  (100.00 %)
+  bsx: standard candidate selection on 10254 candidates
+  bsx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsx:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsx:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  bsx:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsx:     kept                           10254  (100.00 %)
+  bsy: standard candidate selection on 10254 candidates
+  bsy:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsy:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsy:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsy:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  bsy:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsy:     kept                           10254  (100.00 %)
+  mass: standard candidate selection on 10254 candidates
+  mass:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  mass:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  mass:     min leg hits >= 8              10254  (100.00 %, -0)
+  mass:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  mass:     |z_v| < 5                      10254  (100.00 %, -0)
+  mass:     kept                           10254  (100.00 %)
+--same-candidates: 8000 candidates kept by BOTH functionals
+  norm classes: sigma 0.00181..0.00435, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789672315.299296 1680588 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+vtx term: 8000 candidates, 183169 group rows (22198 pruned), 118856 hit rows, 62 parameters, arm 'cf'
+  vtx NLL(0) = -35789.866746, max|grad| = 1064
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 170702 group rows (34665 pruned), 118856 hit rows, 62 parameters, arm 'cf'
+  bsx NLL(0) = 11871.842974, max|grad| = 843.6
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176820 group rows (28547 pruned), 118856 hit rows, 62 parameters, arm 'cf'
+  bsy NLL(0) = 11704.920190, max|grad| = 421
+  mass corrections ON (fluctuation form): a_res median 0.01355 max 0.32155; 1.5 s^2 median 1.9859e-04 -> 18.11 MeV
+[15:12:30] kernel CF tabulation (8000 samples) built in 4.0 s
+mass term: 8000 candidates, 184987 group rows (20380 pruned), 118856 hit rows, 63 parameters, arm 'cf'
+  mass NLL(0) = 23547.628551, max|grad| = 12.95
+-> /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_beam3a/cards/base_vtxbsm.hdf5 (744.2 MB, 63 parameters)

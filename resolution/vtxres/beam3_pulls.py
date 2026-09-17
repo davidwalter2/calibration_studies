@@ -103,9 +103,14 @@ def main():
     import hitres_classes
     hparams = [f"hitres_{c}" for c in hitres_classes.CLASSES]
 
-    print(f"\n{'channel':8s} {'N':>6s} {'Var(z)':>9s} {'Var(z+mean)':>12s} "
-          f"{'model Var':>10s} {'ratio':>8s} {'mean(z)':>10s} "
-          f"{'mean(z+corr)':>12s}")
+    # BOTH estimators are printed.  The model's variance is the FULL second
+    # moment of a non-Gaussian CF density, so the raw sample variance is its
+    # comparator; the 1 %-trimmed one (bias-corrected for a Gaussian) is what
+    # the tail-insensitive statement needs, and the two differ by ~10 % here
+    # because the beam residual has a 5 sigma tail (section 14.19 item 1).
+    print(f"\n{'channel':8s} {'N':>6s} {'Var raw':>9s} {'Var raw+m':>10s} "
+          f"{'Var trim':>9s} {'Vtrim+m':>9s} {'model Var':>10s} "
+          f"{'raw/model':>9s} {'mean(z)':>10s} {'mean(z+m)':>10s}")
     for nm in ("bsx", "bsy"):
         d = np.load(os.path.join(a.npz_dir, f"{a.prefix}_{nm}.npz"),
                     allow_pickle=False)
@@ -126,7 +131,8 @@ def main():
         # the model's VARIANCE at the fitted point, in units of the exported
         # sigma^2 (which is 1 for the whitened pulls, by construction)
         sigma = np.asarray(d["sigma"], np.float64)[idx]
-        q, ref, v0, _mean = MC.beam3_block(d, idx, sigma, {}, log=lambda *_: None)
+        q, ref, v0, _mean, _dm = MC.beam3_block(
+            d, idx, sigma, {}, log=lambda *_: None)
         cov = MC.beam3_cov(
             ref[:, 0] * np.sqrt(1.0 + pars.get("beamwidth_x", 0.0)),
             ref[:, 1] * np.sqrt(1.0 + pars.get("beamwidth_y", 0.0)),
@@ -160,12 +166,11 @@ def main():
             np.add.at(dvmat, gseg, (np.exp(k[gid]) - 1.0) * gq)
 
         vmod = 1.0 + dvbs + dvhit + dvmat
-        v_before = robust_var(z)
-        v_after = robust_var(zc)
         n = len(idx)
-        print(f"{nm:8s} {n:6d} {v_before:9.4f} {v_after:12.4f} "
-              f"{np.mean(vmod):10.4f} {v_after/np.mean(vmod):8.4f} "
-              f"{z.mean():+10.4f} {zc.mean():+12.4f}")
+        print(f"{nm:8s} {n:6d} {z.var():9.4f} {zc.var():10.4f} "
+              f"{robust_var(z):9.4f} {robust_var(zc):9.4f} "
+              f"{np.mean(vmod):10.4f} {z.var()/np.mean(vmod):9.4f} "
+              f"{z.mean():+10.4f} {zc.mean():+10.4f}")
         print(f"{'':8s} shares: d v_bs {np.mean(dvbs):+.5f}, "
               f"d v_hit {np.mean(dvhit):+.5f}, d v_mat {np.mean(dvmat):+.5f}; "
               f"mean shift rms {dz.std():.4f}")

@@ -1,0 +1,26 @@
+# real 10413 candidates, ideal 10413
+# matched 10413
+# both pass the baseline: 10301
+
+=== THE SAME CANDIDATES, the two geometries
+
+  aligned (UL16 MC alignment):  N 10301
+    chi2/ndof median 1.0140  p90 1.6669  P(prob<0.01) 0.08533 +- 0.00275 (879/10301)  P(prob<1e-3) 0.05116 +- 0.00217 (527/10301)
+    z_1: Var  2.2503  P>3 0.01621 +- 0.00124 (167/10301)  P>5 0.00427 +- 0.00064 (44/10301)
+    z_2: Var  1.3174  P>3 0.01311 +- 0.00112 (135/10301)  P>5 0.00223 +- 0.00047 (23/10301)
+    z_v: Var  1.2091  P>3 0.01107 +- 0.00103 (114/10301)  P>5 0.00146 +- 0.00038 (15/10301)
+
+  IDEAL geometry:  N 10301
+    chi2/ndof median 1.0138  p90 1.6581  P(prob<0.01) 0.08504 +- 0.00275 (876/10301)  P(prob<1e-3) 0.04970 +- 0.00214 (512/10301)
+    z_1: Var  2.2619  P>3 0.01718 +- 0.00128 (177/10301)  P>5 0.00485 +- 0.00068 (50/10301)
+    z_2: Var  1.3179  P>3 0.01291 +- 0.00111 (133/10301)  P>5 0.00262 +- 0.00050 (27/10301)
+    z_v: Var  1.2155  P>3 0.01184 +- 0.00107 (122/10301)  P>5 0.00146 +- 0.00038 (15/10301)
+
+  per-candidate chi2/ndof(ideal) - chi2/ndof(aligned): median +0.0012  mean -0.0025
+  the candidates with prob < 1e-3 under the ALIGNED geometry: 527; of those, still < 1e-3 under the IDEAL one: 483
+  the |z_1| > 3 candidates under the ALIGNED geometry: 167; still > 3 under the IDEAL one: 157; median |z_1| there 3.85 against 3.81
+
+=== the chi2 excess against |eta|, both geometries
+  |eta| 0.0-1.4  N   4408   aligned 0.04333 +- 0.00307 (191/4408)   ideal 0.04061 +- 0.00297 (179/4408)
+  |eta| 1.4-1.8  N   2244   aligned 0.04545 +- 0.00440 (102/2244)   ideal 0.04456 +- 0.00436 (100/2244)
+  |eta| 1.8-2.4  N   3397   aligned 0.06417 +- 0.00420 (218/3397)   ideal 0.06388 +- 0.00420 (217/3397)

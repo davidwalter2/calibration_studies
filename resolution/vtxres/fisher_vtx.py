@@ -57,6 +57,9 @@ def main():
     p.add_argument("--bsx-npz", default=None)
     p.add_argument("--bsy-npz", default=None)
     p.add_argument("--groups", required=True)
+    p.add_argument("--beam3-freeze", default="",
+                   help="beam3 roles to hold at the record (see "
+                        "make_vtx_card.py --beam3-freeze)")
     p.add_argument("--beam3", action="store_true",
                    help="float the luminous region as the full 3x3 covariance "
                         "(make_vtx_card.py --beam3)")
@@ -118,7 +121,8 @@ def main():
             # plus the two centre offsets; the sandwich has to be able to see
             # the new parameters or it is measuring a different model from the
             # one that was fitted
-            beam3=a.beam3, mass_corrections=False, corr_form="residual",
+            beam3=a.beam3, beam3_freeze=a.beam3_freeze, mass_corrections=False,
+            corr_form="residual",
             m_ref=a.m_ref, m_window=a.m_window, keep_mask=None, inject=[])
 
     res, params = {}, None

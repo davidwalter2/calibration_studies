@@ -1,0 +1,55 @@
+beam-width prior: FREE (--beamwidth-prior 0)
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789674108.434324 1157807 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789674121.144755 1157807 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+  vtx: standard candidate selection on 10254 candidates
+  vtx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  vtx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  vtx:     min leg hits >= 8              10254  (100.00 %, -0)
+  vtx:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  vtx:     |z_v| < 5                      10254  (100.00 %, -0)
+  vtx:     kept                           10254  (100.00 %)
+  bsx: standard candidate selection on 10254 candidates
+  bsx:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsx:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsx:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsx:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  bsx:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsx:     kept                           10254  (100.00 %)
+  bsy: standard candidate selection on 10254 candidates
+  bsy:     Jpsi_vtxok                        --  (column absent: NOT APPLIED)
+  bsy:     finite sigma_m, sigma_v        10254  (100.00 %, -0)
+  bsy:     min leg hits >= 8              10254  (100.00 %, -0)
+  bsy:     chi2/ndof < 3                  10254  (100.00 %, -0)
+  bsy:     |z_v| < 5                      10254  (100.00 %, -0)
+  bsy:     kept                           10254  (100.00 %)
+--same-candidates: 8000 candidates kept by BOTH functionals
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 2.559e-08, max 1.124e-07 (share median 0.026842)
+  beam3 mean terms: |d theta/d x0| median 2.077e-05 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  norm classes: sigma 0.00181..0.00434, members 1000..1000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+E0000 00:00:1789674141.923971 1157807 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+vtx term: 8000 candidates, 182967 group rows (22172 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+  vtx NLL(0) = -35798.738923, max|grad| = 1032
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 2.166e-08, max 7.721e-08 (share median 0.212387)
+  beam3 mean terms: |d theta/d x0| median 0.04255 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsx term: 8000 candidates, 170478 group rows (34661 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+  bsx NLL(0) = 11870.715417, max|grad| = 816.1
+  beam3 assembly gate: |rebuilt - exported| / |sum| median 1.893e-08, max 7.931e-08 (share median 0.373129)
+  beam3 mean terms: |d theta/d x0| median 0.01831 per um, tilt lever <|z_v - z0|> = 2.896 cm
+  norm classes: sigma 1..1, members 8000..8000
+  truncation normalisation on [-5, 5] sigma, 8 class(es), 2048 t points
+bsy term: 8000 candidates, 176619 group rows (28520 pruned), 102886 hit rows, 67 parameters, arm 'cf'
+  bsy NLL(0) = 11703.441941, max|grad| = 412.6
+Traceback (most recent call last):
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres/make_vtx_card.py", line 1023, in <module>
+    main()
+    ~~~~^^
+  File "/work/submit/david_w/ZMass/calibration_studies/resolution/vtxres/make_vtx_card.py", line 1016, in main
+    os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen os>", line 228, in makedirs
+OSError: [Errno 30] Read-only file system: '/cards'
