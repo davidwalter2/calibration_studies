@@ -72,6 +72,11 @@ def main():
     ap.add_argument('--cache', required=True)
     ap.add_argument('--tag', default='ksclosure')
     ap.add_argument('--outpath', default=None)
+    ap.add_argument('--jpsi-cache', default='/work/submit/david_w/ZMass/'
+                    'calibration_studies/resolution/runs/'
+                    'cf_masspairs_btojpsix_v3_260904f_m0.npz',
+                    help='J/psi -> mu mu cache of the SAME MC, for the '
+                         'channel comparison; "" to skip')
     args = ap.parse_args()
     out = args.outpath or pubhtml.figdir(args.tag)
     os.makedirs(out, exist_ok=True)
@@ -146,9 +151,16 @@ def main():
         pubhtml.savefig(fig, os.path.join(out, 'ks_resid_vs_radius.pdf'))
         plt.close(fig)
 
-    # 4b. pull density against the CF model, with a ratio panel
-    try:
-        edges = np.linspace(-5., 5., 51)
+    # 4b. pull density against the CF model, with a ratio panel.
+    # Two ranges: the core, and a log-scale +-10 sigma view where an
+    # UNMODELLED tail would show. The in-maker CF has families hit / MS /
+    # ionisation / radiative and NO nuclear-elastic term, while a pion crossing
+    # the tracker takes on average 0.05 elastic nuclear collisions of 25-35
+    # mrad -- so 5-10 % of K_S candidates carry one unmodelled angular kick on
+    # one leg. That is a tail, not a width, and this is where it would appear.
+    for suffix, edges, logy in (('', np.linspace(-5., 5., 51), False),
+                                ('_tails', np.linspace(-10., 10., 81), True)):
+      try:
         ctr = 0.5 * (edges[1:] + edges[:-1])
         h, _ = np.histogram(z, bins=edges)
         mlo = model_pull_density(d, edges[:-1])
@@ -162,14 +174,71 @@ def main():
         ax.plot(ctr, mavg * len(z) * wbin, color='crimson', lw=1.5,
                 label='per-candidate CF model')
         ax.set_ylabel('candidates / bin')
+        if logy:
+            ax.set_yscale('log')
+            ax.set_ylim(0.5, None)
         ax.legend()
         ratiopanel.draw_ratio(rax, edges, h, mavg, len(z),
-                              ylabel='data / model', clamp=(0.0, 2.0),
+                              ylabel='data / model', clamp=(0.0, 3.0),
                               xlabel=r'$(m_{\mathrm{reco}}-m_{\mathrm{gen}})/\sigma_m$')
-        pubhtml.savefig(fig, os.path.join(out, 'ks_pull_model.pdf'))
+        pubhtml.savefig(fig, os.path.join(out, f'ks_pull_model{suffix}.pdf'))
         plt.close(fig)
-    except Exception as e:
+        core = np.abs(z) < 2.
+        tail = np.abs(z) >= 3.
+        print(f'pull{suffix}: |z|<2 {100*core.mean():.2f} %, |z|>=3 '
+              f'{100*tail.mean():.3f} % of candidates')
+      except Exception as e:
         print('pull-vs-model plot skipped:', type(e).__name__, e)
+
+    # 4c. chi2/ndof, and the channel comparison against the J/psi of the same MC
+    if 'chisqval' in d.files and 'ndof' in d.files:
+        c2 = d['chisqval'] / np.maximum(d['ndof'], 1)
+        fig, ax = plt.subplots(figsize=(8, 6))
+        hist(ax, np.clip(c2, 0, 4), np.linspace(0, 4, 61), color='black',
+             label=r'$K^0_S \to \pi^+\pi^-$')
+        ax.axvline(3.0, color='crimson', ls='--', lw=1.0,
+                   label=r'selection $\chi^2/\mathrm{ndof} < 3$')
+        ax.set_xlabel(r'two-track fit $\chi^2/\mathrm{ndof}$')
+        ax.set_ylabel('candidates / bin')
+        ax.legend()
+        pubhtml.savefig(fig, os.path.join(out, 'ks_chi2ndof.pdf'))
+        plt.close(fig)
+        print(f'chi2/ndof: median {np.median(c2):.3f}, '
+              f'>3 {100*(c2 > 3).mean():.2f} %; ndof median {np.median(d["ndof"]):.0f}')
+
+    jp = None
+    if args.jpsi_cache and os.path.exists(args.jpsi_cache):
+        jp = np.load(args.jpsi_cache, allow_pickle=True)
+        zj = jp['z']
+        mj = jp['eta'] + jp['sigma'] * zj
+        fig, axs = plt.subplots(1, 2, figsize=(14, 5.5))
+        for a_, x, lab in ((axs[0], sig / m, r'$K^0_S \to \pi\pi$'),
+                           (axs[0], jp['sigma'] / mj, r'$J/\psi \to \mu\mu$')):
+            hist(a_, x, np.linspace(0, 0.03, 61), label=lab,
+                 color=('black' if 'K' in lab else 'crimson'))
+        axs[0].set_xlabel(r'$\sigma_m/m$')
+        axs[0].set_ylabel('candidates / bin (each normalised below)')
+        axs[0].set_yscale('log')
+        axs[0].legend()
+        for a_, x, lab in ((axs[1], z, r'$K^0_S \to \pi\pi$'),
+                           (axs[1], zj, r'$J/\psi \to \mu\mu$')):
+            h, e = np.histogram(x, bins=np.linspace(-6, 6, 61))
+            a_.step(e, np.r_[h[0], h] / max(h.sum(), 1), where='pre', label=lab,
+                    color=('black' if 'K' in lab else 'crimson'))
+        axs[1].set_xlabel(r'$(m_{\mathrm{reco}}-m_{\mathrm{gen}})/\sigma_m$')
+        axs[1].set_ylabel('fraction of candidates / bin')
+        axs[1].set_yscale('log')
+        axs[1].legend()
+        pubhtml.savefig(fig, os.path.join(out, 'ks_vs_jpsi.pdf'))
+        plt.close(fig)
+        rob = lambda x: 0.7413 * (np.quantile(x, .75) - np.quantile(x, .25))
+        print(f'J/psi (same MC): n {len(zj)}, sigma/m med '
+              f'{np.median(jp["sigma"]/mj):.5f}, pull med {np.median(zj):+.4f} '
+              f'std {zj.std():.4f} robust {rob(zj):.4f}, vgf med '
+              f'{np.median(jp["vgf"]):.4f}')
+        print(f'K_S:            n {len(z)}, sigma/m med {np.median(sig/m):.5f}, '
+              f'pull med {np.median(z):+.4f} std {z.std():.4f} '
+              f'robust {rob(z):.4f}, vgf med {np.median(d["vgf"]):.4f}')
 
     # 5. resolution family shares at tau -> the CF exponents
     tg = d['tgrid']
@@ -192,6 +261,15 @@ def main():
     plt.close(fig)
     print('family shares at tau=%.2f: ' % tg[it]
           + ', '.join(f'{n} {100*v:.1f}%' for n, v in zip(labels, vals)))
+    if jp is not None and 'tgrid' in jp.files:
+        tgj = jp['tgrid']
+        itj = min(len(tgj) - 1, int(np.searchsorted(tgj, tg[it])))
+        fj = [('hit', -0.5 * jp['vgf'] * tgj[itj] ** 2), ('MS', jp['Sms'][:, itj]),
+              ('ionisation', jp['Sio_re'][:, itj]), ('radiative', jp['Srad_re'][:, itj])]
+        totj = sum(np.abs(v) for _, v in fj)
+        print('J/psi family shares at tau=%.2f: ' % tgj[itj]
+              + ', '.join(f'{n} {100*np.median(np.abs(v)/np.maximum(totj,1e-30)):.1f}%'
+                          for n, v in fj))
     print('figures ->', out)
 
 

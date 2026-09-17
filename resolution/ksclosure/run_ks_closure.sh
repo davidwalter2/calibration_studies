@@ -24,6 +24,7 @@ echo "=== subsets ==="
   sub() { OMP_NUM_THREADS=1 python3 -u $KS/ks_subset.py --cache $RUNS/kspairs_all.npz \
             --out $RUNS/kspairs_$1.npz --cut "$2"; }
   sub fromb   'ks_fromb > 0'
+  sub fromb0  'ks_fromb == 511'
   sub prompt  'ks_fromb == 0'
   sub r0_2    'ks_rdec < 2'
   sub r2_4    '(ks_rdec >= 2) & (ks_rdec < 4)'
@@ -45,7 +46,7 @@ echo "=== fit all_ares ==="
 PAIRS=$RUNS/kspairs_all.npz $KS/build_ks.sh all_ares --jensen off \
     > $RUNS/build_all_ares.log 2>&1 || echo "FAILED all_ares"
 
-for tag in all fromb prompt r0_2 r2_4 r4_10 r10_60 plo pmid phi; do
+for tag in all fromb fromb0 prompt r0_2 r2_4 r4_10 r10_60 plo pmid phi; do
   [ -s "$RUNS/kspairs_$tag.npz" ] || continue
   echo "=== fit $tag ==="
   PAIRS=$RUNS/kspairs_$tag.npz $KS/build_ks.sh "$tag" \
@@ -54,7 +55,7 @@ done
 
 echo "=== table ==="
 ( source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
-  python3 $KS/ks_table.py --order all_naive all_ares all fromb prompt r0_2 r2_4 r4_10 r10_60 plo pmid phi )
+  python3 $KS/ks_table.py --order all_naive all_ares all fromb fromb0 prompt r0_2 r2_4 r4_10 r10_60 plo pmid phi )
 
 echo "=== figures ==="
 ( source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
