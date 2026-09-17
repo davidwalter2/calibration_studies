@@ -473,6 +473,34 @@ Three further numbers:
   small on this term. The fix is the exact map applied to the FLUCTUATION
   inside the convolution, a code change rather than a configuration.
 
+### 5.12 The Z fold representation — **+0.25 MeV, and it is not the offset**
+
+The phase-2 Z term folded the DY production's own gen record as banded ATOMS
+(11 bands, `sigma_cap` 3.3e-4, 13.03 M events). `P2XT` folds the
+cell-integrated `mc` kernel TABLE instead (151 x 1268, 1 GeV nodes 50-200 GeV,
+standalone Photos++ 3.61 at unlimited statistics), everything else identical
+to `P2N`, and certifies at EDM 4.283e-16 in 27 Hessians:
+
+| | `P2N` (atoms) | `P2XT` (table) | difference |
+|---|---:|---:|---:|
+| `m_Z` [MeV] | +20.692 +- 2.134 | +20.937 +- 2.135 | **+0.245** |
+| `Gamma_Z` [MeV] | -4.377 +- 3.787 | -4.264 +- 3.799 | +0.112 |
+| `bfield_mode0` [1e-3] | +1.40124 | +1.40087 | -0.0004 sigma |
+
+A ninth of the statistical error, and the J/psi leg does not move
+(`<D_card>.theta` by 0.4 keV) — which is what a change confined to the Z
+term's lineshape must do. The row changes the representation AND the source,
+so `+0.245` is their sum rather than the representation alone; what it
+establishes is that **the fold representation is not where the `-20` MeV
+Z-side offset of `P2K` lives**.
+
+`make_card.py --fsr` needed no change to accept either form —
+`ZGammaLineshape` dispatches on the npz keys — but `--fsr-inline` (new,
+default ON) did: `_table_config` serialises a table **by reference** whenever
+its npz is on disk, and on Engaging that path does not resolve, so a card
+built with a table could not be read back. Inline costs 3.756 MB of config
+JSON and round-trips to 4.4e-16.
+
 Full reference, provenance and job IDs: `fullscale/JPSI_FSR_STATE.md`;
 figures `~/public_html/ZMass/cvh/260916_jpsi_fsr/`.
 
@@ -481,7 +509,7 @@ figures `~/public_html/ZMass/cvh/260916_jpsi_fsr/`.
 | # | item | size on `m_Z` | next step |
 |---|---|---:|---|
 | 1 | **`K(m)` truncation** | **2.4 MeV** over 5 -> 7 in the v form, which is the number to quote; +26.6 MeV over 7 -> 9 in the m form | **the v-form ladder ENDS at 7**: the 9-term rung runs 65 Hessians with no density NaN and fails on an indefinite Hessian whose diagonal spans 14 orders of magnitude (5.3). Two consequences — **preconditioning (item 6) is promoted from a robustness item to the blocker on the truncation systematic**, and the structural cure, a theory-predicted `K(m)` in place of the floated LO kernel (which also returns the x1.5 statistical penalty), is the only route to a `K`-independent number |
-| 2 | the momentum scale from J/psi (phase 2) | **measured, and the FSR precondition is CLOSED** | the full card converges with the spectral preconditioner (`P2XP`, EDM 1.05e-11, 8 h 01) and again with the J/psi FSR kernel (`P2K`, EDM 8.49e-13, 8 h 34). **The delta at the PDG mass was costing `m_Z` +66.3 MeV**: `m_Z` = +20.69 +- 2.13 -> **-45.59 +- 2.13**, a 1:1 transfer of the J/psi leg's +7.7e-4 scale step. So the `+20.69` was the SUM of an FSR-induced +66.3 and a residual -45.6, and what is left is a Z-side offset of -20 to -24 MeV that does not move when the J/psi leg changes — i.e. item 1. On the J/psi side the FSR is now fully accounted for: with the kernel and the two mass-likelihood corrections off, the J/psi term's preferred scale is -1.8e-5. See section 5.10 |
+| 2 | the momentum scale from J/psi (phase 2) | **measured, and the FSR precondition is CLOSED** | the full card converges with the spectral preconditioner (`P2XP`, EDM 1.05e-11, 8 h 01) and again with the J/psi FSR kernel (`P2K`, EDM 8.49e-13, 8 h 34). **The delta at the PDG mass was costing `m_Z` +66.3 MeV**: `m_Z` = +20.69 +- 2.13 -> **-45.59 +- 2.13**, a 1:1 transfer of the J/psi leg's +7.7e-4 scale step. So the `+20.69` was the SUM of an FSR-induced +66.3 and a residual -45.6, and what is left is a Z-side offset of -20 to -24 MeV that does not move when the J/psi leg changes — i.e. item 1. On the J/psi side the FSR is now fully accounted for: with the kernel and the two mass-likelihood corrections off, the J/psi term's preferred scale is -1.8e-5. The Z fold representation is NOT the offset: replacing the banded atoms by the cell-integrated `mc` table moves `m_Z` by +0.245 MeV (5.12). See sections 5.11-5.12 |
 | 3 | the material amounts (phase 3) | not yet measured | **the card IS built and verified**: `joint_mat_v3.hdf5`, **28.37 GB**, written in 54 s and re-read term by term (10 min total) — 645 517 J/psi + 481 020 Z candidates, 18 hit-resolution parameters and the 92 calibration parameters, 42 material amounts SHARED between the quadratic curvature and both mass terms. The fit is **not attempted**. The memory blocker is re-opened rather than settled: the 141.4 GB figure was measured on the phase-2 FULL card and this one has ~6x fewer candidates (34.8 GB of exponents in total), so whether it needs the 2-GPU sharding is one cheap job. The card reports that **nothing constrains `material_pp1_cables`, `material_support_tube`, `material_thermal_screen`** — freeze them |
 | 4 | residual `eta` spread | -12.5 +- 5.9 MeV (2.1 sigma), an **upper bound** | a band variable cleaner than `max(\|eta_p\|,\|eta_m\|)` needs a gen predictor a card cannot cut on |
 | 5 | GN second-order (Box) charge-odd bias | ~4 MeV uncalibrated (4.7e-5), ~0.4-0.7 MeV after the J/psi anchors the scale | analytic per-track correction from the exported steps; no new production |
