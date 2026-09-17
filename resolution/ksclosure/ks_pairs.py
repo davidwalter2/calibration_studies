@@ -212,6 +212,23 @@ def read_one(fn, t, args, cols, state):
         push(k, np.asarray(a[b], dtype=np.float64)[idx])
     for k, b in ai_names.items():
         push(k, np.asarray(a[b], dtype=np.int64)[idx])
+    # THE MOMENTUM-SCALE LEVER ARM of this decay.
+    #
+    #   m^2 = 2 m_pi^2 + 2 (E1 E2 - p1.p2)
+    # under p -> (1+eps) p,
+    #   d ln m / d eps = [m^2 - m_pi^2 (2 + E1/E2 + E2/E1)] / m^2 .
+    #
+    # It is 1 only in the ultra-relativistic limit. For J/psi -> mu mu it is
+    # 0.9953 and nobody ever had to think about it; for K_S -> pi pi it is
+    # 0.685 in a symmetric decay and smaller in an asymmetric one, because
+    # 2 m_pi / m_KS = 0.56. The unbinned term measures the relative shift of
+    # the MASS (delta_i = mobs_i - m_ref * alpha * 1e-3), so the MOMENTUM
+    # scale is alpha / <f>, and ignoring it would understate the momentum
+    # scale by ~1.5x.
+    ep = np.sqrt(t['pabsp'][np.maximum(j, 0)] ** 2 + M_PI ** 2)
+    em = np.sqrt(t['pabsm'][np.maximum(j, 0)] ** 2 + M_PI ** 2)
+    fmom = 1.0 - M_PI ** 2 * (2.0 + ep / em + em / ep) / np.maximum(mg, 1e-9) ** 2
+    push('ks_fmom', np.where(j >= 0, fmom, -99.0))
     push('dvtx', dvtx[idx])
     push('matched', (j >= 0).astype(np.int64))
     push('ks_mreco', mrec[idx])

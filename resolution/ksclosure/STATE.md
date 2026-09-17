@@ -174,3 +174,46 @@ tau ~ 4.6e3 1/GeV (max(tgrid)/sigma_min = 7.89/0.0017) against the 40 the Z
 lineshape tabulates.  The provider is now skipped in residual mode (and
 `provider_config` records `delta (residual mode)`).  Nothing else changes: the
 kernel and the parameter declarations never read it there.
+
+## 6. The momentum-scale lever arm: alpha on the mass is NOT the momentum scale
+
+`MassCFTerm`'s `alpha` is the relative shift of the MASS:
+`delta_i = mobs_i - m_ref * alpha * 1e-3`.  A MOMENTUM scale `eps`
+(p -> (1+eps) p on both legs) shifts the mass of candidate i by `m_i f_i eps`,
+with
+
+```
+m^2 = 2 m_pi^2 + 2 (E1 E2 - p1.p2)
+f   = d ln m / d ln p = [ m^2 - m_pi^2 (2 + E1/E2 + E2/E1) ] / m^2
+```
+
+which is 1 only in the ultra-relativistic limit.
+
+| channel | f (symmetric decay) |
+|---|---|
+| Z -> mu mu | 1 - 1.3e-6 |
+| J/psi -> mu mu | **0.99534** |
+| K_S -> pi pi | **0.6853** |
+
+Because `2 m_pi / m_KS = 0.561`, a third of the K_S mass is rest mass that
+does not move with the momentum scale.  Measured on this sample: f has median
+0.665, q10 0.517, and a 1/sigma^2-weighted mean **0.642** (asymmetric decays
+have E1/E2 + E2/E1 > 2 and sit lower; the minimum seen is 0.235).
+
+The maximum-likelihood estimate of a location shift weights candidates by their
+Fisher information (~1/sigma^2), so
+
+```
+eps = alpha_mass / <f>_{1/sigma^2}
+```
+
+and the statistical error transforms with it.  Ignoring this would understate
+the K_S momentum scale by a factor 1.56.  The J/psi closure never had to
+distinguish the two (f = 0.9953), which is why `make_card.py`'s `alpha` is
+defined on the mass.  **This is not specific to the K_S: any hadronic two-body
+channel near threshold (Lambda -> p pi: f = 0.52; D0 -> K pi: f = 0.83) carries
+the same factor**, and it is a real reduction in momentum-scale information per
+unit of mass resolution, not a bookkeeping convention.
+
+Both numbers are printed by `ks_table.py`; `eps` is the one that compares with
+the J/psi closure.
