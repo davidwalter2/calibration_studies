@@ -232,7 +232,7 @@ def beam3_cov(sigx, sigy, sigz, dxdz, dydz, rho=0.0):
 
 
 def beam3_block(d, idx, sigma, inject, log=print):
-    """`(q, ref, v0, mean, dmobs)` of the 3x3 block for the selected candidates.
+    """`(q, ref, v0, dv, mean, dmobs)` of the 3x3 block for the candidates.
 
     `q` is `Q_ab / sigma_i^2` (the share is what the term adds to `vgf`, which
     is in units of the functional's own variance), `ref` the record
@@ -241,16 +241,22 @@ def beam3_block(d, idx, sigma, inject, log=print):
     of the mean response in the order `BEAM3_MEAN`.
 
     AN INJECTION acts in BOTH places the parameter does.  On the COVARIANCE it
-    shifts `v0` by the share difference the injected parameters make, uniformly
-    over all five roles -- injecting through `v0` rather than through `ref` is
-    what lets `beamcorr_xy`, which has no record value to perturb, be injected
-    at all.  On the MEAN it returns `dmobs = sum_k (d theta/d p_k) e_k`, which
-    the caller ADDS to `mobs`; with `delta = mobs + (d theta/d p) p` the
-    minimum then sits at `p = -e`, the same sign convention a hit-class
-    injection has.  A tilt injected only into the covariance would be
-    invisible -- the tilt's covariance effect is second order and its mean
-    effect is the whole measurement -- so doing only half of it would not be a
-    weaker test, it would be a wrong one.
+    returns `dv`, the share difference the injected parameters make, uniformly
+    over all five roles -- through the SHARE rather than through `ref` because
+    `beamcorr_xy` has no record value to perturb.  `dv` is returned SEPARATELY
+    from `v0`, and the caller must remove the NOMINAL `v0` from `vg_other`
+    while giving the block `v0 + dv`: removing the injected one instead makes
+    the injection cancel itself exactly (`vg_other` drops by `v0 + dv` and the
+    block adds `v0 + dv` back, so the total Gaussian share at `p = 0` is
+    unchanged and the fit has nothing to recover).
+
+    On the MEAN it returns `dmobs = sum_k (d theta/d p_k) e_k`, which the
+    caller ADDS to `mobs`; with `delta = mobs + (d theta/d p) p` the minimum
+    then sits at `p = -e`, the same sign convention a hit-class injection has.
+    A tilt injected only into the covariance would be invisible -- the tilt's
+    covariance effect is second order and its mean effect is the whole
+    measurement -- so doing only half of it would not be a weaker test, it
+    would be a wrong one.
     """
     for k in ("bsmean", "vbs", "bswidth", "bsslope", "bsvtx", "bsspot"):
         if k not in d.files:
@@ -276,6 +282,7 @@ def beam3_block(d, idx, sigma, inject, log=print):
     if np.median(rel) > 1e-5:
         sys.exit("beam3 assembly gate FAILED -- Q or the record is wrong")
 
+    dv = np.zeros(len(idx))
     if inject:
         pars = {k: inject.get(k, 0.0) for k in BEAM3_COV}
         cin = beam3_cov(ref[:, 0] * np.sqrt(1.0 + pars["beamwidth_x"]),
@@ -287,7 +294,6 @@ def beam3_block(d, idx, sigma, inject, log=print):
         c0 = beam3_cov(*[ref[:, i] for i in range(5)])
         dv = ((cin - c0) * q * BEAM3_MULT).sum(-1)
         log(f"  beam3 injection {pars}: d(share) median {np.median(dv):+.5g}")
-        v0 = v0 + dv
 
     lever = vtx[:, 2] - spot[:, 2]
     mean = np.stack([bm[:, 0] * BEAM3_UNITS["beamcentre_x"],
@@ -304,7 +310,7 @@ def beam3_block(d, idx, sigma, inject, log=print):
         if np.any(e):
             log(f"  beam3 mean injection {dict(zip(BEAM3_MEAN, e))}: "
                 f"d(mobs) rms {dmobs.std():.5g}")
-    return q, ref, v0, mean, dmobs
+    return q, ref, v0, dv, mean, dmobs
 
 
 def _keep_mask(args, n, name, log=print):
@@ -493,11 +499,16 @@ def build_term(name, npz, arm, args, group_units, gparams, hparams, ngroups,
     # WHOLE share (the two transverse directions AND the z part that used to
     # sit inert in `vg_other`) becomes one parameterised number.
     if args.beam3 and not args.no_hits:
-        q3, ref3, v03, b3_mean, b3_dmobs = beam3_block(
+        q3, ref3, v03, b3_dv, b3_mean, b3_dmobs = beam3_block(
             d, idx, sigma, {k: v for k, v in (inj_hits or {}).items()
                             if isinstance(k, str)}, log)
-        b3 = {"q": q3, "ref": ref3, "v0": v03}
+        # `vg_other` loses the NOMINAL share and the block carries the
+        # INJECTED one, so the total Gaussian share at `p = 0` moves by the
+        # injection.  Removing the injected share here instead would make the
+        # injection cancel itself exactly.
+        b3 = {"q": q3, "ref": ref3, "v0": v03 + b3_dv}
         vother = vother - v03
+        vgf = vgf + b3_dv
     # `--no-hits` drops the whole per-class share vector, and the two width
     # scales live in it (their class indices sit just past the hit classes),
     # so the two options are taken together rather than half-applied.
@@ -953,7 +964,7 @@ def main():
     # the two width scales are keyed by NAME (they are not hit classes and do
     # not have a `hitres_classes` index), and `build_term` looks them up so
     # `--inject beamwidth_x:0.10` works exactly like a hit-class injection
-    for _nm in BEAM3_COV:
+    for _nm in set(BEAM3_COV) | set(BEAM3_MEAN):
         if _nm in inject_card:
             inj_hits[_nm] = inject_card[_nm]
     if inject_card:

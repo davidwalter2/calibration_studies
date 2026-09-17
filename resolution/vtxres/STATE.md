@@ -2564,6 +2564,38 @@ rather than absorbed:
 is the reason the two beam terms' joint treatment (section 14.19 item 2) has
 to be settled before `rho` can be read as physical.
 
+##### The injections
+
+`--inject beamwidth_x:0.10 beamcorr_xy:0.05 beamtilt_x:1.0` on the SAME
+candidates.  An injection acts in BOTH places the parameter does: on the
+covariance through the block's share, and on the mean through `mobs`, so the
+fit has to return `-e` (the hit-class convention).
+
+| parameter | injected | `b3` | `inj_b3` | shift | recovery |
+|---|---|---|---|---|---|
+| `beamwidth_x` | +0.10 | -0.1380 | -0.2380 | **-0.1000** | **1.000** |
+| `beamtilt_x` | +1.0 | -0.2530 | -1.2530 | **-1.0000** | **1.000** |
+| `beamcorr_xy` | +0.05 | -0.2970 | -0.3870 | -0.0900 | see below |
+| `beamwidth_y` | 0 | -0.0582 | -0.0582 | **0.0000** | -- |
+| `beamtilt_y` | 0 | -0.8038 | -0.8038 | **0.0000** | -- |
+| `beamcentre_x` | 0 | +0.4059 | +0.4059 | **0.0000** | -- |
+| `beamcentre_y` | 0 | -0.1451 | -0.1451 | **0.0000** | -- |
+
+**Zero leakage**: the four uninjected parameters do not move in the fourth
+decimal.  `beamcorr_xy` moves by more than its injection because the model
+contains `C_xy = rho sqrt(k_x k_y) sigma_x sigma_y`, not `rho`, and `k_x` was
+injected at the same time: `C_xy/(sigma_x sigma_y)` goes -0.2679 -> -0.3216, a
+shift of **-0.0537** against an injected **+0.0524**, i.e. recovery **1.025**
+in the quantity the likelihood actually carries.
+
+**THE INJECTION TEST EARNED ITS KEEP.**  Its first version injected the
+covariance by shifting the block's nominal share `v0` while the card was ALSO
+subtracting that same injected `v0` from `vg_other` -- so the total Gaussian
+share at `p = 0` was unchanged and the injection was an exact no-op.  It
+showed up as `beamtilt_x` recovering at 1.000 (it acts on the MEAN, which is
+not cancelled) while `beamcorr_xy` recovered at 0.008.  `vg_other` now loses
+the NOMINAL share and the block carries the injected one.
+
 ##### `beamcorr_xy` -- what it is actually measuring
 
 Freezing it (`--beam3-freeze beamcorr_xy`, which removes the parameter rather
@@ -2697,7 +2729,14 @@ the fitted VALUES, not in a visible shift of the residual.
    `rho sqrt(k_x) sqrt(k_y) sigma_x sigma_y` gives 0, 0, 0.  The two are
    identical for any positive record; the second takes the square root of the
    PARAMETER, which is 1 at the nominal point.
-2. **A zero record row is not hypothetical -- the truncation normalisation
+2. **A COVARIANCE INJECTION THAT CANCELS ITSELF.**  The block's nominal share
+   is removed from `vg_other` and added back by the block, so injecting the
+   covariance by shifting that same share leaves the total Gaussian share
+   unchanged at `p = 0` -- an exact no-op that the fit cannot recover.  It was
+   invisible until the injection test was run with a MEAN parameter alongside
+   (`beamtilt_x` recovered at 1.000, `beamcorr_xy` at 0.008).  `vg_other` now
+   loses the NOMINAL share and the block carries the injected one.
+3. **A zero record row is not hypothetical -- the truncation normalisation
    builds them.**  `_vtx_norm_block` gives an EMPTY resolution class the whole
    sample as its members; the first version of the class-level beam block used
    a plain `bincount` and gave those classes zero `Q`, zero record, zero
@@ -2705,9 +2744,9 @@ the fitted VALUES, not in a visible shift of the residual.
    1, the quantile edges collapse and seven of the eight classes come out
    empty.
 
-Either fix alone removes the failure.  Both are kept: the first is about the
-expression being differentiable, the second about the class rows being the
-model.
+Defects 1 and 3 each remove the NaN-Hessian failure on their own.  Both are
+kept: the first is about the expression being differentiable, the third about
+the class rows being the model.
 
 
 ---

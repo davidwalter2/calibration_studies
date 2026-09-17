@@ -1,180 +1,99 @@
 # BEAM3 — the luminous region as a floated 3x3 covariance
 
-Working checkpoint for the task "promote the beam-line constraint's fixed
-pieces to floated first-principles parameters".  Final results go to
-`STATE.md` section 14; this file is the resumable state.
+Resumable state for the `--beam3` study.  The physics results are in
+`STATE.md` section 14.20; this file is what is needed to pick the work up:
+what runs where, what is still in flight, and the exact next command.
 
-## What the change is
+## Status
 
-The beam-line constraint is a Gaussian noise block whose covariance is the CMS
-beam-spot-fitter form.  Before this change only its two transverse WIDTHS
-floated, as two linear variance classes; the x-y correlation was fixed at zero
-(the record does not store it), the two tilts and the centre were taken from
-the record.  `--beam3` floats the covariance itself plus the centre:
-
-| parameter | role | card unit | prior |
-|---|---|---|---|
-| `beamwidth_x` / `beamwidth_y` | `k = 1 + eps` on `sigma_x^2` / `sigma_y^2` | eps | record's `BeamWidthError` (`--beamwidth-prior 0` = free) |
-| `beamcorr_xy` | `rho = tanh(eta)` | eta | FREE (the record has no rho) |
-| `beamtilt_x` / `beamtilt_y` | offset of `dxdz` / `dydz` | 1e-5 | FREE |
-| `beamcentre_x` / `beamcentre_y` | offset of `x0` / `y0` | 1e-4 cm = 1 um | FREE |
-
-`sigma_z` is fixed (the z beam row is weightless against a ~100 um vertex
-error) and `z0` is inert.
-
-The tilts enter BOTH the covariance and the mean; `MassCFTerm` de-duplicates
-the parameter name, so one parameter drives both.
-
-## Where the code is
-
-| what | where |
+| piece | state |
 |---|---|
-| the block | `rabbit-vmass/rabbit/unbinned.py`, `MaterialCFTerm` (`beam3_params` / `beam3_units` / `beam3`, `_beam3_share`, `BEAM3_ROLES`) |
-| its tests | `rabbit-vmass/tests/test_beam3.py` (9 tests) |
-| the extraction | `resolution/vtxres/extract_vtx.py` — now writes `bsmean`, `vbs`, `bsvtx`, `bsspot`, `bswidth`, `bsslope` for EVERY functional |
-| the card | `resolution/vtxres/make_vtx_card.py --beam3` (`beam3_block`, `beam3_cov`, `BEAM3_*`) |
-| the assembly gate | `resolution/vtxres/gate_beam3.py` |
-| the nominal gate | `resolution/vtxres/gate_beam3_card.py` |
-| the closure reference | `resolution/vtxres/beam3_gen.py` |
-| the report | `resolution/vtxres/beam3_report.py`, `beam3_pulls.py` |
-| the production | `resolution/vtxres/run_prod_beam3.sh`, `mark_complete.sh` |
+| the term (`rabbit`, `MaterialCFTerm` beam3 block) | DONE, committed, pushed to the PR branch |
+| `tests/test_beam3.py` | 11 tests, all pass |
+| the extraction, the card builder, the gates, the reference, the reports, the plots | DONE, committed |
+| the closure at 8 000 candidates (`dy_bs_final`) | DONE — STATE.md 14.20 |
+| the two productions for the high-statistics closure | **IN FLIGHT** (below) |
+| the closure at ~1.2e5 candidates | **NOT DONE** — waiting on the productions |
 
-## The productions
+## The productions in flight
 
-| tag | job | geometry | files x events | output |
+| tag | slurm job | geometry | files x events | expected |
 |---|---|---|---|---|
-| `dy_beam3_7b54ce096b27` | 6447928 | aligned (`useIdealGeometry=False`) | 80 x 3500 | `/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/` |
-| `dy_beam3_ideal_7b54ce096b27` | 6450187 | IDEAL (`useIdealGeometry=True`) | 80 x 3500 | same root |
+| `dy_beam3_7b54ce096b27` | 6447928 | aligned (`useIdealGeometry=False`) | 80 x 3500 | ~4.3 h/task, 40 at a time |
+| `dy_beam3_ideal_7b54ce096b27` | 6450187 | **IDEAL** (`useIdealGeometry=True`) | 80 x 3500 | starts as the first array drains |
 
-Same 80 input files (`production/filelist_dymc_beam3_260917.txt`, lines 7-86 of
-the 8.5 M DY list), same build (dev2 @ `7b54ce096b27`), everything else the
-`condor_dymc_v2` configuration plus `exportVtxResidual` / `bsConstraint` /
-`exportBsResidual`.  So the two legs are the SAME EVENTS and differ only in the
-tracker geometry.
+Both under
+`/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/`,
+both from `production/filelist_dymc_beam3_260917.txt` (lines 7-86 of the 8.5 M
+DY list), both built from dev2 @ `7b54ce096b27`, everything else the
+`condor_dymc_v2` configuration plus `exportVtxResidual=True`,
+`bsConstraint=True`, `exportBsResidual=True`.  The two legs are therefore the
+SAME EVENTS and differ only in the tracker geometry, which makes the
+comparison same-candidate.
 
 The aligned leg was submitted before the instruction to move the MC closure
-samples to the ideal geometry arrived and was left to finish (it is the
-same-candidate cross-check of what the geometry does to the beam parameters);
-the ideal leg is the one to quote.
+samples to the ideal geometry and was left to finish; `run_prod_beam3.sh` now
+defaults to `GEOM=True`, so the ideal leg is the one to quote and the aligned
+leg is the cross-check of what the geometry does to the beam parameters.
+Neither affects the gen vertices, which is where the closure reference comes
+from.
 
-Resume:
-```bash
-ssh submit50 'squeue -u david_w'
-cd /work/submit/david_w/ZMass/calibration_studies/resolution/vtxres
-./mark_complete.sh 6450187 /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/dy_beam3_ideal_7b54ce096b27
-```
+**Expected size**: 80 x 3500 events x 0.434 candidates/event ~ **1.2e5
+candidates** per leg, ~22 GB each.  That is what the tilt closure needs:
+per candidate the beam pull measures `dxdz` to ~6.4e-4, so
+`sigma(dxdz) = 6.4e-4/sqrt(N)` is 2e-6 at 1e5 against a record-vs-simulation
+offset of 6e-6 -- a 3 sigma test, where the 10 254-candidate sample gives
+6.3e-6 and cannot separate them.
 
-## The chain
+## Resume, in order
 
 ```bash
 cd /work/submit/david_w/ZMass/calibration_studies/resolution/vtxres
 BL=/ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline
-GRP=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/data/materialGroups50.txt
+PROD=dy_beam3_ideal_7b54ce096b27        # or dy_beam3_7b54ce096b27
+RUNS=$BL/runs_beam3_ideal               # or runs_beam3_aligned
 
-# 1. extract (four functionals, same candidates, same order)
-source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
-for F in bsx bsy vtx mass; do
-  python3 -u extract_vtx.py --files "$BL/<prod>/task_*/globalcor_*.root" \
-    --functional $F --groups $GRP -j 24 --require-complete --max-chi2-ndof 3 \
-    -o $BL/<runs>/dy_$F.npz
-done
+ssh submit50 'squeue -u david_w'
+./mark_complete.sh 6450187 $BL/$PROD      # 6447928 for the aligned leg
 
-# 2. the assembly gate (needs nothing but the npz)
-python3 gate_beam3.py --dir $BL/<runs>
-
-# 3. the closure reference
-python3 beam3_gen.py --npz $BL/<runs>/dy_bsx.npz --nboot 200
-
-# 4. cards: the baseline (widths only) and --beam3, SAME candidates
-COMMON="--groups $GRP --maxn 8000 --whiten --prune-frac 0.001 --poi all \
-  --hit-prior 1.0 --max-chi2-ndof 3.0 --m-ref 91.1876 --m-window 30 \
-  --vtx-npz $BL/<runs>/dy_vtx.npz --bsx-npz $BL/<runs>/dy_bsx.npz \
-  --bsy-npz $BL/<runs>/dy_bsy.npz --arm cf --same-candidates --beamwidth-prior 0"
-./run_tf.sh python3 -u make_vtx_card.py $COMMON        -o $BL/<runs>/cards/base_vtxbs.hdf5
-./run_tf.sh python3 -u make_vtx_card.py $COMMON --beam3 -o $BL/<runs>/cards/b3_vtxbs.hdf5
-
-# 5. the nominal gate
-./run_tf.sh python3 gate_beam3_card.py --base .../base_vtxbs.hdf5 --beam3 .../b3_vtxbs.hdf5
-
-# 6. fits, EDM-certified
-export R=$BL/<runs>
-./run_fit.sh base_vtxbs ; ./run_fit.sh b3_vtxbs
-
-# 7. the report
-./run_tf.sh python3 beam3_report.py --fits base=$R/fits/base_vtxbs b3=$R/fits/b3_vtxbs \
-   --genref $R/dy_bsx_genref.npz --delta base,b3
-./run_tf.sh python3 beam3_pulls.py --npz-dir $R --fit $R/fits/b3_vtxbs --groups $GRP
+PROD=$PROD R=$RUNS ./run_all_beam3.sh extract     # ~20 min x 4 functionals
+PROD=$PROD R=$RUNS ./run_all_beam3.sh gates
+PROD=$PROD R=$RUNS ./run_all_beam3.sh genref
+PROD=$PROD R=$RUNS MAXN=40000 ./run_all_beam3.sh cards
+PROD=$PROD R=$RUNS ./run_all_beam3.sh fits
+PROD=$PROD R=$RUNS ./run_all_beam3.sh report
+PROD=$PROD R=$RUNS ./run_all_beam3.sh pulls
+PROD=$PROD R=$RUNS TAG=ideal ./run_all_beam3.sh plots
 ```
 
-## Gates, measured
+**RUN THE FITS ON submit50 / 51 / 52.**  The submit8x machines are shared and
+sit at load ~900 on 768 cores; `run_tf.sh` asks for `OMP_NUM_THREADS` and
+nothing enforces it, so a 20-minute fit becomes an hour.  Check
+`/proc/loadavg` first.
 
-| gate | result |
-|---|---|
-| ASSEMBLY `sum_ab covBS_ab Q_ab / Cov_ii == the exported share` | median **2.2e-8**, max 1.1e-7 on all four functionals (`dy_bs_final`, 10 254 candidates) -- the float32 export precision |
-| the same for `d/dk_x`, `d/dk_y` vs `*vbsx` / `*vbsy` | median **2.2e-8** |
-| the FORMULA-rebuild derivative vs the maker's `D covBS D` convention | median **2.5e-4** of the derivative, i.e. ~5e-5 of the share; the two differ only in `dC_xz/dk_x` |
-| NOMINAL, card level: NLL(0) beam3 vs the two linear width classes | **BIT-IDENTICAL** on all three channels |
-| NOMINAL, gradient on the 60 shared parameters | max rel **2e-16** |
-| rabbit unit tests (`tests/test_beam3.py`) | 9/9 pass; share(0) - v0 exactly 0; gradients 1e-9..4e-6 vs FD; Hessian 1e-8 vs FD |
+**`--maxn` and the card size.**  A `vtx + bsx + bsy` card is 554 MB at 8 000
+candidates with `--prune-frac 0.001`, i.e. ~6.9 GB at 1e5; the fit's RSS was
+10.7 GB at 8 000 candidates already.  Raising `--prune-frac` folds more
+material groups into the fixed baseline: 405 MB at 0.01 and 255 MB at 0.05 on
+the same candidates.  Section 14.14 has already established that NO material
+group is constrained by any of these channels on a DY sample, so pruning is
+close to inert -- but if it is used, build the SAME card at 0.001 and 0.05 on
+a common subset first and check that the beam parameters do not move.
 
-## Defects found and fixed
+## The next questions, in the order they should be answered
 
-1. **`rho sqrt(C_xx C_yy)` has a NaN SECOND derivative at a zero record row.**
-   The correlation term was first written `rho * sqrt(vx) * sqrt(vy)` with
-   `vx = k_x sigma_x^2`.  Where the record's width is zero that is
-   `0 * inf = NaN` in the Hessian while the VALUE and the GRADIENT stay
-   finite -- so the minimiser converges normally and `edmval_cov` dies on
-   `array must not contain infs or NaNs`, which is exactly how it presented.
-   Measured, on the bare expression at `sigma = 0`, `rho = 0`:
-
-   | form | value | grad | d2/deps2 |
-   |---|---|---|---|
-   | `rho sqrt(vx) sqrt(vy)` | 0 | 0 | **NaN** |
-   | `rho sqrt(k_x) sqrt(k_y) sigma_x sigma_y` | 0 | 0 | 0 |
-
-   The two are identical for any positive record; the second takes the square
-   root of the PARAMETER, which is 1 at the nominal point, instead of of the
-   variance, which the record can make zero.  Fixed, with
-   `tests/test_beam3.py::test_zero_record_row` as the regression.
-
-2. **A zero record row is not hypothetical: the truncation normalisation
-   builds them.**  `_vtx_norm_block` gives an EMPTY resolution class the whole
-   sample as its members (so its `vg_other` and hit shares are the sample
-   means); the first version of the beam3 class-level block used a plain
-   `bincount` instead and gave those classes ZERO -- zero `Q`, zero record,
-   zero nominal share.  The beam channels hit this every time, because their
-   `sigma` is identically 1, the quantile edges collapse and seven of the
-   eight classes come out empty.  Fixed to use the same members list.
-
-Either fix alone removes the failure; both are kept, because the first is
-about the expression being differentiable and the second about the class rows
-being the model.
-
-## The closure reference (`dy_bs_final`, 10 223 gen-matched)
-
-The MC's luminous region is known in CLOSED FORM:
-`BetafuncEvtVtxGenerator` + `Realistic25ns13TeV2016CollisionVtxSmearingParameters`
-has `Phi = Alpha = 0` and the `+ Z*fdxdz` term commented out, so
-**dxdz = dydz = 0 and rho = 0 EXACTLY**, `sigma_x = sigma_y` with marginal rms
-`sqrt(emittance (betastar + SigmaZ^2/betastar)/2) = 9.9467 um`, and
-`X0, Y0, Z0 = 0.09163, 0.16955, 0.9315 cm`.
-
-| parameter | target (generator) | measured on the gen vertices |
-|---|---|---|
-| `beamwidth_x` | -0.1570 | -0.1401 +- 0.0123 |
-| `beamwidth_y` | -0.0831 | -0.0777 +- 0.0130 |
-| `beamcorr_xy` | 0 | -0.0061 +- 0.0098 |
-| `beamtilt_x` | +0.5970 | +0.4304 +- 0.2771 |
-| `beamtilt_y` | -0.4718 | -0.4037 +- 0.2671 |
-| `beamcentre_x` | -0.1590 | -0.1210 +- 0.1029 |
-| `beamcentre_y` | +0.1301 | -0.0458 +- 0.1008 |
-
-## NEXT
-
-1. wait for the two productions, `mark_complete.sh`, extract;
-2. `beam3_gen.py` on the big sample, then cards + fits at the largest `--maxn`
-   the card size allows (744 MB at 8 000 candidates for vtx+bs+mass, so a
-   1e5-candidate card needs a harder `--prune-frac`; check first that raising
-   it does not move the beam parameters);
-3. figures into `~/public_html/ZMass/cvh/260917_beam3/`;
-4. STATE.md section 14 to the final state; commit.
+1. **The tilt closure at 1e5 candidates.**  The only number the 8 000-candidate
+   sample cannot deliver.
+2. **`beamcorr_xy`.**  It is 3.9 sigma away from a value the simulation fixes
+   exactly at zero, freezing it moves nothing else, and the gen vertices say
+   the luminous region has no correlation -- so it is measuring the transverse
+   anisotropy of the fit's own vertex-covariance deficit (STATE 14.20).  The
+   way to settle it is the joint treatment of the two beam terms (STATE 14.19
+   item 2): they are multiplied as if independent, and a real `rho` would
+   correlate them.
+3. **`beamcentre_x` at +2.6 sigma.**  Check whether it survives the larger
+   sample; if it does, it is either a real sub-micron centroid offset the gen
+   vertices do not see or a leak from the same anisotropy.
+4. **Data.**  The record's per-IOV values are already exported per candidate,
+   so the only new thing a data fit needs is one parameter set per IOV rather
+   than one for the sample.

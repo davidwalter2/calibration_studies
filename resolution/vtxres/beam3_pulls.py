@@ -131,7 +131,7 @@ def main():
         # the model's VARIANCE at the fitted point, in units of the exported
         # sigma^2 (which is 1 for the whitened pulls, by construction)
         sigma = np.asarray(d["sigma"], np.float64)[idx]
-        q, ref, v0, _mean, _dm = MC.beam3_block(
+        q, ref, v0, _dv, _mean, _dm = MC.beam3_block(
             d, idx, sigma, {}, log=lambda *_: None)
         cov = MC.beam3_cov(
             ref[:, 0] * np.sqrt(1.0 + pars.get("beamwidth_x", 0.0)),

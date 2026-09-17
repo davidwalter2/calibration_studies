@@ -1,9 +1,9 @@
 param models: --paramModel UnbinnedParams
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789676990.531402 1179242 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1789678613.149788 1196710 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1789676997.164961 1179242 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-E0000 00:00:1789677004.853030 1179242 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
+I0000 00:00:1789678619.542365 1196710 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+E0000 00:00:1789678627.321565 1196710 cuda_platform.cc:52] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: UNKNOWN ERROR (303)
 [33;21mWARNING:rabbit_fit.py: No GPU is visible to TensorFlow although it was built with CUDA: the fit will run on the CPU. If that is not intended, check CUDA_VISIBLE_DEVICES and that LD_LIBRARY_PATH carries the CUDA runtime (TF reports a failed dlopen only at a log level that TF_CPP_MIN_LOG_LEVEL usually hides).[0m
 calib_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')], 'masked': False, 'flow': False, 'start': 0, 'stop': 1}
 [38;21mINFO:unbinned.py: unbinned term 'bsx': D is 100.0% dense over 8000 x 4, stored DENSE (sparse_dense_matmul has no deterministic GPU kernel, and below ~1/3 density COO is the larger representation anyway)[0m
@@ -81,3 +81,15 @@ calib_dummy {'axes': [Integer(0, 1, underflow=False, overflow=False, name='bin')
 [38;21mINFO:fitter.py: 3 unbinned term(s): the Hessian is assembled from Hessian-vector products rather than from the vectorised jacobian, and the HVP is revrev.[0m
 [38;21mINFO:fitter.py: Perform iterative fit[0m
 [38;21mINFO:fitter.py: [minimize] method=trust-krylov options={}[0m
+[38;21mINFO:rabbit_fit.py: profile beta[0m
+[38;21mINFO:rabbit_fit.py: edmval: 8.140389946679764e-13[0m
+[38;21mINFO:rabbit_fit.py: Unbinned likelihood terms contribute -12505.523361 to the NLL; the saturated chi2 below is for the binned likelihood only[0m
+[38;21mINFO:rabbit_fit.py: Saturated chi2:[0m
+[38;21mINFO:rabbit_fit.py:     ndof: -6[0m
+[38;21mINFO:rabbit_fit.py:       = 1 bins - 7 free of 67 ParamModel params - 0 free of 0 systematics[0m
+[38;21mINFO:rabbit_fit.py:     2*deltaNLL: 28.19[0m
+[38;21mINFO:rabbit_fit.py:     p-value: nan%[0m
+/work/submit/david_w/WRemnants_dev/wums/wums/ioutils.py:160: FutureWarning: .metadata was not set, returning None instead of Attribute error, boost-histogram 1.7+ will error.
+  metadata = obj.metadata if hasattr(obj, "metadata") else None
+Results written in file /ceph/submit/data/user/d/david_w/ZMass/cvh/runs_vtxres_260911/beamline/runs_beam3a/fits/inj_b3_vtxbs/fitresults.hdf5
+[38;21mINFO:rabbit_fit.py: 1507.19 seconds total time[0m
