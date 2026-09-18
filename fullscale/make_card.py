@@ -277,15 +277,33 @@ def parse_args(argv=None):
                         "so one card serves both fits; off = no a_i at all")
     p.add_argument("--max-ares", type=float, default=0.5)
     p.add_argument("--a-scale", type=float, default=1.0,
-                   help="multiply a_res by this. The closed form "
-                        "a = (1 + f_hit) sigma_m/m comes from "
+                   help="multiply a_res by this, as a scalar diagnostic. The "
+                        "closed form a = (1 + f_hit) sigma_m/m comes from "
                         "sigma_m^2 = A m^4 + B m^2 + C, i.e. from a mass whose "
-                        "resolution is carried by the two MOMENTA. A channel "
-                        "whose mass resolution is carried by the OPENING ANGLE "
-                        "instead (K_S -> pi pi: f_ang = 0.70, against 0.09 at "
-                        "the J/psi) has a smaller coefficient, because an "
-                        "angular fluctuation moves m without moving sigma_m. "
-                        "Default 1 reproduces every existing card.")
+                        "resolution is carried by the two MOMENTA -- but it "
+                        "also holds where the OPENING ANGLE carries it: "
+                        "measured from MC truth, 1.103 +- 0.008 against "
+                        "1 + f_hit = 1.106 at the J/psi, and 1.06 +- 0.12 "
+                        "against 1.106 at the K_S, where f_ang = 0.70 "
+                        "(resolution/ksclosure/STATE.md section 9). An "
+                        "`(1 - f_ang)` suppression is EXCLUDED at 7-10 sigma: "
+                        "sigma_m^2 = J^T Sigma J and the mass Jacobian J is "
+                        "itself a function of the opening angle, so sigma_m "
+                        "does respond to an angular fluctuation. Default 1 "
+                        "reproduces every existing card.")
+    p.add_argument("--a-res-key", default=None,
+                   help="take a_res PER CANDIDATE from this column of the "
+                        "pairs cache instead of the closed form. The slope is "
+                        "a = Cov(dm, d sigma_m)/Var(dm) = "
+                        "(J^T Sigma grad sigma_m)/sigma_m^2 over the six "
+                        "reference parameters, and the closed form is the "
+                        "special case in which both gradients lie along the "
+                        "two momenta; a channel where the opening angle "
+                        "carries the mass resolution needs the full "
+                        "contraction, which only the producer of the cache "
+                        "can compute. The column is used verbatim (--a-scale "
+                        "still multiplies it, --max-ares still clips it). "
+                        "Absent = the closed form, i.e. every existing card.")
     p.add_argument("--jensen", choices=["exact", "shift", "off"], default="exact")
     p.add_argument("--corr-form", choices=["fluctuation", "residual"],
                    default="fluctuation",
@@ -669,7 +687,19 @@ def build(args, log=print):
     # (- f_ioni, which is 1.1e-3 and is dropped). Truth-free: m_i is observed.
     a_res = None
     if args.ares != "off":
-        a_res = (1.0 + vgf) * sigma / np.maximum(np.abs(mreco), 1e-9)
+        if args.a_res_key:
+            if args.a_res_key not in d.files:
+                raise SystemExit(f"--a-res-key {args.a_res_key} is not in "
+                                 f"{args.pairs}")
+            a_res = np.asarray(d[args.a_res_key], dtype=np.float64)[idx]
+            closed = (1.0 + vgf) * sigma / np.maximum(np.abs(mreco), 1e-9)
+            log(f"  a_res from `{args.a_res_key}`: median "
+                f"{np.median(a_res):.5f} against the closed form's "
+                f"{np.median(closed):.5f} "
+                f"(ratio of the sigma^-2-weighted means "
+                f"{np.average(a_res, weights=1/sigma**2)/np.average(closed, weights=1/sigma**2):.4f})")
+        else:
+            a_res = (1.0 + vgf) * sigma / np.maximum(np.abs(mreco), 1e-9)
         if args.a_scale != 1.0:
             a_res = a_res * args.a_scale
             log(f"  --a-scale {args.a_scale:g} applied to a_res")

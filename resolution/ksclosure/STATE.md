@@ -119,6 +119,9 @@ by (run, lumi, event) + decay vertex + both daughter momenta, against
 
 ## 4. Files
 
+(the sigma-artefact study of section 9 adds eight more; they are listed in
+section 9.8)
+
 | | |
 |---|---|
 | `runCvhKs.py` | the cmsRun driver |
@@ -276,7 +279,7 @@ before proposing any hadronic two-body channel as a calibration probe.
 Both numbers are printed by `ks_table.py`; `eps` is the one that compares with
 the J/psi closure.
 
-## 7. The sigma-artefact prefactor is derived for a momentum-dominated mass
+## 7. The sigma-artefact prefactor and the angular share
 
 `a_i = (1 + f_hit) sigma_i/m_i` (implemented as `(1 + vgf) sigma/|m|`) comes
 from `sigma_m^2 = A m^4 + B m^2 + C`, i.e. from a mass whose resolution is
@@ -284,23 +287,22 @@ carried by the two MOMENTA: the hit term gives `sigma_p/p ~ p` hence
 `sigma_m ~ m^2`, the MS term `sigma_p/p ~ const` hence `sigma_m ~ m`, and
 `d ln sigma_m / d ln m = 1 + f_hit`.
 
-For K_S -> pi pi that premise fails: **`f_ang` has median 0.70**, so 70 % of
-`sigma_m^2` comes from the OPENING ANGLE.  An angular fluctuation moves `m`
-WITHOUT moving `sigma_m` -- `sigma_ang = (dm/dtheta) sigma_theta ~ (m/theta)
-sigma_theta` is invariant under `theta -> theta(1+d)` -- so its contribution to
-`d ln sigma_m/d ln m` is zero, not `1 + f_hit`.  Averaging the two fluctuation
-sources with their variance shares,
+For K_S -> pi pi that premise looks broken: **`f_ang` has median 0.70**, so
+70 % of `sigma_m^2` comes from the OPENING ANGLE, and a suppression
+`a_eff/a_used = (1 - f_ang)[(1 + vgf)(1 - f_ang) + f_ang]/(1 + vgf)` (0.28
+median / 0.47 weighted) follows if an angular fluctuation moves `m` without
+moving `sigma_m`.
 
-```
-a_eff / a_used = (1 - f_ang) [ (1 + vgf)(1 - f_ang) + f_ang ] / (1 + vgf)
-```
-
-which is **0.28 (median) / 0.47 (1/sigma^2-weighted)** for the K_S and
-**0.89-0.91 at the J/psi** (`f_ang` 0.086 gun / 0.106 data) -- so the published
-J/psi correction is itself ~10 % high, comparable to its own error, while the
-K_S one is 2-3.5x high.  `make_card.py` gained a scalar `--a-scale` (default 1,
-every existing card bit-identical) so the size of this can be measured rather
-than assumed.  A per-candidate form is the proper fix and is NOT done here.
+**It does move `sigma_m`, and the suppression is wrong**: `sigma_m^2 =
+J^T Sigma J` and the mass Jacobian `J` is itself a function of the opening
+angle, so `sigma_m` responds to an angular fluctuation even at perfectly fixed
+`Sigma`.  Section 10 measures the coefficient from truth on this sample and on
+the J/psi, excludes the suppressed form at 6.8 and 10 sigma, and confirms the
+closed form to 0.34 +- 0.68 % at the J/psi.  **Use the closed form.  The 0.28 /
+0.47 numbers above, and the `--a-scale 0.470` card, are superseded.**
+`make_card.py`'s scalar `--a-scale` (default 1) and per-candidate
+`--a-res-key` (default absent) are what let this be measured rather than
+assumed; both leave every existing card bit-identical.
 
 ## 8. Result (full sample: 500/500 chunks, 52 830 truth-matched candidates)
 
@@ -319,20 +321,27 @@ chi2/ndof median 0.861 (ndof median 22), 0.75 % above 3.
 |---|---|---|
 | naive (no corrections) | +0.181 +- 0.042 | +0.287 +- 0.067 |
 | Jensen exact only (a_res off) | +0.092 +- 0.042 | +0.146 +- 0.067 |
-| **a_res x 0.470 + Jensen exact** | **+0.171 +- 0.042** | **+0.272 +- 0.067** |
-| a_res (J/psi form) + Jensen exact | +0.260 +- 0.042 | +0.413 +- 0.067 |
-| a_res (J/psi form), no Jensen | +0.348 +- 0.042 | +0.553 +- 0.067 |
+| a_res x 0.470 + Jensen exact (superseded, section 9) | +0.171 +- 0.042 | +0.272 +- 0.067 |
+| a_res (J/psi closed form) + Jensen exact | +0.260 +- 0.042 | +0.413 +- 0.067 |
+| **a_res MEASURED from truth + Jensen exact** | **+0.264 +- 0.042** | **+0.419 +- 0.067** |
+| a_res (J/psi closed form), no Jensen | +0.348 +- 0.042 | +0.553 +- 0.067 |
 
 **The displaced K_S momentum-scale closure is**
 
 ```
-eps = +0.27 +- 0.07 (stat) +0.14 / -0.13 (a_res model) +- 0.04 (other)  x 1e-3
+eps = +0.42 +- 0.07 (stat) +- 0.03 (a_res) +- 0.04 (other)  x 1e-3
 ```
 
 against the J/psi -> mu mu closure of **+0.006 +- 0.025 x 1e-3** on the same
-MC.  The a_res model (section 7) is the limiting systematic, not the
-statistics; the band is the full range between a_res off and the J/psi closed
-form, with the angular-corrected coefficient as the central value.
+MC.  The central value is the fit with the sigma-artefact slope MEASURED from
+truth (section 9; the shipped closed form gives +0.413 and the two
+first-principles variants +0.455 and +0.465), and the a_res uncertainty is that
+measurement's own, 11.1 % statistical plus 3.8 % estimator closure on a total
+a_res correction of 0.267e-3.  Statistics and the unmodelled nuclear-elastic
+tail are now the limiting systematics, not a_res.
+
+The `a_res x 0.470` row of the ladder above, and the +0.14/-0.13 band it
+carried, are superseded by section 9.
 
 ### Systematics (nominal = a_res in the J/psi form + Jensen, +0.413)
 
@@ -421,11 +430,272 @@ GT; this K_S production runs with `useIdealGeometry=True` (David's 9/17
 decision).  The like-for-like comparison is against the ideal-geometry J/psi
 production `jpsimc_20M_260917_ideal` launched the same day.
 
-## 9. What to do next
 
-1. **The per-candidate a_res form** (section 7).  It is the limiting
-   systematic here (+0.14/-0.13e-3 against 0.07e-3 of statistics) and it also
-   makes the published J/psi correction ~10 % high.
+## 9. The sigma-artefact slope and the track angles
+
+`a_res` is a REGRESSION SLOPE, not a formula: `sigma_i = sigma_bar_i +
+a_i (m_i - mu_i)` defines it, so
+
+```
+a = Cov(dm, d sigma_m)/Var(dm) = (J^T Sigma G)/(J^T Sigma J),
+J = grad_u m,  G = grad_u sigma_m,  u = (plus, minus) x (q/p, lambda, phi)
+```
+
+over the six reference parameters.  Everything below is the dimensionless
+prefactor `A = a m/sigma_m`, which the shipped closed form predicts to be
+`1 + f_hit`.  Section 7 argued that `A` should be suppressed by the angular
+share of the mass variance.  **It is not.  That suppression is wrong, at both
+the K_S and the J/psi, and section 7's `a_scale` numbers (0.28 / 0.47) must not
+be used.**
+
+### 9.1 What the exports already carry, and the gates
+
+`Jpsi_covrefmom` (the 21-float upper triangle of `Sigma` in (plus, minus) x
+(q/p, lambda, phi)), `Jpsi_jacrefmom` (`dm/du` in the same order) and
+`Jpsi_qoprefplus/minus` are in BOTH productions.  Nothing else was needed --
+**no new maker export**.  `ks_cov_extract.py` re-reads them with `ks_pairs.py`'s
+own truth join, so its rows are position-identical to `runs/kspairs_all.npz`
+(asserted on run/lumi/event and `sigma`); `ares_jpsi_extract.py` does the same
+for a J/psi production, whose gen matching is in the file.
+
+| gate | K_S | J/psi |
+|---|---|---|
+| analytic `dm/du` (pion / muon hypothesis) vs `Jpsi_jacrefmom` | 2.1e-7 | 7.3e-8 |
+| `sqrt(J Sigma J^T)/Jpsi_sigmamass`, q01 - q99 | 1.000000 | 1.000000 |
+| `f_ang` rebuilt from the 6x6 vs `Jpsi_fang`, max diff | 2.0e-7 | 5.5e-7 |
+| mass from the two-leg state vs `Jpsi_mass`, median rel. | 1.1e-7 | 8.2e-8 |
+
+### 9.2 Why `(1 - f_ang)` is wrong: `J` itself depends on the angles
+
+```
+d(sigma_m^2)/du_i = 2 (dJ/du_i)^T Sigma J  +  J^T (dSigma/du_i) J
+                    \------ KINEMATIC -----/  \----- RESOLUTION -----/
+```
+
+The first term is EXACT -- `dJ/du` is the mass Hessian, `ares_kin.jac_hess` --
+and it is non-zero in the ANGULAR components whatever the detector does,
+because `sigma_m^2 = J^T Sigma J` and `J` is a function of the opening angle.
+Form (ii) assumed that an angular fluctuation moves `m` but not `sigma_m`;
+that is false at the leading, model-free order.
+
+The kinematic term alone is not the answer either: freezing `Sigma` freezes
+`sigma_(q/p)`, i.e. `sigma_p/p ~ p`, which is the PURE HIT limit `f_hit = 1`.
+Closed form for a symmetric ultra-relativistic two-body pair: `A = 2` exactly.
+Measured on the J/psi sample: `A_kin` median **1.9813**.  That identity is the
+check that the Hessian machinery is right.
+
+The resolution term is modelled as `Sigma_ab = s_a s_b rho_ab` with `rho`
+locally constant, which gives `R_i = sum_a (d ln Sigma_aa/du_i) w_a` with
+`w_a = J_a (Sigma J)_a` the component's share of the mass variance.  Two
+sources for the six log-derivatives:
+
+* **path length** (`msmodel`): material `~1/cos lambda` and `sigma_p/p` flat,
+  so `d ln Sigma_aa/d lambda = tan lambda` and `d ln Sigma_aa/d ln p = -2`.
+* **population** (`ares_grad.local_linear`): a local linear fit of
+  `ln Sigma_aa` on `(ln p_l, lambda_l)` per leg, detector controls partialled
+  out, the `lambda` slope fitted to `c tan(lambda)` through the origin so the
+  detector's z-symmetry is enforced.
+
+| `d ln Sigma_aa/...` | `d ln p` (K_S) | `/tan(lam)` (K_S) | `d ln p` (J/psi) | `/tan(lam)` (J/psi) |
+|---|---|---|---|---|
+| `Sigma_(q/p)` | -1.938 | 1.211 | -1.791 | 1.008 |
+| `Sigma_lambda` | -1.634 | 0.424 | -1.202 | -0.325 |
+| `Sigma_phi` | -1.587 | 2.416 | -1.427 | 2.098 |
+
+The J/psi `q/p` row is the path-length model to 10 % on both entries.
+**Azimuthal symmetry is confirmed**: a `cos(phi)`/`sin(phi)` term in the same
+fit has |coefficient| q95 <= 0.11 against derivatives of order 1-2, so
+`d ln Sigma/d phi = 0` and the `phi` components of `G` are purely kinematic.
+
+### 9.3 Measuring `A` from truth -- and the cut that must not be used
+
+`a (m - mu)/sigma = A (m - m_gen)/m_gen`, so the regressor is the RELATIVE MASS
+RESIDUAL and carries no reported width: there is no `sigma`-on-`sigma`
+correlation to worry about.  `ln sigma_bar` is removed by Frisch-Waugh-Lovell
+inside 8x8 cells of the TRUE `(ln p_plus, ln p_minus)` with 29 truth and
+detector controls (true momenta, true lambdas, decay vertex, valid and pixel
+hit counts and their products).  Pooling the within-cell residuals is
+algebraically one joint fit with per-cell controls and a single shared slope.
+
+**The tail control must be an ABSOLUTE residual window, never a pull.**  A cut
+`|m - m_gen| < k sigma` uses the candidate's own width as the threshold, and
+that width is the signal: a candidate whose mass fluctuated up has a larger
+`sigma`, a looser threshold, and survives where its mirror image does not.
+Estimator closure on a toy built from this sample (`ares_angles.py --toy`,
+`sigma_bar` = the real width times a log-normal pattern factor 0.35,
+`A_true = 1.05`, 20 replicas):
+
+| tail control | measured `A` | bias |
+|---|---|---|
+| none | +1.0200 +- 0.0365 | -0.030 |
+| `\|m - m_gen\| < 60 MeV` (the card's own window, used here) | +1.0676 +- 0.0384 | **+0.018** |
+| `\|m - m_gen\| < 3 sigma_bar` (truth width) | +1.0466 +- 0.0359 | -0.003 |
+| `\|m - m_gen\| < 3 sigma` (PULL cut) | +1.1958 +- 0.0483 | **+0.146** |
+
+so the estimator is unbiased to +-0.04 as used, and a pull cut inflates `A` by
+14 %.  `fullscale/measure_a.py` uses exactly that pull cut (`--zmax` on `z`)
+and bins in cells of `sigma/m` and `asym`, both built from the reported widths;
+its `--zmax` help now carries the warning.  Its published Z-leg number (1.2110
+against `1 + vgf` = 1.2625) is biased in the HIGH direction by both, so the
+true Z deficit is larger than the 4 % quoted in `MASSCFTERM_SPEC` section 2 --
+by how much is not measured here, the toy above is K_S kinematics.
+
+### 9.4 Result
+
+`A_pred` is each form's population slope formed with the SAME weights and the
+SAME realised fluctuations as the measurement, so the columns are directly
+comparable.
+
+| | K_S -> pi pi (52 764 cand.) | J/psi -> mu mu (1 973 266 cand.) |
+|---|---|---|
+| `sigma_m/m` median | 0.01207 | 0.01087 |
+| `f_hit` median | 0.0473 | 0.0856 |
+| `f_ang` median | **0.7028** | **0.0630** |
+| **`A` MEASURED** | **+1.0618 +- 0.1179** | **+1.1026 +- 0.0075** |
+
+| form | `A_pred` (K_S) | pull | `A_pred` (J/psi) | pull |
+|---|---|---|---|---|
+| (i) `1 + f_hit` -- **as shipped** | 1.1059 | **-0.4** | 1.1064 | **-0.5** |
+| (ii) `(1-f_ang)[(1+f_hit)(1-f_ang)+f_ang]` | 0.2594 | **+6.8** | 1.0268 | **+10.1** |
+| (ii') `(1-f_ang)(1+f_hit)` | 0.2714 | +6.7 | 1.0325 | +9.3 |
+| (iii) full, momentum sector of `G` only | 0.3066 | +6.4 | 0.8994 | +27.0 |
+| (iii) full, path-length `Sigma` | 1.2254 | -1.4 | 0.9520 | **+20.1** |
+| (iii) full, path-length `Sigma`, `dSigma/dlambda = 0` | 1.2294 | -1.4 | 0.9513 | +20.1 |
+| (iii) full, population `Sigma` | 1.2621 | -1.7 | 1.0775 | +3.4 |
+| kinematic only (`Sigma` frozen, = `f_hit` = 1) | 1.6383 | -4.9 | 1.9850 | -117 |
+
+In bins of TRUE kinematics the same ordering holds.  chi2 of the measurement
+against each form, K_S:
+
+| bins (chi2 / n) | (i) `mom` | (ii) `ang` | (iii) path-length | (iii) population |
+|---|---|---|---|---|
+| K_S, `f_ang` projected on truth, 7 | **9.7** | 71.9 | 9.8 | 10.9 |
+| K_S, softer pion's true \|p\|, 6 | **7.5** | 63.2 | 13.0 | 13.3 |
+| K_S, max true \|lambda\|, 5 | **11.8** | 68.4 | 14.7 | 15.8 |
+| J/psi, `f_ang` projected on truth, 7 | **12.4** | 122.0 | 467.3 | 25.1 |
+| J/psi, softer muon's true \|p\|, 6 | **9.8** | 117.1 | 432.8 | 19.4 |
+| J/psi, max true \|lambda\|, 5 | 24.7 | 113.7 | 469.9 | **19.1** |
+
+Over a factor 5 in the softer muon's true momentum the J/psi `A_meas` runs
+1.045 - 1.129 against (i) 1.089 - 1.133, (ii) 1.00 - 1.06 and path-length (iii)
+0.93 - 0.96 -- (i) tracks it, (ii) and (iii) do not.
+
+**Binning on `f_ang` is a trap** and is kept in the output as the
+demonstration.  `f_ang` is built from the FITTED state and the FITTED
+covariance, so it moves with the fluctuation being measured.  Binned on the
+reconstructed `f_ang` the K_S septiles read 1.80, 2.02, 2.00, 1.96, 2.07, 1.91,
+0.92, their Fisher-weighted mean is 1.64 against the inclusive 1.06 on the same
+candidates, and every form is rejected (chi2 271 - 1336 / 7).  Binned on
+`f_ang` PROJECTED ON THE TRUE KINEMATICS (the same variable with the
+fluctuation regressed out; correlation 0.48) the septiles are 1.37, 1.34, 1.07,
+0.51, 0.75, 1.39, 1.13, weighted mean **1.065**, flat and equal to the
+inclusive.  The structure was entirely the binning.
+
+### 9.5 What it costs on the momentum scale
+
+Same candidates, same window, same Jensen term, same minimiser; only `a_res`
+changes.  `make_card.py` gained `--a-res-key`, which takes `a_res` per
+candidate from a column of the pairs cache (default unchanged;
+`--a-res-key ares_mom` reproduces the shipped card's `alpha` to 1e-15).
+`eps = alpha/0.6300`, every fit EDM < 6e-16.
+
+| `a_res` form | median `a_res` | `alpha` [1e-3] | `eps` [1e-3] | `eps - eps(i)` |
+|---|---|---|---|---|
+| (ii) `ang` | 0.00349 | +0.1506 | +0.2391 | **-0.1740** |
+| (ii') `ang_simple` | 0.00367 | +0.1526 | +0.2422 | -0.1708 |
+| (iii) momentum sector of `G` only | 0.00371 | +0.1583 | +0.2513 | -0.1617 |
+| **(i) `mom`, as shipped** | 0.01290 | +0.2602 | **+0.4130** | 0 |
+| measured slope (`A` = 1.0618) | 0.01282 | +0.2640 | **+0.4191** | +0.0060 |
+| (iii) path-length `Sigma` | 0.01387 | +0.2869 | +0.4554 | +0.0423 |
+| (iii) path-length, `dSigma/dlambda = 0` | 0.01392 | +0.2871 | +0.4558 | +0.0428 |
+| (iii) population `Sigma` | 0.01429 | +0.2930 | +0.4650 | +0.0520 |
+| kinematic only | 0.01963 | +0.3629 | +0.5761 | +0.1630 |
+
+statistical error on `eps`: 0.0673e-3.
+
+Two sizes have to be kept apart.
+
+**The choice of FORM is worth 0.216e-3 on `eps`** -- `(iii) - (ii)`, 3.2x the
+statistical error and 20x the 1e-5 target.  It is the largest single decision
+in this closure, and the truth measurement settles it (9.4).
+
+**The angular dependence OF THE COVARIANCE is worth 4e-7.**  That is the
+`1/cos lambda` path-length term, isolated as `full_ms - full_ms_nolam` =
+-0.0004e-3 on `eps`, 25x below the target and 0.3 % of the slope.  The angular
+SECTOR of `G` carries 67 % of `A` at the K_S, but essentially all of it is the
+exact mass Hessian, not `dSigma/dlambda`.
+
+At the J/psi the covariance's angular term is 0.07 % of `a_res`; scaled by the
+correction's own size there (`a_res` moves `alpha` by +0.146e-3 on the gun and
++0.127e-3 on v3) that is **1e-7 on the scale**, below the 1e-6 threshold at
+which a refit would have been needed.  `(iii)-(ii)` at the J/psi is -7.7 %
+(path-length) / +4.6 % (population), i.e. 7e-6 to 1.1e-5, but (ii) is excluded
+there at 10 sigma.
+
+### 9.6 Verdict
+
+* **Does `d sigma_m/d(angles)` from the covariance's path-length dependence
+  have to be in `a_res`?  NO -- K_S 4e-7, J/psi 1e-7 on `eps`, both far below
+  the 1e-5 target.**
+* **Form (ii) must not be used.**  Excluded at 6.8 sigma (K_S) and 10 sigma
+  (J/psi).  It is wrong because it drops the exact angular dependence of the
+  mass Jacobian, not because it mis-models the detector.
+* **The shipped closed form `(1 + f_hit) sigma/m` is right.**  At the J/psi it
+  is confirmed to **0.34 +- 0.68 %**; at the K_S, where `f_ang` = 0.70, it is
+  confirmed to 11 % (statistics-limited) and sits 0.4 sigma from the
+  measurement.  It survives because it is itself an empirical statement --
+  `f_hit` is the measured hit share of the mass variance -- and absorbs the
+  kinematic and detector responses together, whereas form (iii) rebuilds them
+  from parts and inherits the parts' errors (its path-length variant is 14 %
+  low at the J/psi, its population variant 2.3 % low).
+* **No new maker export is required.**  `Jpsi_covrefmom`, `Jpsi_jacrefmom` and
+  `Jpsi_qopref*` are already written by both productions and are all the
+  population-regression route needs.  Were `d sigma/d lambda` ever wanted at
+  first order rather than from the population, the export would be the per-leg
+  `d ln Sigma_aa/d lambda` evaluated inside the fit at fixed hit set -- but
+  nothing here motivates it.
+
+### 9.7 Consequence for section 8
+
+The `a_res` band of section 8 (`+0.14/-0.13e-3`, taken as the full range
+between `a_res` off and the J/psi closed form, with form (ii) as the central
+value) is superseded.  The coefficient is now MEASURED on this sample, and its
+uncertainty is the measurement's: 11.1 % statistical plus 3.8 % estimator
+closure on `A`, against a total `a_res` correction of
+`0.4130 - 0.1460 = 0.267e-3` on `eps`, i.e. **+-0.031e-3**.
+
+```
+eps = +0.419 +- 0.067 (stat) +- 0.031 (a_res) +- 0.04 (other)  x 1e-3
+```
+
+(the central value is the measured-slope fit; the shipped closed form gives
++0.413, the two first-principles variants +0.455 and +0.465).  The a_res model
+is no longer the limiting systematic -- statistics and the unmodelled
+nuclear-elastic tail are.
+
+### 9.8 Files
+
+| | |
+|---|---|
+| `ks_cov_extract.py` | the 6x6 `Sigma`, `dm/du` and the TRUE leg directions, row-aligned to `kspairs_all.npz` |
+| `ares_jpsi_extract.py` | the same for a J/psi production (gen matching in the file) |
+| `ares_kin.py` | the two-body mass, its gradient and its Hessian in the reference parameters |
+| `ares_grad.py` | `grad(sigma_m)`: the exact kinematic term + the two `dSigma/du` models |
+| `ares_truth.py` | the Frisch-Waugh-Lovell slope measurement and its bootstrap |
+| `ares_angles.py` | the study: gates, the forms, the measurement, the bins, the toy closure, the figures, the `a_res` columns |
+| `run_ares_forms.sh` | one closure fit per form |
+| `ares_eps_table.py` | the `eps` table above |
+
+Caches: `runs/kscov_all.npz`, `runs/kspairs_ares.npz` (the pairs cache plus one
+`ares_<form>` column per form), `runs/jpsicov_ideal.npz`,
+`runs/jpsimin_ideal.npz`.  Figures:
+`~/public_html/ZMass/cvh/260918_ares_angles/` (and `.../jpsi/`).
+
+## 10. What to do next
+
+1. DONE, section 9: the per-candidate `a_res` form.  The coefficient is
+   measured from truth, the closed form is confirmed, and the systematic is
+   +-0.03e-3.
 2. **The nuclear-elastic CF family for hadrons.**  `cf_nucel_exact.py` exists
    offline and is validated parameter-free on four species; it is not in the
    in-maker CF, and the K_S tail is 6x a Gaussian.

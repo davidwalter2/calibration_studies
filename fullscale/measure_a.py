@@ -66,7 +66,17 @@ def main():
     ap.add_argument("--zmax", type=float, default=2.0,
                     help="|z| range of the regression: `a` is the FIRST-order "
                          "response, so it must be measured where the "
-                         "linearisation holds")
+                         "linearisation holds. CAUTION, this is a PULL cut and "
+                         "it biases `a` HIGH: the threshold is the "
+                         "candidate's own reported width, which is exactly "
+                         "what carries the signal, so a candidate whose mass "
+                         "fluctuated up has a looser threshold than its mirror "
+                         "image and survives where that one does not. Measured "
+                         "on a toy in `resolution/ksclosure/ares_truth.py`: "
+                         "+14 % at |z| < 3, against +2 % for an absolute "
+                         "|m - m_gen| window and 0 for no cut. An absolute "
+                         "residual window is the tail control that does not "
+                         "bias.")
     ap.add_argument("--nsig", type=int, default=3)
     ap.add_argument("--nasym", type=int, default=3)
     ap.add_argument("--gen-cells", action="store_true",
