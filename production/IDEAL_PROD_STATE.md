@@ -184,19 +184,85 @@ Drop it from `condor_dymc_ideal/config_dymc_v2.sh` if that is not wanted.
 The **pairs caches are not affected**: `cf_inmaker.py pairs` is run without
 `--groups`, so none of the per-group blocks is read into them.
 
-## ...and about 4x the CPU, for the same reason
+## ...and about 4x the CPU — but NOT for that reason
 
 Same chunk, `task_0262`: the Geant4e propagator is called **84 660** times in
 the 260917 run against **22 967** in v2 — 333 calls per candidate against 87,
-i.e. **3.7x**. That is exactly the term count: v2 profiles ONE CF residual (the
-mass), this production profiles FOUR (mass, vertex, and the two transverse
-beam-line residuals). Wall clock on that chunk went 504 s (v2, DESY) to 2919 s
-(IIHE), the rest of the factor being the node.
+i.e. **3.7x**. The cause is **not** the extra CF terms. It is the
+reference-EDM defect below: every candidate runs to the 10-iteration cap
+instead of stopping at ⟨niter⟩ ≈ 2.7-3.2, and 10/2.67 = 3.75 accounts for the
+whole factor. Wall clock on that chunk went 504 s (v2, DESY) to 2919 s (IIHE),
+the rest being the node.
 
-Expected turnaround, scaling v2's own numbers: the Z leg **~6-10 h** (v2: 4 h),
-the J/psi leg ~7 h for its 600 tasks (v2: 21 h for 1645, i.e. the same per-wave
-rate — the J/psi leg gains no residual terms and is unaffected).
+Realised turnaround: the Z leg's completed tasks ran a median **8.0 h** (p95
+12.7 h, max 17.9 h) against v2's ~1-1.6 h; the J/psi leg finished its 600 tasks
+in **15.3 h**. The storage factor (190.6 vs 68.8 kB/candidate) IS the CF
+residual blocks and is unrelated.
 
-Dropping `exportVtxResidual` would recover about a quarter of both the CPU and
-110 GB; `exportBsResidual`, which the brief asks for, is the other three
-quarters and cannot be dropped without losing the beam-line terms.
+## Spot check, J/psi `task_0000` (12 185 events)
+
+Three pairwise comparisons on the SAME task separate the two changes. Keys are
+`(run, lumi, event, Muplustrk_pt, Muminustrk_pt)`; `production/spotcheck_geometry.py`.
+
+| comparison | what changes | common | `Jpsikin_mass` | rel. median `Jpsi_mass` | rel. rms |
+|---|---|---:|---|---:|---:|
+| v2 -> alignctl | the maker DEFAULTS only | 12 138 | bit-identical | **−1.9e-7** | **4.90e-3** |
+| alignctl -> ideal | the GEOMETRY only | 12 138 | bit-identical | **+1.7e-6** | **5.43e-4** |
+| v2 -> ideal | both | 12 137 | bit-identical | +9.8e-7 | 4.72e-3 |
+
+* `Jpsikin_mass`, the pre-refit kinematic-fit mass, is **bit-identical in every
+  comparison** — same input, same pair finding, so any difference is the refit;
+* the geometry moves the refitted mass by a relative median of **1.7e-6** with a
+  **5.4e-4** per-candidate rms. The median is small because the misalignment is
+  a random per-module displacement that largely averages out over a track;
+* the DEFAULT change (`doVtxConstraint` ON) is the LARGER of the two in spread,
+  4.9e-3 per candidate, at essentially zero median — it is a different fit, not
+  a different scale;
+* candidates: v2 12 147, alignctl 12 139, ideal 12 138. The 9 lost to v2 are
+  `skipped[leghits<8]` — `minLegHits = 8` is a newer default that the v2
+  production did not have (0.074 % of candidates). The one further loss in the
+  ideal leg is a single `fail[prop]`.
+
+## These four samples carry two CVH defects fixed one commit later
+
+The area moved to **`3d4c926ff461`** on 2026-09-18, ONE commit after the
+`7b54ce096b27` these productions' payload was built from. Two of its three
+fixes bear on this sample.
+
+**1. The MS within-step correlation sign** (`Geant4ePropagator::PropagateErrorMSC`).
+`res(1,4)` was written `-S3` in the (lambda, yt) projection while the (phi, xt)
+one had `+S3`; both curvilinear levers are positive, so the negative sign was
+wrong. Consequence in these files: the **offset variance of a leg in the
+non-bending projection is low by a median 6.0 %** (p05 26.5 %, worst 52 %). The
+process-noise matrix is therefore wrong in exactly the projection a resolution
+study cares about, and everything derived from `resinfvarv` inherits it.
+
+**2. The reference EDM under the vertex constraint.** The reference-block EDM
+was taken on the full 10x10 vertex-PCA block of `covstate`, which is singular
+once index 6 is frozen — and `doVtxConstraint` is ON by default. Measured in
+these productions, `task_0000` / `task_0262`, against their v2 twins:
+
+| | `<niter>` | at the 10-iteration cap | `edmvalref` NaN | `edmval` NaN |
+|---|---:|---:|---:|---:|
+| `jpsimc_20M_260906_v2` | 3.16 | 1.3 % | 0 % | 0 % |
+| `jpsimc_20M_260917_alignctl` | **10.00** | **100 %** | **100 %** | 0 % |
+| `jpsimc_20M_260917_ideal` | **10.00** | **100 %** | **100 %** | 0 % |
+| `dymc_8p5M_260906_v2` | 2.67 | 0.8 % | 0 % | 0 % |
+| `dymc_8p5M_260917_ideal` | **10.00** | **100 %** | **100 %** | 0 % |
+
+`edmval`, the main fit's EDM, is finite everywhere — the fit itself converges
+and then keeps taking Gauss-Newton steps to the cap. That is what the 3.7x
+propagator count and the 8 h median task are. The spot check bounds what it
+does to the answer: v2 -> aligned control, where the geometry is identical and
+only the defaults change, moves `Jpsi_mass` by a relative median of
+**−1.9e-7** with a 4.9e-3 per-candidate rms — no scale shift, a different fit
+per candidate.
+
+**3.** The third fix (step records emptied under `doMassConstraint`) does not
+apply: these productions run `doMassConstraint=False` and
+`exportStepRecords=False`.
+
+The payload was deliberately pinned before the fix, so the four samples are
+internally consistent and comparable with each other. They are NOT comparable
+with anything built at `3d4c926ff461` or later, and defect 1 is a physics
+error in the process noise. **David decides whether to repeat.**
