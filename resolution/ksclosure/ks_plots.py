@@ -211,13 +211,14 @@ def main():
         jp = np.load(args.jpsi_cache, allow_pickle=True)
         zj = jp['z']
         mj = jp['eta'] + jp['sigma'] * zj
-        fig, axs = plt.subplots(1, 2, figsize=(14, 5.5))
+        fig, axs = plt.subplots(1, 2, figsize=(15, 5.5))
+        fig.subplots_adjust(wspace=0.30)
         for a_, x, lab in ((axs[0], sig / m, r'$K^0_S \to \pi\pi$'),
                            (axs[0], jp['sigma'] / mj, r'$J/\psi \to \mu\mu$')):
             hist(a_, x, np.linspace(0, 0.03, 61), label=lab,
                  color=('black' if 'K' in lab else 'crimson'))
         axs[0].set_xlabel(r'$\sigma_m/m$')
-        axs[0].set_ylabel('candidates / bin (each normalised below)')
+        axs[0].set_ylabel('candidates / bin')
         axs[0].set_yscale('log')
         axs[0].legend()
         for a_, x, lab in ((axs[1], z, r'$K^0_S \to \pi\pi$'),
