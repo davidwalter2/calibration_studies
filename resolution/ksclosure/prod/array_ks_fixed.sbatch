@@ -8,7 +8,7 @@
 #SBATCH --partition=submit
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=2000M
-#SBATCH --time=2:00:00
+#SBATCH --time=0:30:00
 set -euo pipefail
 : "${CONFIG:?}"; : "${CHUNKDIR:?}"; : "${OUTDIR:?}"; : "${CMSSW_AREA:?}"
 : "${SLURM_ARRAY_TASK_ID:?}"

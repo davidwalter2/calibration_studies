@@ -12,8 +12,9 @@ must be kept.
 | fixed production | `/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260918_fixed/` |
 | old production (keep) | `/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260917_ideal/` |
 | CMSSW | `/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2` @ `3d4c926ff461`, built 11:35 (newer than the sources at 11:32) |
-| submit | `prod/submit_ks_fixed.sh [first] [last] [maxrun]` |
-| resubmit | `prod/resubmit_fixed.sh [maxrun]` |
+| submit | `prod/submit_ks_half.sh [first] [last] [maxrun]` (1000 half-chunk tasks) |
+| resubmit | `prod/resubmit_half.sh [maxrun]` (seals, then resubmits the gaps) |
+| seal | `prod/seal_halves.sh` -- `.complete` for chunks with both halves |
 | smoke compare | `smoke_compare.py <old task dir> <new task dir>` |
 
 `chunks/` and `allfiles.txt` are copies of the 260917 lists, so the two
@@ -33,7 +34,17 @@ touch the CVH code.
 - [x] CONTROL: the OLD pairs cache refitted with nothing changed reproduces
       `alpha = +0.260199 +- 0.042427` to every printed digit (`ctl_all`),
       so the analysis chain is unchanged.
-- [ ] full array (slurm 6472517 chunks 0-2, 6472698 chunks 3-499)
+- [ ] full array, slurm **6474164**, 1000 HALF-chunk tasks
+
+  The `submit` partition was saturated: a 5 min job backfilled at once, a 15 min
+  one waited behind the reservations, and the 8 h request of the 260917 array
+  never started at all.  Measured window on 2026-09-18 13:04: 12 min backfills,
+  15 min does not.  So each 252-file chunk is split into two 126-file halves
+  (`chunks_half/half_NNNN_{a,b}.txt`, verified to reproduce the 125 999-file
+  list exactly), each task asks for 12 min, and the two halves write into the
+  SAME `task_NNNN/` under `outprefix=globalcor_ks_{a,b}`.  `ks_pairs.py` globs
+  `globalcor_ks_*.root` in the task directory, so the chunking the truth join
+  sees is unchanged and `truth_NNNN.npz` still pairs with `task_NNNN`.
 - [ ] pairs cache -> cards -> fits
 - [ ] figures + STATE.md
 
@@ -42,7 +53,7 @@ touch the CVH code.
 ```bash
 KS=/work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure
 PROD=/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260918_fixed
-$KS/prod/resubmit_fixed.sh 150          # anything that did not finish
+$KS/prod/resubmit_half.sh 250           # seal, then anything that did not finish
 RUNS=$KS/runs/fixed $KS/run_ks_closure.sh $PROD
 RUNS=$KS/runs/fixed $KS/run_ks_syst.sh  $PROD
 # the a_res forms
