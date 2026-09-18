@@ -60,4 +60,5 @@ echo "=== table ==="
 
 echo "=== figures ==="
 ( source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
-  OMP_NUM_THREADS=1 python3 $KS/ks_plots.py --cache $RUNS/kspairs_all.npz --tag ksclosure )
+  OMP_NUM_THREADS=1 python3 $KS/ks_plots.py --cache $RUNS/kspairs_all.npz \
+      --tag ${FIGTAG:-ksclosure} )
