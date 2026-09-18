@@ -124,10 +124,75 @@ as long as it is running.
 ## Found in passing, pre-existing, NOT one of the four
 
 `radstepv` is written at stride 12 by the makers and was being read at a
-hard-coded 11 by eight offline sites: 91.5 % of candidates raise, 8.5 %
-mis-parse silently (`Sum dE_rad` 4e7 MeV against a true 0.8 MeV). The two C++
-shims refused strides 12 and 14 outright and their wrappers discarded the
-return code, so the ionization/MS/radiative exponents came back as zeros.
-Both are fixed in `calibration_studies` (uncommitted): a shared stride helper
-in `resolution/prodfiles.py` and thirteen readers plus the two shims routed
-through it.
+hard-coded 11 at 7 reshape sites in 6 scripts (9 occurrences of the constant):
+91.5 % of candidates raise, 8.5 % mis-parse silently (`Sum dE_rad` 4e7 MeV
+against a true 0.8 MeV). `cf_ioni_exact.NPARS = 11` was applied to an
+`ioniurbanv` the makers write at 12 or 14. The two C++ shims in `cxx/` refused
+strides 12 and 14 outright and their wrappers discarded the return code, so the
+ionization / MS / radiative exponents came back as the zeros they were
+initialised with. `rossi_vs_highland.py` read `msmoliv` at a literal 8 against
+a producer that has written 10 since 2026-08-08, and `10n % 8 == 0` for every
+even n, so about half its tracks mis-parsed silently.
+
+All fixed in commit `b0324b1`: one stride helper in `resolution/prodfiles.py`
+(declared branch -> `len/len(idx)` -> `len/cumulative_total(counts)` -> RAISE,
+never a guess) with thirteen readers and the two shims routed through it.
+
+### Impact: NO previously quoted number is affected
+
+Both defects can only bite on files written by CMSSW `aa85f17aeae6`
+(2026-09-05 23:26, the commit that appended the material-group column to every
+step record). The in-maker guard was widened by `d3481dc61dd7` **19 minutes
+later**, so only the standalone offline copy in `resolution/cxx/` was left
+behind -- for 13 days. All 227 production directories under
+`/ceph/.../ZMass/cvh/` were enumerated and one file opened in each; verified on
+a spot check:
+
+| production | date | `radstepstride` | `ioniurbanv` | has `radstepv`? |
+|---|---|---|---|---|
+| `resolution_trackres_mugun_ul16_260903x_m0` | 09-03 | 11 | 13 | yes |
+| `resolution_trackres_jpsigun_ul16_260905d_m0` | 09-05 | 11 | 13 | yes |
+| `jpsimc_20M_260906_v2`, `dymc_8p5M_260906_v2` | 09-06 | 12 | 14 | **no** |
+| `ks_btojpsix_260917_ideal` | 09-17 | 12 | 14 | **no** |
+| **`trklik/gun_fm_260918`** | 09-18 | **12** | **14** | **yes** (`msmoliv` 13) |
+
+Every production that carries raw step records was written PRE-change, where
+the stride-11 readers were right; every POST-change production runs with
+`exportStepRecords=False`, so the broken readers never fire. **Exactly one
+production has both** -- `cvh/trklik/`, belonging to the session that found the
+defects, whose own readers take the stride from the file.
+
+Checked and cleared on that basis: the `cvhcf260905` in-maker validation
+(inputs 2026-09-05, `ioniurbanv` 13 -- and a shim refusal would have shown
+`|dS| = |S| = O(1)`, not the quoted 1e-11), the `clampfix260904` and
+`stepdamp260905` gun mass-scale results, the material-group card, the global
+quadratic hit-chi2 term, the hit-residual and per-hit likelihood terms, the
+vertex-constraint term, the K_S closure, the nuclear-elastic and reference
+dE/dx closures (g4driver step tables, not maker branches), the cleanprop
+per-plane pulls (propExport, genuinely stride 10/11), trackres level 2, and the
+full-scale Z feasibility numbers.
+
+**No mass-card number is implicated.** `cfmass_*` / `cfqop_*` are computed
+inside CMSSW by `CvhCfExponents.cc`, whose guard is a RANGE
+(`stride < 11 || stride > 14`) accepting all four layouts, not the offline
+shims' allowlist; `radBlockMulti` has no stride guard at all and the maker
+passes its own `RADSTEP_STRIDE`. Nothing in `fullscale/make_card.py`,
+`make_joint_card.py`, `zchannel/make_z_card.py`, `cf_inmaker.py` or
+`cf_masslik_fit.py` reads a step record or loads a shim. Confirmed empirically:
+at `ioniurbanstride = 14`, `cfmass_ms` / `_ioni_re` / `_rad_re` are fully
+populated with `cfmass_ok = True` in today's J/psi, K_S and Z outputs.
+
+Three items remain open, none a physics headline: a named result for
+`cf_ioni_exact.py` could not be found in any doc (a completed run implies a
+stride-11 input, since 91 % of candidates would otherwise raise);
+`rossi_vs_highland.py` is quoted in no current doc, only the archived dev log;
+and the trklik gates on `gun_fm_260918` are the one live body of numbers on
+post-change step records, owned by that session.
+
+### Follow-up for whoever next builds CMSSW
+
+`TrackPropagation/Geant4e/interface/CvhCfExponents.h:134` still documents the
+rad rows as `stride RADSTEP_STRIDE = 11`; the maker passes 12. A comment, but a
+contract comment, and wrong. NOT fixed here because a slurm array of 500 K_S
+refit tasks is queued against `CMSSW_15_0_19_patch2_dev2` and a relink would
+kill them as they start.
