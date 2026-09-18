@@ -8,7 +8,8 @@
 set -euo pipefail
 PROD=${1:-/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260917_ideal}
 KS=/work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure
-RUNS=$KS/runs
+RUNS=${RUNS:-$KS/runs}
+export RUNS
 mkdir -p "$RUNS" "$RUNS/results"
 export THREADS=${THREADS:-16}
 
@@ -55,7 +56,7 @@ done
 
 echo "=== table ==="
 ( source /work/submit/david_w/ZMass/mfs/.venv/bin/activate
-  python3 $KS/ks_table.py --order all_naive all_ares all fromb fromb0 prompt r0_2 r2_4 r4_10 r10_60 plo pmid phi )
+  python3 $KS/ks_table.py --runs $RUNS --results $RUNS/results --order all_naive all_ares all fromb fromb0 prompt r0_2 r2_4 r4_10 r10_60 plo pmid phi )
 
 echo "=== figures ==="
 ( source /work/submit/david_w/ZMass/mfs/.venv/bin/activate

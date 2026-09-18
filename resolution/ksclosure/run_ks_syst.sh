@@ -6,7 +6,8 @@
 set -euo pipefail
 PROD=${1:-/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260917_ideal}
 KS=/work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure
-RUNS=$KS/runs
+RUNS=${RUNS:-$KS/runs}
+export RUNS
 export THREADS=${THREADS:-8}
 
 run() { tag=$1; shift; PAIRS=$1; shift

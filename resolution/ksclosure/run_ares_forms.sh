@@ -6,7 +6,8 @@
 # `a_res` model uncertainty and nothing else.
 set -euo pipefail
 KS=/work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure
-RUNS=$KS/runs
+RUNS=${RUNS:-$KS/runs}
+export RUNS
 CACHE=${CACHE:-$RUNS/kspairs_ares.npz}
 FORMS=${FORMS:-"mom ang full_ms full_ms_nolam full_pop kin truth"}
 for f in $FORMS; do

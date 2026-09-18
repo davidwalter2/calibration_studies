@@ -3,12 +3,15 @@
 #
 # usage: ./build_ks.sh <tag> [extra make_card args...]
 #   tag = a name for this variant (all / fromb / r-bins / ...)
-# env: PAIRS (cache path, default runs/kspairs_<tag>.npz), CARDARGS
+# env: PAIRS (cache path, default $RUNS/kspairs_<tag>.npz), CARDARGS,
+#      RUNS (working directory for cards, logs and results; default ./runs -- set
+#      it to keep a second production's fits beside the first's instead of
+#      overwriting them)
 set -euo pipefail
 TAG=${1:?tag}; shift || true
 KS=/work/submit/david_w/ZMass/calibration_studies/resolution/ksclosure
 FS=/work/submit/david_w/ZMass/calibration_studies/fullscale
-RUNS=$KS/runs
+RUNS=${RUNS:-$KS/runs}
 PAIRS=${PAIRS:-$RUNS/kspairs_all.npz}
 CARD=$RUNS/ks_${TAG}.hdf5
 mkdir -p "$RUNS" "$RUNS/results"
