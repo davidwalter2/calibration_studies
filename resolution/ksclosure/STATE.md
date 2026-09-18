@@ -275,3 +275,104 @@ before proposing any hadronic two-body channel as a calibration probe.
 
 Both numbers are printed by `ks_table.py`; `eps` is the one that compares with
 the J/psi closure.
+
+## 7. The sigma-artefact prefactor is derived for a momentum-dominated mass
+
+`a_i = (1 + f_hit) sigma_i/m_i` (implemented as `(1 + vgf) sigma/|m|`) comes
+from `sigma_m^2 = A m^4 + B m^2 + C`, i.e. from a mass whose resolution is
+carried by the two MOMENTA: the hit term gives `sigma_p/p ~ p` hence
+`sigma_m ~ m^2`, the MS term `sigma_p/p ~ const` hence `sigma_m ~ m`, and
+`d ln sigma_m / d ln m = 1 + f_hit`.
+
+For K_S -> pi pi that premise fails: **`f_ang` has median 0.70**, so 70 % of
+`sigma_m^2` comes from the OPENING ANGLE.  An angular fluctuation moves `m`
+WITHOUT moving `sigma_m` -- `sigma_ang = (dm/dtheta) sigma_theta ~ (m/theta)
+sigma_theta` is invariant under `theta -> theta(1+d)` -- so its contribution to
+`d ln sigma_m/d ln m` is zero, not `1 + f_hit`.  Averaging the two fluctuation
+sources with their variance shares,
+
+```
+a_eff / a_used = (1 - f_ang) [ (1 + vgf)(1 - f_ang) + f_ang ] / (1 + vgf)
+```
+
+which is **0.28 (median) / 0.47 (1/sigma^2-weighted)** for the K_S and
+**0.89-0.91 at the J/psi** (`f_ang` 0.086 gun / 0.106 data) -- so the published
+J/psi correction is itself ~10 % high, comparable to its own error, while the
+K_S one is 2-3.5x high.  `make_card.py` gained a scalar `--a-scale` (default 1,
+every existing card bit-identical) so the size of this can be measured rather
+than assumed.  A per-candidate form is the proper fix and is NOT done here.
+
+## 8. Result (first 100 of 500 chunks, 10 597 truth-matched candidates)
+
+`alpha_mass` is what the term fits; `eps = alpha_mass / <f>` with `<f>` = 0.631
+is the momentum scale (section 6).  All fits converge with EDM < 1e-17.
+
+### The correction ladder
+
+| | alpha_mass [1e-3] | eps [1e-3] |
+|---|---|---|
+| naive (no corrections) | +0.196 +- 0.095 | +0.311 +- 0.151 |
+| + Jensen exact only | +0.107 +- 0.095 | +0.170 +- 0.151 |
+| + a_res x 0.470 + Jensen | **+0.187 +- 0.095** | **+0.296 +- 0.151** |
+| + a_res (J/psi form) + Jensen | +0.276 +- 0.095 | +0.438 +- 0.151 |
+| + a_res (J/psi form), no Jensen | +0.366 +- 0.095 | +0.580 +- 0.151 |
+
+So the displaced K_S momentum-scale closure is **+0.30 +- 0.15 (stat)
++- 0.14 (a_res model) x 1e-3**, against the J/psi -> mu mu closure of
++0.006 +- 0.025 x 1e-3 on the same MC.  The a_res model spread is the dominant
+systematic and is the item to fix (section 7).
+
+### Populations and bins (a_res in the J/psi form, i.e. the top line of the
+### systematic band; the ladder shifts every row together)
+
+| sample | n | eps [1e-3] |
+|---|---|---|
+| all | 10597 | +0.438 +- 0.151 |
+| from a B hadron | 6393 | +0.576 +- 0.196 |
+| from a B0 | 5538 | +0.407 +- 0.210 |
+| prompt / fragmentation | 4204 | +0.229 +- 0.236 |
+| decay radius < 2 cm | 2460 | +0.364 +- 0.307 |
+| 2 - 4 cm | 2608 | -0.176 +- 0.300 |
+| 4 - 10 cm | 2790 | +0.775 +- 0.281 |
+| > 10 cm | 2739 | +0.781 +- 0.323 |
+| min-leg p < 0.8 GeV | 2326 | +0.041 +- 0.293 |
+| 0.8 - 1.5 GeV | 3531 | +0.552 +- 0.241 |
+| > 1.5 GeV | 4740 | +0.626 +- 0.258 |
+
+The four radius bins scatter by chi2 = 6.9/3 around their mean (p = 0.08): no
+established radius dependence yet at a fifth of the sample.
+
+### Systematics (all on the same candidates unless stated)
+
+| variation | eps [1e-3] | shift |
+|---|---|---|
+| nominal | +0.438 | -- |
+| residual window 3 sigma (from 9) | +0.367 | -0.072 |
+| residual window 5 sigma | +0.434 | -0.005 |
+| floating uniform background | +0.446 | +0.008 |
+| chi2/ndof < 1.5 (from 3) | +0.441 | +0.003 |
+| truth match tight (0.05/0.05/0.20/1 cm) | +0.408 | -0.030 |
+| truth match loose (0.60/0.60/0.90/5 cm) | +0.414 | -0.024 |
+
+Everything but the residual window is a no-op; the 3-sigma window shift is the
+unmodelled tail (below), and it is 0.5 sigma.
+
+### The unmodelled tail
+
+`|z| >= 3` holds **1.59 %** of candidates against 0.27 % for a Gaussian, and
+the log-scale `ks_pull_model_tails` figure shows the model describing the core
+to a few per cent while the data run ~20 % above it at z = +2 to +3 and ~1
+candidate per bin sits flat out to |z| = 10.  The in-maker CF has no
+nuclear-elastic family and `S_rad` is identically zero for pions, so this is
+where the ~0.05 elastic nuclear collisions per pion (25-35 mrad each) live.
+The excess is ASYMMETRIC, on the high-mass side, which is the direction that
+biases the fitted scale positive -- and it is the one systematic above that
+moves the answer.
+
+### A caveat on the J/psi comparison
+
+The reference J/psi -> mu mu number (+0.006 +- 0.025e-3) was measured on the
+`btojpsix_v3_260904f_m0` refit, which ran with the ALIGNED geometry from the
+GT; this K_S production runs with `useIdealGeometry=True` (David's 9/17
+decision).  The like-for-like comparison is against the ideal-geometry J/psi
+production `jpsimc_20M_260917_ideal` launched the same day.

@@ -66,6 +66,9 @@ def main():
         i = r['params'].index('alpha')
         # the ladder tags all_naive / all_ares run on the inclusive cache
         cache_tag = 'all' if tag.startswith('all') else tag
+        if tag.startswith('s_'):
+            cache_tag = {'s_mtight': 'matchtight',
+                         's_mloose': 'matchloose'}.get(tag, 'all')
         cache = os.path.join(args.runs, f'kspairs_{cache_tag}.npz')
         fw = fu = float('nan')
         n = 0

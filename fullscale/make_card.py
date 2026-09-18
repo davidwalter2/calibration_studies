@@ -276,6 +276,16 @@ def parse_args(argv=None):
                         "write-off = a_i is stored but the correction is off, "
                         "so one card serves both fits; off = no a_i at all")
     p.add_argument("--max-ares", type=float, default=0.5)
+    p.add_argument("--a-scale", type=float, default=1.0,
+                   help="multiply a_res by this. The closed form "
+                        "a = (1 + f_hit) sigma_m/m comes from "
+                        "sigma_m^2 = A m^4 + B m^2 + C, i.e. from a mass whose "
+                        "resolution is carried by the two MOMENTA. A channel "
+                        "whose mass resolution is carried by the OPENING ANGLE "
+                        "instead (K_S -> pi pi: f_ang = 0.70, against 0.09 at "
+                        "the J/psi) has a smaller coefficient, because an "
+                        "angular fluctuation moves m without moving sigma_m. "
+                        "Default 1 reproduces every existing card.")
     p.add_argument("--jensen", choices=["exact", "shift", "off"], default="exact")
     p.add_argument("--corr-form", choices=["fluctuation", "residual"],
                    default="fluctuation",
@@ -660,6 +670,9 @@ def build(args, log=print):
     a_res = None
     if args.ares != "off":
         a_res = (1.0 + vgf) * sigma / np.maximum(np.abs(mreco), 1e-9)
+        if args.a_scale != 1.0:
+            a_res = a_res * args.a_scale
+            log(f"  --a-scale {args.a_scale:g} applied to a_res")
         if args.corr_clip and args.corr_form == "residual":
             log(f"  corrections clipped to |delta| < {args.corr_clip:g} sigma "
                 f"(that is {100.0*np.mean(np.abs(mobs) < args.corr_clip*sigma):.2f} % "

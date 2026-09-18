@@ -67,8 +67,12 @@ def load_truth(files, quiet=False):
     cols = None
     for fn in files:
         with np.load(fn) as d:
+            n = len(d['run'])
             if cols is None:
-                cols = {k: [] for k in d.files if k not in ('nevents', 'nbadfiles')}
+                # per-row columns only: the file also carries scalar job
+                # counters (nevents, nbadfiles, nskipped), and a length check
+                # is what keeps a newly added one from being sorted as a row
+                cols = {k: [] for k in d.files if len(d[k]) == n or k == 'run'}
             for k in cols:
                 cols[k].append(d[k])
     t = {k: np.concatenate(v) for k, v in cols.items()}
