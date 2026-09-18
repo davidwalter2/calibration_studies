@@ -266,3 +266,29 @@ The payload was deliberately pinned before the fix, so the four samples are
 internally consistent and comparable with each other. They are NOT comparable
 with anything built at `3d4c926ff461` or later, and defect 1 is a physics
 error in the process noise. **David decides whether to repeat.**
+
+## Spot check, Z `task_0001` (22 120 events)
+
+`task_0000` of the Z ideal leg was still running, so the Z spot check is on
+`task_0001` — the same chunk in all three productions.
+
+| comparison | what changes | common | `Jpsikin_mass` | rel. median | sigma68 | \|r\|>1 % | max \|r\| |
+|---|---|---:|---|---:|---:|---:|---:|
+| alignctl -> ideal | the GEOMETRY only | 9 642 | bit-identical | **+1.20e-5** | **5.92e-4** | 6 (0.06 %) | 0.063 |
+| v2 -> alignctl | the maker DEFAULTS only | 9 642 | — | +4.88e-5 | 4.13e-3 | **828 (8.59 %)** | **83** |
+| v2 -> ideal | both | 9 641 | — | −1.51e-5 | 4.18e-3 | 834 (8.65 %) | 83 |
+
+**The geometry is the clean, small effect**: a relative median of `+1.20e-5`,
+i.e. **+1.09 MeV on a 91.1876 GeV Z**, with a 5.9e-4 per-candidate width and
+0.06 % beyond 1 %. That is the number this production was made to measure.
+
+**The maker-default change is the disruptive one**: 8.6 % of Z candidates move
+by more than 1 % and 61 by more than 10 %, up to a factor 83. That is the
+10-iteration runaway of the reference-EDM defect, not the vertex constraint as
+such — a candidate that keeps taking Gauss-Newton steps after convergence can
+walk a long way. It is the strongest argument for repeating these productions
+against `3d4c926ff461`.
+
+Candidates: v2 9 846, alignctl 9 643, ideal 9 644. The 204 lost to v2 are
+`skipped[leghits<8] = 211` (the `minLegHits = 8` default v2 did not have);
+failures fall 11 -> 3/2 and `clamped[step]` 152 -> 32.
