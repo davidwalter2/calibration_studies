@@ -54,7 +54,14 @@ double cvhcf_ioni_sq2(const float *rows, int stride, int n, const float *qsc, in
 int cvhcf_ioni_block(const float *rows, int stride, int n, double wstdSigned, double *sre, double *sim) {
   if (rows == nullptr || sre == nullptr || sim == nullptr)
     return -1;
-  if (stride != 11 && stride != 13)
+  // MINIMUM-COLUMN check, never an allowlist. `cvhcf::ioniBlock` reads
+  // columns 0..10 always and 11/12 when `stride >= 13`, so anything at least
+  // 11 wide is readable: propExport writes 11/13, the residual makers 12/14
+  // (stepGroup appended). The old {11, 13} allowlist rejected the maker's own
+  // records -- the common case -- and did so by returning a code the caller
+  // could drop on the floor rather than by throwing, which is why the refusal
+  // has to be surfaced (see the caller's rc check).
+  if (stride < 11)
     return -2;
   cvhcf::ioniBlock(rows, stride, n, wstdSigned, sre, sim);
   return 0;

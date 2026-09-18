@@ -56,6 +56,12 @@ API (all paths absolute, all lists in a stable, reproducible order)::
 
 On a single-stream production this returns exactly the plain
 `sorted(glob(...))[:ntasks]` list, so existing caches reproduce bit-identically.
+
+This module also owns the other file-level fact every reader of a CVH
+production needs and no reader may assume: the STRIDE of the flat step-record
+branches (`msmoliv`, `ioniurbanv`, `radstepv`, ...). See the "step-record
+strides" section at the bottom -- `tree_stride`, `record_stride`,
+`reshape_records`.
 """
 import glob as _glob
 import os
@@ -65,6 +71,10 @@ __all__ = [
     "task_dirs", "stream_files", "task_complete", "task_reason",
     "runtree_file", "single_file", "iter_files", "resolve", "group_by_task",
     "last_stats",
+    # step-record strides (see the "step-record strides" section below)
+    "stride_branch", "count_branch", "stride_keys", "tree_stride",
+    "entry_stride", "cumulative_total", "record_stride",
+    "reshape_records",
 ]
 
 # `globalcor_0.root`, `globalcor_resclosure_12.root`, `globalcor_*.root`
@@ -390,6 +400,217 @@ def resolve(spec, max_tasks=None, require_complete="auto", logger=None,
                  if os.path.isdir(d)}
     return _select(sorted(dirs), stem, basename, max_tasks, require_complete,
                    logger)
+
+
+# ===========================================================================
+# step-record strides
+# ===========================================================================
+#
+# WHY GUESSING IS FORBIDDEN. The CVH step-record branches (`msmoliv`,
+# `ioniurbanv`, `radstepv`, `radv`, `radstepspecv`) are FLAT vectors of
+# `nrecord x stride` doubles. The stride is not a property of the analysis: it
+# is a property of the FILE, it has changed several times, and new columns are
+# always APPENDED so that no existing column index moves. A reader that
+# hard-codes it therefore does not fail loudly when the producer adds a column
+# -- it either raises on most entries or, whenever the record count happens to
+# be divisible by the stale literal, SILENTLY reinterprets every column as its
+# neighbour. (Concretely: the maker writes `radstepv` at stride 12; a reader
+# assuming 11 raises unless the step count is a multiple of 11, which about one
+# entry in eleven is, and those entries are decoded as garbage without a word.)
+# Divisibility tests such as ``10 if size % 10 == 0 else 8`` or ``for w in
+# (11, 13)`` are the same failure wearing a helpful face and must not be
+# reintroduced: they answer "which stride divides this size" when the question
+# is "which stride did the producer write".
+#
+# The stride is therefore taken from the file, in this order:
+#   1. the scalar stride branch, when the tree has one (`msmolistride`,
+#      `ioniurbanstride`, `radstepstride`, `radstepnv`);
+#   2. `len(values) // nrecord` with `nrecord` from the per-record index branch
+#      (maker trees write one `*idx` entry per record);
+#   3. `len(values) // nrecord` with `nrecord` from the per-step count branch
+#      (`propExport` trees: `stepnms` / `stepnioni`);
+#   4. otherwise RAISE. There is no fourth option.
+#
+# NOTE ON `stepnms` / `stepnioni`. They are CUMULATIVE -- Geant4ePropagator's
+# `StepTransport` stores "the sizes of the two physics logs AFTER this step" --
+# so the leg total is the LAST element, never the sum. Summing them is a
+# plausible misreading that yields a wrong, often still-divisible, stride.
+
+# values branch -> the scalar branch carrying its stride, when one exists.
+_STRIDE_BRANCH = {
+    "msmoliv": "msmolistride",
+    "ioniurbanv": "ioniurbanstride",
+    "radstepv": "radstepstride",
+}
+
+# values branch -> the propExport CUMULATIVE per-step count branch. `radv` and
+# `radspecv` ride on `stepnms` because Geant4ePropagator pushes `radStepLog_`
+# in lockstep with `msStepLog_` ("one per step and aligned with the Moliere
+# log"), so the two logs always have the same length.
+_COUNT_BRANCH = {
+    "msmoliv": "stepnms",
+    "ioniurbanv": "stepnioni",
+    "radv": "stepnms",
+    "radspecv": "stepnms",
+}
+
+# Lowest column count a reader of each branch indexes UNCONDITIONALLY. Used
+# only to reject a stride that cannot possibly be right, and to shape an empty
+# entry; it is never used to INFER one.
+#
+# `msmoliv` is 7 and not 10 on purpose: the exporter's oldest layout is 8 wide
+# (no per-element Moliere sums), `ms_step_exponent` reads columns 7/8 only
+# behind `shape[1] >= 10`, and the leading-column readers stop at dOverX0
+# (column 6). A reader that needs the stepGroup column asserts `>= 10` for
+# itself -- see `matres/extract_groups.py` and `hitlik/extract_res5.py` --
+# rather than making every other reader refuse a file it can read.
+_MIN_COLS = {
+    "msmoliv": 7,
+    "ioniurbanv": 11,
+    "radstepv": 11,
+    "radv": 11,
+}
+
+
+def stride_branch(values_branch):
+    """Scalar branch carrying `values_branch`'s stride, or None if it has none."""
+    return _STRIDE_BRANCH.get(values_branch)
+
+
+def count_branch(values_branch):
+    """propExport cumulative count branch for `values_branch`, or None."""
+    return _COUNT_BRANCH.get(values_branch)
+
+
+def stride_keys(tree_keys, values_branches):
+    """The stride branches among `values_branches` that `tree_keys` actually has.
+
+    Readers add this to their ``t.arrays([...])`` key list so the stride
+    travels with the data instead of being re-derived per entry. `tree_keys`
+    may be a uproot tree, or any iterable of branch names (";1" cycles are
+    stripped).
+    """
+    keys = getattr(tree_keys, "keys", None)
+    keys = keys() if callable(keys) else tree_keys
+    have = {str(k).split(";")[0] for k in keys}
+    out = []
+    for b in values_branches:
+        s = _STRIDE_BRANCH.get(b)
+        if s and s in have and s not in out:
+            out.append(s)
+        # `radstepspecv`'s stride is 2*radstepnv rather than a branch of its own
+        if b == "radstepspecv" and "radstepnv" in have and "radstepnv" not in out:
+            out.append("radstepnv")
+    return out
+
+
+def tree_stride(tree, values_branch):
+    """`values_branch`'s stride as the FILE declares it, or None if it does not.
+
+    The stride branches are written once in `beginJob` from a compile-time
+    switch, so they are constant within a file and entry 0 is representative.
+    Returns None when the tree predates the branch -- the caller then falls
+    back to a record count, never to a literal.
+    """
+    keys = {str(k).split(";")[0] for k in tree.keys()}
+    if values_branch == "radstepspecv":
+        if "radstepnv" not in keys:
+            return None
+        return 2 * int(tree["radstepnv"].array(library="np", entry_stop=1)[0])
+    name = _STRIDE_BRANCH.get(values_branch)
+    if not name or name not in keys:
+        return None
+    return int(tree[name].array(library="np", entry_stop=1)[0])
+
+
+def entry_stride(arrays, values_branch, entry=0):
+    """`values_branch`'s declared stride, read from an ALREADY-LOADED arrays dict.
+
+    The companion to `tree_stride` for readers that pull their branches in one
+    `t.arrays(...)` call: add `stride_keys(tree, [...])` to the key list and
+    this returns the value for entry `entry`, or None when the file has no
+    such branch (the caller then falls back to a record count, never to a
+    literal).
+    """
+    if values_branch == "radstepspecv":
+        if "radstepnv" not in arrays:
+            return None
+        return 2 * int(arrays["radstepnv"][entry])
+    name = _STRIDE_BRANCH.get(values_branch)
+    if not name or name not in arrays:
+        return None
+    return int(arrays[name][entry])
+
+
+def cumulative_total(counts):
+    """Record total from a CUMULATIVE propExport count branch (`stepnms` ...).
+
+    The last element, NOT the sum: each entry is the log size after that step.
+    """
+    n = len(counts)
+    if n == 0:
+        return 0
+    total = int(counts[-1])
+    if total < int(max(counts)):
+        raise ValueError(
+            f"count branch is not cumulative (last={total} < max={int(max(counts))}); "
+            "the producer's convention changed and the stride cannot be trusted")
+    return total
+
+
+def record_stride(values, nrec=None, stride=None, branch="records", min_cols=None):
+    """Columns per record in the flat vector `values`.
+
+    `stride` -- the value the FILE declared (from `tree_stride`), if any --
+    wins. Otherwise `nrec`, the record count from an index or count branch,
+    divides. If neither is available this RAISES: a stride guessed from
+    divisibility silently shifts every column (see the module note above).
+    """
+    n = len(values)
+    if min_cols is None:
+        min_cols = _MIN_COLS.get(branch)
+    if stride is not None:
+        w = int(stride)
+        if w <= 0:
+            raise ValueError(f"{branch}: file declares a non-positive stride {w}")
+        if n % w:
+            raise ValueError(
+                f"{branch}: {n} values are not a whole number of {w}-column "
+                "records, though the file declares that stride")
+    elif nrec is not None and int(nrec) > 0:
+        nrec = int(nrec)
+        w, r = divmod(n, nrec)
+        if r:
+            raise ValueError(
+                f"{branch}: {n} values do not divide into {nrec} records "
+                f"(remainder {r}); index/count branch and values disagree")
+        if w <= 0:
+            raise ValueError(f"{branch}: {n} values for {nrec} records")
+    elif nrec is not None and n == 0:
+        return int(min_cols or 1)          # empty entry: shape only, no data
+    else:
+        raise ValueError(
+            f"{branch}: no stride available -- the tree has neither "
+            f"`{_STRIDE_BRANCH.get(branch, '<stride>')}` nor a usable record "
+            f"count (`*idx`, or `{_COUNT_BRANCH.get(branch, 'stepn*')}`). "
+            "Refusing to guess it from divisibility, which would silently "
+            "reinterpret every column.")
+    if min_cols is not None and w < min_cols:
+        raise ValueError(
+            f"{branch}: stride {w} is narrower than the {min_cols} columns "
+            "this reader indexes; the file was written by an incompatible "
+            "producer")
+    return w
+
+
+def reshape_records(values, nrec=None, stride=None, branch="records",
+                    dtype=None, min_cols=None):
+    """`values` as an (nrecord, stride) array, with the stride taken from the file."""
+    import numpy as _np
+    v = _np.asarray(values, dtype=(_np.float64 if dtype is None else dtype))
+    w = record_stride(v, nrec=nrec, stride=stride, branch=branch,
+                      min_cols=min_cols)
+    return v.reshape(-1, w)
 
 
 # ---------------------------------------------------------------------------

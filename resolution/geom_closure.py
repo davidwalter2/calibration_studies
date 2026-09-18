@@ -52,6 +52,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
 import cf_propagation_test as cpt                                # noqa: E402
 import fisher_norm as fn                                         # noqa: E402
 import hbasis                                                    # noqa: E402
+import prodfiles                                                 # noqa: E402
 from cf_propagation_test import (FUNCTIONALS, REF_BRANCH,        # noqa: E402
                                  SIM_BRANCH, load_model, model_phi,
                                  model_variance, weier_scalar)
@@ -675,10 +676,14 @@ def step_structure(geoms):
         p = p if os.path.sep in p else os.path.join(SCRATCH, p)
         f = uproot.open(p)
         tk = next(k for k in f.keys() if k.split(";")[0].endswith("/legs"))
-        a = f[tk].arrays(["ileg", "msmoliv"], library="np")
-        st = np.vstack([np.asarray(v, dtype=float).reshape(
-            -1, 10 if np.asarray(v).size % 10 == 0 else 8)
-            for v in a["msmoliv"]])
+        t = f[tk]
+        # stride from the FILE (its own `msmolistride`, else the per-leg
+        # record count in the CUMULATIVE `stepnms`), never from divisibility
+        w = prodfiles.tree_stride(t, "msmoliv")
+        a = t.arrays(["ileg", "msmoliv", "stepnms"], library="np")
+        st = np.vstack([prodfiles.reshape_records(
+            v, nrec=prodfiles.cumulative_total(n), stride=w, branch="msmoliv")
+            for v, n in zip(a["msmoliv"], a["stepnms"])])
         d = st[:, 6]
         out.append(f"  {g:<22s} {len(d):6d} {d.sum():9.4f} "
                    f"{(d ** 2).sum() / d.sum():10.3e} {d.max():10.3e}")

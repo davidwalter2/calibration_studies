@@ -60,6 +60,7 @@ from wums import logging  # noqa: E402
 
 from cf_track_resolution import ioni_step_exponent, ms_step_exponent
 import cf_brems_exact
+import prodfiles
 import cf_nucel_exact
 
 hep.style.use(hep.style.ROOT)
@@ -369,14 +370,19 @@ def load_sim(path, acceptance="modal", veto_eloss=0.0):
 # model side
 # --------------------------------------------------------------------------
 
-def _reshape_ms(v):
-    """msmoliv is 10 doubles/step, or 8 in files without the per-element
-    sums."""
-    v = np.asarray(v, dtype=np.float64)
-    for w in (10, 8):
-        if v.size % w == 0:
-            return v.reshape(-1, w)
-    raise ValueError(f'msmoliv size {v.size} matches neither stride')
+def _reshape_ms(v, nstep, stride=None):
+    """msmoliv as (nstep, stride), with the stride taken from the FILE.
+
+    `nstep` is the leg's Moliere-record total from `stepnms` (see
+    `_nms_total`); `stride` is the file's own `msmolistride` when it has one.
+    Never guessed -- see `prodfiles`' "step-record strides" note."""
+    return prodfiles.reshape_records(v, nrec=nstep, stride=stride,
+                                     branch="msmoliv")
+
+
+def _nms_total(stepnms):
+    """Moliere-record total of a leg, from the CUMULATIVE `stepnms`."""
+    return prodfiles.cumulative_total(np.asarray(stepnms, dtype=np.int64))
 
 
 def _nioni_total(stepnioni):
@@ -384,28 +390,20 @@ def _nioni_total(stepnioni):
     propagation step), so the leg's total is its last element -- not its sum,
     which is what a first reading of the name suggests and which would pick
     the wrong stride."""
-    v = np.asarray(stepnioni, dtype=np.int64)
-    return int(v[-1]) if v.size else 0
+    return prodfiles.cumulative_total(np.asarray(stepnioni, dtype=np.int64))
 
 
-def _reshape_ioni(v, nstep=None):
-    """ioniurbanv is 11 doubles/step; 13 when the export ran with
+def _reshape_ioni(v, nstep, stride=None):
+    """ioniurbanv as (nstep, stride), with the stride taken from the FILE.
+
+    The propExport layout is 11 doubles/step, 13 when the export ran with
     CVH_IONI_EXACTDELTA (regime 2/3), which appends beta2 and etot AFTER cs so
-    that every earlier column index is unchanged.
-
-    The stride is ambiguous from the size alone (a multiple of 143 divides by
-    both), so it is resolved by the per-leg step COUNT when the caller has it
-    (`stepnioni`), and only falls back to the size test otherwise -- a
-    misdetected stride would silently reinterpret every column."""
-    v = np.asarray(v, dtype=np.float64)
-    if nstep is not None and nstep > 0:
-        w, r = divmod(v.size, int(nstep))
-        if w in (11, 13) and r == 0:
-            return v.reshape(-1, w)
-    for w in (11, 13):
-        if v.size % w == 0:
-            return v.reshape(-1, w)
-    raise ValueError(f'ioniurbanv size {v.size} matches neither stride')
+    that every earlier column index is unchanged. Which of the two a file
+    holds is answered by `ioniurbanstride` when the file has it and by the
+    per-leg record count otherwise -- never by which strides happen to divide
+    the size, since a multiple of 143 divides by both."""
+    return prodfiles.reshape_records(v, nrec=nstep, stride=stride,
+                                     branch="ioniurbanv")
 
 
 def load_model(path):
@@ -420,6 +418,10 @@ def load_model(path):
     have_rad = all(b in t.keys() for b in ("radv", "radspecv", "radvgrid"))
     if have_rad:
         keys += ["radv", "radspecv", "radvgrid"]
+    # strides come from the file -- from its own stride branches when it has
+    # them (newer exports), else from the per-leg record counts below.
+    strides = {b: prodfiles.tree_stride(t, b)
+               for b in ("msmoliv", "ioniurbanv")}
     a = t.arrays(keys, library="np")
     nlegs = len(a["ileg"])
     legs = []
@@ -434,16 +436,22 @@ def load_model(path):
             Q=np.asarray(a["Q"][k], dtype=np.float64).reshape(5, 5),
             dQMS=np.asarray(a["dQMS"][k], dtype=np.float64).reshape(5, 5),
             dQI=np.asarray(a["dQI"][k], dtype=np.float64).reshape(5, 5),
-            # stride auto-detect: 8, or 10 with the per-element sums
-            ms=_reshape_ms(a["msmoliv"][k]),
-            ioni=_reshape_ioni(a["ioniurbanv"][k], _nioni_total(a["stepnioni"][k])),
+            ms=_reshape_ms(a["msmoliv"][k], _nms_total(a["stepnms"][k]),
+                           strides["msmoliv"]),
+            ioni=_reshape_ioni(a["ioniurbanv"][k], _nioni_total(a["stepnioni"][k]),
+                               strides["ioniurbanv"]),
             jacc=np.asarray(a["stepjacc"][k], dtype=np.float64).reshape(-1, 5, 5),
             nms=np.asarray(a["stepnms"][k], dtype=np.int64),
             nioni=np.asarray(a["stepnioni"][k], dtype=np.int64),
-            rad=(np.asarray(a["radv"][k], dtype=np.float64).reshape(
-                -1, cf_brems_exact.RADV_STRIDE) if have_rad else None),
-            radspec=(np.asarray(a["radspecv"][k], dtype=np.float64).reshape(
-                -1, 2 * cf_brems_exact.NRADV) if have_rad else None),
+            # `radv` is the propExport layout (no trailing stepGroup, so 11
+            # where the maker's `radstepv` is 12). The count is `stepnms`:
+            # Geant4ePropagator pushes radStepLog_ in lockstep with msStepLog_.
+            rad=(prodfiles.reshape_records(
+                a["radv"][k], nrec=_nms_total(a["stepnms"][k]),
+                branch="radv") if have_rad else None),
+            radspec=(prodfiles.reshape_records(
+                a["radspecv"][k], nrec=_nms_total(a["stepnms"][k]),
+                branch="radspecv") if have_rad else None),
             radvgrid=(np.asarray(a["radvgrid"][k], dtype=np.float64)
                       if have_rad else None),
         ))

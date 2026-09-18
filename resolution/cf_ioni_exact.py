@@ -48,7 +48,11 @@ import prodfiles
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
 
-NPARS = 11  # floats per exported Urban step
+# Columns 0..10 of an exported Urban step (regime .. cs). The RECORD is wider
+# than this -- the maker appends stepGroup (and, with CVH_IONI_EXACTDELTA,
+# beta2/etot before it) -- so the stride is read from the file per
+# `prodfiles.record_stride` and only these leading columns are indexed here.
+NCOLS = 11
 # t-grid for the Weierstrass integral. Must resolve the weight e^{-t^2/4u}
 # at the smallest probe (width ~ 2 sqrt(u) ~ 0.45 at u=0.05): 512 points on
 # [0, 12] give dt = 0.023, ~20 points across it. The Gaussian check
@@ -124,7 +128,7 @@ def delta_term(a):
 
 def block_exponent(steps, tau):
     """S_b(tau): centered log-CF exponent of the block's straggling in qop
-    units standardized by sigma_ref (rates at k=0). steps: (n, NPARS)."""
+    units standardized by sigma_ref (rates at k=0). steps: (n, >=NCOLS)."""
     reg = steps[:, 0]
     if np.any(reg == 2):
         raise NotImplementedError(
@@ -168,6 +172,10 @@ def extract(files, args):
         if pt is None:
             pt = f["runtree"]["parmtype"].array(library="np")
         t = f["tree"]
+        # stride from the FILE: `ioniurbanstride` (12, or 14 with
+        # CVH_IONI_EXACTDELTA) when the tree has it, else one `ioniurbanidx`
+        # entry per record. A hard-coded 11 shifts every column.
+        uwid = prodfiles.tree_stride(t, "ioniurbanv")
         a = t.arrays(["globalidxv", "gradchisqv", "gradllv", "chisqval",
                       "ndof", "ioniurbanidx", "ioniurbanv"], library="np")
         for ic in range(len(a["globalidxv"])):
@@ -179,7 +187,9 @@ def extract(files, args):
             nu = np.asarray(a["gradllv"][ic], dtype=np.float64)
             q = -np.asarray(a["gradchisqv"][ic], dtype=np.float64)
             uidx = np.asarray(a["ioniurbanidx"][ic])
-            uv = np.asarray(a["ioniurbanv"][ic], dtype=np.float64).reshape(-1, NPARS)
+            uv = prodfiles.reshape_records(
+                a["ioniurbanv"][ic], nrec=len(uidx), stride=uwid,
+                branch="ioniurbanv", min_cols=NCOLS)
             for j in m11:
                 gidx = gi[j]
                 h = nu[j]

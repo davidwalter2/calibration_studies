@@ -56,12 +56,22 @@ import os
 
 import numpy as np
 
-# radv layout, 11 doubles/step (Geant4ePropagator::RadiativeStep)
-RADV_STRIDE = 11
-# order must match G4ePropagationExport.cc's push_back sequence exactly
+# Leading columns of a radiative step record (Geant4ePropagator::RadiativeStep).
+# The order must match G4ePropagationExport.cc's push_back sequence exactly.
 (R_EFFZ, R_EFFA, R_XG, R_ETOT, R_P, R_DX0, R_STEPCM,
  R_DEDXRAD, R_DEDXBREM, R_DEDXPAIR, R_CS) = range(11)
-NRADV = 48   # Geant4ePropagator::kNRadV
+
+# These eleven are all any reader here indexes -- but they are NOT the record
+# width. `G4ePropagationExport`'s `radv` is exactly 11 wide; the maker's
+# `radstepv` appends stepGroup and is 12. Both share columns 0..10, so the
+# indices above serve both, and the stride must come from the file
+# (`radstepstride`, or the record count) via `prodfiles.record_stride`.
+# A module-level RADV_STRIDE used to stand here and was applied to BOTH
+# branches: on `radstepv` that raises unless the step count happens to be a
+# multiple of 11, and silently decodes garbage when it is. Do not restore it.
+RADV_NCOLS = 11
+
+NRADV = 48   # Geant4ePropagator::kNRadV; `radstepnv` in maker files
 
 M_MU = 0.1056583745      # GeV
 M_E = 0.510998946e-3     # GeV
@@ -92,8 +102,11 @@ def step_spectrum(rec, spec, vg):
     E = rec[R_ETOT]
     L = rec[R_STEPCM]
     out = np.zeros_like(vg)
-    for shape, dedx in ((spec[:NRADV], rec[R_DEDXBREM]),
-                        (spec[NRADV:], rec[R_DEDXPAIR])):
+    # the row holds the two shapes back to back on the SHARED grid, so the
+    # split point is the grid the file itself shipped -- not a literal
+    nb = len(vg)
+    for shape, dedx in ((spec[:nb], rec[R_DEDXBREM]),
+                        (spec[nb:], rec[R_DEDXPAIR])):
         dE = dedx * L
         if dE <= 0.:
             continue
@@ -172,12 +185,17 @@ def load_radv(path):
     import uproot
     t = uproot.open(path)
     key = next(k for k in t.keys() if k.split(";")[0].endswith("/legs"))
-    a = t[key].arrays(["radv", "radspecv", "radvgrid"], library="np")
+    import prodfiles
+    a = t[key].arrays(["radv", "radspecv", "radvgrid", "stepnms"], library="np")
     vg = np.asarray(a["radvgrid"][0], dtype=float)
     legs = []
-    for r, sp in zip(a["radv"], a["radspecv"]):
-        recs = np.asarray(r, dtype=float).reshape(-1, RADV_STRIDE)
-        spec = np.asarray(sp, dtype=float).reshape(-1, 2 * NRADV)
+    # `stepnms` is CUMULATIVE and counts this log too: the propagator pushes
+    # radStepLog_ in lockstep with msStepLog_.
+    for r, sp, nms in zip(a["radv"], a["radspecv"], a["stepnms"]):
+        n = prodfiles.cumulative_total(nms)
+        recs = prodfiles.reshape_records(r, nrec=n, branch="radv",
+                                         min_cols=RADV_NCOLS)
+        spec = prodfiles.reshape_records(sp, nrec=n, branch="radspecv")
         assert len(recs) == len(spec)
         legs.append((recs, spec))
     return legs, vg

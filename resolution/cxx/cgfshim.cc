@@ -46,7 +46,15 @@ int cvhcgf_ioni_step_exponent(const double *steps,
                               double *out) {
   if (steps == nullptr || tau == nullptr || out == nullptr)
     return -1;
-  if (ns < 0 || nt <= 0 || (stride != 11 && stride != 13))
+  // MINIMUM-COLUMN check, never an allowlist. The stride is the producer's,
+  // not this shim's: `G4ePropagationExport` writes 11 (13 with
+  // CVH_IONI_EXACTDELTA) while the residual makers write 12 (14), because
+  // they append stepGroup. All four share columns 0..10, and the exact-delta
+  // pair sits at 11/12 in the two wide layouts -- so every layout this code
+  // can read is exactly "at least 11 columns". An allowlist of {11, 13}
+  // rejected the maker's 12/14 outright, which is a stride the caller must be
+  // told about, not one to refuse silently.
+  if (ns < 0 || nt <= 0 || stride < 11)
     return -2;
 
   cvhcgf::Block blk;
@@ -70,6 +78,8 @@ int cvhcgf_ioni_step_exponent(const double *steps,
     s.tmax = r[8] * gam;
     // `g` is qop per keV in the record; the block wants per MeV.
     s.gs = wstd * r[10] * 1e-3;
+    // 13 and 14 are the two exact-delta layouts (propExport and maker); 11
+    // and 12 are the two base layouts, which carry no beta^2/E.
     if (stride >= 13) {
       s.beta2 = r[11];
       s.etot = r[12];

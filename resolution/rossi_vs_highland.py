@@ -43,6 +43,7 @@ from scipy.special import j0
 from wums import logging
 
 import cf_ms_exact as cm
+import prodfiles
 
 logger = logging.child_logger(__name__)
 
@@ -90,12 +91,18 @@ def main():
     logging.setup_logger(__file__, 3, False)
 
     t = uproot.open(a.file)["tree"]
+    # the stride is the FILE's, not this reader's: the maker has written 10
+    # columns since the per-element Moliere sums were added and appends more
+    # over time. `msmolistride` when the file has it, else one `msmoliidx`
+    # entry per record. Never a literal -- see prodfiles.
+    w = prodfiles.tree_stride(t, "msmoliv")
     arr = t.arrays(["msmoliidx", "msmoliv"], library="np", entry_stop=a.ntracks)
 
     tau = np.linspace(1e-3, a.taumax, 3000)
     rows = []
     for idx, v in zip(arr["msmoliidx"], arr["msmoliv"]):
-        st = np.asarray(v, dtype=float).reshape(-1, 8)
+        st = prodfiles.reshape_records(v, nrec=len(idx), stride=w,
+                                       branch="msmoliv")
         if len(st) < 3:
             continue
         tot_x0 = st[:, C_DX0].sum()

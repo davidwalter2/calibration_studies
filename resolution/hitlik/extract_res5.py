@@ -267,6 +267,8 @@ def process_file(fname):
         want += list(_CB)
     elif "reshitidx" in keys:
         want.append("reshitidx")
+    want += prodfiles.stride_keys(
+        keys, ("msmoliv", "ioniurbanv", "radstepv", "radstepspecv"))
     want = sorted(set(want))
     a = t.arrays(want, library="np")
 
@@ -374,10 +376,17 @@ def process_file(fname):
                if "ioniqscalev" in a else None)
         if want_rad:
             ridx = np.asarray(a["radstepidx"][ic])
-            rrec = np.asarray(a["radstepv"][ic], np.float64).reshape(
-                -1, cf_brems_exact.RADV_STRIDE)
-            rspc = np.asarray(a["radstepspecv"][ic], np.float64).reshape(
-                -1, 2 * cf_brems_exact.NRADV)
+            # stride from the FILE (`radstepstride`, else one `radstepidx`
+            # per record): the maker writes 12 columns and only the leading
+            # 11 are read here, so a hard-coded 11 shifts every one of them.
+            rrec = prodfiles.reshape_records(
+                a["radstepv"][ic], nrec=len(ridx),
+                stride=prodfiles.entry_stride(a, "radstepv", ic),
+                branch="radstepv", min_cols=cf_brems_exact.RADV_NCOLS)
+            rspc = prodfiles.reshape_records(
+                a["radstepspecv"][ic], nrec=len(ridx),
+                stride=prodfiles.entry_stride(a, "radstepspecv", ic),
+                branch="radstepspecv")
             rvg = np.asarray(a["radvgrid"][ic], np.float64)
 
         per_group = {}

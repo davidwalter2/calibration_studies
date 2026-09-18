@@ -56,6 +56,7 @@ sys.path.insert(0, HERE)
 os.environ.setdefault("CVH_IONI_KOKOULIN", "0")
 
 import cf_brems_exact                                              # noqa: E402
+import prodfiles                                                   # noqa: E402
 import cf_delta_ray                                                # noqa: E402
 import cf_track_resolution as ctr                                  # noqa: E402
 from cf_mass_likelihood import IONI_SGN, RAD_SGN                   # noqa: E402
@@ -117,26 +118,42 @@ def model_tag():
 
 
 # --------------------------------------------------------------------------
+def _rc(rc, what):
+    """Turn a shim refusal into an exception.
+
+    Every one of these entry points validates its inputs and returns a
+    negative code instead of computing. Dropping that code leaves the output
+    buffer at its ZEROS and the comparison then reports perfect agreement
+    between a real exponent and nothing at all -- which is how a rejected
+    record stride hid for as long as it did. A refusal must be loud.
+    """
+    if rc:
+        raise RuntimeError(
+            f"{what}: shim refused the call (rc={rc}); the record layout is "
+            "not one this build can read")
+
+
 def ms_block_cxx(rows, wstd, want_del):
     sms = np.zeros(len(TAU), dtype=np.float64)
     sdel = np.zeros(len(TAU), dtype=np.float64) if want_del else None
     p = sdel.ctypes.data_as(ctypes.c_void_p) if want_del else ctypes.c_void_p(0)
-    lib().cvhcf_ms_block(rows.ravel(), rows.shape[1], rows.shape[0], wstd, sms, p)
+    _rc(lib().cvhcf_ms_block(rows.ravel(), rows.shape[1], rows.shape[0], wstd, sms, p), "cvhcf_ms_block")
     return sms, sdel
 
 
 def ioni_block_cxx(rows, wstd):
     re = np.zeros(len(TAU), dtype=np.float64)
     im = np.zeros(len(TAU), dtype=np.float64)
-    lib().cvhcf_ioni_block(rows.ravel(), rows.shape[1], rows.shape[0], wstd, re, im)
+    _rc(lib().cvhcf_ioni_block(rows.ravel(), rows.shape[1], rows.shape[0], wstd, re, im), "cvhcf_ioni_block")
     return re + 1j * im
 
 
 def rad_block_cxx(rows, spec, vg, wstd):
     re = np.zeros(len(TAU), dtype=np.float64)
     im = np.zeros(len(TAU), dtype=np.float64)
-    lib().cvhcf_rad_block(rows.ravel(), rows.shape[1], rows.shape[0],
-                          spec.ravel(), vg, len(vg), wstd, re, im)
+    _rc(lib().cvhcf_rad_block(rows.ravel(), rows.shape[1], rows.shape[0],
+                              spec.ravel(), vg, len(vg), wstd, re, im),
+        "cvhcf_rad_block")
     return re + 1j * im
 
 
@@ -149,11 +166,18 @@ def ioni_sq2_cxx(rows, qsc):
 
 
 # --------------------------------------------------------------------------
-def reshape(v, idx, dflt):
-    v = np.asarray(v, dtype=np.float32)
-    if not len(idx):
-        return v.reshape(0, dflt)
-    return v.reshape(-1, len(v) // len(idx))
+def reshape(v, idx, branch, a=None, ic=0):
+    """A step-record branch as (nrecord, stride), stride taken from the FILE.
+
+    `a`/`ic` let the file's own stride branch win when it has one; otherwise
+    the one-index-per-record count divides. An EMPTY entry, where there is
+    nothing to divide, gets the branch's read-column count as its shape -- a
+    shape for zero rows, never a guess at a layout.
+    """
+    return prodfiles.reshape_records(
+        v, nrec=len(idx),
+        stride=(prodfiles.entry_stride(a, branch, ic) if a is not None else None),
+        branch=branch, dtype=np.float32)
 
 
 class Acc:
@@ -214,6 +238,9 @@ def run(args):
         need += cfb
     have_rad = "radstepv" in need
     have_qsc = "ioniqscalev" in need
+    # the strides of the flat step-record branches, as the FILE declares them
+    need += prodfiles.stride_keys(
+        keys, ("msmoliv", "ioniurbanv", "radstepv", "radstepspecv"))
     a = t.arrays(need, library="np", entry_stop=min(t.num_entries, 5 * args.ntracks + 50))
 
     acc_b, acc_t, acc_f = Acc(), Acc(), Acc()
@@ -240,9 +267,9 @@ def run(args):
         vb = np.asarray(a["resinfvarv"][ic], dtype=np.float32)
         fam = pt[gi]
         uim = np.asarray(a["msmoliidx"][ic])
-        uvm = reshape(a["msmoliv"][ic], uim, 10)
+        uvm = reshape(a["msmoliv"][ic], uim, "msmoliv", a, ic)
         uii = np.asarray(a["ioniurbanidx"][ic])
-        uvi = reshape(a["ioniurbanv"][ic], uii, 11)
+        uvi = reshape(a["ioniurbanv"][ic], uii, "ioniurbanv", a, ic)
         if have_qsc:
             qsi = np.asarray(a["ioniqscaleidx"][ic])
             qsv = np.asarray(a["ioniqscalev"][ic], dtype=np.float32).reshape(-1, 2)
@@ -250,10 +277,18 @@ def run(args):
             qsi = qsv = None
         if have_rad:
             ridx = np.asarray(a["radstepidx"][ic])
-            rrec = np.asarray(a["radstepv"][ic], dtype=np.float32).reshape(
-                -1, cf_brems_exact.RADV_STRIDE)
-            rspc = np.asarray(a["radstepspecv"][ic], dtype=np.float32).reshape(
-                -1, 2 * cf_brems_exact.NRADV)
+            # stride from the FILE (`radstepstride` = 12 in the maker, else
+            # one `radstepidx` per record); only the leading 11 columns are
+            # indexed, so the width must not be confused with the layout.
+            rrec = prodfiles.reshape_records(
+                a["radstepv"][ic], nrec=len(ridx),
+                stride=prodfiles.entry_stride(a, "radstepv", ic),
+                branch="radstepv", dtype=np.float32,
+                min_cols=cf_brems_exact.RADV_NCOLS)
+            rspc = prodfiles.reshape_records(
+                a["radstepspecv"][ic], nrec=len(ridx),
+                stride=prodfiles.entry_stride(a, "radstepspecv", ic),
+                branch="radstepspecv", dtype=np.float32)
             rvg = np.asarray(a["radvgrid"][ic], dtype=np.float32)
         else:
             ridx = rrec = rspc = rvg = None
@@ -336,7 +371,7 @@ def run(args):
         aux = np.zeros(5, dtype=np.float64)
         empt32 = np.zeros(0, dtype=np.float32)
         empu32 = np.zeros(0, dtype=np.uint32)
-        lib().cvhcf_track(
+        _rc(lib().cvhcf_track(
             np.ascontiguousarray(gi, dtype=np.uint32),
             np.ascontiguousarray(fam, dtype=np.int32),
             np.ascontiguousarray(vb, dtype=np.float32), len(gi),
@@ -352,11 +387,11 @@ def run(args):
             np.ascontiguousarray(ridx, dtype=np.uint32) if ridx is not None else empu32,
             np.ascontiguousarray(rrec.ravel(), dtype=np.float32) if rrec is not None else empt32,
             0 if rrec is None else rrec.shape[0],
-            cf_brems_exact.RADV_STRIDE,
+            0 if rrec is None else rrec.shape[1],
             np.ascontiguousarray(rspc.ravel(), dtype=np.float32) if rspc is not None else empt32,
             np.ascontiguousarray(rvg, dtype=np.float32) if rvg is not None else empt32,
             0 if rvg is None else len(rvg),
-            float(sig), float(chg), 1, out, aux)
+            float(sig), float(chg), 1, out, aux), "cvhcf_track")
         if bool(aux[0]) != ok:
             print(f"  entry {ic}: ok flag disagrees (cxx {bool(aux[0])} vs py {ok})")
         if ok and bool(aux[0]):
@@ -425,7 +460,7 @@ def run(args):
                 np.ascontiguousarray(ridx, dtype=np.uint32) if ridx is not None else empu32,
                 np.ascontiguousarray(rrec.ravel(), dtype=np.float32) if rrec is not None else empt32,
                 0 if rrec is None else rrec.shape[0],
-                cf_brems_exact.RADV_STRIDE,
+                0 if rrec is None else rrec.shape[1],
                 np.ascontiguousarray(rspc.ravel(), dtype=np.float32) if rspc is not None else empt32,
                 np.ascontiguousarray(rvg, dtype=np.float32) if rvg is not None else empt32,
                 0 if rvg is None else len(rvg),

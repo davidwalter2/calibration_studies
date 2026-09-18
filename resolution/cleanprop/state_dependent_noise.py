@@ -44,6 +44,7 @@ import uproot
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from wums import logging  # noqa: E402
+import prodfiles  # noqa: E402
 
 logger = logging.child_logger(__name__)
 
@@ -59,11 +60,17 @@ def load_rays(pattern, rayfile):
     rays = []
     for f in sorted(glob.glob(pattern)):
         i = int(os.path.basename(f).split("_")[1].split(".")[0])
-        t = uproot.open(f)["propExport/legs"].arrays(
-            ["msmoliv", "refglobr", "stepnms"], library="np")
+        tree = uproot.open(f)["propExport/legs"]
+        # stride from the FILE (`msmolistride` when present, else the leg's
+        # record count in the CUMULATIVE `stepnms`), never a literal
+        w = prodfiles.tree_stride(tree, "msmoliv")
+        t = tree.arrays(["msmoliv", "refglobr", "stepnms"], library="np")
         thp2, legof = [], [0]
         for k in range(len(t["msmoliv"])):
-            st = np.asarray(t["msmoliv"][k], dtype=float).reshape(-1, 10)
+            st = prodfiles.reshape_records(
+                t["msmoliv"][k],
+                nrec=prodfiles.cumulative_total(t["stepnms"][k]),
+                stride=w, branch="msmoliv")
             thp2.append(st[:, 5])
             legof.append(legof[-1] + len(st))
         rays.append(dict(idx=i, dphi=dphi.get(i, 0.0),

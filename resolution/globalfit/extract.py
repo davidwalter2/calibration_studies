@@ -359,6 +359,9 @@ def process_file(fname):
     istwotrack = "Jpsi_jacMass" in keys
     if istwotrack:
         want += [b for b in sum(selection.ALIASES.values(), ()) if b in keys]
+    # the strides of the flat step-record branches, as the file declares them
+    want += prodfiles.stride_keys(
+        keys, ("msmoliv", "ioniurbanv", "radstepv", "radstepspecv"))
     want = list(dict.fromkeys(want))
     a = t.arrays(want, library="np")
     pt_all = _PARMTYPE
@@ -489,11 +492,18 @@ def process_file(fname):
         )
         if want_rad:
             ridx = np.asarray(a["radstepidx"][ic])
-            rrec = np.asarray(a["radstepv"][ic], dtype=np.float64).reshape(
-                -1, cf_brems_exact.RADV_STRIDE
+            # stride from the FILE (`radstepstride`, else one `radstepidx`
+            # per record): the maker's record is 12 wide, of which only the
+            # leading 11 columns are read here.
+            rrec = prodfiles.reshape_records(
+                a["radstepv"][ic], nrec=len(ridx),
+                stride=prodfiles.entry_stride(a, "radstepv", ic),
+                branch="radstepv", min_cols=cf_brems_exact.RADV_NCOLS,
             )
-            rspc = np.asarray(a["radstepspecv"][ic], dtype=np.float64).reshape(
-                -1, 2 * cf_brems_exact.NRADV
+            rspc = prodfiles.reshape_records(
+                a["radstepspecv"][ic], nrec=len(ridx),
+                stride=prodfiles.entry_stride(a, "radstepspecv", ic),
+                branch="radstepspecv",
             )
             rvg = np.asarray(a["radvgrid"][ic], dtype=np.float64)
 

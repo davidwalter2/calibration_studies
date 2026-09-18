@@ -194,8 +194,11 @@ def collect_pairs(files, want=("genParms",), vtxtol=None):
                                  "radvgrid") if b in t.keys())
         if len(radb) not in (0, 4):
             raise ValueError(f"{fn}: partial radiative export {radb}")
+        # the stride of each flat step-record branch, as the FILE declares it
+        strb = tuple(prodfiles.stride_keys(
+            t, ("msmoliv", "ioniurbanv", "radstepv", "radstepspecv")))
         branches = sorted(set(("run", "lumi", "event", "genParms", "genCharge")
-                              + want + vtxb + qsb + radb))
+                              + want + vtxb + qsb + radb + strb))
         a = t.arrays(branches, library="np")
         gp = np.stack(a["genParms"]) if len(a["genParms"]) else np.zeros((0, 5))
         ok = np.abs(gp[:, 0]) > 0.
@@ -279,10 +282,18 @@ def leg_exponents(av, ic, a, pt):
     have_rad = "radstepidx" in a
     if have_rad:
         ridx = np.asarray(a["radstepidx"][ic])
-        rrec = np.asarray(a["radstepv"][ic], dtype=np.float64).reshape(
-            -1, cf_brems_exact.RADV_STRIDE)
-        rspc = np.asarray(a["radstepspecv"][ic], dtype=np.float64).reshape(
-            -1, 2 * cf_brems_exact.NRADV)
+        # stride from the file: `radstepstride` (12 in the maker) when the
+        # tree has it, else one `radstepidx` entry per record. The maker's
+        # record is WIDER than the 11 columns read here -- it appends
+        # stepGroup -- so a literal 11 shifts every column.
+        rrec = prodfiles.reshape_records(
+            a["radstepv"][ic], nrec=len(ridx),
+            stride=prodfiles.entry_stride(a, "radstepv", ic),
+            branch="radstepv", min_cols=cf_brems_exact.RADV_NCOLS)
+        rspc = prodfiles.reshape_records(
+            a["radstepspecv"][ic], nrec=len(ridx),
+            stride=prodfiles.entry_stride(a, "radstepspecv", ic),
+            branch="radstepspecv")
         rvg = np.asarray(a["radvgrid"][ic], dtype=np.float64)
     else:
         ridx = rrec = rspc = rvg = None
@@ -458,6 +469,8 @@ def build_pairs_tt(args, outdir):
             raise ValueError(f"{fn}: partial radiative export {_rb}")
         want_rad = len(_rb) == 4
         _b += _rb
+        _b += prodfiles.stride_keys(
+            t, ("msmoliv", "ioniurbanv", "radstepv", "radstepspecv"))
         if rad_model is None:
             rad_model = int(want_rad)
         elif rad_model != int(want_rad):
@@ -492,11 +505,14 @@ def build_pairs_tt(args, outdir):
                    if "ioniqscalev" in a else None)
             if want_rad:
                 ridx = np.asarray(a["radstepidx"][ic])
-                rrec = np.asarray(a["radstepv"][ic], dtype=np.float64).reshape(
-                    -1, cf_brems_exact.RADV_STRIDE)
-                rspc = np.asarray(a["radstepspecv"][ic],
-                                  dtype=np.float64).reshape(
-                    -1, 2 * cf_brems_exact.NRADV)
+                rrec = prodfiles.reshape_records(
+                    a["radstepv"][ic], nrec=len(ridx),
+                    stride=prodfiles.entry_stride(a, "radstepv", ic),
+                    branch="radstepv", min_cols=cf_brems_exact.RADV_NCOLS)
+                rspc = prodfiles.reshape_records(
+                    a["radstepspecv"][ic], nrec=len(ridx),
+                    stride=prodfiles.entry_stride(a, "radstepspecv", ic),
+                    branch="radstepspecv")
                 rvg = np.asarray(a["radvgrid"][ic], dtype=np.float64)
             Sms = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)

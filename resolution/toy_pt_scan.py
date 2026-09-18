@@ -104,6 +104,7 @@ import cf_ms_exact                                              # noqa: E402
 import cgf_channels as cc                                       # noqa: E402
 import fisher_norm as fn                                        # noqa: E402
 import geom_closure as gc                                       # noqa: E402
+import prodfiles                                                # noqa: E402
 from cf_propagation_test import (FUNCTIONALS, REF_BRANCH,       # noqa: E402
                                  SIM_BRANCH, load_model, model_variance)
 
@@ -554,10 +555,13 @@ def cmd_closure(args):
         legs = legs_of(tag)
         f = uproot.open(model_path(tag))
         tk = next(k for k in f.keys() if k.split(";")[0].endswith("/legs"))
-        a = f[tk].arrays(["msmoliv"], library="np")
-        st = np.vstack([np.asarray(v, dtype=float).reshape(
-            -1, 10 if np.asarray(v).size % 10 == 0 else 8)
-            for v in a["msmoliv"]])
+        t = f[tk]
+        # stride from the FILE, never from divisibility (see prodfiles)
+        w = prodfiles.tree_stride(t, "msmoliv")
+        a = t.arrays(["msmoliv", "stepnms"], library="np")
+        st = np.vstack([prodfiles.reshape_records(
+            v, nrec=prodfiles.cumulative_total(n), stride=w, branch="msmoliv")
+            for v, n in zip(a["msmoliv"], a["stepnms"])])
         d = st[:, 6]
         nms = sum(len(l["ms"]) for l in legs)
         nio = sum(len(l["ioni"]) for l in legs)

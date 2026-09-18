@@ -1410,6 +1410,11 @@ def extract(args):
                 "the radiative export is present in some input files and not "
                 "in others; a cache mixing the two would carry the term for "
                 "part of the sample only")
+        # the strides of the flat step-record branches, as the FILE declares
+        # them (absent in older files -> resolved from the record counts)
+        _need = _need + [b for b in prodfiles.stride_keys(
+            t, ("msmoliv", "ioniurbanv", "radstepv", "radstepspecv"))
+            if b not in _need]
         _cls = ["reshitidx", "hitDetId", "hitUProj", "clusterSizeX",
                 "clusterChargeBin"]
         want_hitclass = all(b in t.keys() for b in _cls)
@@ -1491,11 +1496,17 @@ def extract(args):
             # position).
             if want_rad:
                 ridx = np.asarray(a["radstepidx"][ic])
-                rrec = np.asarray(a["radstepv"][ic], dtype=np.float64).reshape(
-                    -1, cf_brems_exact.RADV_STRIDE)
-                rspc = np.asarray(a["radstepspecv"][ic],
-                                  dtype=np.float64).reshape(
-                    -1, 2 * cf_brems_exact.NRADV)
+                # stride from the file: the maker's `radstepv` is 12 wide
+                # (stepGroup appended), only the leading 11 columns are read
+                # here, and a hard-coded 11 shifts every one of them.
+                rrec = prodfiles.reshape_records(
+                    a["radstepv"][ic], nrec=len(ridx),
+                    stride=prodfiles.entry_stride(a, "radstepv", ic),
+                    branch="radstepv", min_cols=cf_brems_exact.RADV_NCOLS)
+                rspc = prodfiles.reshape_records(
+                    a["radstepspecv"][ic], nrec=len(ridx),
+                    stride=prodfiles.entry_stride(a, "radstepspecv", ic),
+                    branch="radstepspecv")
                 rvg = np.asarray(a["radvgrid"][ic], dtype=np.float64)
             else:
                 ridx = rrec = rspc = rvg = None
