@@ -64,9 +64,14 @@ def main():
         if 'params' not in r or 'alpha' not in r['params']:
             continue
         i = r['params'].index('alpha')
-        # the ladder tags all_naive / all_ares run on the inclusive cache
-        cache_tag = 'all' if tag.startswith('all') else tag
-        if tag.startswith('s_'):
+        # the ladder tags all_naive / all_ares and the control run on the
+        # inclusive cache; the a_res forms run on its `ares_<form>` copy
+        cache_tag = tag
+        if tag.startswith('all') or tag.startswith('ctl_'):
+            cache_tag = 'all'
+        elif tag.startswith('af_'):
+            cache_tag = 'ares'
+        elif tag.startswith('s_'):
             cache_tag = {'s_mtight': 'matchtight',
                          's_mloose': 'matchloose'}.get(tag, 'all')
         cache = os.path.join(args.runs, f'kspairs_{cache_tag}.npz')
