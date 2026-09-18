@@ -312,12 +312,15 @@ eng 'cd ~/orcd/pool/zmass/engaging && sbatch -A mit_general -p mit_preemptable \
 | `JD` | `jpsi_fsrdata` | `data` | 7.23e-13 | **69 min** | -0.86590 +- 0.02639 | +0.5578 | — (no Z term) |
 | `P2N` | `joint_nok` | delta | 4.29e-11 | 5 h 50 (+ 5 h 03 before its preemption) | +1.40124 +- 0.02563 | -1.5105 | +20.692 +- 2.134 |
 | `P2K` | `joint_fsrmc` | `mc` | 8.49e-13 | **8 h 34** | -1.31131 +- 0.02556 | +0.8804 | **-45.594 +- 2.132** |
+| `P2B` | `joint_both` | `mc` + Z fold = the `mc` TABLE | 4.59e-09 | 3 preemptions, requeued from snapshots | -1.31097 +- 0.02556 | +0.8806 | **-45.453 +- 2.131** |
 
 `J0`: converged at EDM 6.5e-23 in the minimiser and 1.10e-12 as reported,
 condition number 4.31e7 -> 1 under the preconditioner, `rc=0`, postfit
 covariance computed. Its material pulls are the reference's to two digits
 (`bpix_active_L2 +2.66 %` at 324 sigma, `bpix_support7 +2.66 %`,
 `tec_structure +0.32 %`), as pre-registered.
+
+`P2B` is the two single changes together: `P2K + (P2XT - P2N)` predicts `m_Z` -45.349 / `Gamma_Z` -5.94 MeV against the fitted -45.453 +- 2.131 / -6.094 +- 3.787, i.e. the J/psi kernel and the Z fold representation are additive to 0.10 / 0.15 MeV, and the NLL is 2.3 units below the additive prediction. It is the card of record for the end-to-end rerun.
 
 ### THE ATTRIBUTABLE NUMBER: `JK - J0`
 

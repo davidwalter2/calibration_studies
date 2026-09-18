@@ -444,9 +444,12 @@ nothing else about the term changes (`zchannel/jpsi_fsr_kernel.py`,
 |---|---|---|---:|---:|---:|---:|
 | `P2XP` | `joint_ok_full` | delta | +20.692 +- 2.134 | +1.40124 +- 0.02563 | -1.5105 | 1.05e-11 |
 | `P2K` | `joint_fsrmc` | `mc` | **-45.594 +- 2.132** | -1.31131 +- 0.02556 | +0.8804 | 8.49e-13 |
+| `P2B` | `joint_both` | `mc` (+ Z fold = the `mc` table) | **-45.453 +- 2.131** | -1.31097 +- 0.02556 | +0.8806 | 4.59e-09 |
 | `J0` | `jpsi_nok` | delta | — (no Z term) | +1.91544 +- 0.02562 | -1.9049 | 1.10e-12 |
 | `JK` | `jpsi_fsrmc` | `mc` | — | -0.75376 +- 0.02633 | +0.4537 | 2.06e-11 |
 | `JD` | `jpsi_fsrdata` | exact QED | — | -0.86590 +- 0.02639 | +0.5578 | 7.23e-13 |
+
+`P2B` is the two single changes together: `P2K + (P2XT - P2N)` predicts `m_Z` -45.349 / `Gamma_Z` -5.94 MeV against the fitted -45.453 +- 2.131 / -6.094 +- 3.787, i.e. the J/psi kernel and the Z fold representation are additive to 0.10 / 0.15 MeV, and the NLL is 2.3 units below the additive prediction. It is the card of record for the end-to-end rerun.
 
 `<D_card>.theta` is the mean predicted J/psi mass shift the fitted calibration
 vector produces — the quantity a delta forces to equal `-<dm>` and a kernelled
