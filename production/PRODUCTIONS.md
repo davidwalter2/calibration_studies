@@ -16,6 +16,10 @@ submit scripts: `condor_jpsimc_v2/STATE_jpsi_v2.md`,
 |---|---|---:|---|---:|---:|---|---|
 | **`jpsimc_20M_260906_v2`** | UL16 `JPsiToMuMu_Pt8toInf` MC ALCARECO (`TkAlJpsiMuMu`), two-track | 21 750 740 | 1645 × 4 | **21 678 062** (0.9967/ev, 0.0067 % fail) | 1.5 TB | HTCondor / CMS global pool | **the J/psi sample** |
 | **`dymc_8p5M_260906_v2`** | UL16 DY MiniAODv2 (`DYJetsToMuMu_H2ErratumFix…powhegMiNNLO`), two-track Z | 8 502 597 | 380 × 4 | **3 799 624** (0.447/ev, 0.16 % fail) | 267 GB | HTCondor / CMS global pool | **the Z sample** |
+| **`dymc_8p5M_260917_ideal`** | the DY head of `dymc_8p5M_260906_v2`, **ideal tracker geometry** | 8 502 597 | 380 × 4 | **3 717 586** (0.437/ev, 0.021 % fail) | 667 GB | HTCondor / CMS global pool | **the Z closure sample** (pre-fix payload, see §9) |
+| **`jpsimc_20M_260917_ideal`** | tasks 0–599 of `jpsimc_20M_260906_v2`, **ideal tracker geometry** | 7 967 454 | 600 × 4 | **7 933 687** (0.9958/ev, 0.0031 % fail) | 523 GB | HTCondor / CMS global pool | **the J/psi closure sample** (pre-fix payload, see §9) |
+| `dymc_8p5M_260917_alignctl` | DY tasks 0–39, aligned geometry, otherwise = `_ideal` | 885 378 | 40 × 4 | 386 806 (0.437/ev, 0.022 % fail) | 71 GB | HTCondor | matched aligned control |
+| `jpsimc_20M_260917_alignctl` | J/psi tasks 0–59, aligned geometry, otherwise = `_ideal` | 790 051 | 60 × 4 | 786 761 (0.9958/ev, 0.0023 % fail) | 54 GB | HTCondor | matched aligned control |
 | `jpsimc_20M_260905` | same J/psi chunks, older exports | 21 719 059 | 1642 × 1 | ~21.6 M | 778 GB | slurm | cross-check only; 1633/1642 complete, **12 tasks are garbage** |
 | `dymc_8p5M_260905` | same DY chunks, older exports | 182 of the 380 chunks | 216 dirs × 1 | ~1.8 M | 71 GB | slurm | cross-check only; **182/380 complete**, leg cancelled |
 | `jpsimc_20M_260906_v2_nulcheck` | 7 chunks re-run with repacked inputs | — | 7 × 4 | 102 507 | 6.9 GB | HTCondor | evidence only, **deletable** (proved bit-identical) |
@@ -661,6 +665,74 @@ record of the same file read from 0).
 ---
 
 ## 9. Per-production status detail
+
+### The four `260917` closure productions — complete
+
+`dymc_8p5M_260917_ideal` 380/380, `jpsimc_20M_260917_ideal` 600/600,
+`dymc_8p5M_260917_alignctl` 40/40, `jpsimc_20M_260917_alignctl` 60/60: four
+stream files and a `.complete` in every task, event sums equal to the chunk
+ranges (8 502 597 / 7 967 454 / 885 378 / 790 051). Scripts and the full record:
+`condor_{dymc,jpsimc}_{ideal,alignctl}/`, `IDEAL_PROD_STATE.md`,
+`integrity_260917.sh`, `spotcheck_geometry.py`, `build_pairs_260917.sh`.
+
+**Why.** The UL16 MC's Geant4 tracker is the ideal one, while
+`106X_mcRun2_asymptotic_v17` carries the misalignment payload
+`TrackerAlignment_2016_ultralegacymc_v1`, which nothing in the fits floats. The
+`_ideal` tags refit with `useIdealGeometry=True`; the `_alignctl` tags are the
+same code and options with the aligned geometry.
+
+**Payload: `CMSSW_15_0_19_patch2_dev2 @ 7b54ce096b27`** (overlay md5
+`a315135efb36583e1e4537dd651113c5`, one tarball copied into all four trees).
+That is one commit BEFORE `3d4c926ff461`, and two of its fixes are active here:
+* the MS within-step correlation sign — the non-bending leg offset variance is
+  low by a median 6 % (worst 52 %);
+* the reference EDM under the vertex constraint — `edmvalref` is NaN on 100 %
+  of candidates and every fit runs to the 10-iteration cap (v2: ⟨niter⟩ 2.67 DY,
+  3.16 J/psi). `edmval` is finite; the fits converge and keep stepping. This is
+  the 3.7x propagator count and the 8 h median Z task (v2: 1–1.6 h).
+Comparable with each other; not with anything built at `3d4c926ff461` or later.
+
+**Configuration vs v2.** Same chunk lists and resources (4 threads, 5000 MB).
+`useIdealGeometry` as above; the maker defaults now apply — `doVtxConstraint`
+ON (v2 forced it off), `minLegHits = 8` (new since v2); the Z leg adds
+`bsConstraint exportBsResidual exportVtxResidual`, which take its payload from
+68.8 to 190.6 kB/candidate (per-group CF blocks for three more residuals), hence
+667 GB and `request_disk` 6 GB. Node fences added: `hep.wisc.edu`,
+`compute-21-23`/`compute-12n-5.ultralight.org`, `s1wn17.pi.infn.it` (SIGILL:
+the overlay is built x86-64-v3, the cvmfs release is x86-64-v2) and
+`node38-4.wn.iihe.ac.be` (SIGSEGV).
+
+**Candidates vs v2.** Z: attempted 3 718 379 + `skipped[leghits<8]` 87 068 +
+`hits<10` 264 + `ndof<1` 17 = 3 805 728, exactly v2's attempted count; failures
+0.160 % → 0.021 %. J/psi: 0.9967 → 0.9958/event, the difference being
+`skipped[leghits<8]` (7 390); failures 0.0067 % → 0.0031 %.
+
+**Spot check, `task_0000`** (keys `(run, lumi, event, Muplustrk_pt,
+Muminustrk_pt)`; `Jpsikin_mass` bit-identical on every common candidate):
+
+| leg | comparison | common / only-A / only-B | Δ`Jpsi_mass` median | rel. median | sigma68 | rel. rms | \|r\|>1 % |
+|---|---|---|---:|---:|---:|---:|---:|
+| J/psi | alignctl → ideal (geometry) | 12 138 / 1 / 0 | +0.005 MeV | +1.7e-6 | 3.6e-4 | 5.4e-4 | 3 |
+| J/psi | v2 → alignctl (defaults) | 12 138 / 9 / 1 | −0.001 MeV | −1.9e-7 | 1.4e-3 | 4.9e-3 | 70 |
+| J/psi | v2 → ideal (both) | 12 137 / 10 / 1 | +0.003 MeV | +9.8e-7 | 1.5e-3 | 4.7e-3 | 74 |
+| Z | alignctl → ideal (geometry) | 9 635 / 0 / 0 | +0.89 MeV | +9.7e-6 | 5.8e-4 | 4.2e-3 | 11 |
+| Z | v2 → alignctl (defaults) | 9 634 / 214 / 1 | +2.18 MeV | +2.5e-5 | 4.1e-3 | 1.4 | 884 |
+| Z | v2 → ideal (both) | 9 634 / 214 / 1 | +1.99 MeV | +2.3e-5 | 4.1e-3 | 1.4 | 924 |
+
+The geometry is the small clean effect (+0.9 MeV on the Z, 1.7e-6 on the
+J/psi); the default change under the pre-fix EDM defect is the disruptive one
+(9 % of Z candidates move by more than 1 %, up to a factor 83). The candidates
+v2 has and these lack are `skipped[leghits<8]`.
+
+**Pairs caches** (ceph `cvh/pairs_260917/`, symlinked in `fullscale/runs/`;
+`cf_inmaker.py pairs --jac-parmtypes 14 15`, Z with `--mass-window 91.1876 60`):
+
+| cache | tasks | entries | dropped | size |
+|---|---:|---:|---:|---:|
+| `zpairs_dyideal_full.npz` | 380 | ZIDEAL_N | ZIDEAL_D | ZIDEAL_S |
+| `jpairs_ideal_n600.npz` | 600 | 7 917 168 | 16 519 | 12.1 GB |
+| `zpairs_dyalignctl.npz` | 40 | 383 019 | 3 787 | 0.60 GB |
+| `jpairs_alignctl_n60.npz` | 60 | 785 190 | 1 571 | 1.20 GB |
 
 ### `jpsimc_20M_260906_v2` — complete, 1645/1645
 
