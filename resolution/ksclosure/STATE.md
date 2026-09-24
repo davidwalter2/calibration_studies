@@ -404,10 +404,10 @@ log-scale `ks_pull_model_tails` figure shows the per-candidate CF model
 describing the core to a few per cent, the data running ~20 % above it at
 z = +2 to +3, and ~1 candidate per bin sitting flat out to |z| = 10.  The
 in-maker CF has **no nuclear-elastic family** and `S_rad` is identically zero
-for pions, so this is where the ~0.05 elastic nuclear collisions per pion
-(25-35 mrad each) live.  The excess is ASYMMETRIC, on the high-mass side --
-the direction that biases the fitted scale positive -- and it is the only
-systematic above that moves the answer.
+for pions.  The excess is SYMMETRIC (0.78 % at z >= +3, 0.83 % at z <= -3).
+Section 12 adds the nuclear-elastic family: the whole channel over-predicts
+this tail 3.6x, the part of it that the reconstruction cannot reject (the
+material from the decay vertex to the first measured module) describes it.
 
 ### What the K_S adds beyond the J/psi
 
@@ -711,12 +711,12 @@ cache plus one `ares_<form>` column per form), `runs/jpsicov_ideal.npz`,
 1. DONE, section 9: the per-candidate `a_res` form.  The coefficient is
    measured from truth, the closed form is confirmed, and the systematic is
    +-0.03e-3.
-2. **The nuclear-elastic CF family for hadrons.**  `cf_nucel_exact.py` exists
-   offline and is validated parameter-free on four species; it is not in the
-   in-maker CF, and the K_S tail is 6x a Gaussian.
-3. **The radius dependence** at p = 0.012 deserves the full sample split more
-   finely, and against the ideal-geometry J/psi, before it is called an
-   effect.
+2. DONE, section 12: the nuclear-elastic family on the mass CF.  It closes at
+   the track level on the real tracker; on the mass it has to be CONDITIONED
+   on the reconstruction before it can go into the maker (section 12.7).
+3. **The radius dependence** is not the tail (section 12.6): it survives the
+   family (chi2 10.6/3).  It deserves the full sample split more finely, and
+   against the ideal-geometry J/psi, before it is called an effect.
 4. **The ideal-geometry J/psi closure** (`fullscale/runs/jpairs_ideal_n600.npz`)
    is the like-for-like reference for the K_S number and has not been fit.
 
@@ -820,3 +820,210 @@ Figures: `~/public_html/ZMass/cvh/260918_ksclosure_fixed/` -- `ksfix_shift`
 (fixed/pre-fix ratio panel), `ksfix_resid_vs_radius` (difference panel),
 `ksfix_eps_bins`, and the closure figure set of section 8 (`ks_*`) for
 the fixed code.
+
+## 12. The nuclear-elastic family on the K_S mass
+
+The in-maker mass CF has hit / MS / ionisation / radiative families and no
+`hadElastic`, while a K_S daughter crosses ~15 g/cm^2 of tracker and takes on
+average 0.10 elastic collisions per leg of 0.03-0.5 rad.  This section adds the
+offline channel of `Documents/Resolution/NUCLEAR_ELASTIC.md` to the K_S mass
+term on the real geometry and asks whether it explains the 1.6 % beyond 3
+sigma and the radius dependence of section 8.  Code in `nucel/`, caches and fits
+in `runs/nucel/`, figures in `~/public_html/ZMass/cvh/260924_ks_nucel/`.
+
+### 12.1 The channel on the mass functional
+
+`nucel/ks_nucel_cf.py`, per candidate, from the raw step records:
+
+    S_ang(tau) = sum_b sum_{s in b} N_s ( g_s(w_b tau) - 1 )
+    S_rec(tau) = sum_s N_s ( h_s(wq_s tau) - 1 )
+
+* the blocks b and weights `w_b = sqrt(v_b / sum_s thp2_s)/sigma_m` are the
+  maker's own parmtype-10 MS blocks and weights, so a collision rides on the
+  influence the fit gives a Moliere kick at the same place.  Checked: the
+  Moliere exponent rebuilt from the same records and weights reproduces
+  `cfmass_ms` to **9.5e-7** on 2500 candidates (the float32 floor 1.4e-6);
+* `N_s = mu(species, Z_s, A_s, p_s) xg_s` per step -- the (Z, A) of every
+  record rounded as `cf_nucel_exact.leg_rates` rounds it, the step's own
+  momentum, pi+ on the positive leg and pi- on the negative one (the records
+  are drained leg by leg; a leg is a segment between momentum jumps, given to
+  the leg whose fitted momentum is nearest);
+* `g, h, mu` from `nucel/nucel_tables.py`: `nucel_g4driver` (the
+  species-correct model `G4ElasticHadrNucleusHE` and dataset
+  `G4BGGPionElasticXS`) run on every (species, Z, A, p) bucket, 69 (Z, A) x
+  pi+- x 74 momenta 0.18-48 GeV, 5e5 draws each; nearest momentum bucket with
+  the angle rescaled by p_bucket/p_step, rate log-log interpolated;
+* the recoil sub-channel (`NUCEL_RECOIL`) takes the maker's IONISATION weight
+  of the same leg at the same momentum (interpolated in p along the leg), so
+  the leg-mean-weight approximation of `cf_nucel_exact` is not needed here; the
+  theta-dE independence approximation is kept;
+* not centred, gated on `NUCEL_CHANNEL` exactly as the offline channel;
+* cache columns `Snuc_ang`, `Snuc_rec_re/_im`, `Snuc_first` (below),
+  `nuc_N/Np/Nm/Nfirst/Nbig/Nbigfirst`, `nuc_v`, `nuc_vrec`, `nuc_mrec`;
+  `nucel/make_variants.py` turns them into the card families (`Snuc_re/_im`),
+  and `fullscale/make_card.py --add-nucel-family` adds family `nucel` with
+  `k_nucel` held at 1 (a fifth tabulated family needs no rabbit change).
+
+Kernel validation (the watcher run of the note was not repeated: the per-plane
+test of 12.4 is the sim-vs-model check of the same kernels on the real
+geometry): pi- on O16 at T = 3000 MeV gives <theta> = 35.20 mrad and
+mu = 4.14e-3 cm^2/g, i.e. N = 0.0516 over the toy's 12.4544 g/cm^2, against
+the note's 35.2 mrad and 0.0517.  pi+ and pi- agree above ~1 GeV; at 0.18 GeV
+the pi+ rate is 13 % lower.  On carbon mu(pi-) runs 1.10e-2 (0.18 GeV) ->
+4.1e-3 (0.83 GeV) -> 3.1e-3 cm^2/g (48 GeV) and <theta> 466 -> 118 -> 2.5 mrad.
+
+Per candidate: **N = 0.204** collisions (median 0.187); 0.084 of them (41 %)
+have a median kick alone worth more than 3 sigma_m; **0.0149** fall in each
+leg's FIRST MS block (the material from the decay vertex up to and including
+the first measured module), 0.0141 of them > 3 sigma_m.
+
+### 12.2 The production with step records
+
+`/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260924_steprec/`
+(PROVENANCE.txt): the 260918 driver, flags, inputs and CMSSW commit, plus
+`exportStepRecords=True` and an event list (`nucel/make_evlists.py`: the
+52 569 events that carry a truth-matched candidate; every candidate of a
+selected event is refit).  `prod/submit_ks_steprec.sh` ->
+`prod/array_ks_steprec.sbatch`, 1000 half tasks, all complete, 9.5 GB,
+7.82 M propagations with 301 failures.
+
+* smoke (169 candidates, `nucel/smoke_check.py`): `cfmass_*`, `Jpsi_mass`,
+  `Jpsi_sigmamass`, `chisqval`, `resinfvarv`, `Jpsi_covrefmom` and 16 more
+  branches **bit-identical** to the parent; records non-empty, strides
+  msmoliv 10 / ioniurbanv 14 / radstepv 12, ~800 MS records per candidate.
+* the pairs cache has the parent's 52 829 rows.
+
+### 12.3 The gates (`nucel/gates.py`, `runs/nucel/gates.log`)
+
+| gate | result |
+|---|---|
+| (i) family OFF == in-maker composition | all 54 columns x 52 829 rows of the parent cache BIT-IDENTICAL; the family-free fit reproduces the parent's alpha, error and EDM to every digit (+0.260945 +- 0.042498, EDM 4.72e-19) |
+| (ii) vgf + sum_b v_b(MS, ioni)/sigma_m^2 = 1 | max deviation **6.3e-7** on 4498 candidates, also against `Jpsi_massvms/vioni` |
+| (ii) the family's own second cumulant | > 0 on 52 829/52 829; median **3.4 sigma_m^2** (q10/q90 2.3/4.6) |
+| (iii) normalisation / positivity | S_total(0) = 0 exactly; the inverted density integrates to 0.99996 (median; min 0.99983) over \|z\| < 95, to 0.9992 over \|z\| < 40 (the family's mass lives far out); min density / max density -6e-6 (inversion ringing) |
+
+sigma_m stays the fit's Gaussian width: the family is a non-Gaussian EXPONENT,
+not a share of it, so the closure (ii) is untouched and the CF's second
+cumulant becomes 1 + v_nuc (+ 9e-6 from the recoil).  With v_nuc ~ 3.4 on
+99.4 % of the candidates, the second cumulant is not a width here: the channel
+is a rare, far tail.
+
+### 12.4 The track level on the real tracker (clean propagation)
+
+`nucel/perplane_pulls.py` + `plot_perplane.py`: one pi- shot 2e5 times through
+the real tracker (eta 0.3; pT 0.7 and 1.5 new, `cleanprop/run_campaign.sh` with
+`nucel/points_pi_lowpt.txt`, the pT 0.7 model propagated with the 0.05 GeV
+momentum floor of `nucel/runCleanPropModelLowP.py`; pT 3 and 10 the existing
+260806 samples), per-plane residual in local x (bending) and local y
+(non-bending) with H-basis a-vectors, `perplane` acceptance, inelastic veto 0.2;
+the model's P(|z| > c) by exact inversion of its CF.  Mean over planes,
+split by the plane's acceptance (fraction of rays still crossing it):
+
+| pT | proj. | planes | acceptance | P(\|z\|>5) data | model ON | model OFF |
+|---|---|---|---|---|---|---|
+| 0.7 | x | 5, r 4.6-27 cm | >= 0.977 | 0.668 % | 0.772 % | 0.229 % |
+| 0.7 | x | 10, r 35-109 cm | down to 0.565 | 0.482 % | 1.769 % | 0.192 % |
+| 1.5 | x | 4, r 4.2-10 cm | >= 0.974 | 0.540 % | 0.645 % | 0.252 % |
+| 1.5 | x | 18, r 27-110 cm | down to 0.393 | 1.071 % | 1.824 % | 0.189 % |
+| 3 | x | 6, r 4.2-27 cm | >= 0.970 | 0.720 % | 0.727 % | 0.250 % |
+| 3 | y | 6 | >= 0.970 | 0.744 % | 0.744 % | 0.266 % |
+| 3 | x | 13, r 35-107 cm | down to 0.875 | 1.595 % | 1.964 % | 0.218 % |
+| 10 | x | 7, r 4.6-28 cm | >= 0.977 | 0.625 % | 0.665 % | 0.255 % |
+| 10 | x | 13, r 36-110 cm | down to 0.912 | 1.383 % | 1.451 % | 0.220 % |
+
+(full table, both projections and |z| > 3: `runs/nucel/perplane_table.txt`.)
+
+**Where every ray is still observed the channel closes the per-plane tail on
+the real tracker** -- to 0-6 % at pT 3 and 10 in both projections and 14-19 %
+high at pT 0.7-1.5, against a factor 2.5-3 too low without it.  Where rays are
+lost the model over-predicts, and the more rays are lost the more it
+over-predicts (pT 10, acceptance >= 0.91: 5 %; pT 0.7, acceptance down to 0.57:
+3.7x): a ray is lost when a kick throws it off the next module, so the loss
+removes exactly the tail the channel adds.
+
+### 12.5 The mass term (same candidates, same card recipe, `rabbit_fit.py`)
+
+Every fit EDM-certified (largest 3.6e-18).  eps = alpha_mass / <f>, <f> = 0.630.
+"first block" is the family restricted to each leg's first MS block (12.1).
+
+| fit | without | **with** (recoil on) | recoil off | first block only |
+|---|---|---|---|---|
+| alpha_mass, nominal [1e-3] | +0.2609 +- 0.0425 | +0.2752 +- 0.0457 | +0.2686 +- 0.0457 | +0.2649 +- 0.0427 |
+| eps, nominal [1e-3] | +0.414 +- 0.068 | +0.437 +- 0.073 | +0.426 +- 0.073 | +0.420 +- 0.068 |
+| eps, a_res measured from truth | +0.410 | +0.433 | | |
+| eps, naive (no a_res, no Jensen) | +0.288 | +0.290 | | |
+| r < 2 / 2-4 / 4-10 / > 10 cm | +0.483 / +0.079 / +0.680 / +0.380 | +0.526 / +0.149 / +0.646 / +0.397 | | +0.484 / +0.090 / +0.683 / +0.391 |
+| radius-bin chi2/3 (alpha) | 11.1 (p 0.011) | 6.8 (p 0.077) | | 10.6 (p 0.014) |
+| p_min < 0.8 / 0.8-1.5 / > 1.5 GeV | +0.265 / +0.365 / +0.595 | +0.285 / +0.398 / +0.608 | | +0.264 / +0.373 / +0.605 |
+| from B / prompt | +0.557 / +0.198 | +0.565 / +0.235 | | +0.561 / +0.207 |
+| P(\|z\| >= 3), data 1.615 % | model 0.802 % | model **5.858 %** | | model **1.732 %** |
+| P(\|z\| >= 5), data 0.572 % | model 0.126 % | model 2.701 % | | model 0.812 % |
+| PIT pull std / robust | 1.050 / 1.017 | 0.856 / 0.886 | | **1.002 / 1.001** |
+| P(\|z_PIT\| >= 3) (Gaussian 0.27 %) | 0.895 % | 0.009 % | | **0.240 %** |
+| binned chi2/ndof, \|z\| < 10 | 227.5/39 | 1995.7/79 | | **93.3/63** |
+
+(`nucel/ks_nucel_eval.py`: the PIT pull Phi^-1(F_i(z_i)) is N(0, 1) exactly
+when the per-candidate density is right; F_i by Gil-Pelaez inversion of the
+upsampled CF, at each variant's fitted alpha; the a_res/Jensen corrections,
+~0.01 sigma, are not applied there.)
+
+### 12.6 What it answers
+
+* **The tail is the nuclear-elastic channel -- the part the reconstruction
+  lets through.**  The unconditioned channel predicts 3.6x the observed tail
+  (5.9 % against 1.6 % beyond 3 sigma), uniformly in decay radius, momentum and
+  origin.  The same channel restricted to the kicks nothing upstream of the
+  mass can see -- the vertex-to-first-module block, 7 % of the collisions --
+  reproduces the tail with no free parameter: 1.73 % against 1.62 %, the PIT
+  pull N(0, 1) to 0.2 % in width, 0.240 % beyond 3 (Gaussian 0.27 %), chi2/ndof
+  93/63 against 228/39 without any family.  Per radius bin the first-block
+  model's PIT tail is 0.08-0.37 % everywhere.  The first block is a
+  DIAGNOSTIC boundary, not a derived acceptance: its success and the per-plane
+  acceptance pattern of 12.4 say the missing piece is the conditioning of the
+  channel on the track keeping its hits, which a kick inside the tracker
+  typically breaks (in the real sample: pattern recognition, the V0 vertex and
+  mass window, the refit chi2 and the minLegHits requirement).
+* **The tail is symmetric** (0.78 % high / 0.83 % low); section 8's
+  "asymmetric, high-mass side" is corrected.
+* **The radius dependence survives.**  With the first-block family the radius
+  bins scatter by chi2 10.6/3 (11.1 without); the drop to 6.8 with the
+  unconditioned family comes from its inflated errors and wrong tail, not from
+  a better description.  The model-free structure of section 8 is a MEDIAN
+  residual (+0.58 MeV below 1 cm), which a symmetric tail does not move.
+* **eps moves by a tail-sized amount**: +0.006e-3 with the first-block family,
+  +0.023e-3 (+0.011 of it the recoil's mean loss) with the unconditioned one --
+  0.1 and 0.3 of the statistical error.  The recoil's mean loss is real
+  physics (not centred by the reference) and small: -6e-4 sigma_m median.
+
+### 12.7 Consequence for a maker port
+
+The family is ready as physics -- Geant4's rates and kernels, the maker's
+weights, closed per plane on the real tracker -- but not as an unconditioned
+exponent: on reconstructed candidates it must be conditioned on the kick
+leaving the track's hit pattern intact.  The per-step quantity that decides
+that is the kick's effect on the DOWNSTREAM hits (the fit's own hit residual
+response), not on the mass; a first-principles version is a two-functional
+(mass, hit-compatibility) kernel per step, truncated where the pattern
+recognition would drop the hits.  Until then the first-block restriction is
+the measured boundary.
+
+### 12.8 Files
+
+| | |
+|---|---|
+| `nucel/nucel_tables.py` | (Z, A) scan of the records and the Geant4 kernel/rate table |
+| `nucel/ks_nucel_cf.py` | the family on the mass functional, from the records; writes the pairs cache |
+| `nucel/make_variants.py` | base / nuc / nucnr card caches (+ the measured a_res column) |
+| `nucel/build_ks_nucel.sh`, `run_nucel_fits.sh`, `run_first_fits.sh` | cards and fits |
+| `nucel/gates.py` | gates (i)-(iii) |
+| `nucel/ks_nucel_eval.py` | tails, PIT pull, chi2, figures |
+| `nucel/perplane_pulls.py`, `plot_perplane.py` | the real-tracker per-plane test |
+| `nucel/plot_eps_bins.py` | eps per bin, three variants |
+| `nucel/make_evlists.py`, `smoke_check.py` | the production's event selection and its bit-identity check |
+| `nucel/runCleanPropModelLowP.py`, `points_pi_lowpt.txt` | the low-pT clean-propagation points |
+
+Caches `runs/nucel/kspairs_{nucel,base,nuc,nucnr,nucfirst}_*.npz`, table
+`runs/nucel/nucel_table.npz` (per-bucket files on ceph under the production's
+`nucel_kernels/`), results `runs/nucel/results/`, `runs/nucel/eval_all.json`.
+Figures: `ks_nucel_pull[_log]`, `ks_nucel_pit`, `ks_nucel_tail_vs_radius`,
+`ks_nucel_eps_bins`, `perplane_tail{3,5}_{locx,locy}` (+ `perplane_table.txt`).

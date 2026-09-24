@@ -75,6 +75,13 @@ opts.register('fillJac', True, VarParsing.VarParsing.multiplicity.singleton,
               VarParsing.VarParsing.varType.bool, 'per-track Jacobians')
 opts.register('exportCfExponents', True, VarParsing.VarParsing.multiplicity.singleton,
               VarParsing.VarParsing.varType.bool, 'in-maker CF exponents (cfmass_*)')
+opts.register('exportStepRecords', False, VarParsing.VarParsing.multiplicity.singleton,
+              VarParsing.VarParsing.varType.bool,
+              'raw per-step records (msmoliv, ioniurbanv, radstepv, resinfv, ...), '
+              '~430 kB/candidate; needed to add a CF family offline')
+opts.register('eventsFile', '', VarParsing.VarParsing.multiplicity.singleton,
+              VarParsing.VarParsing.varType.string,
+              'file with one run:lumi:event per line (appended to eventsToProcess)')
 opts.register('exportCfGroupExponents', False, VarParsing.VarParsing.multiplicity.singleton,
               VarParsing.VarParsing.varType.bool, 'per-material-group CF exponents')
 opts.register('exportHitResBlocks', True, VarParsing.VarParsing.multiplicity.singleton,
@@ -198,9 +205,16 @@ process.source = cms.Source(
     # the condor MC production has a tail of zero-length / truncated files
     skipBadFiles=cms.untracked.bool(True),
 )
-if opts.eventsToProcess:
+_evr = [s.strip() for s in opts.eventsToProcess.split(',') if s.strip()]
+if opts.eventsFile:
+    with open(opts.eventsFile) as _f:
+        _evr += [l.strip() for l in _f if l.strip() and not l.startswith('#')]
+    if not _evr:
+        raise SystemExit('eventsFile %s selects no event' % opts.eventsFile)
+if _evr:
+    # run:lumi:event -> the one-event range run:lumi:event-run:lumi:event
     process.source.eventsToProcess = cms.untracked.VEventRange(
-        *[s.strip() for s in opts.eventsToProcess.split(',') if s.strip()])
+        *[(e if '-' in e else e + '-' + e) for e in _evr])
 
 process.options = cms.untracked.PSet(
     numberOfThreads=cms.untracked.uint32(int(opts.numberOfThreads)),
@@ -246,7 +260,7 @@ process.globalCor = cms.EDProducer(
     l1Results=cms.InputTag('gtDigis', '', 'RECO'),
     l1Triggers=cms.vstring(),
     doRes=cms.bool(bool(opts.doRes)),
-    exportStepRecords=cms.bool(False),
+    exportStepRecords=cms.bool(bool(opts.exportStepRecords)),
     exportCfExponents=cms.bool(bool(opts.exportCfExponents)),
     exportCfGroupExponents=cms.bool(bool(opts.exportCfGroupExponents)),
     exportHitResBlocks=cms.bool(bool(opts.exportHitResBlocks)),

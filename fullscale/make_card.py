@@ -67,7 +67,11 @@ import selection  # noqa: E402  (the standard two-track selection)
 MZ_REF = 91.1876
 FAMILY_ORDER = ["ms", "ioni", "rad"]
 CACHE_KEYS = {"ms": ("Sms", None), "ioni": ("Sio_re", "Sio_im"),
-              "rad": ("Srad_re", "Srad_im"), "del": ("Sdel", None)}
+              "rad": ("Srad_re", "Srad_im"), "del": ("Sdel", None),
+              # the hadronic nuclear-elastic family, built OFFLINE from the
+              # step records (resolution/ksclosure/nucel/ks_nucel_cf.py);
+              # opt-in with --add-nucel-family, absent from every in-maker cache
+              "nucel": ("Snuc_re", "Snuc_im")}
 
 
 def parse_args(argv=None):
@@ -382,6 +386,11 @@ def parse_args(argv=None):
                         "family's S_* keys dropped -- `discover_families` only "
                         "appends families present in the cache -- or set its "
                         "coefficient to zero with --set.")
+    p.add_argument("--add-nucel-family", dest="add_nucel_family",
+                   action="store_true",
+                   help="ADD the hadronic nuclear-elastic family (cache keys "
+                        "Snuc_re/Snuc_im, parameter k_nucel). Off by default, "
+                        "so every existing card is unchanged.")
     p.add_argument("--width-scheme", choices=["fixed", "running"], default="fixed")
     p.add_argument("--nm", type=int, default=8192,
                    help="lineshape mass grid. NOT the provider's 32768 default: "
@@ -448,9 +457,10 @@ def selection_table(d, args, log=print):
     return tab
 
 
-def discover_families(keys, want_del=False):
+def discover_families(keys, want_del=False, want_nucel=False):
     fams = []
-    for name in FAMILY_ORDER + (["del"] if want_del else []):
+    for name in (FAMILY_ORDER + (["del"] if want_del else [])
+                 + (["nucel"] if want_nucel else [])):
         re_k, im_k = CACHE_KEYS[name]
         if re_k in keys:
             fams.append((name, re_k, im_k if (im_k and im_k in keys) else None))
@@ -728,7 +738,10 @@ def build(args, log=print):
             f"-> {1.5*np.median(s2)*args.mref*1e3:.2f} MeV")
 
     # ---- families --------------------------------------------------------
-    fams = discover_families(set(d.files), args.add_del_family)
+    fams = discover_families(set(d.files), args.add_del_family,
+                             args.add_nucel_family)
+    if args.add_nucel_family and "nucel" not in [f[0] for f in fams]:
+        raise SystemExit("--add-nucel-family: the cache has no Snuc_re")
     log(f"  {n} candidates, nt = {nt}, tau [0, {tgrid[-1]:.4f}], "
         f"families {[f[0] for f in fams]} + hit, upsample {args.fit_upsample}")
     # ---- the v formulation ----------------------------------------------
