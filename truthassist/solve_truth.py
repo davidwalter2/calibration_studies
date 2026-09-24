@@ -12,8 +12,8 @@ class corrections 16-21). Frozen types (default: per-module Bz 6 and material 7)
 are dropped from the system, i.e. held at their current value (zero); free
 parameters that no selected track touches are pinned at zero as well.
 
-Accumulation is multithreaded C++ (RDataFrame ForeachSlot) into one packed
-upper-triangular atomic matrix on the free-parameter subspace.
+Accumulation is multithreaded C++ (RDataFrame ForeachSlot, std::atomic_ref) into
+the upper triangle of one dense matrix on the free-parameter subspace.
 
 Outputs: <out>.npz (x on the full catalogue, the free mask, per-parameter
 information and prior widths) and <out>.root with a corFiles-style parmtree.
@@ -32,32 +32,24 @@ import ROOT
 CPP = r"""
 #include <atomic>
 #include <vector>
-#include <memory>
 #include <cmath>
 #include "ROOT/RDataFrame.hxx"
 #include "ROOT/RVec.hxx"
 
+// Accumulates 0.5*gradv and the UPPER triangle of 0.5*hesspackedv directly into
+// caller-owned dense buffers (numpy, row-major n x n) with std::atomic_ref, so
+// no second copy of the matrix is ever held.
 struct TruthAgg {
-  std::vector<int> remap;                       // catalogue idx -> free idx (-1 frozen)
+  std::vector<int> remap;                        // catalogue idx -> free idx (-1 frozen)
   unsigned long long n = 0;
-  std::vector<unsigned long long> off;           // packed upper-triangle row offsets
-  std::unique_ptr<std::atomic<double>[]> H;
-  std::unique_ptr<std::atomic<double>[]> g;
+  double* H = nullptr;
+  double* g = nullptr;
   std::atomic<unsigned long long> ntracks{0};
 
-  explicit TruthAgg(const std::vector<int>& rm, unsigned long long nfree) : remap(rm), n(nfree) {
-    off.resize(n + 1);
-    unsigned long long k = 0;
-    for (unsigned long long i = 0; i < n; ++i) { off[i] = k; k += n - i; }
-    off[n] = k;
-    H.reset(new std::atomic<double>[k]);
-    for (unsigned long long i = 0; i < k; ++i) H[i].store(0., std::memory_order_relaxed);
-    g.reset(new std::atomic<double>[n]);
-    for (unsigned long long i = 0; i < n; ++i) g[i].store(0., std::memory_order_relaxed);
-  }
-  static void addAtomic(std::atomic<double>& ref, double v) {
-    double old = ref.load(std::memory_order_relaxed);
-    while (!ref.compare_exchange_weak(old, old + v, std::memory_order_relaxed)) {}
+  TruthAgg(const std::vector<int>& rm, unsigned long long nfree, long long hptr, long long gptr)
+      : remap(rm), n(nfree), H(reinterpret_cast<double*>(hptr)), g(reinterpret_cast<double*>(gptr)) {}
+  static void addAtomic(double& ref, double v) {
+    std::atomic_ref<double>(ref).fetch_add(v, std::memory_order_relaxed);
   }
   void add(const ROOT::RVec<float>& grad, const ROOT::RVec<float>& hess,
            const ROOT::RVec<unsigned int>& idx) {
@@ -74,16 +66,11 @@ struct TruthAgg {
         double v = 0.5 * hess[k];
         if (a == b && i != j) v *= 2.;             // duplicate index in one track
         const unsigned long long lo = a < b ? a : b, hi = a < b ? b : a;
-        addAtomic(H[off[lo] + hi - lo], v);
+        addAtomic(H[lo * n + hi], v);
       }
     }
     ntracks.fetch_add(1, std::memory_order_relaxed);
   }
-  // copy the upper-triangle part of row i (columns i..n-1) into dst[i..n)
-  void upperRow(unsigned long long i, double* dst) const {
-    for (unsigned long long j = i; j < n; ++j) dst[j] = H[off[i] + j - i].load(std::memory_order_relaxed);
-  }
-  double grad(unsigned long long i) const { return g[i].load(std::memory_order_relaxed); }
 };
 
 void runTruthAgg(ROOT::RDF::RNode df, TruthAgg& agg) {
@@ -122,6 +109,12 @@ def main():
     ap.add_argument("--min-valid-hits", type=int, default=9)
     ap.add_argument("--max-grad", type=float, default=1e5, help="drop tracks with max|gradv| above")
     ap.add_argument("--max-files", type=int, default=0)
+    ap.add_argument("--mask", default="", choices=["", "v718"],
+                    help="v718: Josh's truth-assisted mask -- only the in-plane alignment "
+                         "dofs, local x/y (types 0, 1) everywhere and the in-plane rotation "
+                         "(type 5) only for TID/TEC (subdet 4, 5); types 2-4 frozen")
+    ap.add_argument("--prior", action="append", default=[],
+                    help="override a prior width, TYPE=SIGMA (cm or rad), repeatable")
     args = ap.parse_args()
 
     files = sorted(f for g in args.input for f in glob.glob(g))
@@ -135,6 +128,12 @@ def main():
     subdet = rt["subdet"].astype(int)
     ncat = len(ptype)
     free = np.isin(ptype, args.free)
+    if args.mask == "v718":
+        free &= ~np.isin(ptype, [2, 3, 4])
+        free &= ~((ptype == 5) & ~np.isin(subdet, [4, 5]))
+    overrides = {int(k): float(v) for k, v in (o.split("=") for o in args.prior)}
+    if overrides:
+        print("prior overrides:", overrides)
     remap = -np.ones(ncat, dtype=np.int64)
     remap[free] = np.arange(free.sum())
     nfree = int(free.sum())
@@ -145,8 +144,10 @@ def main():
     ROOT.ROOT.EnableImplicitMT(args.threads)
     rm = ROOT.std.vector("int")(remap.astype(np.int32).tolist())
     t0 = time.time()
-    agg = ROOT.TruthAgg(rm, nfree)
-    print(f"allocated packed matrix ({nfree*(nfree+1)//2*8/1e9:.1f} GB) in {time.time()-t0:.0f} s")
+    H = np.zeros((nfree, nfree), dtype=np.float64)
+    g = np.zeros(nfree, dtype=np.float64)
+    agg = ROOT.TruthAgg(rm, nfree, H.ctypes.data, g.ctypes.data)
+    print(f"allocated dense matrix ({nfree*nfree*8/1e9:.1f} GB) in {time.time()-t0:.0f} s")
 
     chain = ROOT.TChain("tree")
     for f in files:
@@ -161,22 +162,14 @@ def main():
     print(f"aggregated {agg.ntracks.load()} of {n0.GetValue()} tracks in {time.time()-t0:.0f} s")
     rep.Print()
 
-    t0 = time.time()
-    H = np.zeros((nfree, nfree), dtype=np.float64)
-    row = np.zeros(nfree, dtype=np.float64)
-    for i in range(nfree):
-        agg.upperRow(i, row)
-        H[i, i:] = row[i:]
     # only the UPPER triangle of H is filled and used: LAPACK potrf on the
     # F-ordered transpose with lower=True reads exactly that triangle, in place
-    g = np.array([agg.grad(i) for i in range(nfree)])
     del agg
-    print(f"dense matrix built in {time.time()-t0:.0f} s")
 
     fidx = np.flatnonzero(free)
     info = np.diag(H).copy()
     touched = info > 0.
-    sig = np.array([prior_sigma(ptype[k], subdet[k]) for k in fidx])
+    sig = np.array([overrides.get(int(ptype[k]), prior_sigma(ptype[k], subdet[k])) for k in fidx])
     print(f"touched {touched.sum()} of {nfree} free parameters; pinning {np.sum(~touched)}")
     # pin untouched parameters: unit diagonal, zero gradient -> x = 0 exactly
     for i in np.flatnonzero(~touched):
