@@ -234,7 +234,7 @@ CVH_ENV_ONLY = (
     "CVH_ELOSS_CYL_R", "CVH_ELOSS_CYL_Z", "CVH_ELOSS_CYL_EPS",
     "CVH_MATGROUP_PROBE", "CVH_MATGROUP_MEANONLY", "CVH_MATGROUP_EPS",
     "CVH_MS_SCALE", "CVH_MS_DISP_SCALE",
-    "CVH_DEDX_DEBUG", "CVH_LOCAL_UPDATE",
+    "CVH_DEDX_DEBUG",
     # CVH_CGF_QOP and CVH_CGF_QOP_REFRESH are NOT environment variables: the
     # CGF weight is the production default, so which estimator produced a file
     # has to be in its provenance. They are CgfQoPMode / CgfQoPRefresh in
