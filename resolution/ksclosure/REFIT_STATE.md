@@ -34,7 +34,7 @@ touch the CVH code.
 - [x] CONTROL: the OLD pairs cache refitted with nothing changed reproduces
       `alpha = +0.260199 +- 0.042427` to every printed digit (`ctl_all`),
       so the analysis chain is unchanged.
-- [ ] full array, slurm **6474164**, 1000 HALF-chunk tasks
+- [x] full array, slurm **6474164**, 1000 HALF-chunk tasks, all COMPLETED
 
   The `submit` partition was saturated: a 5 min job backfilled at once, a 15 min
   one waited behind the reservations, and the 8 h request of the 260917 array
@@ -45,8 +45,8 @@ touch the CVH code.
   SAME `task_NNNN/` under `outprefix=globalcor_ks_{a,b}`.  `ks_pairs.py` globs
   `globalcor_ks_*.root` in the task directory, so the chunking the truth join
   sees is unchanged and `truth_NNNN.npz` still pairs with `task_NNNN`.
-- [ ] pairs cache -> cards -> fits
-- [ ] figures + STATE.md
+- [x] pairs cache -> cards -> fits (`run_ks_fixed.sh`, results in `runs/fixed/results/`, plus `s_ares0`)
+- [x] figures + STATE.md (section 11 = the before-fix comparison).  DONE.
 
 ## Next command
 

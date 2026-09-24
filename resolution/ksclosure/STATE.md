@@ -6,6 +6,13 @@ legs; the momentum scale `alpha` is measured on the K_S mass with the same
 unbinned mass-CF likelihood and the same two first-principles corrections
 (sigma-artefact, Jensen) as the J/psi closure.
 
+**Code: CMSSW `CMSSW_15_0_19_patch2_dev2` at commit `3d4c926ff461`**, which
+carries the multiple-scattering within-step correlation sign
+`res(1,4) = +S3` (defect (d) of `resolution/DEFECTS_STATE.md`) and the
+reference-EDM fix under `doVtxConstraint` (defect (a)).  Every number in
+sections 4b and 8-10 is from this code.  The same refit on the pre-fix code
+is kept only as the before-fix comparison of section 11.
+
 ## 1. The sample
 
 `/ceph/submit/data/group/cms/store/mc/inclusive_btojpsix_2016postvfp_v3/`
@@ -108,7 +115,7 @@ downstream selection, ~55 k after it.
 Driver `resolution/ksclosure/runCvhKs.py` (a cmsRun cfg in this repo -- the
 CMSSW area is used exactly as released, no code change, no rebuild).
 Full flag list and provenance in
-`/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260917_ideal/PROVENANCE.txt`.
+`/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260918_fixed/PROVENANCE.txt`.
 
 The one thing to know: the maker's own gen matching is muon-specific
 (`|pdgId| == 13`, `ResidualGlobalCorrectionMakerTwoTrackG4e.cc:6116`), so it
@@ -131,31 +138,37 @@ section 9.8)
 | `gen_decays.py` | decayer + FSR bookkeeping (K_S, D0, D*, B0, J/psi) |
 | `inspect_sample.py`, `dump_b0ks.py` | event-content and candidate-structure dumps |
 | `prod/` | slurm arrays for the refit and the truth dump |
+| `run_ks_fixed.sh` | the whole chain for one production: pairs cache, fits, systematics, a_res forms, tables, figures |
+| `ks_compare_closure.py` | the closure table of two productions side by side |
+| `ks_fix_plots.py` | the two-production figures (section 11) |
+| `smoke_compare.py` | candidate-by-candidate comparison of two refits of the same input |
 
 Production output:
-`/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260917_ideal/`
-(`task_NNNN/` refit output, `truth/truth_NNNN.npz` truth, `chunks/` input lists).
+`/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260918_fixed/`
+(`task_NNNN/` refit output, `truth/` truth, `chunks/` input lists).  The truth
+dump is FWLite over the generator and Geant4 records and does not touch the
+CVH code; `truth/` is a link to the one of the before-fix production.
+Working directory for the caches, cards and fits: `runs/fixed/`.
 
-## 4b. Production (slurm, 500 chunks of 252 files)
+## 4b. Production (slurm, 1000 tasks of 126 files)
 
-`/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260917_ideal/`,
-`prod/submit_ks.sh` + `prod/submit_truth.sh`, resubmission with
-`prod/resubmit_failed.sh`.  Per chunk (measured on the first completed task,
-12 986 events):
+`/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260918_fixed/`,
+`prod/submit_ks_half.sh`, gaps with `prod/resubmit_half.sh`, per-chunk seal
+with `prod/seal_halves.sh`, summary with `prod/prod_summary.sh`.  Each
+252-file chunk of the input list runs as two 126-file halves writing into the
+same `task_NNNN/` (`globalcor_ks_{a,b}_*.root`); `ks_pairs.py` globs the task
+directory, so the truth join sees the 500 chunks unchanged.  The halves exist
+because the `submit` partition backfills a 12 min request and not a 15 min one.
 
 ```
-attempted 716   succeeded 706   failed 10 (1.40 %)
-  fail[prop] 10, everything else 0 (no chargeflip, no NaN, no ndof)
-skipped before the fit: leghits<8 1219, hits<10 274, ndof<1 114
-  -> 2323 candidates in the chunk = 0.179/event, 30.8 % of them fit
-propagation: 211 557 calls, 65 failures (0.031 %); pdrain 54, ierr 6,
-  fieldbound 3, offsurface 2; 174 backward legs
-recovery: 47 leg backtracks, 36 chi2 backtracks, 8 seed inflations, 1 clamp
+attempted 349 766   succeeded 347 583   failed 2 183 (0.624 %)
+1000 tasks: median 321 s, max 656 s, total 90.6 core-hours
 ```
 
-16 min per chunk, 29 MB of output; the whole sample is ~135 core-hours and
-~14 GB.  The 1.4 % failure rate is far below the 2.5 % of the 2016 DATA V0
-tests -- the B0Ks pairing is a cleaner subset than a V0 skim.
+The failures are propagation failures of the combinatorial candidates; the
+truth-matched set is unaffected by them.  Reference iterations are no longer
+capped at 10 (mean 5.5 on the smoke chunk): the reference EDM is now finite
+under the vertex constraint and the fit stops when it converges.
 
 ## 5. The chain, validated end to end
 
@@ -304,74 +317,69 @@ closed form to 0.34 +- 0.68 % at the J/psi.  **Use the closed form.  The 0.28 /
 `--a-res-key` (default absent) are what let this be measured rather than
 assumed; both leave every existing card bit-identical.
 
-## 8. Result (full sample: 500/500 chunks, 52 830 truth-matched candidates)
+## 8. Result (full sample, 52 829 truth-matched candidates)
 
 `alpha_mass` is what `MassCFTerm` fits; `eps = alpha_mass / <f>` with
 `<f> = 0.630` is the momentum scale (section 6).  Every fit converges with
-EDM < 1e-16, far inside the 1e-3 tolerance.
+EDM < 3e-16, far inside the 1e-3 tolerance.
 
-347 561 candidates were fit, 52 830 of them truth-matched (15.20 %).
-Pull `(m_reco - m_gen)/sigma_m`: mean +0.022, median +0.038, std 1.227, robust
-width 0.957.  Residual `m_reco - m_gen`: median +0.215 MeV, RMS 8.90 MeV.
-chi2/ndof median 0.861 (ndof median 22), 0.75 % above 3.
+347 583 candidates were fit, 52 829 of them truth-matched (15.20 %).
+Pull `(m_reco - m_gen)/sigma_m`: mean +0.022, median +0.038, std 1.223, robust
+width 0.954.  Residual `m_reco - m_gen`: median +0.218 MeV, RMS 8.90 MeV.
+chi2/ndof median 0.862 (ndof median 22), 0.75 % above 3.
 
 ### The correction ladder
 
 | | alpha_mass [1e-3] | eps [1e-3] |
 |---|---|---|
-| naive (no corrections) | +0.181 +- 0.042 | +0.287 +- 0.067 |
-| Jensen exact only (a_res off) | +0.092 +- 0.042 | +0.146 +- 0.067 |
-| a_res x 0.470 + Jensen exact (superseded, section 9) | +0.171 +- 0.042 | +0.272 +- 0.067 |
-| a_res (J/psi closed form) + Jensen exact | +0.260 +- 0.042 | +0.413 +- 0.067 |
-| **a_res MEASURED from truth + Jensen exact** | **+0.264 +- 0.042** | **+0.419 +- 0.067** |
-| a_res (J/psi closed form), no Jensen | +0.348 +- 0.042 | +0.553 +- 0.067 |
+| naive (no corrections) | +0.181 +- 0.042 | +0.288 +- 0.067 |
+| Jensen exact only (a_res off) | +0.093 +- 0.042 | +0.148 +- 0.067 |
+| a_res (J/psi closed form) + Jensen exact | +0.261 +- 0.042 | +0.414 +- 0.067 |
+| **a_res MEASURED from truth + Jensen exact** | **+0.258 +- 0.042** | **+0.410 +- 0.067** |
+| a_res (J/psi closed form), no Jensen | +0.349 +- 0.042 | +0.553 +- 0.067 |
 
 **The displaced K_S momentum-scale closure is**
 
 ```
-eps = +0.42 +- 0.07 (stat) +- 0.03 (a_res) +- 0.04 (other)  x 1e-3
+eps = +0.41 +- 0.07 (stat) +- 0.03 (a_res) +- 0.04 (other)  x 1e-3
 ```
 
 against the J/psi -> mu mu closure of **+0.006 +- 0.025 x 1e-3** on the same
 MC.  The central value is the fit with the sigma-artefact slope MEASURED from
-truth (section 9; the shipped closed form gives +0.413 and the two
-first-principles variants +0.455 and +0.465), and the a_res uncertainty is that
-measurement's own, 11.1 % statistical plus 3.8 % estimator closure on a total
-a_res correction of 0.267e-3.  Statistics and the unmodelled nuclear-elastic
+truth (section 9; the shipped closed form gives +0.414), and the a_res
+uncertainty is that measurement's own, 11.2 % statistical plus 3.8 % estimator
+closure on a total a_res correction of 0.266e-3.  Statistics and the unmodelled nuclear-elastic
 tail are now the limiting systematics, not a_res.
 
-The `a_res x 0.470` row of the ladder above, and the +0.14/-0.13 band it
-carried, are superseded by section 9.
-
-### Systematics (nominal = a_res in the J/psi form + Jensen, +0.413)
+### Systematics (nominal = a_res in the J/psi form + Jensen, +0.414)
 
 | variation | eps [1e-3] | shift |
 |---|---|---|
-| residual window 3 sigma (from 9) | +0.372 | -0.041 |
-| residual window 5 sigma | +0.409 | -0.004 |
-| floating uniform background | +0.420 | +0.007 |
-| chi2/ndof < 1.5 (from 3) | +0.408 | -0.005 |
-| truth match tight (0.05/0.05/0.20/1 cm), n 50 564 | +0.387 | -0.026 |
-| truth match loose (0.60/0.60/0.90/5 cm), n 56 594 | +0.395 | -0.018 |
+| residual window 3 sigma (from 9) | +0.372 | -0.042 |
+| residual window 5 sigma | +0.410 | -0.005 |
+| floating uniform background | +0.422 | +0.007 |
+| chi2/ndof < 1.5 (from 3) | +0.410 | -0.004 |
+| truth match tight (0.05/0.05/0.20/1 cm), n 50 558 | +0.387 | -0.027 |
+| truth match loose (0.60/0.60/0.90/5 cm), n 56 594 | +0.397 | -0.018 |
 
 Everything except the 3-sigma residual window is a no-op at the 0.03e-3 level.
-The 3-sigma window shift, -0.041e-3, IS the unmodelled tail.
+The 3-sigma window shift, -0.042e-3, IS the unmodelled tail.
 
 ### Populations and bins (nominal correction set)
 
 | sample | n | eps [1e-3] |
 |---|---|---|
-| all | 52830 | +0.413 +- 0.067 |
-| from a B hadron | 31956 | +0.557 +- 0.088 |
-| from a B0 | 27721 | +0.487 +- 0.094 |
-| prompt / fragmentation | 20874 | +0.195 +- 0.105 |
-| decay radius < 2 cm | 12392 | +0.480 +- 0.135 |
-| 2 - 4 cm | 12992 | +0.079 +- 0.134 |
-| 4 - 10 cm | 13508 | +0.677 +- 0.126 |
-| > 10 cm | 13938 | +0.381 +- 0.144 |
-| min-leg p < 0.8 GeV | 11687 | +0.266 +- 0.129 |
-| 0.8 - 1.5 GeV | 17594 | +0.362 +- 0.108 |
-| > 1.5 GeV | 23549 | +0.594 +- 0.116 |
+| all | 52829 | +0.414 +- 0.068 |
+| from a B hadron | 31955 | +0.557 +- 0.088 |
+| from a B0 | 27720 | +0.487 +- 0.094 |
+| prompt / fragmentation | 20874 | +0.198 +- 0.105 |
+| decay radius < 2 cm | 12392 | +0.483 +- 0.136 |
+| 2 - 4 cm | 12992 | +0.079 +- 0.135 |
+| 4 - 10 cm | 13508 | +0.680 +- 0.127 |
+| > 10 cm | 13937 | +0.380 +- 0.145 |
+| min-leg p < 0.8 GeV | 11686 | +0.265 +- 0.130 |
+| 0.8 - 1.5 GeV | 17593 | +0.365 +- 0.108 |
+| > 1.5 GeV | 23550 | +0.595 +- 0.116 |
 
 * the four decay-radius bins scatter by **chi2 = 10.9/3 (p = 0.012)** around
   their mean -- the first evidence of a radius dependence, and it is not
@@ -391,7 +399,7 @@ The 3-sigma window shift, -0.041e-3, IS the unmodelled tail.
 
 ### The unmodelled tail
 
-`|z| >= 3` holds **1.64 %** of candidates against 0.27 % for a Gaussian.  The
+`|z| >= 3` holds **1.62 %** of candidates against 0.27 % for a Gaussian.  The
 log-scale `ks_pull_model_tails` figure shows the per-candidate CF model
 describing the core to a few per cent, the data running ~20 % above it at
 z = +2 to +3, and ~1 candidate per bin sitting flat out to |z| = 10.  The
@@ -426,9 +434,12 @@ systematic above that moves the answer.
 
 The reference J/psi -> mu mu number (+0.006 +- 0.025e-3) was measured on the
 `btojpsix_v3_260904f_m0` refit, which ran with the ALIGNED geometry from the
-GT; this K_S production runs with `useIdealGeometry=True` (David's 9/17
-decision).  The like-for-like comparison is against the ideal-geometry J/psi
-production `jpsimc_20M_260917_ideal` launched the same day.
+GT and before `3d4c926ff461`; this K_S production runs with
+`useIdealGeometry=True` on the fixed code.  The code difference does not
+matter for the J/psi: the correlation-sign fix moves the J/psi scale by
++0.003e-3 (`DEFECTS_STATE.md`).  The geometry difference does: the
+like-for-like comparison is the ideal-geometry J/psi closure (pairs cache
+`fullscale/runs/jpairs_ideal_n600.npz`), which has not been fit yet.
 
 
 ## 9. The sigma-artefact slope and the track angles
@@ -546,32 +557,32 @@ by how much is not measured here, the toy above is K_S kinematics.
 SAME realised fluctuations as the measurement, so the columns are directly
 comparable.
 
-| | K_S -> pi pi (52 764 cand.) | J/psi -> mu mu (1 973 266 cand.) |
+| | K_S -> pi pi (52 763 cand.) | J/psi -> mu mu (1 973 266 cand.) |
 |---|---|---|
-| `sigma_m/m` median | 0.01207 | 0.01087 |
-| `f_hit` median | 0.0473 | 0.0856 |
-| `f_ang` median | **0.7028** | **0.0630** |
-| **`A` MEASURED** | **+1.0618 +- 0.1179** | **+1.1026 +- 0.0075** |
+| `sigma_m/m` median | 0.01211 | 0.01087 |
+| `f_hit` median | 0.0469 | 0.0856 |
+| `f_ang` median | **0.7047** | **0.0630** |
+| **`A` MEASURED** | **+1.0712 +- 0.1196** | **+1.1026 +- 0.0075** |
 
 | form | `A_pred` (K_S) | pull | `A_pred` (J/psi) | pull |
 |---|---|---|---|---|
-| (i) `1 + f_hit` -- **as shipped** | 1.1059 | **-0.4** | 1.1064 | **-0.5** |
-| (ii) `(1-f_ang)[(1+f_hit)(1-f_ang)+f_ang]` | 0.2594 | **+6.8** | 1.0268 | **+10.1** |
-| (ii') `(1-f_ang)(1+f_hit)` | 0.2714 | +6.7 | 1.0325 | +9.3 |
-| (iii) full, momentum sector of `G` only | 0.3066 | +6.4 | 0.8994 | +27.0 |
-| (iii) full, path-length `Sigma` | 1.2254 | -1.4 | 0.9520 | **+20.1** |
-| (iii) full, path-length `Sigma`, `dSigma/dlambda = 0` | 1.2294 | -1.4 | 0.9513 | +20.1 |
-| (iii) full, population `Sigma` | 1.2621 | -1.7 | 1.0775 | +3.4 |
-| kinematic only (`Sigma` frozen, = `f_hit` = 1) | 1.6383 | -4.9 | 1.9850 | -117 |
+| (i) `1 + f_hit` -- **as shipped** | 1.1056 | **-0.3** | 1.1064 | **-0.5** |
+| (ii) `(1-f_ang)[(1+f_hit)(1-f_ang)+f_ang]` | 0.2582 | **+6.8** | 1.0268 | **+10.1** |
+| (ii') `(1-f_ang)(1+f_hit)` | 0.2701 | +6.7 | 1.0325 | +9.3 |
+| (iii) full, momentum sector of `G` only | 0.3047 | +6.4 | 0.8994 | +27.0 |
+| (iii) full, path-length `Sigma` | 1.2475 | -1.5 | 0.9520 | **+20.1** |
+| (iii) full, path-length `Sigma`, `dSigma/dlambda = 0` | 1.2516 | -1.5 | 0.9513 | +20.1 |
+| (iii) full, population `Sigma` | 1.2841 | -1.8 | 1.0775 | +3.4 |
+| kinematic only (`Sigma` frozen, = `f_hit` = 1) | 1.6586 | -4.9 | 1.9850 | -117 |
 
 In bins of TRUE kinematics the same ordering holds.  chi2 of the measurement
 against each form, K_S:
 
 | bins (chi2 / n) | (i) `mom` | (ii) `ang` | (iii) path-length | (iii) population |
 |---|---|---|---|---|
-| K_S, `f_ang` projected on truth, 7 | **9.7** | 71.9 | 9.8 | 10.9 |
-| K_S, softer pion's true \|p\|, 6 | **7.5** | 63.2 | 13.0 | 13.3 |
-| K_S, max true \|lambda\|, 5 | **11.8** | 68.4 | 14.7 | 15.8 |
+| K_S, `f_ang` projected on truth, 7 | **9.1** | 71.1 | 10.3 | 11.4 |
+| K_S, softer pion's true \|p\|, 6 | **7.3** | 65.7 | 13.7 | 14.0 |
+| K_S, max true \|lambda\|, 5 | **11.3** | 68.3 | 13.7 | 14.9 |
 | J/psi, `f_ang` projected on truth, 7 | **12.4** | 122.0 | 467.3 | 25.1 |
 | J/psi, softer muon's true \|p\|, 6 | **9.8** | 117.1 | 432.8 | 19.4 |
 | J/psi, max true \|lambda\|, 5 | 24.7 | 113.7 | 469.9 | **19.1** |
@@ -583,13 +594,12 @@ Over a factor 5 in the softer muon's true momentum the J/psi `A_meas` runs
 **Binning on `f_ang` is a trap** and is kept in the output as the
 demonstration.  `f_ang` is built from the FITTED state and the FITTED
 covariance, so it moves with the fluctuation being measured.  Binned on the
-reconstructed `f_ang` the K_S septiles read 1.80, 2.02, 2.00, 1.96, 2.07, 1.91,
-0.92, their Fisher-weighted mean is 1.64 against the inclusive 1.06 on the same
-candidates, and every form is rejected (chi2 271 - 1336 / 7).  Binned on
-`f_ang` PROJECTED ON THE TRUE KINEMATICS (the same variable with the
-fluctuation regressed out; correlation 0.48) the septiles are 1.37, 1.34, 1.07,
-0.51, 0.75, 1.39, 1.13, weighted mean **1.065**, flat and equal to the
-inclusive.  The structure was entirely the binning.
+reconstructed `f_ang` the K_S septiles read 1.80, 1.99, 2.04, 1.98, 2.07, 1.88,
+0.93, far above the inclusive 1.07 on the same candidates, and every form is
+rejected (chi2 299 - 1447 / 7).  Binned on `f_ang` PROJECTED ON THE TRUE
+KINEMATICS (the same variable with the fluctuation regressed out; correlation
+0.48) the septiles are 1.35, 1.33, 1.04, 0.55, 0.72, 1.37, 1.16, flat within
+their errors and consistent with the inclusive.  The structure was entirely the binning.
 
 ### 9.5 What it costs on the momentum scale
 
@@ -597,15 +607,19 @@ Same candidates, same window, same Jensen term, same minimiser; only `a_res`
 changes.  `make_card.py` gained `--a-res-key`, which takes `a_res` per
 candidate from a column of the pairs cache (default unchanged;
 `--a-res-key ares_mom` reproduces the shipped card's `alpha` to 1e-15).
-`eps = alpha/0.6300`, every fit EDM < 6e-16.
+`eps = alpha/0.6300`, every fit EDM < 6e-16.  The rows for the shipped form
+and the measured slope are on the fixed code; the other forms were fit on the
+pre-fix refit of the same candidates, where the shipped form gave +0.4130
+(the correlation-sign fix moves each row by ~1e-6, section 11, far below the
+form differences the table is about).
 
 | `a_res` form | median `a_res` | `alpha` [1e-3] | `eps` [1e-3] | `eps - eps(i)` |
 |---|---|---|---|---|
 | (ii) `ang` | 0.00349 | +0.1506 | +0.2391 | **-0.1740** |
 | (ii') `ang_simple` | 0.00367 | +0.1526 | +0.2422 | -0.1708 |
 | (iii) momentum sector of `G` only | 0.00371 | +0.1583 | +0.2513 | -0.1617 |
-| **(i) `mom`, as shipped** | 0.01290 | +0.2602 | **+0.4130** | 0 |
-| measured slope (`A` = 1.0618) | 0.01282 | +0.2640 | **+0.4191** | +0.0060 |
+| **(i) `mom`, as shipped (fixed code)** | 0.01290 | +0.2609 | **+0.4142** | 0 |
+| measured slope, `A` = 1.0712 (fixed code) | 0.01294 | +0.2584 | **+0.4102** | -0.0040 |
 | (iii) path-length `Sigma` | 0.01387 | +0.2869 | +0.4554 | +0.0423 |
 | (iii) path-length, `dSigma/dlambda = 0` | 0.01392 | +0.2871 | +0.4558 | +0.0428 |
 | (iii) population `Sigma` | 0.01429 | +0.2930 | +0.4650 | +0.0520 |
@@ -642,7 +656,7 @@ there at 10 sigma.
   mass Jacobian, not because it mis-models the detector.
 * **The shipped closed form `(1 + f_hit) sigma/m` is right.**  At the J/psi it
   is confirmed to **0.34 +- 0.68 %**; at the K_S, where `f_ang` = 0.70, it is
-  confirmed to 11 % (statistics-limited) and sits 0.4 sigma from the
+  confirmed to 11 % (statistics-limited) and sits 0.3 sigma from the
   measurement.  It survives because it is itself an empirical statement --
   `f_hit` is the measured hit share of the mass variance -- and absorbs the
   kinematic and detector responses together, whereas form (iii) rebuilds them
@@ -660,16 +674,16 @@ there at 10 sigma.
 The `a_res` band of section 8 (`+0.14/-0.13e-3`, taken as the full range
 between `a_res` off and the J/psi closed form, with form (ii) as the central
 value) is superseded.  The coefficient is now MEASURED on this sample, and its
-uncertainty is the measurement's: 11.1 % statistical plus 3.8 % estimator
+uncertainty is the measurement's: 11.2 % statistical plus 3.8 % estimator
 closure on `A`, against a total `a_res` correction of
-`0.4130 - 0.1460 = 0.267e-3` on `eps`, i.e. **+-0.031e-3**.
+`0.4142 - 0.1480 = 0.266e-3` on `eps`, i.e. **+-0.031e-3**.
 
 ```
-eps = +0.419 +- 0.067 (stat) +- 0.031 (a_res) +- 0.04 (other)  x 1e-3
+eps = +0.410 +- 0.068 (stat) +- 0.031 (a_res) +- 0.04 (other)  x 1e-3
 ```
 
 (the central value is the measured-slope fit; the shipped closed form gives
-+0.413, the two first-principles variants +0.455 and +0.465).  The a_res model
++0.414, the two first-principles variants +0.455 and +0.465).  The a_res model
 is no longer the limiting systematic -- statistics and the unmodelled
 nuclear-elastic tail are.
 
@@ -686,10 +700,11 @@ nuclear-elastic tail are.
 | `run_ares_forms.sh` | one closure fit per form |
 | `ares_eps_table.py` | the `eps` table above |
 
-Caches: `runs/kscov_all.npz`, `runs/kspairs_ares.npz` (the pairs cache plus one
-`ares_<form>` column per form), `runs/jpsicov_ideal.npz`,
+Caches: `runs/fixed/kscov_all.npz`, `runs/fixed/kspairs_ares.npz` (the pairs
+cache plus one `ares_<form>` column per form), `runs/jpsicov_ideal.npz`,
 `runs/jpsimin_ideal.npz`.  Figures:
-`~/public_html/ZMass/cvh/260918_ares_angles/` (and `.../jpsi/`).
+`~/public_html/ZMass/cvh/260918_ares_angles_fixed/` (K_S) and
+`~/public_html/ZMass/cvh/260918_ares_angles/jpsi/` (J/psi).
 
 ## 10. What to do next
 
@@ -702,3 +717,106 @@ Caches: `runs/kscov_all.npz`, `runs/kspairs_ares.npz` (the pairs cache plus one
 3. **The radius dependence** at p = 0.012 deserves the full sample split more
    finely, and against the ideal-geometry J/psi, before it is called an
    effect.
+4. **The ideal-geometry J/psi closure** (`fullscale/runs/jpairs_ideal_n600.npz`)
+   is the like-for-like reference for the K_S number and has not been fit.
+
+## 11. Before the correlation-sign fix
+
+The same refit (driver, flags, inputs, chunking) on the pre-fix code is
+`/ceph/submit/data/user/d/david_w/ZMass/cvh/ks_btojpsix_260917_ideal/`, its
+fits in `runs/`.  Refitting its pairs cache with the current analysis chain
+reproduces its published `alpha = +0.260199 +- 0.042427` to every digit
+(`runs/results/ctl_all.json`), so the chain is common and every difference
+below is the CVH code.
+
+### Candidate by candidate (52 824 truth-matched candidates in both)
+
+| | value |
+|---|---|
+| median \|dm/m\| | 2.6e-5 |
+| p95 \|dm/m\| | 3.4e-4 |
+| candidates moving by more than 1e-4 | 21.0 % |
+| `d sigma_m / sigma_m`, mean | +2.43e-3 +- 0.02e-3 |
+| `d sigma_m / sigma_m`, median | +1.22e-3 |
+
+On all candidates of one input chunk (108, including combinatorial ones) the
+same comparison gives median 4.9e-5, p95 6.9e-4, 38.9 % above 1e-4 and
+`d sigma_m/sigma_m` +3.75e-3 -- the `DEFECTS_STATE.md` (d) numbers.  The
+truth-matched candidates move less than the combinatorial ones.  The fixed
+covariance is WIDER, as the sign fix requires (the non-bending offset variance
+was low).
+
+### Production
+
+| | pre-fix | fixed |
+|---|---|---|
+| candidates fit | 347 561 | 347 583 |
+| fit failures | 2 205 (0.630 %) | 2 183 (0.624 %) |
+| truth-matched | 52 830 | 52 829 |
+| core-hours | 141.9 | 90.6 |
+
+The reference-EDM fix is the saving: the reference loop was capped at 10
+iterations on every candidate and now stops at convergence.
+
+### Closure (`eps` [1e-3], nominal correction set unless stated)
+
+| sample | pre-fix | fixed | fixed - pre-fix |
+|---|---|---|---|
+| naive | +0.2869 +- 0.0673 | +0.2878 +- 0.0675 | +0.0009 |
+| Jensen only | +0.1463 +- 0.0673 | +0.1480 +- 0.0674 | +0.0017 |
+| a_res, no Jensen | +0.5530 +- 0.0673 | +0.5533 +- 0.0675 | +0.0003 |
+| **all (a_res closed form + Jensen)** | **+0.4130 +- 0.0673** | **+0.4142 +- 0.0675** | **+0.0012** |
+| all, a_res measured from truth | +0.4191 +- 0.0674 | +0.4102 +- 0.0675 | -0.0088 |
+| from a B hadron | +0.5569 +- 0.0876 | +0.5570 +- 0.0878 | +0.0001 |
+| from a B0 | +0.4870 +- 0.0941 | +0.4872 +- 0.0943 | +0.0002 |
+| prompt | +0.1950 +- 0.1052 | +0.1978 +- 0.1054 | +0.0028 |
+| r < 2 cm | +0.4804 +- 0.1354 | +0.4826 +- 0.1356 | +0.0021 |
+| 2 - 4 cm | +0.0788 +- 0.1343 | +0.0787 +- 0.1345 | -0.0001 |
+| 4 - 10 cm | +0.6774 +- 0.1264 | +0.6801 +- 0.1266 | +0.0026 |
+| > 10 cm | +0.3806 +- 0.1444 | +0.3801 +- 0.1447 | -0.0005 |
+| min-leg p < 0.8 GeV | +0.2658 +- 0.1294 | +0.2645 +- 0.1296 | -0.0013 |
+| 0.8 - 1.5 GeV | +0.3623 +- 0.1080 | +0.3654 +- 0.1082 | +0.0031 |
+| > 1.5 GeV | +0.5936 +- 0.1155 | +0.5946 +- 0.1157 | +0.0010 |
+| residual window 3 sigma | +0.3721 +- 0.0678 | +0.3721 +- 0.0680 | +0.0000 |
+| residual window 5 sigma | +0.4088 +- 0.0674 | +0.4096 +- 0.0675 | +0.0007 |
+| floating background | +0.4203 +- 0.0676 | +0.4215 +- 0.0677 | +0.0012 |
+| chi2/ndof < 1.5 | +0.4081 +- 0.0696 | +0.4098 +- 0.0697 | +0.0017 |
+| truth match tight | +0.3866 +- 0.0676 | +0.3872 +- 0.0677 | +0.0005 |
+| truth match loose | +0.3954 +- 0.0668 | +0.3967 +- 0.0669 | +0.0013 |
+
+Every fit is EDM-certified (largest EDM 3e-16).  The two samples are the same
+candidates, so the differences are far more precise than the errors shown;
+all but one are below 0.003e-3.  The exception, the measured-slope row, is not
+the refit: it is the truth measurement of `A` (1.0618 -> 1.0712, both +-0.12)
+redrawn on slightly different fluctuations, a 0.08-sigma move of `A` that
+reaches `eps` through the 0.266e-3 a_res lever.
+
+| diagnostic | pre-fix | fixed |
+|---|---|---|
+| pull std / robust width | 1.2265 / 0.9566 | 1.2232 / 0.9541 |
+| pull mean / median | +0.0216 / +0.0379 | +0.0218 / +0.0382 |
+| `\|z\| >= 3` | 1.635 % | 1.615 % |
+| chi2/ndof median, > 3 | 0.861, 0.75 % | 0.862, 0.75 % |
+| median residual, all [MeV] | +0.215 | +0.218 |
+| median residual, r < 1 / 1-2 / 2-3 / 3-4 cm | +0.576 / +0.077 / +0.032 / +0.189 | +0.576 / +0.075 / +0.033 / +0.192 |
+| median residual, r 4-6 / 6-10 / 10-20 / 20-60 cm | +0.251 / +0.273 / +0.225 / +0.301 | +0.251 / +0.286 / +0.227 / +0.307 |
+| radius-bin chi2 / 3 (p) | 10.87 (0.0125) | 10.94 (0.0120) |
+| momentum-bin chi2 / 2, high - low | 3.96, +0.328 +- 0.173 | 3.97, +0.330 +- 0.174 |
+| B-daughter - prompt | +0.362 +- 0.137 | +0.359 +- 0.137 |
+
+**Interpretation.**  The correlation-sign fix does not change the K_S closure.
+The scale moves by +0.0012e-3, 1.8 % of the statistical error; the radius
+structure (the 0.58 MeV residual inside the beam pipe, the dip at 1-3 cm, the
+plateau beyond) and its p = 0.012 are unchanged, so they are not a product of
+the too-small non-bending offset variance; the tail beyond 3 sigma is
+unchanged, so it is not either -- it remains the missing nuclear-elastic
+family.  What the fix does change is the width: sigma_m grows by 0.24 % on
+average and the pull std falls by 0.3 %, which is the corrected covariance
+doing what it should, and it leaves the scale alone because the mass-CF
+likelihood's two corrections are built from that same covariance.
+
+Figures: `~/public_html/ZMass/cvh/260918_ksclosure_fixed/` -- `ksfix_shift`
+(dm/m and d sigma_m/sigma_m per candidate), `ksfix_pull` and `ksfix_pull_tails`
+(fixed/pre-fix ratio panel), `ksfix_resid_vs_radius` (difference panel),
+`ksfix_eps_bins`, and the closure figure set of section 8 (`ks_*`) for
+the fixed code.
