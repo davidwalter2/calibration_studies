@@ -729,7 +729,7 @@ v2 has and these lack are `skipped[leghits<8]`.
 
 | cache | tasks | entries | dropped | size |
 |---|---:|---:|---:|---:|
-| `zpairs_dyideal_full.npz` | 380 | ZIDEAL_N | ZIDEAL_D | ZIDEAL_S |
+| `zpairs_dyideal_full.npz` | 380 | 3 681 745 | 35 841 | 5.72 GB |
 | `jpairs_ideal_n600.npz` | 600 | 7 917 168 | 16 519 | 12.1 GB |
 | `zpairs_dyalignctl.npz` | 40 | 383 019 | 3 787 | 0.60 GB |
 | `jpairs_alignctl_n60.npz` | 60 | 785 190 | 1 571 | 1.20 GB |

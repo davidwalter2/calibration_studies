@@ -292,3 +292,10 @@ against `3d4c926ff461`.
 Candidates: v2 9 846, alignctl 9 643, ideal 9 644. The 204 lost to v2 are
 `skipped[leghits<8] = 211` (the `minLegHits = 8` default v2 did not have);
 failures fall 11 -> 3/2 and `clamped[step]` 152 -> 32.
+
+## Final state
+
+All four productions complete (380/380, 600/600, 40/40, 60/60), integrity clean;
+the four pairs caches are built — see `PRODUCTIONS.md` §9 for the numbers.
+Nothing is running. Next step is David's: whether to repeat against
+`3d4c926ff461`, then the cards and fits.
