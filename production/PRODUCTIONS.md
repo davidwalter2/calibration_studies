@@ -16,10 +16,14 @@ submit scripts: `condor_jpsimc_v2/STATE_jpsi_v2.md`,
 |---|---|---:|---|---:|---:|---|---|
 | **`jpsimc_20M_260906_v2`** | UL16 `JPsiToMuMu_Pt8toInf` MC ALCARECO (`TkAlJpsiMuMu`), two-track | 21 750 740 | 1645 × 4 | **21 678 062** (0.9967/ev, 0.0067 % fail) | 1.5 TB | HTCondor / CMS global pool | **the J/psi sample** |
 | **`dymc_8p5M_260906_v2`** | UL16 DY MiniAODv2 (`DYJetsToMuMu_H2ErratumFix…powhegMiNNLO`), two-track Z | 8 502 597 | 380 × 4 | **3 799 624** (0.447/ev, 0.16 % fail) | 267 GB | HTCondor / CMS global pool | **the Z sample** |
-| **`dymc_8p5M_260917_ideal`** | the DY head of `dymc_8p5M_260906_v2`, **ideal tracker geometry** | 8 502 597 | 380 × 4 | **3 717 586** (0.437/ev, 0.021 % fail) | 667 GB | HTCondor / CMS global pool | **the Z closure sample** (pre-fix payload, see §9) |
-| **`jpsimc_20M_260917_ideal`** | tasks 0–599 of `jpsimc_20M_260906_v2`, **ideal tracker geometry** | 7 967 454 | 600 × 4 | **7 933 687** (0.9958/ev, 0.0031 % fail) | 523 GB | HTCondor / CMS global pool | **the J/psi closure sample** (pre-fix payload, see §9) |
-| `dymc_8p5M_260917_alignctl` | DY tasks 0–39, aligned geometry, otherwise = `_ideal` | 885 378 | 40 × 4 | 386 806 (0.437/ev, 0.022 % fail) | 71 GB | HTCondor | matched aligned control |
-| `jpsimc_20M_260917_alignctl` | J/psi tasks 0–59, aligned geometry, otherwise = `_ideal` | 790 051 | 60 × 4 | 786 761 (0.9958/ev, 0.0023 % fail) | 54 GB | HTCondor | matched aligned control |
+| **`dymc_8p5M_260924_ideal`** | the DY head of `dymc_8p5M_260906_v2`, **ideal tracker geometry**, fixed CVH (`3d4c926ff461`) | 8 502 597 | 380 × 4 | **3 717 580** (0.437/ev, 0.0215 % fail) | 667 GB | slurm (submit) | **the Z closure sample** |
+| **`jpsimc_20M_260924_ideal`** | tasks 0–599 of `jpsimc_20M_260906_v2`, **ideal tracker geometry**, fixed CVH | 7 967 454 | 600 × 4 | **7 933 746** (0.9958/ev, 0.0023 % fail) | 523 GB | slurm (submit) | **the J/psi closure sample** |
+| `dymc_8p5M_260924_alignctl` | DY tasks 0–39, aligned geometry, otherwise = `_ideal` | 885 378 | 40 × 4 | 386 803 (0.437/ev, 0.0227 % fail) | 71 GB | slurm | matched aligned control |
+| `jpsimc_20M_260924_alignctl` | J/psi tasks 0–59, aligned geometry, otherwise = `_ideal` | 790 051 | 60 × 4 | 786 766 (0.9958/ev, 0.0017 % fail) | 54 GB | slurm | matched aligned control |
+| `dymc_8p5M_260917_ideal` | the DY head of `dymc_8p5M_260906_v2`, **ideal tracker geometry** | 8 502 597 | 380 × 4 | 3 717 586 (0.437/ev, 0.021 % fail) | 667 GB | HTCondor / CMS global pool | pre-fix comparison of `_260924_ideal` (CVH `7b54ce096b27`, see §9) |
+| `jpsimc_20M_260917_ideal` | tasks 0–599 of `jpsimc_20M_260906_v2`, **ideal tracker geometry** | 7 967 454 | 600 × 4 | 7 933 687 (0.9958/ev, 0.0031 % fail) | 523 GB | HTCondor / CMS global pool | pre-fix comparison of `_260924_ideal` (see §9) |
+| `dymc_8p5M_260917_alignctl` | DY tasks 0–39, aligned geometry, otherwise = `_ideal` | 885 378 | 40 × 4 | 386 806 (0.437/ev, 0.022 % fail) | 71 GB | HTCondor | pre-fix aligned control |
+| `jpsimc_20M_260917_alignctl` | J/psi tasks 0–59, aligned geometry, otherwise = `_ideal` | 790 051 | 60 × 4 | 786 761 (0.9958/ev, 0.0023 % fail) | 54 GB | HTCondor | pre-fix aligned control |
 | `jpsimc_20M_260905` | same J/psi chunks, older exports | 21 719 059 | 1642 × 1 | ~21.6 M | 778 GB | slurm | cross-check only; 1633/1642 complete, **12 tasks are garbage** |
 | `dymc_8p5M_260905` | same DY chunks, older exports | 182 of the 380 chunks | 216 dirs × 1 | ~1.8 M | 71 GB | slurm | cross-check only; **182/380 complete**, leg cancelled |
 | `jpsimc_20M_260906_v2_nulcheck` | 7 chunks re-run with repacked inputs | — | 7 × 4 | 102 507 | 6.9 GB | HTCondor | evidence only, **deletable** (proved bit-identical) |
@@ -634,6 +638,20 @@ record of the same file read from 0).
   machine name: `=!=` is the ClassAd IDENTITY operator and is case sensitive,
   and MIT T2 advertises `Machine` in uppercase, so a lowercase `=!=` fence
   silently never excludes anything.
+* **Build the overlay multi-target.** The release's default micro-architecture
+  is x86-64-v3, so an area built with plain `scram b` ships v3-only libraries,
+  and a pre-Haswell grid node dies with SIGILL the moment it loads one (this is
+  what the `hep.wisc.edu` / `s1wn17` / `compute-21-23` / `compute-12n-5` fences
+  of the 260917 run were). `scram b enable-multi-targets && scram b` adds
+  `lib/<arch>/scram_x86-64-v2/` next to the v3 libraries (leaving those
+  md5-identical); a worker's fresh `scram project` on a v2-only node enables
+  multi-targets itself (`SCRAM_TARGET=auto`) and its runtime hook puts the v2
+  directory first. The dev2 area is built this way since 2026-09-24.
+* **When the flock collector is down** (`condor_status -pool
+  t3serv009.mit.edu:11000` fails; nothing on the submit06 schedd starts),
+  `slurm_submit_260924.sh <condor dir>` runs the same condor job script on
+  slurm in a node-local sandbox (`slurm_task_260924.sbatch`): same pinned
+  overlay, stage-out and sentinel, so the outputs are interchangeable.
 * **A 5–6 GB `MemoryUsage` logged just before a crash is the crash handler
   forking gdb**, not a leak: exactly the procs that returned 139 exceeded
   5120 MB, no other proc exceeded 2.73 GB, and instrumented re-runs peak at
@@ -666,7 +684,85 @@ record of the same file read from 0).
 
 ## 9. Per-production status detail
 
-### The four `260917` closure productions — complete
+### The four `260924` closure productions — complete
+
+`dymc_8p5M_260924_ideal` 380/380, `jpsimc_20M_260924_ideal` 600/600,
+`dymc_8p5M_260924_alignctl` 40/40, `jpsimc_20M_260924_alignctl` 60/60: four
+stream files and a `.complete` in every task, attempted candidates identical to
+the 260917 twins (same events). Scripts: `condor_{dymc,jpsimc}_{ideal,alignctl}24/`
+(configuration), `slurm_submit_260924.sh` + `slurm_task_260924.sbatch`
+(submit/resume), `integrity_260917.sh`, `spotcheck_geometry.py` (`--dist niter`),
+`build_pairs_260924.sh`; record in `IDEAL24_PROD_STATE.md`.
+
+**Payload: `CMSSW_15_0_19_patch2_dev2 @ 3d4c926ff461`** — the MS within-step
+correlation sign, the reference EDM on the free indices, the step records under
+the mass constraint. One overlay (md5 `fa77325ac1b1b37925ae00b2055f1c68`,
+140 MB) copied into all four trees. It is a **multi-target** build
+(`scram b enable-multi-targets`): the default x86-64-v3 libraries plus
+`lib/el9_amd64_gcc12/scram_x86-64-v2/`, so a pre-Haswell node loads the v2
+twins through the release's runtime hook instead of dying with SIGILL. On one
+40-event DY smoke the v2 and v3 builds agree candidate by candidate to
+|Δm/m| ≤ 1.0e-6 with identical `niter`.
+
+**Configuration** = the 260917 one: same chunk lists, `useIdealGeometry`
+True/False per tag, `useDefaultField`, GT `106X_mcRun2_asymptotic_v17`, maker
+defaults (vertex constraint ON, `minLegHits = 8`), Z leg `bsConstraint
+exportBsResidual exportVtxResidual`, 4 threads, 5000 MB. **Batch: slurm**
+(partition `submit`), because the flock collector `t3serv009:11000` was down on
+2026-09-24: `slurm_task_260924.sbatch` runs the condor job script unchanged in
+a node-local sandbox — same overlay, input door/redirector, size-verified xrdcp
+stage-out and sentinel. 1080/1080 array tasks COMPLETED first time, no retries.
+
+| tag | attempted | succeeded | fail | yield/ev | G4e calls (260917) | wall median / max per task (260917 median) |
+|---|---:|---:|---:|---:|---:|---|
+| `dymc_8p5M_260924_ideal` | 3 718 379 | 3 717 580 | 0.0215 % (0.0213) | 0.437229 | 330 M (1 235 M, 3.74×) | 2.55 h / 5.9 h (8.06 h) |
+| `jpsimc_20M_260924_ideal` | 7 933 929 | 7 933 746 | 0.0023 % (0.0031) | 0.995769 | 856 M (2 733 M, 3.19×) | 1.61 h / 3.2 h (4.26 h) |
+| `dymc_8p5M_260924_alignctl` | 386 891 | 386 803 | 0.0227 % (0.0220) | 0.436879 | 34.3 M (128.5 M, 3.75×) | 2.64 h / 4.3 h (7.71 h) |
+| `jpsimc_20M_260924_alignctl` | 786 779 | 786 766 | 0.0017 % (0.0023) | 0.995842 | 84.7 M (271.0 M, 3.20×) | 1.79 h / 3.0 h (4.58 h) |
+
+Summed task-hours (4 cores each): Z 1 053 h (260917: 3 230 h), J/psi 1 017 h (2 752 h).
+
+**Spot checks** (`task_0000` and `task_0001`, keys `(run, lumi, event,
+Muplustrk_pt, Muminustrk_pt)`, `Jpsikin_mass` bit-identical in every comparison;
+Δ = B − A of `Jpsi_mass`):
+
+| leg | comparison | task | common | Δ median | rel. sigma68 | \|r\|>1 % | `niter` A → B |
+|---|---|---|---:|---:|---:|---:|---|
+| Z | 260917 ideal → 260924 ideal (the fixes) | 0 | 9 635 | 0.000 MeV | 1.1e-6 | 6 (0.06 %) | 10.00 → 2.68 |
+| Z | | 1 | 9 643 | 0.000 MeV | 1.1e-6 | 6 (0.06 %) | 10.00 → 2.67 |
+| Z | 260924 control → ideal (geometry) | 0 | 9 635 | **+0.89 MeV** (260917: +0.89) | 5.8e-4 | 13 | |
+| Z | | 1 | 9 641 | **+1.03 MeV** | 5.9e-4 | 4 | |
+| Z | v2 → 260924 control (defaults) | 0 | 9 634 | +2.08 MeV | 4.1e-3 | 884 (9.2 %) | 2.57 → 2.67 |
+| Z | | 1 | 9 642 | +4.35 MeV | 4.1e-3 | 827 (8.6 %) | 2.56 → 2.67 |
+| J/psi | 260917 ideal → 260924 ideal (the fixes) | 0 | 12 138 | 0.000 MeV | 1.06e-5 | 1 | 10.00 → 3.11 |
+| J/psi | | 1 | 12 130 | +0.0005 MeV | 1.08e-5 | 1 | 10.00 → 3.14 |
+| J/psi | 260924 control → ideal (geometry) | 0 | 12 137 | **+0.0045 MeV** (260917: +0.0052) | 3.5e-4 | 2 | |
+| J/psi | | 1 | 12 130 | **−0.0176 MeV** (260917: −0.0163) | 3.6e-4 | 1 | |
+| J/psi | v2 → 260924 control (defaults) | 0 | 12 137 | −0.004 MeV | 1.4e-3 | 70 (0.58 %) | 3.16 → 3.11 |
+| J/psi | | 1 | 12 129 | −0.018 MeV | 1.4e-3 | 91 (0.75 %) | 3.16 → 3.12 |
+
+* **the fixes move the mass by nothing measurable**: median 0, sigma68 1e-6 (Z)
+  and 1e-5 (J/psi) — the 10-iteration results were converged, and the MS sign
+  acts on the process-noise covariance, not on the fitted mass core;
+* the **geometry effect** of the fixed code is the 260917 one, task by task;
+* the **Z tail that moves by > 1 % between v2 and the current defaults (9 %,
+  up to a factor 83) is still there on the fixed code**, so it is the default
+  change (vertex + beam-spot constraint on the Z leg), not the EDM runaway. The
+  movers are the badly measured candidates and the constraint pulls them toward
+  the truth: median |m/m_gen − 1| of the movers 2.1 % (v2) → 1.3 % (control), of
+  all candidates 0.84 % → 0.78 % (`task_0001`).
+
+**Pairs caches** (ceph `cvh/pairs_260924/`, symlinked in `fullscale/runs/`;
+`build_pairs_260924.sh`, same options as the 260917 caches):
+
+| cache | tasks | entries | dropped | size |
+|---|---:|---:|---:|---:|
+| `zpairs_dyideal24_full.npz` | 380 | 3 681 745 | 35 835 | 5.72 GB |
+| `jpairs_ideal24_n600.npz` | 600 | 7 917 229 | 16 517 | 12.1 GB |
+| `zpairs_dyalignctl24.npz` | 40 | 383 017 | 3 786 | 0.60 GB |
+| `jpairs_alignctl24_n60.npz` | 60 | 785 195 | 1 571 | 1.20 GB |
+
+### The four `260917` closure productions — complete, pre-fix (superseded by `260924`)
 
 `dymc_8p5M_260917_ideal` 380/380, `jpsimc_20M_260917_ideal` 600/600,
 `dymc_8p5M_260917_alignctl` 40/40, `jpsimc_20M_260917_alignctl` 60/60: four
@@ -690,7 +786,8 @@ That is one commit BEFORE `3d4c926ff461`, and two of its fixes are active here:
   of candidates and every fit runs to the 10-iteration cap (v2: ⟨niter⟩ 2.67 DY,
   3.16 J/psi). `edmval` is finite; the fits converge and keep stepping. This is
   the 3.7x propagator count and the 8 h median Z task (v2: 1–1.6 h).
-Comparable with each other; not with anything built at `3d4c926ff461` or later.
+Comparable with each other; superseded by the `260924` set, which agrees with
+them to a sigma68 of 1e-6 (Z) / 1e-5 (J/psi) in the refitted mass.
 
 **Configuration vs v2.** Same chunk lists and resources (4 threads, 5000 MB).
 `useIdealGeometry` as above; the maker defaults now apply — `doVtxConstraint`
@@ -720,8 +817,9 @@ Muminustrk_pt)`; `Jpsikin_mass` bit-identical on every common candidate):
 | Z | v2 → ideal (both) | 9 634 / 214 / 1 | +1.99 MeV | +2.3e-5 | 4.1e-3 | 1.4 | 924 |
 
 The geometry is the small clean effect (+0.9 MeV on the Z, 1.7e-6 on the
-J/psi); the default change under the pre-fix EDM defect is the disruptive one
-(9 % of Z candidates move by more than 1 %, up to a factor 83). The candidates
+J/psi); the default change is the disruptive one (9 % of Z candidates move by
+more than 1 %, up to a factor 83) — the vertex + beam-spot constraint, NOT the
+EDM defect: the fixed-code `260924` control shows the same tail. The candidates
 v2 has and these lack are `skipped[leghits<8]`.
 
 **Pairs caches** (ceph `cvh/pairs_260917/`, symlinked in `fullscale/runs/`;

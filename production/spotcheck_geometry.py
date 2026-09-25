@@ -58,10 +58,13 @@ def main():
     ap.add_argument("--label-a", default="A")
     ap.add_argument("--label-b", default="B")
     ap.add_argument("--branches", nargs="*", default=["Jpsi_mass"])
+    ap.add_argument("--dist", nargs="*", default=[],
+                    help="integer branches (e.g. niter) whose distribution is "
+                         "printed for each side over the common candidates")
     args = ap.parse_args()
 
-    da, na = load(args.a, args.branches)
-    db, nb = load(args.b, args.branches)
+    da, na = load(args.a, args.branches + args.dist)
+    db, nb = load(args.b, args.branches + args.dist)
     ka, kb = keys_of(da), keys_of(db)
     ia = {k: i for i, k in enumerate(ka)}
     ib = {k: i for i, k in enumerate(kb)}
@@ -97,6 +100,18 @@ def main():
                   "(x %.1f MeV at the Z: %+.2f MeV median, %.2f MeV rms)"
                   % ("", np.median(rel), rel.std(), 91187.6,
                      91187.6 * np.median(rel), 91187.6 * rel.std()))
+            p16, p84 = np.percentile(rel, [16, 84])
+            big = np.abs(rel) > 0.01
+            print("%-18s   relative: sigma68=%.4g  |r|>1%%: %d (%.3f%%)  max|r|=%.4g  "
+                  "median(B-A)=%+.4f MeV"
+                  % ("", 0.5 * (p84 - p16), int(big.sum()), 100.0 * big.mean(),
+                     np.abs(rel).max(), 1e3 * np.median(d)))
+    for br in args.dist:
+        for lab, dd, jj in ((args.label_a, da, ja), (args.label_b, db, jb)):
+            v = dd[br][jj]
+            u, c = np.unique(v, return_counts=True)
+            desc = " ".join("%s:%d" % (x, n) for x, n in zip(u[:15], c[:15]))
+            print("%-18s %-10s mean=%.3f  %s" % (br, lab, v.mean(), desc))
 
 
 if __name__ == "__main__":

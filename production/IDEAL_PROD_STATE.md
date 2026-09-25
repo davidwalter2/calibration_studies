@@ -297,5 +297,8 @@ failures fall 11 -> 3/2 and `clamped[step]` 152 -> 32.
 
 All four productions complete (380/380, 600/600, 40/40, 60/60), integrity clean;
 the four pairs caches are built — see `PRODUCTIONS.md` §9 for the numbers.
-Nothing is running. Next step is David's: whether to repeat against
-`3d4c926ff461`, then the cards and fits.
+Superseded by the `260924` repeat on `3d4c926ff461` (`IDEAL24_PROD_STATE.md`,
+`PRODUCTIONS.md` §9), which agrees with these samples to a sigma68 of 1e-6 (Z) /
+1e-5 (J/psi) in the refitted mass. The Z "default change" tail above (8.6 % of
+candidates moving by > 1 %) survives the fix: it is the vertex + beam-spot
+constraint, not the 10-iteration runaway.
