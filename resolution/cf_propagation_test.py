@@ -418,6 +418,22 @@ def load_model(path):
     have_rad = all(b in t.keys() for b in ("radv", "radspecv", "radvgrid"))
     if have_rad:
         keys += ["radv", "radspecv", "radvgrid"]
+    # per-step G4 material index + the job's material table (element Z, A,
+    # mass fraction): what a per-ELEMENT channel needs and effZ/effA cannot
+    # give.  Older exports have neither; `msmat`/`mattab` are then None.
+    mattab = None
+    if "msmatv" in t.keys():
+        keys += ["msmatv"]
+        mkey = next((k for k in f.keys()
+                     if k.split(";")[0].endswith("/materials")), None)
+        assert mkey is not None, f"{path}: msmatv without a materials tree"
+        m = f[mkey].arrays(["index", "name", "elemZ", "elemA", "elemW"],
+                           library="np")
+        mattab = {int(i): dict(name=str(n), Z=np.asarray(z, dtype=np.float64),
+                               A=np.asarray(a_, dtype=np.float64),
+                               W=np.asarray(w, dtype=np.float64))
+                  for i, n, z, a_, w in zip(m["index"], m["name"], m["elemZ"],
+                                            m["elemA"], m["elemW"])}
     # strides come from the file -- from its own stride branches when it has
     # them (newer exports), else from the per-leg record counts below.
     strides = {b: prodfiles.tree_stride(t, b)
@@ -454,7 +470,13 @@ def load_model(path):
                 branch="radspecv") if have_rad else None),
             radvgrid=(np.asarray(a["radvgrid"][k], dtype=np.float64)
                       if have_rad else None),
+            msmat=(np.asarray(a["msmatv"][k], dtype=np.int64)
+                   if mattab is not None else None),
+            mattab=mattab,
         ))
+        if mattab is not None and len(legs[-1]["msmat"]) != len(legs[-1]["ms"]):
+            raise RuntimeError(f"{path} leg {k}: {len(legs[-1]['msmat'])} "
+                               f"material indices for {len(legs[-1]['ms'])} MS steps")
     logger.info(f"model: {nlegs} legs, {sum(len(l['ms']) for l in legs)} MS steps, "
                 f"{sum(len(l['ioni']) for l in legs)} ionization steps")
     return legs
@@ -711,10 +733,14 @@ def _model_phi_uncached(legs, k, avec, sigma, tau):
                         wq_eff = float(np.mean(wq_all * cs_all)) \
                             if len(wq_all) == len(cs_all) \
                             else float(np.mean(wq_all) * np.mean(cs_all))
-                        vg, gq = cf_nucel_exact.dE_kernel_for(leg, _pdg)
+                        # one recoil kernel per step's MATERIAL (per-element
+                        # mixture when the export carries the material table;
+                        # otherwise the leg's dominant target on every step)
+                        dkidx, dkern = cf_nucel_exact.dE_step_kernels(leg, _pdg)
                         for s in range(len(nrate)):
                             if nrate[s] <= 0.0:
                                 continue
+                            vg, gq = dkern[dkidx[s]]
                             S += cf_nucel_exact.nucel_qop_exponent(
                                 tau, nrate[s] * max(MS_NSUB, 1), vg, gq, wq_eff)
     return np.exp(S)

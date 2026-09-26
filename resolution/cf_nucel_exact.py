@@ -105,7 +105,22 @@ NUCEL_CHANNEL = bool(int(os.environ.get("NUCEL_CHANNEL", "0")))
 # cancellation gets frozen in.  Set NUCEL_RECOIL=0 to A/B it.
 NUCEL_RECOIL = bool(int(os.environ.get("NUCEL_RECOIL", "1")))
 
-PHYSICS_GLOBALS = ("NUCEL_CHANNEL", "NUCEL_RECOIL")
+# PER-ELEMENT TARGETS.  The exported effZ/effA are mass averages: rounding
+# them to one element replaces a compound by its dominant nucleus, which drops
+# every minority target.  For elastic scattering that is not a small error when
+# the minority is HYDROGEN: a proton target is ~3x wider in angle than carbon
+# (median 65-103 mrad at pT = 3) and, at equal angle, takes a 12x larger recoil
+# (dE = (p theta)^2 / 2M).  On the real-material toy the composites (carbon
+# fibre, cables, connectors, Kapton) are 4-8 % hydrogen by mass -- 0.33 g/cm2,
+# 2.7 % of the path -- and hydrogen alone reproduces the whole elastic-loss
+# excess the rounded model misses (p-bar 0.295 vs 0.295 MeV per track).
+# With this ON and an export that carries the material table (`msmatv` +
+# the `materials` tree), each step's material is a rate-weighted mixture of
+# its elements' kernels, for the angle AND the recoil.  Files without the table
+# fall back to the rounded element, bit for bit.  Set NUCEL_ELEMENTS=0 to A/B.
+NUCEL_ELEMENTS = bool(int(os.environ.get("NUCEL_ELEMENTS", "1")))
+
+PHYSICS_GLOBALS = ("NUCEL_CHANNEL", "NUCEL_RECOIL", "NUCEL_ELEMENTS")
 _NOT_PHYSICS = ("NUCEL_NSAMP", "NUCEL_SEED", "NUCEL_NU", "NUCEL_UMIN",
                 "NUCEL_UMAX", "NUCEL_NBIN")
 
@@ -128,13 +143,25 @@ def physics_state():
 # --------------------------------------------------------------------------
 
 def _driver():
+    """`NUCEL_DRIVER` names the wrapper `build_nucel.sh <dest>` writes; the
+    default is the historical scratchpad location.  Read here rather than held
+    as a module global: it selects where the sampler lives, not what it
+    computes, so it is not a physics switch."""
+    p = os.environ.get("NUCEL_DRIVER")
+    if p:
+        return p
     import hadron_probe as hp
     return os.path.join(hp.SCRATCH, "nucel_g4driver.sh")
 
 
 def _cachedir():
-    import hadron_probe as hp
-    d = os.path.join(hp.SCRATCH, "nucel")
+    """`NUCEL_CACHEDIR` relocates the kernel cache.  Buckets are keyed on
+    (species, Z, A, ekin, NSAMP, SEED) and are bit-reproducible, so the
+    location never changes a result."""
+    d = os.environ.get("NUCEL_CACHEDIR")
+    if not d:
+        import hadron_probe as hp
+        d = os.path.join(hp.SCRATCH, "nucel")
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -269,6 +296,10 @@ def warm(legs):
         if pdg is None:
             continue
         leg_rates(leg, pdg, mass_of(pdg), nsub=1)
+        if NUCEL_RECOIL:
+            # the recoil kernels too: a forked worker that builds one reads a
+            # 16 MB sample file and runs a 4000 x 1e5 complex quadrature
+            dE_step_kernels(leg, pdg)
 
 
 _KERNEL_CACHE = {}
@@ -498,6 +529,98 @@ def mass_of(pdg):
     raise KeyError(f"cf_nucel_exact: no mass for pdg {pdg}")
 
 
+def _has_composition(leg):
+    return (NUCEL_ELEMENTS and leg.get("msmat") is not None
+            and leg.get("mattab") is not None)
+
+
+def step_composition(leg, s):
+    """((Z, A, w), ...) of MS step s's material: Geant4's own elements, atomic
+    masses [g/mole] and MASS fractions, rounded only for use as a cache key.
+    Elements with no mass share are dropped."""
+    m = leg["mattab"][int(leg["msmat"][s])]
+    return tuple((round(float(z), 6), round(float(a), 6), round(float(w), 12))
+                 for z, a, w in zip(m["Z"], m["A"], m["W"])
+                 if z >= 1.0 and w > 0.0)
+
+
+_MIX_CACHE = {}
+
+
+def material_kernel(pdg, comp, ekin):
+    """(mu, ugrid, gtab) of a compound: the rate-weighted mixture of its
+    elements' kernels.  A collision in the compound picks element i with
+    probability w_i mu_i / sum_j w_j mu_j, so the single-collision CF is that
+    mixture and the per-gram rate is sum_i w_i mu_i.  Every element kernel is
+    tabulated on the same u grid, so the mixture is exact on the grid."""
+    key = (int(pdg), comp, float(f"{float(ekin):.4g}"))
+    hit = _MIX_CACHE.get(key)
+    if hit is not None:
+        return hit
+    tot, gmix, ug = 0.0, None, None
+    for z, a, w in comp:
+        mu, u, g = species_kernel(pdg, z, a, ekin)
+        r = w * mu
+        tot += r
+        gmix = r * g if gmix is None else gmix + r * g
+        ug = u
+    out = (tot, ug, gmix / tot) if tot > 0.0 else None
+    _MIX_CACHE[key] = out
+    return out
+
+
+_DEMIX_CACHE = {}
+
+
+def material_dE_kernel(pdg, comp, ekin):
+    """(vgrid, gqtab) of a compound's recoil: the same rate-weighted mixture
+    as `material_kernel`, of the per-element recoil CFs (common v grid)."""
+    key = (int(pdg), comp, float(f"{float(ekin):.4g}"))
+    hit = _DEMIX_CACHE.get(key)
+    if hit is not None:
+        return hit
+    tot, gmix, vg = 0.0, None, None
+    for z, a, w in comp:
+        mu, _ = _run_driver(pdg, z, a, ekin)
+        v, g = dE_kernel(pdg, z, a, ekin)
+        r = w * mu
+        tot += r
+        gmix = r * g if gmix is None else gmix + r * g
+        vg = v
+    out = (vg, gmix / tot) if tot > 0.0 else None
+    _DEMIX_CACHE[key] = out
+    return out
+
+
+def dE_step_kernels(leg, pdg):
+    """(kidx[nsteps], kernels) for the recoil, one kernel per MS step's
+    material, aligned with `leg_rates`.  Without a material table every step
+    gets the leg's dominant rounded target -- the original per-leg kernel, so
+    that path is unchanged bit for bit."""
+    ms = np.asarray(leg["ms"])
+    if not _has_composition(leg):
+        return np.zeros(len(ms), dtype=int), [dE_kernel_for(leg, pdg)]
+    m = mass_of(pdg)
+    p_ = float(ms[0, 3])
+    ekin = (np.sqrt(p_ * p_ + m * m) - m) * 1e3
+    kidx = np.zeros(len(ms), dtype=int)
+    kernels, seen = [], {}
+    for s in range(len(ms)):
+        comp = step_composition(leg, s)
+        if not comp:
+            continue
+        if comp not in seen:
+            k = material_dE_kernel(pdg, comp, ekin)
+            if k is None:
+                continue
+            seen[comp] = len(kernels)
+            kernels.append(k)
+        kidx[s] = seen[comp]
+    if not kernels:
+        kernels.append((np.array([0.0, 1.0]), np.array([1.0 + 0j, 1.0 + 0j])))
+    return kidx, kernels
+
+
 def leg_rates(leg, pdg, mass_gev, nsub=1):
     """Per-MS-step expected collision counts for one leg, with a PER-STEP target.
 
@@ -513,10 +636,15 @@ def leg_rates(leg, pdg, mass_gev, nsub=1):
     G4AntiNuclElastic special-cases (theTargetDef == theProton), so it
     over-injects collisions with the wrong kernel, worst for the antiproton.
 
-    Z and A are rounded to integers for the bucket because the driver builds a
-    real G4Material and the exported effZ can be fractional (7.374 for a
-    mixture); the rounding is an approximation of a mixture by its dominant
-    element, which is what an "effective Z" already is.
+    With a material table on the leg (`msmat` + `mattab`, see
+    `step_composition`) and NUCEL_ELEMENTS on, every step's material is the
+    rate-weighted mixture of its elements (`material_kernel`), so minority
+    nuclei -- above all hydrogen in composites -- are targets in their own
+    right.  Without the table (older exports) Z and A are rounded to integers
+    for the bucket because the driver builds a real G4Material and the
+    exported effZ can be fractional (7.374 for a mixture); that rounding
+    replaces a compound by its dominant element and DROPS its hydrogen, which
+    the real-material closure showed fails the far tails at up to -24 sigma.
     """
     ms = np.asarray(leg["ms"])
     if ms.size == 0:
@@ -525,12 +653,30 @@ def leg_rates(leg, pdg, mass_gev, nsub=1):
     p = float(ms[0, 3])                              # GeV
     ekin = (np.sqrt(p * p + mass_gev ** 2) - mass_gev) * 1e3   # MeV
 
-    zs = np.rint(ms[:, 0].astype(np.float64)).astype(int)
-    as_ = np.rint(ms[:, 1].astype(np.float64)).astype(int)
     nrate = np.zeros(len(xg))
     kidx = np.zeros(len(xg), dtype=int)
     kernels = []
     seen = {}
+    if _has_composition(leg):
+        # per-element targets from the exported material table
+        for s in range(len(xg)):
+            comp = step_composition(leg, s)
+            mk = material_kernel(pdg, comp, ekin) if comp else None
+            if mk is None:
+                if not kernels:
+                    kernels.append((np.array([0.0, 1.0]), np.array([1.0, 1.0])))
+                continue
+            if comp not in seen:
+                seen[comp] = (len(kernels), mk[0])
+                kernels.append((mk[1], mk[2]))
+            i, mu = seen[comp]
+            kidx[s] = i
+            nrate[s] = mu * xg[s] / max(int(nsub), 1)
+        if not kernels:
+            return None
+        return nrate, kidx, kernels
+    zs = np.rint(ms[:, 0].astype(np.float64)).astype(int)
+    as_ = np.rint(ms[:, 1].astype(np.float64)).astype(int)
     for s in range(len(xg)):
         key = (int(zs[s]), int(as_[s]))
         if key[0] < 1 or key[1] < 1:
