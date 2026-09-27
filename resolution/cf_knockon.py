@@ -9,6 +9,11 @@ carries the knock-on spectrum
 
     dN/dT = (xi/T^2) [1 - b2 T/tmax (+ T^2/(2E^2), spin 1/2)] f_K(T)   on [e0, tmax]
 
+and for e+- projectiles (regime 4/5) G4MollerBhabhaModel's Moller / Bhabha
+law, which ends at T0/2 for e- (law_rate, law_top).  Every piece below takes
+the law and its range from the record's regime, so one code path serves all
+species; tmax is the kinematic ceiling in all regimes.
+
 as a centred compound Poisson in the ENERGY, mapped LINEARLY into q/p
 (d qop = q cs dT, cs = E/p^3).  The scattering channel carries the same
 collisions' angular kicks -- its electron term runs to the kinematic ceiling
@@ -118,10 +123,18 @@ KNOCKON_NPERDEC = 40
 KNOCKON_TCUT = 0.99e-3
 KNOCKON_NPERDEC_THIN = 10   # node density for thin steps ...
 KNOCKON_THIN = 1e-2         # ... whose xi is below this fraction of the leg's largest
+# A collision that leaves the primary with less than PMIN_FRAC of its momentum
+# never reaches a plane; the exact map's p' -> 0 endpoint (an e+ giving the
+# electron all its kinetic energy) is cut there, as cf_brems_exact's radiative
+# map floors p'.  It binds for no heavy species (tmax << T0).
+PMIN_FRAC = 1e-3
+# ioniurbanv regimes carrying an exact knock-on law: 2/3 Bethe-Bloch spin 1/2
+# and 0, 4/5 Moller (e-) and Bhabha (e+)
+EXACT_REGIMES = (2, 3, 4, 5)
 PHYSICS_GLOBALS = ("KNOCKON_JOINT", "QOP_EXACT", "KNOCKON_NSUB",
                    "KNOCKON_NPERDEC", "KNOCKON_TCUT", "KNOCKON_NPERDEC_THIN",
-                   "KNOCKON_THIN")
-_NOT_PHYSICS = ("ME_MEV", "_TCHUNK", "_NSER", "_ZSER")
+                   "KNOCKON_THIN", "PMIN_FRAC")
+_NOT_PHYSICS = ("ME_MEV", "_TCHUNK", "_NSER", "_ZSER", "EXACT_REGIMES")
 _TCHUNK = 2048          # t points per block (memory only)
 
 
@@ -180,6 +193,68 @@ def rate(T, xi, tmax, b2, E, spinhalf, kok):
         f = np.where(T > ctr.IONI_KOKOULIN_TCUT, f, 1.0)
         r = r * (1.0 + ctr.IONI_KOKOULIN * (f - 1.0))
     return r
+
+
+def law_rate(T, xi, tmax, b2, E, reg, kok):
+    """dN/dT of the record's knock-on law.  Regimes 2/3 are the Bethe-Bloch
+    forms (`rate`); 4/5 are G4MollerBhabhaModel's (Geant4ePropagator's
+    UrbanFluctRecord), obtained by differentiating
+    ComputeCrossSectionPerElectron in xmax, with x = T/tmax and tmax = T0 the
+    projectile's kinetic energy:
+      4 Moller (e-): (xi/T^2) [1 + (1-gg) x^2 + x^2/(1-x)^2 - gg x/(1-x)],
+                     gg = (2 gamma - 1)/gamma^2, zero above x = 1/2
+      5 Bhabha (e+): (xi/T^2) [1 + b2 (-c1 x + c2 x^2 - c3 x^3 + c4 x^4)],
+                     y = 1/(1+gamma), c1 = 2 - y^2, c2 = (1-2y)(3+y^2),
+                     c4 = (1-2y)^3, c3 = c4 + (1-2y)^2"""
+    if reg == 2 or reg == 3:
+        return rate(T, xi, tmax, b2, E, reg == 2, kok)
+    x = T / tmax
+    gam = E / ME_MEV
+    if reg == 4:
+        gg = (2.0 * gam - 1.0) / (gam * gam)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            y = x / (1.0 - x)
+            r = 1.0 + x * x * (1.0 - gg) + y * y - gg * y
+        return np.where(x <= 0.5, (xi / T ** 2) * r, 0.0)
+    if reg == 5:
+        yy = 1.0 / (1.0 + gam)
+        y12 = 1.0 - 2.0 * yy
+        c1 = 2.0 - yy * yy
+        c2 = y12 * (3.0 + yy * yy)
+        c4 = y12 ** 3
+        c3 = c4 + y12 * y12
+        r = 1.0 + b2 * (-c1 * x + c2 * x * x - c3 * x ** 3 + c4 * x ** 4)
+        return np.where(x <= 1.0, (xi / T ** 2) * r, 0.0)
+    raise ValueError(f"knock-on law: no regime {reg}")
+
+
+def law_base_exponent(xi, e0, tmax, b2, E, reg, a):
+    """The ionisation channel's knock-on part for one regime-4/5 step, linear
+    map:  INT_{e0}^{top} dN (e^{i a T} - 1 - i a T) dT,  a (nt,) per MeV,
+    top = the law's own ceiling (T0/2 Moller, T0 Bhabha).  The 1/T^2 part in
+    closed form (cf_track_resolution.exact_delta_exponent with beta^2 = 0, no
+    spin term), the law's O(T/T0) remainder by Filon-Simpson on `nodes` --
+    whose quadratic panels make the constant and linear terms of the
+    remainder's e^{iaT} cancel against the Simpson terms panel by panel."""
+    top = 0.5 * tmax if reg == 4 else tmax
+    a = np.asarray(a, dtype=np.float64)
+    S = ctr.exact_delta_exponent(np.array([xi]), np.array([e0]), np.array([top]),
+                                 np.zeros(1), np.array([E]), a[None, :],
+                                 spinhalf=False)
+    T = nodes(e0, top, KNOCKON_NPERDEC, tlo=e0)
+    h = law_rate(T, xi, tmax, b2, E, reg, False) - xi / T ** 2
+    S = S + filon(T, h, a)
+    S = S - simpson(T, h[None, :])[0]
+    S = S - 1j * a * simpson(T, (h * T)[None, :])[0]
+    return S
+
+
+def law_top(reg, tmax, E, p):
+    """Where the law's channel ends: the record's tmax, T0/2 for Moller, and
+    never past the PMIN_FRAC floor on the primary's outgoing momentum."""
+    top = 0.5 * tmax if reg == 4 else tmax
+    tcap = E - np.sqrt(E * E - p * p + (PMIN_FRAC * p) ** 2)
+    return tcap if tcap < top else top
 
 
 # ------------------------------------------------------------- quadrature
@@ -272,11 +347,11 @@ def knockon_exponent(leg, A_end, A_start, avec, sigma, tau):
         return S
     st = leg["ioni"]
     reg = st[:, 0]
-    if not ((reg == 2) | (reg == 3)).any():
+    if not np.isin(reg, EXACT_REGIMES).any():
         # regime-1 records carry no exact knock-on spectrum (and no beta^2, E)
         return S
     if st.shape[1] < 13:
-        raise ValueError("knock-on channel needs the stride-13 regime-2/3 record")
+        raise ValueError("knock-on channel needs the stride-13 exact-delta record")
     gam = st[:, 9]
     xi = st[:, 6] * gam * ctr.IONI_A3_SCALE
     e0 = st[:, 7] * gam
@@ -290,16 +365,16 @@ def knockon_exponent(leg, A_end, A_start, avec, sigma, tau):
     v0 = np.einsum("i,sij->sj", avec, A_start)
     kok_on = ctr.IONI_KOKOULIN != 0.0
     ismu = ctr._is_muon_record(b2, E) & (E - ctr._MMU > ctr._KOK_MUMIN)
-    act = ((reg == 2) | (reg == 3)) & (xi > 0) & (tmax > e0) & (e0 > 0)
+    act = np.isin(reg, EXACT_REGIMES) & (xi > 0) & (tmax > e0) & (e0 > 0)
     joint, exact = bool(KNOCKON_JOINT), bool(QOP_EXACT)
     nsub = max(int(KNOCKON_NSUB), 1)
     xmax = float(xi[act].max()) if act.any() else 0.0
     for s in np.flatnonzero(act):
         thin = xi[s] < KNOCKON_THIN * xmax
-        T = nodes(e0[s], tmax[s],
+        T = nodes(e0[s], law_top(reg[s], tmax[s], E[s], p[s]),
                   KNOCKON_NPERDEC_THIN if thin else KNOCKON_NPERDEC)
-        dN = rate(T, xi[s], tmax[s], b2[s], E[s], reg[s] == 2,
-                  kok_on and bool(ismu[s]))
+        dN = law_rate(T, xi[s], tmax[s], b2[s], E[s], int(reg[s]),
+                      kok_on and bool(ismu[s]))
         X = t_eff(T, E[s], p[s]) if exact else T
         dXdT = dteff_dt(T, E[s], p[s]) if exact else np.ones_like(T)
         th = theta_kick(T, E[s], p[s], tmax[s]) if joint else None
@@ -324,7 +399,7 @@ def mean_shift(leg, A_end, A_start, avec, sigma):
         return 0.0
     st = leg["ioni"]
     reg, gam = st[:, 0], st[:, 9]
-    if not ((reg == 2) | (reg == 3)).any() or st.shape[1] < 13:
+    if not np.isin(reg, EXACT_REGIMES).any() or st.shape[1] < 13:
         return 0.0
     xi = st[:, 6] * gam * ctr.IONI_A3_SCALE
     e0, tmax = st[:, 7] * gam, st[:, 8] * gam * ctr.IONI_TMAX_SCALE
@@ -335,12 +410,12 @@ def mean_shift(leg, A_end, A_start, avec, sigma):
     v0 = np.einsum("i,sij->sj", avec, A_start)
     kok_on = ctr.IONI_KOKOULIN != 0.0
     ismu = ctr._is_muon_record(b2, E) & (E - ctr._MMU > ctr._KOK_MUMIN)
-    act = ((reg == 2) | (reg == 3)) & (xi > 0) & (tmax > e0) & (e0 > 0)
+    act = np.isin(reg, EXACT_REGIMES) & (xi > 0) & (tmax > e0) & (e0 > 0)
     out = 0.0
     for s in np.flatnonzero(act):
-        T = nodes(e0[s], tmax[s])
-        dN = rate(T, xi[s], tmax[s], b2[s], E[s], reg[s] == 2,
-                  kok_on and bool(ismu[s]))
+        T = nodes(e0[s], law_top(reg[s], tmax[s], E[s], p[s]))
+        dN = law_rate(T, xi[s], tmax[s], b2[s], E[s], int(reg[s]),
+                      kok_on and bool(ismu[s]))
         m = np.trapezoid(dN * (t_eff(T, E[s], p[s]) - T), T)
         vbar = 0.5 * (v0[s] + v1[s])
         out += q * vbar[0] * g[s] / sigma * m
@@ -399,10 +474,19 @@ def _joint_nodes(tlo, thi, tkin, nper):
     return _odd(np.geomspace(tlo, thi, n1 + 1))
 
 
+def _refuse_epm(rows):
+    """The fit-level families are the Bethe-Bloch (regime 2/3) forms; an e+-
+    record (regime 4/5) is refused rather than silently skipped."""
+    if len(rows) and np.isin(rows[:, 0], (4, 5)).any():
+        raise ValueError("fit-level knock-on families: regime 4/5 (e+- "
+                         "Moller/Bhabha) records are not implemented here")
+
+
 def map_rows(rows, alpha, tau):
     """dS_x summed over ionisation rows (stride >= 13 `ioniurbanv`, energies
     in MeV) with per-row signed weights alpha [z per MeV].  Regime-1/0 rows
     carry no exact spectrum and contribute nothing (as knockon_exponent)."""
+    _refuse_epm(rows)
     tau = np.asarray(tau, dtype=np.float64)
     S = np.zeros(len(tau), dtype=np.complex128)
     if not len(rows):
@@ -468,6 +552,7 @@ def map_block(rows, wstd, tau):
 def map_mean(rows, wstd):
     """d dS_x / d(i t) at t = 0 of map_block, analytic:
     sum_rows a INT dN (T_eff - T) dT on the same range (fine Simpson)."""
+    _refuse_epm(rows)
     if not len(rows) or rows.shape[1] < 13:
         return 0.0
     reg, gam = rows[:, 0], rows[:, 9]
@@ -605,6 +690,7 @@ def map_block_pooled(rows, wstd, tau, groups=None):
     `groups` (the rows' group, the last `ioniurbanv` column) None pools per
     regime only.  With groups also returns {group: dS_x}, whose sum is the
     flat result exactly (the same pools)."""
+    _refuse_epm(rows)
     tau = np.asarray(tau, dtype=np.float64)
     S = np.zeros(len(tau), dtype=np.complex128)
     grp = {}

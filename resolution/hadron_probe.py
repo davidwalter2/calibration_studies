@@ -175,6 +175,13 @@ SPECIES = {
     321: dict(name="kaon+", g4="kaon+", mass=493.677, q=+1, geom="qp",
               inel="kaon+Inelastic", nuc=["kaon+Inelastic", "hadElastic"],
               label="K+"),
+    # e+-: no hadElastic, no Decay (the `Decay` entry of the `off` arm is inert
+    # for them); electro-nuclear is the only nuclear process.  eBrem is the
+    # dominant energy loss above ~100 MeV, not a tail.
+    11: dict(name="e-", g4="e-", mass=0.51099895, q=-1, geom="qm",
+             inel=None, nuc=["electronNuclear"], label="e-"),
+    -11: dict(name="e+", g4="e+", mass=0.51099895, q=+1, geom="qp",
+              inel=None, nuc=["positronNuclear"], label="e+"),
 }
 ORDER = [13, -211, -321, -2212, 2212]
 ORDER_PLUS = [-13, 211, 321]
@@ -199,7 +206,8 @@ ARMS = {
     "inelonly": "hadElastic and Decay OFF, inelastic ON -- inelastic alone",
 }
 # the radiative process names, per species, as the census PRINTS them
-RADPROC = {13: ["muBrems", "muPairProd"], -13: ["muBrems", "muPairProd"]}
+RADPROC = {13: ["muBrems", "muPairProd"], -13: ["muBrems", "muPairProd"],
+           11: ["eBrem"], -11: ["eBrem"]}
 for _p in (-211, -321, -2212, 2212, 211, 321):
     RADPROC[_p] = ["hBrems", "hPairProd"]
 

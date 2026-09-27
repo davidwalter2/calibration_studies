@@ -55,6 +55,7 @@
 #include "G4Proton.hh"
 #include "G4AntiProton.hh"
 #include "G4Electron.hh"
+#include "G4Positron.hh"
 #include "G4SystemOfUnits.hh"
 #include "G4PhysicalConstants.hh"
 #include "G4IonisParamMat.hh"
@@ -75,6 +76,8 @@ double argd(int argc, char** argv, const char* key, double def) {
 
 G4ParticleDefinition* particleOf(int pdg) {
   switch (pdg) {
+    case 11: return G4Electron::Electron();
+    case -11: return G4Positron::Positron();
     case 13: return G4MuonMinus::MuonMinus();
     case -13: return G4MuonPlus::MuonPlus();
     case -211: return G4PionMinus::PionMinus();
@@ -87,8 +90,8 @@ G4ParticleDefinition* particleOf(int pdg) {
   return nullptr;
 }
 
-const int kPdg[8] = {13, -13, -211, 211, -321, 321, -2212, 2212};
-const char* kLab[8] = {"mu-", "mu+", "pi-", "pi+", "K-", "K+", "pbar", "p"};
+const int kPdg[10] = {13, -13, -211, 211, -321, 321, -2212, 2212, 11, -11};
+const char* kLab[10] = {"mu-", "mu+", "pi-", "pi+", "K-", "K+", "pbar", "p", "e-", "e+"};
 
 // All of G4WentzelOKandVIxSection's state is `protected`, so a derived class
 // is the supported way to read it.  Nothing is overridden; this only exposes.
@@ -144,7 +147,7 @@ int main(int argc, char** argv) {
   const double omc[] = {1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 3.4e-4, 1e-3, 1e-2, 1e-1, 1.0, 2.0};
   const int nomc = sizeof(omc) / sizeof(omc[0]);
 
-  for (int i = 0; i < 8; ++i) {
+  for (int i = 0; i < 10; ++i) {
     G4ParticleDefinition* part = particleOf(kPdg[i]);
     const double mass = part->GetPDGMass();
     const double etot = std::sqrt(pmom * pmom + mass * mass);

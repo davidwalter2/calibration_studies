@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Ditrack clean-propagation closure on the real-material toy: a deterministic
-J/psi -> mu+ mu- pair, the vertex mass reconstructed from ONE plane.
+two-body decay -- J/psi -> mu+ mu-, K_S -> pi+ pi-, Lambda -> p pi- -- with the
+parent mass reconstructed from ONE plane (`--decay jpsi|ks|lam`).
 
 WHAT IS MEASURED
 ----------------
@@ -63,26 +64,45 @@ SIM-SIDE DIAGNOSTICS (per plane, in the JSON)
                q/p and angle (bending), which the model has and the shuffle
                destroys.
 
-THE CONFIGURATION
------------------
-mu- : realmat_closure.py's realmat_full sample and model (pT 3, eta 0.30,
-      phi 0.70, arm off, seeds 101-110, model_mum_pt3_all4.root) -- reused.
-mu+ : pT 3, eta 0.30, phi 0.70 + DPHI, DPHI solved so that the pair mass is
-      the J/psi mass.  Own plane set (gen_toy_realmat.helix_frames, q = +1,
-      phi0 = 0.70 + DPHI), same tracker.xml, seeds 201-210 -- never the mu-
-      seeds, which would replay the same random streams in both legs.
-The cylinders are azimuthally symmetric but the field is the real 3D map, so
-the mu+ leg is simulated and exported at its own azimuth rather than taken
-from the phi = 0.70 mu+ sample by a rotation (`pairs` prints the difference).
+THE CONFIGURATION (DECAYS)
+--------------------------
+Each decay pairs an EXISTING leg -- realmat_closure.py's realmat_full sample
+and model (pT 3, eta 0.30, phi 0.70, seeds 101-110) -- with a NEW leg at
+phi 0.70 + DPHI (DPHI solved so that the pair has the parent's PDG mass) that
+has its own plane set (gen_toy_realmat.helix_frames at the leg's pT, charge
+and azimuth), the same tracker.xml, its own seeds and its own model export:
+    jpsi  mu- + mu+ (pT 3,   seeds 201-210)
+    ks    pi- + pi+ (pT 3,   seeds 301-310)
+    lam   p   + pi- (pT 0.8, seeds 401-410)
+The cylinders are azimuthally symmetric but the field is the real 3D map, so a
+new leg is simulated and exported at its own azimuth rather than rotated from
+the phi = 0.70 sample (`pairs` prints the difference for equal pT).
+Arms (`--arm`, both legs): `off` (clean) or `elonly` (hadElastic on) with
+`--model-tag _mat` and `closure --nucel` (the per-element elastic channel).
 
-SUBCOMMANDS
-    setup    private area `qpj`: geometry, planes, drivers (gun azimuth from TOY_PHI)
-    sim      the mu+ leg, seeded split
-    live     provenance, gun azimuth, switch census, acceptance
-    export   the mu+ model
-    pairs    model/sim pair gate for both legs, plus the rotation comparison
-    closure  per-plane even + odd closure of the vertex mass -> JSON + figures
-    summary  per-plane shape and location figures from the JSON
+THE LOW-MOMENTUM LEG (Lambda's pi-, pT 0.8 GeV)
+  * it LOOPS (helix diameter 1.40 m): ~70 % of events re-cross the outer
+    shells inward; toy_loader keeps the FIRST (outgoing) crossing of a plane;
+  * the propagator's momentum floor (PropagationPtotLimit, 1 GeV) refuses it:
+    the export sets TOY_PLIMIT = 0.1;
+  * `helix_frames`' fixed-radius planes miss its energy-losing reference by
+    2 cm at the outer plane; `recentre` moves the planes onto the model's
+    reference crossings (converges in one iteration; the sim is untouched);
+  * H's energy-loss term (hbasis.H_ELOSS) over-states its local q/p width
+    x2.1 at the outer planes; run it with HBASIS_ELOSS=0 (see hbasis).
+
+SUBCOMMANDS (global options --decay, --arm, --model-tag before the command)
+    setup      private area of the new leg: geometry, planes, drivers (gun
+               azimuth from TOY_PHI, plane module from TOY_PLANES_MOD)
+    sim        the new leg, seeded split
+    live       provenance, gun azimuth, switch census, acceptance
+    export     the new leg's model
+    recentre   put the new leg's planes on its reference crossings
+    pairs      model/sim pair gate for both legs (+ rotation comparison)
+    closure    per-plane even + odd closure of the parent mass -> JSON +
+               figures (`--nucel`, `--only <leg>` for one leg's share)
+    legclosure the five-direction single-track closure of one leg
+    summary    per-plane shape and location figures from the JSON
 """
 
 import argparse
@@ -101,66 +121,127 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import realmat_closure as rc                                     # noqa: E402
 from realmat_closure import cne, cpt, ctr, fn, gc, hb, hp, mx    # noqa: E402
 import cgf_channels as cc                                        # noqa: E402
-import curv2local as c2l                                         # noqa: E402
 
-M_JPSI = 3.0969                     # GeV (PDG: 3096.900 +- 0.006 MeV)
-MMU = hp.SPECIES[13]["mass"] * 1e-3
 LOCAL = hb.LOCAL                    # (qop, dxdz, dydz, locx, locy)
 REFB = {"qop": "refqop", "dxdz": "refdxdz", "dydz": "refdydz",
         "locx": "reflocx", "locy": "reflocy"}
 
+# =========================================================================
+# the decays
+# =========================================================================
+# Each decay pairs an EXISTING realmat_full leg (pT 3, eta 0.30, phi 0.70:
+# realmat_closure.py's sample and model, `old`) with a NEW leg (`new`, pT
+# `pt_new`, eta 0.30, phi 0.70 + DPHI) that has its own plane set, seeds, sim
+# and model.  DPHI is solved so that the pair mass is the parent's PDG mass.
+#   jpsi  mu- (old) + mu+ (new, pT 3)      DPHI 1.0819
+#   ks    pi- (old) + pi+ (new, pT 3)      DPHI 0.1374
+#   lam   p   (old) + pi- (new, pT 0.8)    DPHI 0.1283  -- equal momenta are
+#         kinematically impossible (m >= 1335 MeV), the proton carries most of
+#         the Lambda's momentum; pT_pi >= 0.61 GeV is needed to reach r = 107 cm
+# Seeds of the new leg never overlap the old leg's (101-110): equal seeds would
+# replay the same random stream in both legs.
+DECAYS = {
+    "jpsi": dict(tex=r"J/\psi", mass=3.0969, old=13, new=-13, pt_new=3.0,
+                 geom="qpj", tag="jpsi", seed0=201,
+                 res="realmat_ditrack_260926", fig="ditrack_cleanprop"),
+    "ks": dict(tex=r"K^0_S", mass=0.497611, old=-211, new=211, pt_new=3.0,
+               geom="ks_pip", tag="ks", seed0=301,
+               res="realmat_ditrack_ks_260927", fig="ditrack_cleanprop_ks"),
+    "lam": dict(tex=r"\Lambda", mass=1.115683, old=2212, new=-211, pt_new=0.8,
+                geom="lam_pim", tag="lam", seed0=401,
+                res="realmat_ditrack_lam_260927", fig="ditrack_cleanprop_lam"),
+}
+DECAY = None      # the configured decay (`configure`)
+DEC = None
+LEGS = {}         # leg key -> dict(pdg, q, pt, phi, geom, mass, new, seeds)
+L0 = L1 = None    # the old and the new leg's key
+DPHI = None
+M_PARENT = None
+RES = None
+NUCEL = False     # the elastic channel in the prediction (`closure --nucel`)
 
-def dphi_for_mass(m, pt=rc.PT, eta=rc.ETA, mmu=MMU):
-    """Azimuthal opening of two muons of equal pT and eta with pair mass m:
-    m^2 = 2 mmu^2 + 2 (E^2 - pT^2 cos dphi - pz^2)."""
-    e2 = (pt * math.cosh(eta)) ** 2 + mmu ** 2
-    pz2 = (pt * math.sinh(eta)) ** 2
-    return math.acos((e2 - pz2 - 0.5 * (m * m - 2.0 * mmu * mmu)) / (pt * pt))
+
+def _mass(pdg):
+    return hp.SPECIES[pdg]["mass"] * 1e-3
 
 
-DPHI = dphi_for_mass(M_JPSI)
-PHI_P = rc.PHI + DPHI
-GQPJ = "qpj"
-rc.GEOM[GQPJ] = ("realmat_full_qpj", "toyPlanes_realmat_full_qpj_pt3", +1.0)
-SEEDS_P = list(range(201, 211))
-RES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs",
-                   "realmat_ditrack_260926")
+def _ptstr(pt):
+    return f"{pt:g}".replace(".", "p")
+
+
+def dphi_for_mass(m, pt1, m1, pt2, m2, eta=rc.ETA):
+    """Azimuthal opening of two tracks at the same eta with pair mass m:
+    m^2 = m1^2 + m2^2 + 2 (E1 E2 - pT1 pT2 cos dphi - pz1 pz2)."""
+    e1 = math.hypot(pt1 * math.cosh(eta), m1)
+    e2 = math.hypot(pt2 * math.cosh(eta), m2)
+    pz = pt1 * pt2 * math.sinh(eta) ** 2
+    c = (e1 * e2 - pz - 0.5 * (m * m - m1 * m1 - m2 * m2)) / (pt1 * pt2)
+    if not -1.0 <= c <= 1.0:
+        raise ValueError(f"no opening angle gives m = {m} (cos = {c})")
+    return math.acos(c)
+
+
+def configure(decay):
+    global DECAY, DEC, LEGS, L0, L1, DPHI, M_PARENT, RES
+    DECAY, DEC = decay, DECAYS[decay]
+    old, new = DEC["old"], DEC["new"]
+    DPHI = dphi_for_mass(DEC["mass"], rc.PT, _mass(old), DEC["pt_new"], _mass(new))
+    M_PARENT = DEC["mass"]
+    L0, L1 = rc.lab(old), rc.lab(new)
+    qn = float(hp.SPECIES[new]["q"])
+    LEGS = {L0: dict(pdg=old, q=float(hp.SPECIES[old]["q"]), pt=rc.PT, phi=rc.PHI,
+                     geom=rc.gkey(old), mass=_mass(old), new=False),
+            L1: dict(pdg=new, q=qn, pt=DEC["pt_new"], phi=rc.PHI + DPHI,
+                     geom=DEC["geom"], mass=_mass(new), new=True,
+                     seeds=list(range(DEC["seed0"], DEC["seed0"] + 10)))}
+    g = DEC["geom"]
+    rc.GEOM[g] = (f"realmat_full_{g}",
+                  f"toyPlanes_realmat_full_{g}_pt{_ptstr(DEC['pt_new'])}", qn)
+    RES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs",
+                       DEC["res"])
 
 
 def variant():
-    """File tag of the model's knock-on state (cf_knockon): '' with both
-    switches off (the linear, independent-channel model), else
-    `_kj{0,1}_qx{0,1}`."""
-    import cf_knockon as ck
-    if not ck.active():
-        return ""
-    return f"_kj{int(bool(ck.KNOCKON_JOINT))}_qx{int(bool(ck.QOP_EXACT))}"
-
-# leg -> (pdg, charge, azimuth, geometry key)
-LEGS = {"mum": (13, -1.0, rc.PHI, "qm"), "mup": (-13, +1.0, PHI_P, GQPJ)}
+    """File tag of the sim arm, the elastic channel (`_nojoint` when its joint
+    law is off) and the knock-on state: realmat_closure's own (`_variant`), so
+    the J/psi names are unchanged;
+    `_hel<x>` when H's energy-loss term is scaled (hbasis.H_ELOSS != 1)."""
+    he = hb._canonical().H_ELOSS
+    return rc._variant(NUCEL) + ("" if he == 1.0 else f"_hel{he:g}")
 
 
 def sim_path(leg, seed):
-    if leg == "mum":
-        return rc.sim_path(13, seed)
-    return os.path.join(rc.OUT, "sim", f"mup_jpsi_pt3_{rc.ARM}_s{seed}_sim.root")
+    L = LEGS[leg]
+    if not L["new"]:
+        return rc.sim_path(L["pdg"], seed)
+    return os.path.join(rc.OUT, "sim", f"{leg}_{DEC['tag']}_pt{_ptstr(L['pt'])}_"
+                                       f"{rc.ARM}_s{seed}_sim.root")
 
 
 def sim_glob(leg):
-    if leg == "mum":
-        return rc.sim_glob(13)
-    return os.path.join(rc.OUT, "sim", f"mup_jpsi_pt3_{rc.ARM}_s2??_sim.root")
+    L = LEGS[leg]
+    if not L["new"]:
+        return rc.sim_glob(L["pdg"])
+    return os.path.join(rc.OUT, "sim", f"{leg}_{DEC['tag']}_pt{_ptstr(L['pt'])}_"
+                                       f"{rc.ARM}_s{DEC['seed0'] // 100}??_sim.root")
 
 
 def model_path(leg):
-    if leg == "mum":
-        return rc.model_path(13)
+    """The old leg's model follows realmat_closure's MODEL_TAG (`_mat`: the
+    export with the per-step material table); the new legs' exports carry the
+    table in any case."""
+    L = LEGS[leg]
+    if not L["new"]:
+        return rc.model_path(L["pdg"])
     return os.path.join(rc.OUT, "model",
-                        f"model_mup_jpsi_pt3_all4{rc.MODEL_TAG}.root")
+                        f"model_{leg}_{DEC['tag']}_pt{_ptstr(L['pt'])}_all4.root")
 
 
 def planes_path(leg):
-    return rc.planes_path(LEGS[leg][3])
+    return rc.planes_path(LEGS[leg]["geom"])
+
+
+configure("jpsi")
 
 
 # =========================================================================
@@ -175,20 +256,21 @@ def p3(qop, lam, phi):
 
 def start_curv(leg):
     """(q/p, lambda, phi) of the leg's start state, from the gun settings."""
-    _, q, phi, _ = LEGS[leg]
-    return np.array([q / (rc.PT * math.cosh(rc.ETA)),
-                     math.atan(math.sinh(rc.ETA)), phi])
+    L = LEGS[leg]
+    return np.array([L["q"] / (L["pt"] * math.cosh(rc.ETA)),
+                     math.atan(math.sinh(rc.ETA)), L["phi"]])
 
 
 def pair_mass(c1, c2):
-    """Pair mass from two (q/p, lambda, phi) arrays of shape (3,) or (3, n)."""
+    """Pair mass from the old (c1) and new (c2) leg's (q/p, lambda, phi),
+    arrays of shape (3,) or (3, n)."""
     def mom(c):
         p = 1.0 / np.abs(c[0])
         return p * np.array([np.cos(c[1]) * np.cos(c[2]),
                              np.cos(c[1]) * np.sin(c[2]), np.sin(c[1])])
     a, b = mom(np.asarray(c1)), mom(np.asarray(c2))
-    ea = np.sqrt((a ** 2).sum(axis=0) + MMU ** 2)
-    eb = np.sqrt((b ** 2).sum(axis=0) + MMU ** 2)
+    ea = np.sqrt((a ** 2).sum(axis=0) + LEGS[L0]["mass"] ** 2)
+    eb = np.sqrt((b ** 2).sum(axis=0) + LEGS[L1]["mass"] ** 2)
     return np.sqrt((ea + eb) ** 2 - ((a + b) ** 2).sum(axis=0))
 
 
@@ -196,9 +278,9 @@ def mass_gradient():
     """dm/d(q/p, lambda, phi) of each leg at the reference, analytic:
     dm = (E_other p_this/E_this - p_other) . dp_this / m."""
     c = {lg: start_curv(lg) for lg in LEGS}
-    m0 = pair_mass(c["mum"], c["mup"])
+    m0 = pair_mass(c[L0], c[L1])
     out = {}
-    for lg, oth in (("mum", "mup"), ("mup", "mum")):
+    for lg, oth in ((L0, L1), (L1, L0)):
         qop, lam, phi = c[lg]
         q = np.sign(qop)
         p = 1.0 / abs(qop)
@@ -209,8 +291,8 @@ def mass_gradient():
         dn_dphi = np.array([-np.cos(lam) * np.sin(phi), np.cos(lam) * np.cos(phi),
                             0.0])
         pa, pb = p * n, p3(*c[oth])
-        ea = math.sqrt(p * p + MMU ** 2)
-        eb = math.sqrt(pb @ pb + MMU ** 2)
+        ea = math.sqrt(p * p + LEGS[lg]["mass"] ** 2)
+        eb = math.sqrt(pb @ pb + LEGS[oth]["mass"] ** 2)
         v = (eb * pa / ea - pb) / m0
         out[lg] = np.array([v @ (-q * p * p * n), v @ (p * dn_dlam),
                             v @ (p * dn_dphi), 0.0, 0.0])
@@ -222,13 +304,13 @@ def _check_gradient():
     m0, g = mass_gradient()
     c = {lg: start_curv(lg) for lg in LEGS}
     worst = 0.0
-    for lg, oth in (("mum", "mup"), ("mup", "mum")):
+    for lg, oth in ((L0, L1), (L1, L0)):
         for i in range(3):
             h = 1e-6 * max(abs(c[lg][i]), 1e-3)
             cp, cm = c[lg].copy(), c[lg].copy()
             cp[i] += h
             cm[i] -= h
-            if lg == "mum":
+            if lg == L0:
                 d = (pair_mass(cp, c[oth]) - pair_mass(cm, c[oth])) / (2 * h)
             else:
                 d = (pair_mass(c[oth], cp) - pair_mass(c[oth], cm)) / (2 * h)
@@ -237,16 +319,18 @@ def _check_gradient():
 
 
 # =========================================================================
-# setup / sim / export / live / pairs  (the mu+ leg)
+# setup / sim / export / live / pairs  (the new leg)
 # =========================================================================
 
 def cmd_setup(args):
     m0, g, worst = _check_gradient()
-    print(f"DPHI = {DPHI:.12f} rad  -> mu+ at phi = {PHI_P:.12f}")
+    N = LEGS[L1]
+    print(f"{DECAY}: {L0} (pT {rc.PT:g}, phi {rc.PHI}) + {L1} (pT {N['pt']:g}, "
+          f"phi {N['phi']:.12f}); DPHI = {DPHI:.12f} rad")
     print(f"pair mass of the two start states {1e3 * m0:.6f} MeV "
-          f"(target {1e3 * M_JPSI:.3f}); analytic vs FD gradient max rel "
+          f"(target {1e3 * M_PARENT:.3f}); analytic vs FD gradient max rel "
           f"diff {worst:.1e}")
-    if abs(m0 - M_JPSI) > 1e-9 or worst > 1e-6:
+    if abs(m0 - M_PARENT) > 1e-9 or worst > 1e-6:
         raise SystemExit("kinematics check failed")
     ref_xml = os.path.realpath(os.path.join(rc.SRCDATA, "realmat_full",
                                             "tracker.xml"))
@@ -260,64 +344,159 @@ def cmd_setup(args):
         raise SystemExit("helix_frames(q=-1) does NOT reproduce the published "
                          "plane file")
     print("helix_frames(q=-1) reproduces the published plane file: IDENTICAL")
-    gdir, pmod, q = rc.GEOM[GQPJ]
-    td = rc.testdir(GQPJ)
-    dd = os.path.join(rc.geomdir(GQPJ), "Analysis", "HitAnalyzer", "data", gdir)
+    twoR = 2.0 * N["pt"] / (0.3 * rc.BFIELD) * 100.0
+    if twoR <= max(radii):
+        raise SystemExit(f"the {L1} leg curls up at r = {twoR:.1f} cm, before "
+                         f"the outermost plane at {max(radii):.1f} cm")
+    G = N["geom"]
+    gdir, pmod, q = rc.GEOM[G]
+    td = rc.testdir(G)
+    dd = os.path.join(rc.geomdir(G), "Analysis", "HitAnalyzer", "data", gdir)
     os.makedirs(td, exist_ok=True)
     os.makedirs(dd, exist_ok=True)
     xo = os.path.join(dd, "tracker.xml")
     import shutil
     shutil.copyfile(ref_xml, xo)
     assert rc._md5(xo) == rc._md5(ref_xml)
-    print(f"[{GQPJ}] {rc._md5(xo)}  {gdir}/tracker.xml  IDENTICAL to the reference")
+    print(f"[{G}] {rc._md5(xo)}  {gdir}/tracker.xml  IDENTICAL to the reference")
     out = (f"# generated by realmat_ditrack.py setup: gen_toy_realmat."
-           f"helix_frames(q=+1, phi0={PHI_P!r}) on the radii of "
-           f"toyPlanes_realmat_full_pt3.py; do not hand edit\n"
-           + rc._plane_body(radii, +1.0, phi0=PHI_P))
-    open(rc.planes_path(GQPJ), "w").write(out)
-    print(f"[{GQPJ}] {rc._md5(rc.planes_path(GQPJ))}  {pmod}.py")
+           f"helix_frames(q={q:+.0f}, phi0={N['phi']!r}, pt={N['pt']!r}) on the "
+           f"radii of toyPlanes_realmat_full_pt3.py; do not hand edit\n"
+           + rc._plane_body(radii, q, phi0=N["phi"], pt=N["pt"]))
+    open(rc.planes_path(G), "w").write(out)
+    print(f"[{G}] {rc._md5(rc.planes_path(G))}  {pmod}.py")
     s, m = rc._driver_sources()
     s = hp._sub1(s, r"MinPhi=cms\.double\(0\.70\), MaxPhi=cms\.double\(0\.70\),",
                  'MinPhi=cms.double(float(os.environ["TOY_PHI"])),\n'
                  '        MaxPhi=cms.double(float(os.environ["TOY_PHI"])),',
                  "sim: gun azimuth")
+    # the watcher radii come from the leg's own plane module (the stock
+    # driver assumes `toyPlanes_<geometry>_pt3`; the radii are the same
+    # cylinders for every leg, the module name is not)
+    s = hp._sub1(s, r"_pmod = 'toyPlanes_%s_pt3' % opts\.toyGeom\.split\('/'\)\[-2\]",
+                 "_pmod = os.environ.get('TOY_PLANES_MOD', 'toyPlanes_%s_pt3' "
+                 "% opts.toyGeom.split('/')[-2])", "sim: watcher plane module")
     s += ("\nprint('[toy] gun phi = %.12f'\n"
           "      % process.generator.PGunParameters.MinPhi.value())\n")
     open(os.path.join(td, "runToyGeomCheck.py"), "w").write(s)
+    # the model driver likewise takes a realmat geometry's planes from
+    # `toyPlanes_<geometry>_pt3`, OVERRIDING TOY_PLANES_MOD: point it at the
+    # leg's own plane module
+    m = hp._sub1(m, r"    _pmod = 'toyPlanes_%s_pt3' % opts\.toyGeom\.split\('/'\)\[-2\]",
+                 "    _pmod = _os.environ.get('TOY_PLANES_MOD', 'toyPlanes_%s_pt3' "
+                 "% opts.toyGeom.split('/')[-2])", "model: plane module")
+    # the propagator's momentum floor (PropagationPtotLimit, 1 GeV by default:
+    # a guard against run-away legs in fits, not physics) refuses a leg below
+    # it; the clean-propagation export takes it from TOY_PLIMIT
+    m += ("\nprocess.Geant4ePropagator.PropagationPtotLimit = cms.double(\n"
+          "    float(_os.environ.get('TOY_PLIMIT', '1.0')))\n"
+          "print('[toy] PropagationPtotLimit = %g GeV'\n"
+          "      % process.Geant4ePropagator.PropagationPtotLimit.value())\n")
     open(os.path.join(td, "runToyModel.py"), "w").write(m)
-    print(f"[{GQPJ}] wrote runToyGeomCheck.py and runToyModel.py in {td}")
-    # the new planes must be the phi = 0.70 mu+ planes rotated by DPHI
-    a, b = {}, {}
-    exec(open(rc.planes_path("qp")).read(), a)
-    exec(open(rc.planes_path(GQPJ)).read(), b)
-    c, s_ = math.cos(DPHI), math.sin(DPHI)
-    R = np.array([[c, -s_, 0.0], [s_, c, 0.0], [0.0, 0.0, 1.0]])
-    for key in ("origin", "normal", "uaxis"):
-        u = np.asarray(a[key]).reshape(-1, 3) @ R.T
-        v = np.asarray(b[key]).reshape(-1, 3)
-        print(f"rotation check {key:<6}: max |R(DPHI) qp - qpj| = "
-              f"{np.abs(u - v).max():.2e}")
+    print(f"[{G}] wrote runToyGeomCheck.py and runToyModel.py in {td}")
+    if N["pt"] == rc.PT:
+        # the new planes must be the phi = 0.70 planes of the same charge
+        # rotated by DPHI
+        a, b = {}, {}
+        exec(open(rc.planes_path(rc.gkey(N["pdg"]))).read(), a)
+        exec(open(rc.planes_path(G)).read(), b)
+        c, s_ = math.cos(DPHI), math.sin(DPHI)
+        R = np.array([[c, -s_, 0.0], [s_, c, 0.0], [0.0, 0.0, 1.0]])
+        for key in ("origin", "normal", "uaxis"):
+            u = np.asarray(a[key]).reshape(-1, 3) @ R.T
+            v = np.asarray(b[key]).reshape(-1, 3)
+            print(f"rotation check {key:<6}: max |R(DPHI) phi=0.70 - new| = "
+                  f"{np.abs(u - v).max():.2e}")
 
 
-def _env_p(extra=None):
-    sp = hp.SPECIES[-13]
-    e = dict(TOY_PLANES_MOD=rc.GEOM[GQPJ][1], TOY_PDG="-13", TOY_PNAME=sp["g4"],
-             TOY_RMAX="107.0", TOY_CUT=repr(rc.CUT),
-             TOY_INACT=",".join(hp.inact_of(-13, rc.ARM)), TOY_PHI=repr(PHI_P))
+def _plane_offsets(leg):
+    """(reference crossing of each flat plane in global coordinates, local
+    offsets (x, y, z) of that crossing, reference direction) from the model."""
+    import uproot
+    from toy_loader import plane_frames
+    ns = {}
+    exec(open(planes_path(leg)).read(), ns)
+    o, R = plane_frames(ns["origin"], ns["normal"], ns["uaxis"])
+    f = uproot.open(model_path(leg))
+    t = f[next(k for k in f.keys() if k.split(";")[0].endswith("/legs"))]
+    a = t.arrays(["reflocx", "reflocy", "reflocz", "refdxdz", "refdydz"],
+                 library="np")
+    loc = np.stack([a["reflocx"], a["reflocy"], a["reflocz"]], axis=1)
+    X = o + np.einsum("kji,kj->ki", R, loc)
+    dl = np.stack([a["refdxdz"], a["refdydz"], np.ones(len(o))], axis=1)
+    d = np.einsum("kji,kj->ki", R, dl)
+    d /= np.linalg.norm(d, axis=1, keepdims=True)
+    return ns, X, loc, d
+
+
+def cmd_recentre(args):
+    """Put the new leg's planes ON its own reference trajectory.
+
+    The planes come from `helix_frames`, a helix of FIXED radius; the model's
+    reference loses energy, curls tighter and drifts off the plane origins --
+    50 um at pT 3, 2 cm at the outer plane at pT 0.8.  The sim records the
+    state where the primary crosses the shell CYLINDER, the model where the
+    reference crosses the flat tangent PLANE, and 2 cm off the origin the two
+    are 0.2 mm apart along the normal.  So move each origin to where the
+    reference crosses the cylinder (back along its direction from the plane
+    crossing), with the radial normal and tangential u of `helix_frames`,
+    rewrite the plane module and re-export (`export --force`).  The sim is
+    untouched: it scores the same cylinders."""
+    ns, X, loc, d = _plane_offsets(L1)
+    r = np.asarray(ns["radii"], dtype=np.float64)
+    print(f"{L1}: before  max |reflocx| {np.abs(loc[:, 0]).max() * 1e4:.1f} um, "
+          f"max |reflocy| {np.abs(loc[:, 1]).max() * 1e4:.1f} um, max |r_ref - r| "
+          f"{np.abs(np.hypot(X[:, 0], X[:, 1]) - r).max() * 1e4:.2f} um")
+    # back along d from X to the cylinder |x_T| = r: |X_T - s d_T|^2 = r^2,
+    # a2 s^2 + b s + c = 0; the root nearest zero, in the stable form c/q
+    a2 = d[:, 0] ** 2 + d[:, 1] ** 2
+    b = -2.0 * (X[:, 0] * d[:, 0] + X[:, 1] * d[:, 1])
+    c = X[:, 0] ** 2 + X[:, 1] ** 2 - r ** 2
+    qq = -0.5 * (b + np.copysign(np.sqrt(np.maximum(b * b - 4 * a2 * c, 0.0)), b))
+    s = np.where(c != 0.0, c / qq, 0.0)
+    Y = X - s[:, None] * d
+    ph = np.arctan2(Y[:, 1], Y[:, 0])
+    org = np.stack([r * np.cos(ph), r * np.sin(ph), Y[:, 2]], axis=1)
+    nrm = np.stack([np.cos(ph), np.sin(ph), np.zeros_like(ph)], axis=1)
+    uu = np.stack([-np.sin(ph), np.cos(ph), np.zeros_like(ph)], axis=1)
+    f = lambda v: ", ".join("%.6f" % x for x in np.ravel(v))       # noqa: E731
+    m_it = re.search(r"re-centred x(\d+)", open(planes_path(L1)).readline())
+    it = int(m_it.group(1)) + 1 if m_it else 1
+    head = (f"# generated by realmat_ditrack.py: the {L1} leg's planes re-centred x{it} "
+            f"on the reference crossings of {os.path.basename(model_path(L1))}; "
+            f"do not hand edit\n")
+    body = (f"radii = [{f(r)}]\norigin = [{f(org)}]\n"
+            f"normal = [{f(nrm)}]\nuaxis  = [{f(uu)}]\n")
+    open(planes_path(L1), "w").write(head + body)
+    print(f"{L1}: planes re-centred (iteration {it}); max origin move "
+          f"{np.abs(org - np.asarray(ns['origin']).reshape(-1, 3)).max():.4f} cm "
+          f"-> {planes_path(L1)}")
+    print("re-export the model (`export --force`) and run `recentre` again to "
+          "check the residual offsets")
+
+
+def _env_new(extra=None):
+    N = LEGS[L1]
+    sp = hp.SPECIES[N["pdg"]]
+    e = dict(TOY_PLANES_MOD=rc.GEOM[N["geom"]][1], TOY_PDG=str(N["pdg"]),
+             TOY_PNAME=sp["g4"], TOY_RMAX="107.0", TOY_CUT=repr(rc.CUT),
+             TOY_INACT=",".join(hp.inact_of(N["pdg"], rc.ARM)),
+             TOY_PHI=repr(N["phi"]))
     e.update(extra or {})
     return e
 
 
 def _sim_one(a):
     seed, nev, force = a
-    out = sim_path("mup", seed)
+    N = LEGS[L1]
+    out = sim_path(L1, seed)
     log = out[:-5] + ".log"
     if os.path.exists(out) and rc._complete(log, nev) and not force:
         return seed, 0, log, "cached"
-    ee = _env_p({"TOY_CENSUS": out[:-9] + "_census.bin"})
-    r = rc._run(GQPJ, "runToyGeomCheck.py",
-                f"events={nev} pt={rc.PT} eta={rc.ETA} output={out} seed={seed} "
-                f"toyGeom={rc.toygeom(GQPJ)}", log, ee)
+    ee = _env_new({"TOY_CENSUS": out[:-9] + "_census.bin"})
+    r = rc._run(N["geom"], "runToyGeomCheck.py",
+                f"events={nev} pt={N['pt']!r} eta={rc.ETA} output={out} "
+                f"seed={seed} toyGeom={rc.toygeom(N['geom'])}", log, ee)
     if r == 0 and not rc._complete(log, nev):
         r = 99
     return seed, r, log, "ran"
@@ -326,13 +505,14 @@ def _sim_one(a):
 def cmd_sim(args):
     from concurrent.futures import ThreadPoolExecutor
     os.makedirs(os.path.join(rc.OUT, "sim"), exist_ok=True)
-    jobs = [(s, args.events, args.force) for s in SEEDS_P[:args.jobs]]
-    print(f"{len(jobs)} mu+ jobs x {args.events} events at phi = {PHI_P:.6f}",
-          flush=True)
+    N = LEGS[L1]
+    jobs = [(s, args.events, args.force) for s in N["seeds"][:args.jobs]]
+    print(f"{len(jobs)} {L1} jobs x {args.events} events, pT {N['pt']:g}, "
+          f"phi = {N['phi']:.6f}, arm {rc.ARM}", flush=True)
     t0, bad = time.time(), 0
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
         for seed, r, log, how in ex.map(_sim_one, jobs):
-            print(f"  mu+ seed={seed} rc={r} {how:<6} {time.time() - t0:7.0f} s",
+            print(f"  {L1} seed={seed} rc={r} {how:<6} {time.time() - t0:7.0f} s",
                   flush=True)
             if r:
                 bad += 1
@@ -343,14 +523,16 @@ def cmd_sim(args):
 
 def cmd_export(args):
     os.makedirs(os.path.join(rc.OUT, "model"), exist_ok=True)
-    out = model_path("mup")
+    N = LEGS[L1]
+    out = model_path(L1)
     log = out[:-5] + ".log"
     if os.path.exists(out) and not args.force:
         print(f"exists -> {out}")
         return
-    r = rc._run(GQPJ, "runToyModel.py",
-                f"pt={rc.PT} eta={rc.ETA} phi={PHI_P!r} partId=-13 output={out} "
-                f"toyGeom={rc.toygeom(GQPJ)}", log, _env_p(rc.FOUR_ON))
+    r = rc._run(N["geom"], "runToyModel.py",
+                f"pt={N['pt']!r} eta={rc.ETA} phi={N['phi']!r} partId={N['pdg']} "
+                f"output={out} toyGeom={rc.toygeom(N['geom'])}", log,
+                _env_new(dict(rc.FOUR_ON, TOY_PLIMIT="0.1")))
     print(f"rc={r} -> {out}", flush=True)
     if r:
         raise SystemExit(f"export failed, see {log}")
@@ -363,18 +545,25 @@ _SIMC = {}
 
 
 def load_sim(leg):
-    if leg not in _SIMC:
+    key = (DECAY, leg, rc.ARM)
+    if key not in _SIMC:
         from toy_loader import load_toy_sim
         ns = {}
         exec(open(planes_path(leg)).read(), ns)
-        _SIMC[leg] = load_toy_sim(sim_glob(leg), ns["origin"], ns["normal"],
+        _SIMC[key] = load_toy_sim(sim_glob(leg), ns["origin"], ns["normal"],
                                   ns["uaxis"])
-    return _SIMC[leg]
+    return _SIMC[key]
 
 
 def cmd_live(args):
-    logs = sorted(glob.glob(sim_glob("mup")[:-5] + ".log"))
-    print(f"### mu+ (J/psi leg)  {len(logs)} logs")
+    """The new leg's provenance (stepper, cut, particle, azimuth, planes) and
+    process census: every process the arm switches off has ZERO primary steps
+    (species-specific names zero in `all` as well), every process the arm
+    restores relative to `off` fires on the primary."""
+    N = LEGS[L1]
+    pdg = N["pdg"]
+    logs = sorted(glob.glob(sim_glob(L1)[:-5] + ".log"))
+    print(f"### {L1} ({DECAY} leg, arm {rc.ARM})  {len(logs)} logs")
     if not logs:
         raise SystemExit("no logs")
     tot, prov = {}, set()
@@ -397,25 +586,34 @@ def cmd_live(args):
     if len(prov) != 1:
         raise SystemExit("inconsistent provenance")
     st, cut, pid, pl, phi = next(iter(prov))
-    if st != "TIGHT" or int(pid) != -13 or abs(float(phi) - PHI_P) > 1e-9 \
-            or rc.GEOM[GQPJ][1] not in pl:
+    if st != "TIGHT" or int(pid) != pdg or abs(float(phi) - N["phi"]) > 1e-9 \
+            or rc.GEOM[N["geom"]][1] not in pl:
         raise SystemExit("wrong stepper, particle, azimuth or plane set")
-    for nm in hp.inact_of(-13, rc.ARM):
+    for nm in hp.inact_of(pdg, rc.ARM):
         got = tot.get(nm, (0, 0))
-        bad = got[0] != 0 or (nm != "Decay" and got[1] != 0)
+        bad = got[0] != 0 or (nm not in ("Decay", "hadElastic") and got[1] != 0)
         print(f"    census {nm:<24} primary {got[0]:>9} all {got[1]:>9}  "
               f"{'*** NONZERO ***' if bad else 'OK (primary zero)'}")
         if bad:
             raise SystemExit(f"{nm} is not switched off")
-    v = load_sim("mup")["valid"]
+    off = set(hp.inact_of(pdg, "off"))
+    for nm in sorted(off - set(hp.inact_of(pdg, rc.ARM))):
+        got = tot.get(nm, (0, 0))
+        print(f"    census {nm:<24} primary {got[0]:>9} all {got[1]:>9}  "
+              f"{'OK (restored, fires on the primary)' if got[0] > 0 else '*** INERT ***'}")
+        if got[0] == 0:
+            raise SystemExit(f"{nm} is restored by arm {rc.ARM} but never fired")
+    v = load_sim(L1)["valid"]
     print(f"    events {v.shape[0]}, reached every plane "
           f"{100 * v.all(axis=1).mean():.3f} %, outermost {100 * v[:, -1].mean():.3f} %")
 
 
 def cmd_pairs(args):
-    """realmat_closure's pair gate for both legs, then the rotation comparison
-    of the new mu+ leg with the phi = 0.70 mu+ (informational)."""
-    for leg in ("mum", "mup"):
+    """realmat_closure's pair gate for both legs, then -- when the new leg has
+    the old leg's pT -- the rotation comparison with the same species at
+    phi = 0.70 (informational: the material is azimuthally symmetric, the
+    field map is not exactly)."""
+    for leg in (L0, L1):
         mp = model_path(leg)
         m = gc._model_meta(mp)
         files = sorted(glob.glob(sim_glob(leg)))
@@ -444,12 +642,13 @@ def cmd_pairs(args):
         print(f"    {'PASS' if ok else '*** FAIL ***'}")
         if not ok and not args.nofail:
             raise SystemExit("pair gate failed")
-    # the same leg at phi = 0.70: material identical by construction, the
-    # field map is the only difference
-    a = cpt.load_model(rc.model_path(-13))
-    b = cpt.load_model(model_path("mup"))
+    N = LEGS[L1]
+    if N["pt"] != rc.PT:
+        return
+    a = cpt.load_model(rc.model_path(N["pdg"]))
+    b = cpt.load_model(model_path(L1))
     rp = np.array([[l["refp"] for l in a], [l["refp"] for l in b]])
-    print(f"rotation: refp(phi={PHI_P:.3f}) / refp(phi=0.70) - 1 per plane: "
+    print(f"rotation: refp(phi={N['phi']:.3f}) / refp(phi=0.70) - 1 per plane: "
           f"max {np.abs(rp[1] / rp[0] - 1).max():.2e}")
     va = [float(cpt.model_variance(a, k, cpt.FUNCTIONALS['qop'])[0])
           for k in range(len(a))]
@@ -475,15 +674,19 @@ def weier_shift(phi, u, tau):
 
 
 def _setup_physics():
-    """realmat_closure.cell's configuration for muons, asserted."""
+    """realmat_closure.cell's configuration, asserted: the six MS
+    harmonisations, radiation on, Kokoulin for muons only (both legs must
+    agree), the nuclear-elastic channel (recoil included) as `--nucel` says."""
     assert os.environ.get("RES_NO_PHI_CACHE"), "phi cache is LIVE"
     assert (ctr.MS_ELEC_TMAX, ctr.MS_ELEC_EDGE, ctr.MS_SNAP_YMAX, ctr.MS_FINE_G,
             ctr.MS_WVI_SPLIT) == (1.0, 1.0, 0.0, 1.0, 0.0), "MS defaults moved"
     assert mx.MS_CHI0_G4 and mx.MS_FF_G4, "cf_ms_exact harmonisations off"
-    assert rc.ARM == "off" and rc.MODEL_TAG == ""
-    cne.NUCEL_CHANNEL = False
+    kok = {bool(hp.kok_for(L["pdg"])) for L in LEGS.values()}
+    assert len(kok) == 1, "the legs disagree on Kokoulin (one global switch)"
+    cne.NUCEL_CHANNEL = bool(NUCEL)
+    cne.NUCEL_RECOIL = True
     cpt.RAD_CHANNEL = True
-    ctr.IONI_KOKOULIN = 1.0
+    ctr.IONI_KOKOULIN = 1.0 if kok.pop() else 0.0
     ctr.IONI_KOKOULIN_TCUT = 0.0
 
 
@@ -495,7 +698,7 @@ def leg_vectors(legs, g):
     for k, leg in enumerate(legs):
         P = leg["F"] @ P
         a = np.linalg.solve(P.T, g)
-        H, _ = c2l.leg_H(legs, k, bfield=bfield, mass=mass)
+        H, _ = hb.leg_H(legs, k, bfield=bfield, mass=mass)
         b = np.linalg.solve(H.T, a)
         out.append((a, b, P, H))
     return out
@@ -537,17 +740,33 @@ def cmd_closure(args):
     os.makedirs(RES, exist_ok=True)
     probes = np.asarray(fn.UCURVE)
     m0, g, worst = _check_gradient()
-    assert abs(m0 - M_JPSI) < 1e-9 and worst < 1e-6
+    assert abs(m0 - M_PARENT) < 1e-9 and worst < 1e-6
     legs = {}
-    for leg, (pdg, _, _, _) in LEGS.items():
+    for leg, L in LEGS.items():
         path = model_path(leg)
         legs[leg] = cpt.load_model(path)
-        hb.bind(legs[leg], path, pdg=pdg)
+        if NUCEL and not all(cne._has_composition(x) for x in legs[leg]):
+            raise SystemExit(f"{path} has no per-step material table: the "
+                             f"elastic channel would fall back to one rounded "
+                             f"element per step (use --model-tag _mat)")
+        hb.bind(legs[leg], path, pdg=L["pdg"])
+    # the elastic tables of every bucket, built in parallel and persisted,
+    # before the serial warm in the parent
+    cne.prewarm(list(legs.values()))
+    for leg in LEGS:
         cne.warm(legs[leg])
     vec = {leg: leg_vectors(legs[leg], g[leg]) for leg in LEGS}
-    nl = min(len(legs["mum"]), len(legs["mup"]))
+    if args.only:
+        # ONE leg's share of the mass direction: the other leg's weights are
+        # zero, so its CF factor is exactly 1 and it adds nothing to the sim
+        if args.only not in LEGS:
+            raise SystemExit(f"--only {args.only}: legs are {list(LEGS)}")
+        for lg in LEGS:
+            if lg != args.only:
+                vec[lg] = [(0.0 * a, 0.0 * b, P, H) for a, b, P, H in vec[lg]]
+    nl = min(len(legs[L0]), len(legs[L1]))
     global _CTX
-    _CTX = (legs["mum"], legs["mup"], vec["mum"], vec["mup"], probes)
+    _CTX = (legs[L0], legs[L1], vec[L0], vec[L1], probes)
     t0 = time.time()
     ks = list(range(nl)) if args.planes is None else args.planes
     models = dict(zip(ks, fn.pmap(_plane_model, ks)))
@@ -557,7 +776,7 @@ def cmd_closure(args):
     nev = min(s["valid"].shape[0] for s in sims.values())
     c0 = {leg: start_curv(leg) for leg in LEGS}
     iu1 = list(probes).index(1.0)
-    rows = []
+    rows, plots = [], []
     hdr = (f"{'k':>2} {'r[cm]':>7} {'n':>7} {'sigma':>7} {'s_F':>7} "
            f"{'even u=1':>16} {'dm(u=1) MeV':>17} {'dm(u=.01)':>15} "
            f"{'dm(u=.001)':>15} {'corr':>7} {'qop':>5} {'ang':>5} {'nl MeV':>8}")
@@ -579,7 +798,7 @@ def cmd_closure(args):
             dcurv0[leg] = np.linalg.solve(P, np.linalg.solve(H, np.nan_to_num(dloc).T))
             dm[leg + "_qop"] = dloc[:, 0] * b[0]
             dm[leg + "_ang"] = dloc[:, 1] * b[1] + dloc[:, 2] * b[2]
-        dmt = dm["mum"] + dm["mup"]
+        dmt = dm[L0] + dm[L1]
         n = int(good.sum())
         # sim-side diagnostics of the LOCATION and of the within-leg joint law
         #   mean_split  per leg and local component, <b_c dlocal_c> in MeV
@@ -615,16 +834,16 @@ def cmd_closure(args):
         acc_o[:, good] += o * (nev / n)
         dmu = 1e3 * md["sF"] * odd / md["D"]            # MeV
         edmu = 1e3 * md["sF"] * eo / md["D"]
-        corr = float(np.corrcoef(dm["mum"][good], dm["mup"][good])[0, 1])
+        corr = float(np.corrcoef(dm[L0][good], dm[L1][good])[0, 1])
         vt = float(np.var(dmt[good]))
-        fq = float(np.var((dm["mum_qop"] + dm["mup_qop"])[good]) / vt)
-        fa = float(np.var((dm["mum_ang"] + dm["mup_ang"])[good]) / vt)
+        fq = float(np.var((dm[L0 + "_qop"] + dm[L1 + "_qop"])[good]) / vt)
+        fa = float(np.var((dm[L0 + "_ang"] + dm[L1 + "_ang"])[good]) / vt)
         # second order of the mass map: exact pair mass of the back-propagated
         # momenta minus the linear prediction
-        cm = c0["mum"][:, None] + dcurv0["mum"][:3][:, good]
-        cp = c0["mup"][:, None] + dcurv0["mup"][:3][:, good]
+        cm = c0[L0][:, None] + dcurv0[L0][:3][:, good]
+        cp = c0[L1][:, None] + dcurv0[L1][:3][:, good]
         nlin = 1e3 * float(np.mean(pair_mass(cm, cp) - m0 - dmt[good]))
-        r = float(legs["mum"][k]["refglobr"])
+        r = float(legs[L0][k]["refglobr"])
         iu01 = list(probes).index(0.01)
         iu001 = list(probes).index(0.001)
         print(f"{k:>2} {r:7.2f} {n:>7} {1e3 * md['sigma']:7.2f} "
@@ -652,12 +871,10 @@ def cmd_closure(args):
                          corr=corr, share_qop=fq, share_ang=fa,
                          nonlinear_MeV=nlin, mean_split_MeV=mean_split,
                          jensen_qop_MeV=jensen, shuffled_even=esh.tolist(),
-                         a_mum=vec["mum"][k][0].tolist(),
-                         a_mup=vec["mup"][k][0].tolist(),
-                         b_mum=vec["mum"][k][1].tolist(),
-                         b_mup=vec["mup"][k][1].tolist()))
+                         **{f"a_{lg}": vec[lg][k][0].tolist() for lg in LEGS},
+                         **{f"b_{lg}": vec[lg][k][1].tolist() for lg in LEGS}))
         if k in args.plot:
-            _plot(k, r, dmt[good], md)
+            plots.append((k, r, dmt[good], md))
     nk = max(len(rows), 1)
     err_lad_e = (acc_e / nk).std(axis=1) / math.sqrt(nev)
     err_lad_o = (acc_o / nk).std(axis=1) / math.sqrt(nev)
@@ -670,21 +887,79 @@ def cmd_closure(args):
         print(f"   k={rw['k']:>2}  sim {rw['sim_mean_MeV']:+.4f} +- "
               f"{rw['sim_mean_err_MeV']:.4f}   model {rw['model_mean_MeV']:+.4f}")
     import cf_knockon as ck
-    out = dict(config=dict(knockon=dict(ck.physics_state()),
-                           pt=rc.PT, eta=rc.ETA, phi_mum=rc.PHI, phi_mup=PHI_P,
-                           dphi=DPHI, m_jpsi=M_JPSI, arm=rc.ARM,
-                           model_mum=model_path("mum"), model_mup=model_path("mup"),
-                           sim_mum=sim_glob("mum"), sim_mup=sim_glob("mup"),
-                           nev=nev, ucurve=list(probes)),
+    out = dict(config=dict(decay=DECAY, knockon=dict(ck.physics_state()),
+                           nucel=bool(NUCEL),
+                           nucel_elements=bool(cne.NUCEL_ELEMENTS),
+                           legs={lg: dict(pdg=L["pdg"], pt=L["pt"], eta=rc.ETA,
+                                          phi=L["phi"], model=model_path(lg),
+                                          sim=sim_glob(lg))
+                                 for lg, L in LEGS.items()},
+                           dphi=DPHI, m_parent=M_PARENT, arm=rc.ARM,
+                           model_tag=rc.MODEL_TAG, nev=nev,
+                           ucurve=list(probes)),
                ladder=dict(even=lad_e.tolist(), even_err=err_lad_e.tolist(),
                            odd=lad_o.tolist(), odd_err=err_lad_o.tolist()),
                planes=rows)
     full = args.planes is None
-    p = os.path.join(RES, (f"ditrack_closure{variant()}.json" if full else
-                           f"ditrack_closure{variant()}_planes_"
+    tag = variant() + (f"_only{args.only}" if args.only else "")
+    p = os.path.join(RES, (f"ditrack_closure{tag}.json" if full else
+                           f"ditrack_closure{tag}_planes_"
                            + "_".join(map(str, ks)) + ".json"))
     json.dump(out, open(p, "w"), indent=1)
     print(f"-> {p}")
+    # figures only after the numbers are safe on disk
+    for pl in plots:
+        try:
+            _plot(*pl)
+        except Exception as exc:                          # noqa: BLE001
+            print(f"*** figure for plane {pl[0]} failed: {exc!r}")
+
+
+def cmd_legclosure(args):
+    """The ordinary single-track closure (realmat_closure's five local
+    directions, H basis, Fisher s_F, the full u curve) for ONE leg of the
+    configured decay -- the diagnostic for a pair that does not close."""
+    _setup_physics()
+    leg = args.leg or L1
+    L = LEGS[leg]
+    path = model_path(leg)
+    legs = cpt.load_model(path)
+    hb.bind(legs, path, pdg=L["pdg"])
+    cne.warm(legs)
+    was = bool(hb._canonical().USE_H)
+    hb.set_use_h(True)
+    fn._SCALE_CACHE.clear()
+    cpt._PHI_CACHE.clear()
+    old_load, old_store = fn._scale_cache_load, fn._scale_cache_store
+    fn._scale_cache_load = lambda *a, **k: None
+    fn._scale_cache_store = lambda *a, **k: None
+    os.makedirs(RES, exist_ok=True)
+    try:
+        sim = load_sim(leg)
+        iu = list(fn.UCURVE).index(1.0)
+        for func in args.funcs:
+            t0 = time.time()
+            sc = fn.plane_scales(legs, func, tag=path,
+                                 channels=("ioni", "ms", "rad"))
+            rows, errs, ks, ns, err = gc.closure_rows(legs, sim, func, sc["sF"])
+            rows, errs = np.asarray(rows), np.asarray(errs)
+            pull = rows / errs
+            print(f"{leg} {func:<5} u=1 outer {rows[-1, iu]:+.4f}+-{errs[-1, iu]:.4f}  "
+                  f"ladder {rows[:, iu].mean():+.4f}+-{err[iu]:.4f}  >3sig "
+                  f"{int((np.abs(pull) > 3).sum())}/{pull.size} max "
+                  f"{np.abs(pull).max():.1f}  ({time.time() - t0:.0f} s)", flush=True)
+            print("      per plane " + " ".join(f"{x:+.4f}" for x in rows[:, iu]),
+                  flush=True)
+            out = dict(decay=DECAY, leg=leg, func=func, arm=rc.ARM,
+                       nucel=bool(NUCEL), ucurve=list(fn.UCURVE),
+                       rows=rows.tolist(), errs=errs.tolist(),
+                       ks=np.asarray(ks).tolist(), err_ladder=np.asarray(err).tolist(),
+                       sF=np.asarray(sc["sF"]).tolist())
+            json.dump(out, open(os.path.join(RES, f"leg_{leg}_{func}{variant()}.json"),
+                                "w"), indent=1)
+    finally:
+        hb.set_use_h(was)
+        fn._scale_cache_load, fn._scale_cache_store = old_load, old_store
 
 
 def _plot(k, r, dmt, md):
@@ -703,6 +978,9 @@ def _plot(k, r, dmt, md):
     cnt, _ = np.histogram(v, edges)
     cdf = np.concatenate([[0.0], np.cumsum(0.5 * (dens[1:] + dens[:-1]) * np.diff(x))])
     mbin = np.diff(np.interp(edges, x, cdf)) / np.diff(edges)
+    # FFT ringing can leave the far-tail bins of the model at or below zero;
+    # they carry no model prediction to draw or to divide by
+    mbin = np.where(mbin > 0, mbin, np.nan)
     fig, ax, rax = rp.make_ratio_fig()
     ctr_ = 0.5 * (edges[1:] + edges[:-1])
     w = np.diff(edges)
@@ -710,35 +988,55 @@ def _plot(k, r, dmt, md):
                 ms=3, color="black", label=f"Geant4, {len(v)} pairs")
     ax.plot(ctr_, mbin, color="tab:red", lw=1.5, label="model (CF product)")
     ax.set_yscale("log")
-    ax.set_ylim(top=30 * float(np.max(mbin)))
+    ax.set_ylim(top=30 * float(np.nanmax(mbin)))
     ax.set_ylabel("density [1/MeV]")
     ax.legend(loc="upper left", fontsize="small", title_fontsize="small",
-              title=f"$J/\\psi$ vertex mass from plane {k} (r = {r:.1f} cm)")
+              title=f"${DEC['tex']}$ vertex mass from plane {k} (r = {r:.1f} cm)"
+                    + (", elastic on" if rc.ARM == "elonly" else ""))
     rp.draw_ratio(rax, edges, cnt, mbin, len(v), ylabel="sim / model",
-                  xlabel=r"$m - m_{J/\psi}$ [MeV]")
-    d = pubhtml.figdir("ditrack_cleanprop")
+                  xlabel=f"$m - m_{{{DEC['tex']}}}$ [MeV]")
+    d = pubhtml.figdir(DEC["fig"])
     os.makedirs(d, exist_ok=True)
     pubhtml.savefig(fig, os.path.join(d, f"vertexmass{variant()}_plane{k:02d}.pdf"))
     import matplotlib.pyplot as plt
     plt.close(fig)
 
 
+SUMMARY_RUNS = {
+    # J/psi: the linear, independent-channel model against the knock-on one
+    "jpsi": [("linear model", "ditrack_closure.json", "0.55", "o"),
+             ("knock-on joint law + exact 1/p", "ditrack_closure_kj1_qx1.json",
+              "tab:red", "s")],
+    # hadrons: the clean arm, and the elastic arm with the prediction's
+    # elastic channel off and on
+    "hadron": [("clean sim (no nuclear)", "ditrack_closure_kj1_qx1.json",
+                "0.45", "o"),
+               ("elastic sim, model without elastic",
+                "ditrack_closure_elonly_nucel0_mat_kj1_qx1.json", "tab:blue", "^"),
+               ("elastic sim, elastic channel, angle and recoil independent",
+                "ditrack_closure_elonly_nucel1_nojoint_mat_kj1_qx1.json", "tab:red", "s"),
+               ("elastic sim, elastic channel (joint angle-recoil law)",
+                "ditrack_closure_elonly_nucel1_mat_kj1_qx1.json", "tab:green", "D")],
+}
+
+
 def cmd_summary(args):
-    """Per-plane summary figures, one file per panel: the linear,
-    independent-channel model (baseline) against the knock-on-corrected one
-    (both cf_knockon switches on), from the JSON files `closure` wrote."""
+    """Per-plane summary figures, one file per panel, from the JSON files
+    `closure` wrote for the configured decay (SUMMARY_RUNS)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import pubhtml
-    runs = [("linear model", "ditrack_closure.json", "0.55", "o"),
-            ("knock-on joint law + exact 1/p", "ditrack_closure_kj1_qx1.json",
-             "tab:red", "s")]
+    runs = SUMMARY_RUNS["jpsi" if DECAY == "jpsi" else "hadron"]
+    he = hb._canonical().H_ELOSS
+    if he != 1.0:
+        runs = [(lab, f.replace(".json", f"_hel{he:g}.json"), c, m)
+                for lab, f, c, m in runs]
     runs = [(lab, json.load(open(os.path.join(RES, f))), c, m)
             for lab, f, c, m in runs if os.path.exists(os.path.join(RES, f))]
     u = list(runs[0][1]["config"]["ucurve"])
     iu, i3 = u.index(1.0), u.index(0.001)
-    d = pubhtml.figdir("ditrack_cleanprop")
+    d = pubhtml.figdir(DEC["fig"])
     os.makedirs(d, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -750,9 +1048,11 @@ def cmd_summary(args):
                     fmt=m, color=c, label=lab)
     ax.set_xlabel("radius of the plane [cm]")
     ax.set_ylabel(r"$\langle e^{-uz^2}\rangle_{sim} - \langle e^{-uz^2}\rangle_{model}$, u = 1")
-    ax.set_title(r"$J/\psi$ vertex mass from one plane: shape", fontsize="medium")
-    ax.set_ylim(-0.002, 0.006)
-    ax.legend(fontsize="small", loc="upper right")
+    ax.set_title(f"${DEC['tex']}$ vertex mass from one plane: shape",
+                 fontsize="medium")
+    if DECAY == "jpsi":
+        ax.set_ylim(-0.002, 0.006)
+    ax.legend(fontsize="small", loc="best")
     pubhtml.savefig(fig, os.path.join(d, "summary_shape_u1.pdf"))
     plt.close(fig)
 
@@ -773,9 +1073,9 @@ def cmd_summary(args):
             ax.errorbar(r, y, e, fmt=m, color=c, label=lab)
         ax.set_xlabel("radius of the plane [cm]")
         ax.set_ylabel(r"sim $-$ model [MeV]")
-        ax.set_title(r"$J/\psi$ vertex mass from one plane: location, " + title,
-                     fontsize="medium")
-        ax.legend(fontsize="small", loc=loc)
+        ax.set_title(f"${DEC['tex']}$ vertex mass from one plane: location, "
+                     + title, fontsize="medium")
+        ax.legend(fontsize="small", loc=loc if DECAY == "jpsi" else "best")
         pubhtml.savefig(fig, os.path.join(d, f"summary_location_{tag}_MeV.pdf"))
         plt.close(fig)
     print(f"-> {d}")
@@ -784,11 +1084,18 @@ def cmd_summary(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--decay", default="jpsi", choices=sorted(DECAYS))
+    ap.add_argument("--arm", default="off", choices=sorted(hp.ARMS),
+                    help="Geant4 process set of BOTH legs' sims (hadron_probe.ARMS); "
+                         "`elonly` = hadElastic ON, inelastic and Decay OFF")
+    ap.add_argument("--model-tag", default="",
+                    help="the old leg's model-file suffix (`_mat`: the export with "
+                         "the per-step material table the elastic channel needs)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("setup").set_defaults(f=cmd_setup)
     s = sub.add_parser("sim")
     s.add_argument("--events", type=int, default=rc.NEV)
-    s.add_argument("--jobs", type=int, default=len(SEEDS_P))
+    s.add_argument("--jobs", type=int, default=10)
     s.add_argument("--workers", type=int, default=10)
     s.add_argument("--force", action="store_true")
     s.set_defaults(f=cmd_sim)
@@ -802,9 +1109,26 @@ def main():
     s = sub.add_parser("closure")
     s.add_argument("--planes", type=int, nargs="*", default=None)
     s.add_argument("--plot", type=int, nargs="*", default=[0, 9, 18])
+    s.add_argument("--nucel", action="store_true",
+                   help="nuclear-elastic channel (recoil, per-element targets) "
+                        "ON in the prediction")
+    s.add_argument("--only", default=None,
+                   help="one leg's share of the mass direction (the other "
+                        "leg's weights set to zero)")
     s.set_defaults(f=cmd_closure)
     sub.add_parser("summary").set_defaults(f=cmd_summary)
+    sub.add_parser("recentre").set_defaults(f=cmd_recentre)
+    s = sub.add_parser("legclosure")
+    s.add_argument("--leg", default=None, help="leg key; default the new leg")
+    s.add_argument("--funcs", nargs="+", default=list(rc.FUNCS))
+    s.add_argument("--nucel", action="store_true")
+    s.set_defaults(f=cmd_legclosure)
     a = ap.parse_args()
+    global NUCEL
+    configure(a.decay)
+    rc.ARM = a.arm
+    rc.MODEL_TAG = a.model_tag
+    NUCEL = bool(getattr(a, "nucel", False))
     a.f(a)
 
 

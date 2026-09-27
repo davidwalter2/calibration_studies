@@ -98,7 +98,19 @@ USE_H = False
 # describes a trajectory the export does not have.
 BFIELD = 3.8
 
-PHYSICS_GLOBALS = ("USE_H", "BFIELD")
+# H's ENERGY-LOSS TERM, as a scale on the exported `dEdxlast` (1.0: H exactly
+# as `curv2local` builds it).  The term couples the local q/p to the position:
+# a displaced track reaches a tilted plane after an extra path x_T tan(alpha)
+# and is charged the LAST step's dE/dx for it.  That assumes the medium around
+# the plane is uniform over the displacement.  A detector plane sits in a thin
+# sensor between parallel layers: a parallel-displaced track crosses the same
+# thicknesses up to the plane, and at mm displacements and large incidence the
+# extra path lies almost entirely OUTSIDE the 0.3 mm sensor -- so the term
+# over-states the q/p width (x2.1 at the outer planes of a pT = 0.8 GeV pion).
+# `set_h_eloss` sets it on both module views.
+H_ELOSS = float(os.environ.get("HBASIS_ELOSS", "1.0"))
+
+PHYSICS_GLOBALS = ("USE_H", "BFIELD", "H_ELOSS")
 # a PDG constant re-exported from curv2local for callers' convenience, not a
 # knob -- but it is a module-level uppercase float, so `barkas_probe guards`
 # requires it to be declared one way or the other
@@ -132,6 +144,23 @@ def set_use_h(v):
     _canonical().USE_H = v
     globals()["USE_H"] = v
     return v
+
+
+def set_h_eloss(v):
+    """Set `H_ELOSS` on BOTH views of this module and drop the a-vector cache
+    (it is keyed on the legs, not on this knob)."""
+    v = float(v)
+    _canonical().H_ELOSS = v
+    globals()["H_ELOSS"] = v
+    _canonical()._AVEC.clear()
+    return v
+
+
+def leg_H(legs, k, bfield, mass):
+    """`curv2local.leg_H` with the energy-loss term scaled by `H_ELOSS`."""
+    leg = legs[k]
+    return c2l.leg_H(legs, k, bfield=bfield, mass=mass,
+                     dedx=_canonical().H_ELOSS * leg.get("dEdxlast", 0.0))
 
 
 def _state():
@@ -227,7 +256,7 @@ def avecs(legs, func):
     i = LOCAL.index(func)
     out = []
     for k in range(n):
-        H, _ = c2l.leg_H(legs, k, bfield=bfield, mass=mass)
+        H, _ = leg_H(legs, k, bfield=bfield, mass=mass)
         out.append(np.ascontiguousarray(H[i, :]))
     A[key] = out
     return out

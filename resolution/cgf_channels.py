@@ -584,10 +584,10 @@ def collect_ms_steps(legs, k, avec, sigma):
 
 
 def collect_rad_steps(legs, k, avec, sigma):
-    """(recs, spec, vgrid, weights) for every radiative step feeding plane k,
-    with model_phi's leg-mean fallback when the radv and ioni logs differ in
-    length."""
-    _, A_ioni, _ = step_transports(legs, k)
+    """(recs, spec, vgrid, weights) for every radiative sub-step feeding
+    plane k, exactly as model_phi weights them (cf_propagation_test.rad_substeps),
+    q/p weights only: the q/p CGF this feeds has no angular argument."""
+    A_ms, _, A_ms_start = step_transports(legs, k)
     R, S, W = [], [], []
     vg = None
     for j in range(k + 1):
@@ -595,13 +595,10 @@ def collect_rad_steps(legs, k, avec, sigma):
         if leg.get("rad") is None or not len(leg["rad"]):
             continue
         vg = leg["radvgrid"]
-        q = np.sign(leg["refqop"]) or 1.0
-        w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
-        wr = w if len(w) == len(leg["rad"]) else np.full(len(leg["rad"]),
-                                                         np.mean(w))
-        R.append(leg["rad"])
-        S.append(leg["radspec"])
-        W.append(wr)
+        for recs, wr, _ in cpt.rad_substeps(leg, A_ms[j], A_ms_start[j], avec, sigma):
+            R.append(recs)
+            S.append(leg["radspec"])
+            W.append(wr)
     if not R:
         return None, None, None, np.zeros(0)
     return np.concatenate(R), np.concatenate(S), vg, np.concatenate(W)
@@ -856,13 +853,10 @@ def block_cf_exponent(legs, k, avec, sigma, tau, channels=("ioni", "ms", "rad"))
             S += ioni_step_exponent(st, 1.0, tau)
         if ("rad" in channels and leg.get("rad") is not None
                 and len(leg["rad"])):
-            q = np.sign(leg["refqop"]) or 1.0
-            w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
-            wr = (w if len(w) == len(leg["rad"])
-                  else np.full(len(leg["rad"]), np.mean(w)))
-            S += cf_brems_exact.rad_exponent(
-                tau, leg["rad"], leg["radspec"], leg["radvgrid"], weights=wr,
-                exact_qop=bool(cf_knockon.QOP_EXACT))
+            for recs, wr, wb in cpt.rad_substeps(leg, A_ms[j], A_ms_start[j], avec, sigma):
+                S += cf_brems_exact.rad_exponent(
+                    tau, recs, leg["radspec"], leg["radvgrid"], weights=wr,
+                    exact_qop=bool(cf_knockon.QOP_EXACT), bweights=wb)
         if "ms" in channels and len(leg["ms"]):
             wv = np.einsum("i,sij->sj", avec, A_ms[j])
             wv0 = np.einsum("i,sij->sj", avec, A_ms_start[j])
@@ -882,8 +876,8 @@ def block_cf_exponent(legs, k, avec, sigma, tau, channels=("ioni", "ms", "rad"))
                     w = weff0[s] + f * (weff[s] - weff0[s])
                     if w > 0.0:
                         S += cpt.KMS_SCALE * ms_step_exponent(rec, w, tau)
-        # --- nuclear elastic.  MUST stay in lockstep with the identical block
-        # in cf_propagation_test._model_phi_uncached: this function is what the
+        # --- nuclear elastic, through the SAME function the closure's
+        # model_phi calls (cf_nucel_exact.leg_exponent), because this is what the
         # FISHER scale 1/I is computed from, and sF is what DEFINES the u axis.
         # A channel present in one and absent from the other would leave sF
         # built from a 3-channel CF while the closure compares a 4-channel one
@@ -891,33 +885,9 @@ def block_cf_exponent(legs, k, avec, sigma, tau, channels=("ioni", "ms", "rad"))
         # It is therefore gated on NUCEL_CHANNEL alone and deliberately NOT on
         # the `channels` tuple, so the two sites cannot drift apart through a
         # caller that forgot to add "nucel" to its channel list.
-        if cf_nucel_exact.NUCEL_CHANNEL and len(leg["ms"]):
-            _pdg = cf_nucel_exact.pdg_from_leg(leg)
-            if _pdg is not None:
-                wv = np.einsum("i,sij->sj", avec, A_ms[j])
-                wv0 = np.einsum("i,sij->sj", avec, A_ms_start[j])
-                coslam = leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0
-
-                def _weffn(v):
-                    return np.sqrt(v[:, 1] ** 2
-                                   + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
-                weff, weff0 = _weffn(wv), _weffn(wv0)
-                _r = cf_nucel_exact.leg_rates(
-                    leg, _pdg, cf_nucel_exact.mass_of(_pdg), nsub=cpt.MS_NSUB)
-                if _r is not None:
-                    nrate, kidx, kernels = _r
-                    for s in range(len(leg["ms"])):
-                        if weff[s] <= 0.0 and weff0[s] <= 0.0:
-                            continue
-                        if nrate[s] <= 0.0:
-                            continue
-                        ugrid, gtab = kernels[kidx[s]]
-                        for i in range(max(cpt.MS_NSUB, 1)):
-                            f = (i + 0.5) / max(cpt.MS_NSUB, 1)
-                            w = weff0[s] + f * (weff[s] - weff0[s])
-                            if w > 0.0:
-                                S += cf_nucel_exact.nucel_step_exponent(
-                                    tau, nrate[s], ugrid, gtab, w)
+        if cf_nucel_exact.NUCEL_CHANNEL:
+            cf_nucel_exact.leg_exponent(S, leg, A_ms[j], A_ms_start[j], A_ioni[j],
+                                        avec, sigma, tau, cpt.MS_NSUB)
     return S
 
 
@@ -937,7 +907,11 @@ def tau_reach(legs, k, avec, sigma, channels=("ioni", "ms", "rad"),
     radiative channel is 20-80 % of the ionization one and the CF decays
     differently.
     """
-    key = (k, tuple(channels), float(lncut), float(sigma))
+    # the key names the LEGS and the DIRECTION as well: two legs (a ditrack)
+    # or two functionals at the same plane and sigma are different blocks,
+    # and a key without them serves one block's reach to the other
+    key = (id(legs), k, np.asarray(avec, dtype=np.float64).tobytes(),
+           tuple(channels), float(lncut), float(sigma))
     if key in _REACH_CACHE:
         return _REACH_CACHE[key]
     t = np.geomspace(lo, hi, n)

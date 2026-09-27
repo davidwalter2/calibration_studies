@@ -85,12 +85,30 @@ def load_toy_sim(path, origin, normal, uaxis):
     # nev short ones. Bit-identical to the loop on hsK1 (100k events).
     nper = np.fromiter((len(d) for d in a["detid"]), dtype=np.int64, count=nev)
     ev = np.repeat(np.arange(nev, dtype=np.int64), nper)
+    nrepeat = 0
     if len(ev):
         idx = np.concatenate([np.asarray(d, dtype=int) for d in a["detid"]])
+        # THE FIRST CROSSING OF A PLANE IS ITS STATE.  The watcher records every
+        # crossing of a scored shell in step order, so a primary that comes
+        # back in -- a pT = 0.8 GeV pion curls with a 1.40 m diameter and
+        # re-crosses the outer shells in ~70 % of events, a large-angle elastic
+        # kick does it in ~1e-4 -- writes a second, INWARD record for the same
+        # (event, plane).  Assigned with repeated indices the last record would
+        # win; keep the first (outgoing) one instead.
+        key = ev * nlayer + idx
+        _, first = np.unique(key, return_index=True)
+        if len(first) != len(key):
+            nrepeat = len(key) - len(first)
+            first.sort()
+            ev, idx = ev[first], idx[first]
+            sel = first
+        else:
+            sel = None
 
         def _cat(name):
-            return np.concatenate([np.asarray(v, dtype=np.float64)
-                                   for v in a[name]])
+            v = np.concatenate([np.asarray(x, dtype=np.float64)
+                                for x in a[name]])
+            return v if sel is None else v[sel]
 
         pos = np.stack([_cat(c) for c in ("globx", "globy", "globz")], axis=1)
         mom = np.stack([_cat(c) for c in ("globpx", "globpy", "globpz")],
@@ -111,6 +129,7 @@ def load_toy_sim(path, origin, normal, uaxis):
         valid[ev, idx] = True
 
     out["valid"] = valid
+    out["nrepeat"] = nrepeat      # re-crossing records dropped (first kept)
     out["ntot"] = nev
     out["nkept"] = int(valid.all(axis=1).sum())
     out["detid"] = np.arange(nlayer, dtype=np.uint32)

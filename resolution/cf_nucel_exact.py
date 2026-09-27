@@ -120,9 +120,29 @@ NUCEL_RECOIL = bool(int(os.environ.get("NUCEL_RECOIL", "1")))
 # fall back to the rounded element, bit for bit.  Set NUCEL_ELEMENTS=0 to A/B.
 NUCEL_ELEMENTS = bool(int(os.environ.get("NUCEL_ELEMENTS", "1")))
 
-PHYSICS_GLOBALS = ("NUCEL_CHANNEL", "NUCEL_RECOIL", "NUCEL_ELEMENTS")
+# THE JOINT LAW OF ONE ELASTIC COLLISION.  The angular and recoil families
+# above are independent compound Poissons, but each collision's recoil is a
+# function of its deflection (two-body kinematics: dE = (p theta)^2 / 2M on a
+# heavy nucleus to 1e-3; on HYDROGEN at 0.8 GeV the small-angle form is 10-36 %
+# off and a single collision turns a pion by ~37 deg and takes ~15 % of its
+# momentum).  Per collision the exact CF is E[J0(b theta) e^{i a X(dE)}]; the
+# model has E[J0(b theta)] + E[e^{i a dE}] - 1.  The difference,
+#
+#     dS = N sum_i W_i [ (J0(b th_i) - 1)(e^{i a X_i} - 1) + (e^{i a X_i} - e^{i a dE_i}) ]
+#
+# over the element-weighted (theta, dE) bins of the paired Geant4 samples, is
+# added per MS row (b: the row's angular weight at the step midpoint, a: the
+# recoil weight).  X = dE, or the exact 1/p map T_eff(dE) when
+# cf_knockon.QOP_EXACT is on (the second bracket is then the recoil's own map
+# correction; it vanishes for X = dE).  Needs NUCEL_RECOIL.  DEFAULT ON: the
+# collision is one event (Lambda ditrack: even probes > 3 sigma 107 -> 71 of
+# 171, the clean arm's level; K_S unchanged).
+NUCEL_JOINT = bool(int(os.environ.get("NUCEL_JOINT", "1")))
+
+PHYSICS_GLOBALS = ("NUCEL_CHANNEL", "NUCEL_RECOIL", "NUCEL_ELEMENTS",
+                   "NUCEL_JOINT")
 _NOT_PHYSICS = ("NUCEL_NSAMP", "NUCEL_SEED", "NUCEL_NU", "NUCEL_UMIN",
-                "NUCEL_UMAX", "NUCEL_NBIN")
+                "NUCEL_UMAX", "NUCEL_NBIN", "NUCEL_JBIN", "NUCEL_JSHARE")
 
 # sampling/tabulation knobs -- resolution of the numerics, not physics
 NUCEL_NSAMP = int(os.environ.get("NUCEL_NSAMP", "2000000"))
@@ -131,6 +151,10 @@ NUCEL_NU = 4000          # points in the log-u kernel table
 NUCEL_NBIN = 100000      # log-theta bins used to quadrature the sampled kernel
 NUCEL_UMIN = 1e-4        # below this J0 -> 1 to double precision for our thetas
 NUCEL_UMAX = 1e9
+NUCEL_JBIN = 200         # log-theta bins per element in the joint (theta, dE) table
+NUCEL_JSHARE = 1e-5      # elements below this share of a material's rate are dropped
+                         # from its joint table (trace elements; the families keep them)
+_TABLE_VERSION = 1       # bump when a persisted table's construction changes
 
 
 def physics_state():
@@ -302,6 +326,276 @@ def warm(legs):
             dE_step_kernels(leg, pdg)
 
 
+# --------------------------------------------------------------------------
+# persisted tabulations.  Tabulating one bucket's angular kernel is 4e8 J0
+# evaluations (~20 s); a leg set needs ~200 buckets per species, so a closure
+# spent ~70 min per species rebuilding tables that depend only on the bucket
+# and the grid.  They are written next to the driver samples, keyed by the
+# bucket's sample tag and every grid parameter, and published atomically.
+# --------------------------------------------------------------------------
+
+def _bucket_tag(pdg, Z, A, ekin):
+    return hashlib.sha256(repr((_bucket(pdg, Z, A, ekin), NUCEL_NSAMP,
+                                NUCEL_SEED)).encode()).hexdigest()[:16]
+
+
+def _table_path(kind, pdg, Z, A, ekin, grid):
+    gtag = hashlib.sha256(repr((kind, grid, _TABLE_VERSION)).encode()).hexdigest()[:8]
+    return os.path.join(_cachedir(), f"{kind}_{_bucket_tag(pdg, Z, A, ekin)}_{gtag}.npz")
+
+
+def _table_load(path, names):
+    if not os.path.exists(path):
+        return None
+    try:
+        d = np.load(path)
+        return tuple(d[n] for n in names)
+    except Exception:
+        return None
+
+
+def _table_store(path, **arrays):
+    tmp = f"{path}.tmp{os.getpid()}.npz"
+    np.savez(tmp, **arrays)
+    os.replace(tmp, path)
+
+
+def _paired_samples(pdg, Z, A, ekin):
+    """(theta [rad], dE [MeV]) of the SAME collisions: the driver writes both
+    per sample in one run; a prefix is used only when both files are there and
+    have equal length.  Without a pair the driver is rerun (same seed, so the
+    samples are the ones the cached kernels were built from)."""
+    import glob as _g
+    tag = _bucket_tag(pdg, Z, A, ekin)
+    for th in sorted(_g.glob(os.path.join(_cachedir(), f"drv_{tag}_*.theta.bin"))):
+        el = th[:-len(".theta.bin")] + ".eloss.bin"
+        if os.path.exists(el) and os.path.getsize(el) == os.path.getsize(th):
+            return np.fromfile(th, dtype=np.float64), np.fromfile(el, dtype=np.float64)
+    npz = os.path.join(_cachedir(), f"nucel_{tag}.npz")
+    with open(npz + ".lock", "w") as lf:
+        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+        prefix = os.path.join(_cachedir(), f"drv_{tag}_{os.getpid()}")
+        cmd = [_driver(), "--pdg", "%d" % int(pdg), "--Z", "%.17g" % float(Z),
+               "--A", "%.17g" % float(A), "--rho", "%.17g" % float(_REF_RHO),
+               "--ekin", "%.17g" % float(ekin), "--len", "%.17g" % float(_REF_LEN),
+               "--n", "%d" % int(NUCEL_NSAMP), "--seed", "%d" % int(NUCEL_SEED),
+               "--out", prefix]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise SystemExit(f"nucel_g4driver failed for the paired samples of "
+                             f"{(pdg, Z, A, ekin)}:\n{r.stderr[-2000:]}")
+    return (np.fromfile(prefix + ".theta.bin", dtype=np.float64),
+            np.fromfile(prefix + ".eloss.bin", dtype=np.float64))
+
+
+_EJ_CACHE = {}
+
+
+def element_joint(pdg, Z, A, ekin):
+    """(theta, dE, w) of one bucket on NUCEL_JBIN log-theta bins: the bin's
+    mean deflection, its mean recoil, and its share of ALL collisions (zero
+    deflections carry no joint term and are left out of the bins, not of the
+    normalisation).  Elastic two-body kinematics makes dE one-to-one in theta,
+    so the per-bin mean is the exact relation up to the bin width."""
+    key = _bucket(pdg, Z, A, ekin)
+    hit = _EJ_CACHE.get(key)
+    if hit is not None:
+        return hit
+    kf = _table_path("joint", pdg, Z, A, ekin, (NUCEL_JBIN,))
+    got = _table_load(kf, ("theta", "dE", "w"))
+    if got is None:
+        th, dE = _paired_samples(pdg, Z, A, ekin)
+        pos = th > 0.0
+        t, e = th[pos], dE[pos]
+        edges = np.geomspace(t.min(), t.max() * (1.0 + 1e-12), NUCEL_JBIN + 1)
+        idx = np.clip(np.searchsorted(edges, t, side="right") - 1, 0, NUCEL_JBIN - 1)
+        cnt = np.bincount(idx, minlength=NUCEL_JBIN).astype(np.float64)
+        st = np.bincount(idx, weights=t, minlength=NUCEL_JBIN)
+        se = np.bincount(idx, weights=e, minlength=NUCEL_JBIN)
+        m = cnt > 0
+        got = (st[m] / cnt[m], se[m] / cnt[m], cnt[m] / float(th.size))
+        _table_store(kf, theta=got[0], dE=got[1], w=got[2])
+    _EJ_CACHE[key] = got
+    return got
+
+
+_MJ_CACHE = {}
+
+
+def material_joint(pdg, comp, ekin):
+    """(theta, dE, W) of a compound: its elements' joint bins, each weighted by
+    the element's share w_i mu_i / sum_j w_j mu_j of the collisions (the
+    mixture `material_kernel` uses); elements below NUCEL_JSHARE are dropped."""
+    key = (int(pdg), comp, float(f"{float(ekin):.4g}"))
+    hit = _MJ_CACHE.get(key)
+    if hit is not None:
+        return hit
+    rates = []
+    for z, a, w in comp:
+        mu, _ = _run_driver(pdg, z, a, ekin)
+        rates.append(w * mu)
+    tot = float(sum(rates))
+    if tot <= 0.0:
+        _MJ_CACHE[key] = None
+        return None
+    th, de, ww = [], [], []
+    for (z, a, w), r in zip(comp, rates):
+        if r / tot < NUCEL_JSHARE:
+            continue
+        t, e, f = element_joint(pdg, z, a, ekin)
+        th.append(t)
+        de.append(e)
+        ww.append(f * (r / tot))
+    out = (np.concatenate(th), np.concatenate(de), np.concatenate(ww))
+    _MJ_CACHE[key] = out
+    return out
+
+
+def joint_exponent(tau, nrate, jt, w, wq, E=None, p=None, chunk=2048):
+    """The per-collision joint correction of one MS row (see NUCEL_JOINT):
+    nrate * sum_i W_i [(J0(t w th_i) - 1)(e^{i t wq X_i} - 1) + (e^{i t wq X_i}
+    - e^{i t wq dE_i})], with X = T_eff(dE) when cf_knockon.QOP_EXACT and the
+    row's (E, p) [GeV] are given, else X = dE.  `wq` is the signed recoil weight
+    [z per MeV] of the recoil family, `w` the row's angular weight."""
+    tau = np.asarray(tau, dtype=np.float64)
+    out = np.zeros(len(tau), dtype=np.complex128)
+    if jt is None or nrate <= 0.0 or (w <= 0.0 and wq == 0.0):
+        return out
+    th, dE, W = jt
+    X = dE
+    exact = False
+    if E is not None and p is not None:
+        import cf_knockon as _ck
+        if _ck.QOP_EXACT:
+            X = _ck.t_eff(dE, 1e3 * E, 1e3 * p)
+            exact = True
+    for lo in range(0, len(tau), chunk):
+        t = tau[lo:lo + chunk][:, None]
+        jm1 = j0(t * (w * th)[None, :]) - 1.0
+        yx = t * (wq * X)[None, :]
+        term = jm1 * np.expm1(1j * yx)
+        if exact:
+            term = term + (np.exp(1j * yx) - np.exp(1j * t * (wq * dE)[None, :]))
+        out[lo:lo + chunk] = nrate * (term @ W)
+    return out
+
+
+def leg_exponent(S, leg, A_ms, A_ms_start, A_ioni, avec, sigma, tau, nsub):
+    """THE nuclear-elastic exponent of one leg, accumulated INTO `S` in place:
+    the angular family (per MS row, NSUB sub-steps on the MS channel's own
+    weights), the recoil family (NUCEL_RECOIL; per row's material, the leg-mean
+    ionisation weight) and the joint correction (NUCEL_JOINT).  The one place
+    both CF builders call -- `cf_propagation_test.model_phi` (the closure) and
+    `cgf_channels.block_cf_exponent` (the Fisher scale, which defines the u
+    axis) -- so the two cannot drift apart.  In-place accumulation keeps the
+    closure's floating-point summation order, i.e. bit-identity with the code
+    this replaced."""
+    if not NUCEL_CHANNEL or not len(leg["ms"]):
+        return S
+    pdg = pdg_from_leg(leg)
+    if pdg is None:
+        return S
+    wv = np.einsum("i,sij->sj", avec, A_ms)
+    wv0 = np.einsum("i,sij->sj", avec, A_ms_start)
+    coslam = leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0
+
+    def _weffn(v):
+        return np.sqrt(v[:, 1] ** 2 + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
+    weff, weff0 = _weffn(wv), _weffn(wv0)
+    r = leg_rates(leg, pdg, mass_of(pdg), nsub=nsub)
+    if r is None:
+        return S
+    nrate, kidx, kernels = r
+    ns = max(int(nsub), 1)
+    for s in range(len(leg["ms"])):
+        if weff[s] <= 0.0 and weff0[s] <= 0.0:
+            continue
+        if nrate[s] <= 0.0:
+            continue
+        ugrid, gtab = kernels[kidx[s]]
+        for i in range(ns):
+            f = (i + 0.5) / ns
+            w = weff0[s] + f * (weff[s] - weff0[s])
+            if w > 0.0:
+                S += nucel_step_exponent(tau, nrate[s], ugrid, gtab, w)
+    if not (NUCEL_RECOIL and len(leg["ioni"])):
+        return S
+    # The ionization and Moliere step lists are NOT parallel, so they cannot be
+    # paired by index -- the recoil takes the leg-mean ionisation weight, as
+    # the radiative channel does when the counts differ.  Column 10 of the
+    # ionization record is qop per GeV (the 1e-3: per MeV of recoil).
+    qsgn = np.sign(leg["refqop"]) or 1.0
+    wq_all = qsgn * np.einsum("i,sij->sj", avec, A_ioni)[:, 0] / sigma
+    cs_all = np.asarray(leg["ioni"])[:, 10] * 1e-3
+    wq_eff = float(np.mean(wq_all * cs_all)) \
+        if len(wq_all) == len(cs_all) \
+        else float(np.mean(wq_all) * np.mean(cs_all))
+    dkidx, dkern = dE_step_kernels(leg, pdg)
+    for s in range(len(nrate)):
+        if nrate[s] <= 0.0:
+            continue
+        vg, gq = dkern[dkidx[s]]
+        S += nucel_qop_exponent(tau, nrate[s] * ns, vg, gq, wq_eff)
+    if NUCEL_JOINT and _has_composition(leg):
+        ms = np.asarray(leg["ms"])
+        m = mass_of(pdg)
+        p0 = float(ms[0, 3])
+        ekin = (np.sqrt(p0 * p0 + m * m) - m) * 1e3
+        for s in range(len(nrate)):
+            if nrate[s] <= 0.0:
+                continue
+            comp = step_composition(leg, s)
+            jt = material_joint(pdg, comp, ekin) if comp else None
+            ps = float(ms[s, 3])
+            S += joint_exponent(tau, nrate[s] * ns, jt, 0.5 * (weff[s] + weff0[s]),
+                                wq_eff, np.sqrt(ps * ps + m * m), ps)
+    return S
+
+
+def prewarm(legs_list, nproc=None):
+    """Tabulate, in a forked pool, every bucket these legs need -- angular
+    kernel, recoil kernel (NUCEL_RECOIL), joint table (NUCEL_JOINT) -- so the
+    persisted tables are there before `warm` runs serially in the parent.
+    Only buckets whose driver samples are cached are farmed out; a missing
+    sample set is left to `warm`, which holds the per-bucket lock."""
+    if not NUCEL_CHANNEL:
+        return 0
+    jobs = set()
+    for legs in legs_list:
+        for leg in legs:
+            ms = np.asarray(leg["ms"])
+            if not len(ms):
+                continue
+            pdg = pdg_from_leg(leg)
+            if pdg is None:
+                continue
+            m = mass_of(pdg)
+            p_ = float(ms[0, 3])
+            ekin = (np.sqrt(p_ * p_ + m * m) - m) * 1e3
+            if _has_composition(leg):
+                for s in range(len(ms)):
+                    for z, a, _ in step_composition(leg, s):
+                        jobs.add((int(pdg), z, a, float(ekin)))
+    jobs = sorted(j for j in jobs if os.path.exists(
+        os.path.join(_cachedir(), f"nucel_{_bucket_tag(*j)}.npz")))
+    if not jobs:
+        return 0
+    import multiprocessing as mp
+    n = nproc or min(len(jobs), max(1, len(os.sched_getaffinity(0)) // 2))
+    with mp.get_context("fork").Pool(processes=n) as pool:
+        pool.map(_prewarm_one, jobs, chunksize=1)
+    return len(jobs)
+
+
+def _prewarm_one(job):
+    pdg, z, a, ekin = job
+    species_kernel(pdg, z, a, ekin)
+    if NUCEL_RECOIL:
+        dE_kernel(pdg, z, a, ekin)
+    if NUCEL_JOINT:
+        element_joint(pdg, z, a, ekin)
+
+
 _KERNEL_CACHE = {}
 
 
@@ -320,6 +614,13 @@ def species_kernel(pdg, Z, A, ekin):
     hit = _KERNEL_CACHE.get(key)
     if hit is not None:
         return hit
+    kf = _table_path("kern", pdg, Z, A, ekin,
+                     (NUCEL_NU, NUCEL_NBIN, NUCEL_UMIN, NUCEL_UMAX))
+    got = _table_load(kf, ("mu", "u", "g"))
+    if got is not None:
+        out = (float(got[0]), got[1], got[2])
+        _KERNEL_CACHE[key] = out
+        return out
     mu, theta = _run_driver(pdg, Z, A, ekin)
     u = np.concatenate(([0.0], np.geomspace(NUCEL_UMIN, NUCEL_UMAX, NUCEL_NU)))
     # g(u) = <J0(u*theta)> over the SAMPLED deflections, evaluated as a
@@ -348,6 +649,7 @@ def species_kernel(pdg, Z, A, ekin):
     # exactly-zero deflections contribute J0(0) = 1 at every u
     g += nzero / float(theta.size)
     out = (mu, u, g)
+    _table_store(kf, mu=mu, u=u, g=g)
     _KERNEL_CACHE[key] = out
     return out
 
@@ -364,6 +666,12 @@ def dE_kernel(pdg, Z, A, ekin):
     hit = _DEK_CACHE.get(key)
     if hit is not None:
         return hit
+    kf = _table_path("dek", pdg, Z, A, ekin, (NUCEL_NU, NUCEL_NBIN))
+    got = _table_load(kf, ("v", "g"))
+    if got is not None:
+        out = (got[0], got[1])
+        _DEK_CACHE[key] = out
+        return out
     _, theta = _run_driver(pdg, Z, A, ekin)
     prefix = None
     # the driver writes eloss alongside theta; recover it from the same bucket
@@ -389,6 +697,7 @@ def dE_kernel(pdg, Z, A, ekin):
         g[i0:i0 + CH] = (np.exp(1j * vv[:, None] * ctr[None, :]) * wgt[None, :]).sum(axis=1)
     g += nz / float(dE.size)
     out = (v, g)
+    _table_store(kf, v=v, g=g)
     _DEK_CACHE[key] = out
     return out
 

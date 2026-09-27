@@ -102,11 +102,17 @@ MS_NSUB = 4       # sub-step quadrature of the MS kick; 1 = point-like
 # with CVH_IONONLY=1 -- because the three are one convention, not three knobs
 # (toy_radoff.py, Documents/Resolution/NOTES_RADOFF.md).
 RAD_CHANNEL = True
+# The exported radiative spectrum (48 points, and 0 beyond each step's
+# kinematic endpoint) is refined RAD_NSUB-fold at LOAD time
+# (cf_brems_exact.refine_spectra): log-log between points, the last interval
+# continued to the endpoint.  Numerics, identical for every species; 4 is
+# converged to 1e-4 in the CF.  1 = the export grid as it is.
+RAD_NSUB = 4
 
 # The knob registry (see cf_track_resolution.PHYSICS_GLOBALS for why it
 # exists).  `_NOT_PHYSICS` names the globals that look like knobs and only
 # control chunking or cache capacity.
-PHYSICS_GLOBALS = ("KMS_SCALE", "MS_NSUB", "RAD_CHANNEL")
+PHYSICS_GLOBALS = ("KMS_SCALE", "MS_NSUB", "RAD_CHANNEL", "RAD_NSUB")
 _NOT_PHYSICS = ("ECF_CHUNK", "_PHI_CACHE_MAX")
 
 
@@ -475,6 +481,10 @@ def load_model(path):
                    if mattab is not None else None),
             mattab=mattab,
         ))
+        if (have_rad and RAD_NSUB > 1 and legs[-1]["rad"] is not None
+                and len(legs[-1]["rad"])):
+            legs[-1]["radvgrid"], legs[-1]["radspec"] = cf_brems_exact.refine_spectra(
+                legs[-1]["rad"], legs[-1]["radspec"], legs[-1]["radvgrid"], RAD_NSUB)
         if mattab is not None and len(legs[-1]["msmat"]) != len(legs[-1]["ms"]):
             raise RuntimeError(f"{path} leg {k}: {len(legs[-1]['msmat'])} "
                                f"material indices for {len(legs[-1]['ms'])} MS steps")
@@ -533,6 +543,34 @@ def step_transports(legs, k, ioni_start=False):
     if ioni_start:
         return A_ms, A_ioni, A_ms_start, A_ioni_start
     return A_ms, A_ioni, A_ms_start
+
+
+def rad_substeps(leg, A_ms_end, A_ms_start, avec, sigma):
+    """[(recs, q/p weights, angular weights)] of one leg's radiative channel,
+    one entry per sub-step.  The radiative records are aligned with the
+    SCATTERING log (Geant4ePropagator pushes them in lockstep with msmoliv),
+    so they take the scattering steps' transports, and the emission point is
+    uniform along the step exactly as a scattering kick's is: MS_NSUB
+    sub-steps at the centres of equal parts, transport interpolated linearly
+    between the step's start and end, each with 1/MS_NSUB of the step (its
+    length, hence its dN/dv normalisation).  The angular weight is the
+    scattering channel's |(lambda, phi/cos lambda)| weight: the primary's
+    recoil against the emitted photon is an isotropic 2D kick
+    (cf_brems_exact.rad_exponent)."""
+    q = np.sign(leg["refqop"]) or 1.0
+    w1 = np.einsum("i,sij->sj", avec, A_ms_end)
+    w0 = np.einsum("i,sij->sj", avec, A_ms_start)
+    coslam = max(leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0, 1e-3)
+    nsub = max(int(MS_NSUB), 1)
+    recs = np.array(leg["rad"], dtype=np.float64, copy=True)
+    recs[:, cf_brems_exact.R_STEPCM] /= nsub
+    out = []
+    for i in range(nsub):
+        f = (i + 0.5) / nsub
+        w = w0 + f * (w1 - w0)
+        out.append((recs, q * w[:, 0] / sigma,
+                    np.hypot(w[:, 1], w[:, 2] / coslam) / sigma))
+    return out
 
 
 def model_variance(legs, k, avec):
@@ -651,15 +689,10 @@ def _model_phi_uncached(legs, k, avec, sigma, tau):
         # radiative mean -- so only the fluctuation is being added here, with
         # no double counting of the mean.
         if RAD_CHANNEL and leg.get("rad") is not None and len(leg["rad"]):
-            q = np.sign(leg["refqop"]) or 1.0
-            w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
-            # rad records are aligned with the MOLIERE log, ioni weights with
-            # the ionization log; both are per-step, so reuse the ioni
-            # transport when the counts match and fall back to the leg mean.
-            wr = w if len(w) == len(leg["rad"]) else np.full(len(leg["rad"]), np.mean(w))
-            S += cf_brems_exact.rad_exponent(
-                tau, leg["rad"], leg["radspec"], leg["radvgrid"], weights=wr,
-                exact_qop=bool(cf_knockon.QOP_EXACT))
+            for recs, wr, wb in rad_substeps(leg, A_ms[j], A_ms_start[j], avec, sigma):
+                S += cf_brems_exact.rad_exponent(
+                    tau, recs, leg["radspec"], leg["radvgrid"], weights=wr,
+                    exact_qop=bool(cf_knockon.QOP_EXACT), bweights=wb)
         # --- multiple scattering: an isotropic 2D kick in (lambda, phi).
         # Measuring the azimuthal angle as phi*cos(lambda) makes the two
         # projected angles iid with variance thp2, so by azimuthal isotropy
@@ -704,62 +737,10 @@ def _model_phi_uncached(legs, k, avec, sigma, tau):
         # random point inside the step); only the per-kick kernel differs,
         # Moliere -> the G4 elastic sampler.  Hadrons only: the muon has no
         # such process and `pdg_from_leg` returns None for it.
-        if cf_nucel_exact.NUCEL_CHANNEL and len(leg["ms"]):
-            _pdg = cf_nucel_exact.pdg_from_leg(leg)
-            if _pdg is not None:
-                wv = np.einsum("i,sij->sj", avec, A_ms[j])
-                wv0 = np.einsum("i,sij->sj", avec, A_ms_start[j])
-                coslam = leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0
-
-                def _weffn(v):
-                    return np.sqrt(v[:, 1] ** 2
-                                   + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
-                weff, weff0 = _weffn(wv), _weffn(wv0)
-                _r = cf_nucel_exact.leg_rates(
-                    leg, _pdg, cf_nucel_exact.mass_of(_pdg), nsub=MS_NSUB)
-                if _r is not None:
-                    nrate, kidx, kernels = _r
-                    for s in range(len(leg["ms"])):
-                        if weff[s] <= 0.0 and weff0[s] <= 0.0:
-                            continue
-                        if nrate[s] <= 0.0:
-                            continue
-                        ugrid, gtab = kernels[kidx[s]]
-                        for i in range(max(MS_NSUB, 1)):
-                            f = (i + 0.5) / max(MS_NSUB, 1)
-                            w = weff0[s] + f * (weff[s] - weff0[s])
-                            if w > 0.0:
-                                S += cf_nucel_exact.nucel_step_exponent(
-                                    tau, nrate[s], ugrid, gtab, w)
-                    # the RECOIL, diagnostic (NUCEL_RECOIL, default off).  Same
-                    # compound Poisson, but in the qop direction and with the
-                    # ionization channel's own weight and cs conversion.
-                    if cf_nucel_exact.NUCEL_RECOIL and len(leg["ioni"]):
-                        # The ionization and Moliere step lists are NOT
-                        # parallel (leg 13: 2 vs 15), so they cannot be paired
-                        # by index -- use the leg-mean weight, exactly as the
-                        # radiative channel falls back to when the counts
-                        # differ.  The 1e-3 is the record's own unit: column 10
-                        # is qop per GeV and ioni_step_exponent converts it
-                        # with `steps[:, 10] * 1e-3  # qop per MeV`; the
-                        # sampled dE is in MeV.
-                        qsgn = np.sign(leg["refqop"]) or 1.0
-                        wq_all = qsgn * np.einsum(
-                            "i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
-                        cs_all = np.asarray(leg["ioni"])[:, 10] * 1e-3
-                        wq_eff = float(np.mean(wq_all * cs_all)) \
-                            if len(wq_all) == len(cs_all) \
-                            else float(np.mean(wq_all) * np.mean(cs_all))
-                        # one recoil kernel per step's MATERIAL (per-element
-                        # mixture when the export carries the material table;
-                        # otherwise the leg's dominant target on every step)
-                        dkidx, dkern = cf_nucel_exact.dE_step_kernels(leg, _pdg)
-                        for s in range(len(nrate)):
-                            if nrate[s] <= 0.0:
-                                continue
-                            vg, gq = dkern[dkidx[s]]
-                            S += cf_nucel_exact.nucel_qop_exponent(
-                                tau, nrate[s] * max(MS_NSUB, 1), vg, gq, wq_eff)
+        # (the whole nuclear-elastic channel: angle, recoil, joint -- shared
+        # with cgf_channels.block_cf_exponent, see cf_nucel_exact.leg_exponent)
+        cf_nucel_exact.leg_exponent(S, leg, A_ms[j], A_ms_start[j], A_ioni[j],
+                                    avec, sigma, tau, MS_NSUB)
     return np.exp(S)
 
 

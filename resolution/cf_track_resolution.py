@@ -574,6 +574,9 @@ def a3_gauge_exc_scale(steps, f_a3):
     a1, e1 = steps[:, 2], steps[:, 3] * gam
     a2, e2 = steps[:, 4], steps[:, 5] * gam
     a3, e0, tmx = steps[:, 6], steps[:, 7] * gam, steps[:, 8] * gam
+    if np.isin(reg, (4, 5)).any():
+        raise ValueError("a3 gauge: regime 4/5 (e+- Moller/Bhabha) records "
+                         "have no closed-form channel mean here")
     m = (reg != 0) & (a3 > 0) & (tmx > e0) & (e0 > 0)
     m1 = m & (reg != 2) & (reg != 3)
     m2 = m & ((reg == 2) | (reg == 3))
@@ -687,9 +690,11 @@ def ioni_step_exponent(steps, wstd, tau):
         # can never be read as a regime-1 one.
         regmu = reg[mu]
         ex = (regmu == 2) | (regmu == 3)
+        # regime 4/5: the e+- Moller/Bhabha law (cf_knockon.law_rate)
+        ep = (regmu == 4) | (regmu == 5)
         act = (a3 > 0.) & (tmax > e0) & (e0 > 0.)
-        if (act & ~ex).any():
-            m = act & ~ex
+        if (act & ~ex & ~ep).any():
+            m = act & ~ex & ~ep
             aarg = (gsu[m] * e0[m])[:, None] * tau[None, :]
             S += np.sum(a3[m][:, None] * _delta_term_2d(aarg, tmax[m] / e0[m]),
                         axis=0)
@@ -719,6 +724,18 @@ def ioni_step_exponent(steps, wstd, tau):
                         tmax[m], b2[m], et[m],
                         gsu[m][:, None] * tau[None, :],
                         nbin=IONI_KOKOULIN_NBIN, spinhalf=half)
+        if (act & ep).any():
+            if steps.shape[1] < 13:
+                raise ValueError("regime 4/5 record with stride 11: beta^2 and E "
+                                 "are not in the file")
+            import cf_knockon          # cf_knockon imports this module
+            tmx = steps[mu, 8] * gam * IONI_TMAX_SCALE
+            b2 = steps[mu, 11]
+            et = steps[mu, 12]
+            for j in np.flatnonzero(act & ep):
+                S += cf_knockon.law_base_exponent(
+                    a3[j] * gam[j], e0[j], tmx[j], b2[j], et[j], int(regmu[j]),
+                    gsu[j] * tau)
     return S
 
 

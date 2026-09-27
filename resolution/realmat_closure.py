@@ -98,7 +98,11 @@ import geom_closure as gc                                        # noqa: E402
 import hadron_probe as hp                                        # noqa: E402
 import hbasis as hb                                              # noqa: E402
 
-CMSSW = "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2"
+# REALMAT_CMSSW runs everything (drivers, geometry areas, libraries) from
+# another build of the same sources; the geometry areas must live under the
+# CMSSW_BASE of the runtime, so the area moves as a whole.
+CMSSW = os.environ.get("REALMAT_CMSSW",
+                       "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2")
 SRC = f"{CMSSW}/src"
 SRCTEST = f"{SRC}/Analysis/HitAnalyzer/test"
 SRCDATA = f"{SRC}/Analysis/HitAnalyzer/data"
@@ -180,9 +184,9 @@ def _gen_module():
     return m
 
 
-def _plane_body(radii, q, phi0=PHI):
+def _plane_body(radii, q, phi0=PHI, pt=PT):
     g = _gen_module()
-    org, nrm, uu = g.helix_frames(radii, PT, ETA, phi0, BFIELD, q)
+    org, nrm, uu = g.helix_frames(radii, pt, ETA, phi0, BFIELD, q)
     f = lambda v: ", ".join("%.6f" % x for x in v)          # noqa: E731
     # byte for byte gen_toy_realmat.py's writer, minus its header line
     return (f"radii = [{f(radii)}]\norigin = [{f(org)}]\n"
@@ -202,7 +206,15 @@ def _driver_sources():
                  'process.g4SimHits.Physics.DefaultCutValue = cms.double(\n'
                  '    float(os.environ.get("TOY_CUT", "1.0")))\n'
                  "print('[toy] DefaultCutValue = %g cm'\n"
-                 "      % process.g4SimHits.Physics.DefaultCutValue.value())",
+                 "      % process.g4SimHits.Physics.DefaultCutValue.value())\n"
+                 # e+-: keep the leading e+- the primary through hard brems
+                 # (CMS default 0.5 GeV kills it and continues a secondary)
+                 "process.g4SimHits.Physics.G4BremsstrahlungThreshold = "
+                 "cms.double(\n"
+                 '    float(os.environ.get("TOY_BREMTH", "10000.")))\n'
+                 "print('[toy] G4BremsstrahlungThreshold = %g GeV'\n"
+                 "      % process.g4SimHits.Physics.G4BremsstrahlungThreshold"
+                 ".value())",
                  "sim: production cut", flags=re.M)
     s = hp._sub1(s, r"^    output=cms\.string\(opts\.output\),\n\)\)$",
                  hp._HAD_BLOCK.rstrip("\n"), "sim: watcher block", flags=re.M)
@@ -546,8 +558,9 @@ def cell(pdg, func, useh=True, nucel=False, recoil=True):
 
 
 def _variant(nucel, recoil=True):
-    """File-name tag. The recoil sub-channel is part of the elastic channel's
-    default; only its OFF state (a diagnostic) is tagged.  The knock-on
+    """File-name tag. The recoil sub-channel and the joint angle-recoil law are
+    part of the elastic channel's default; only their OFF states (diagnostics)
+    are tagged, `_norecoil` / `_nojoint`.  The knock-on
     correction (cf_knockon) is tagged `_kj{0,1}_qx{0,1}` when either of its
     switches is on."""
     import cf_knockon as ck
@@ -556,6 +569,8 @@ def _variant(nucel, recoil=True):
     if ARM == "off" and not nucel and not MODEL_TAG:
         return kt
     v = f"_{ARM}_nucel{int(nucel)}" + ("" if (recoil or not nucel) else "_norecoil")
+    if nucel and not cne.NUCEL_JOINT:
+        v += "_nojoint"           # the elastic channel's joint law off (a diagnostic)
     v += MODEL_TAG
     if nucel and MODEL_TAG and not cne.NUCEL_ELEMENTS:
         v += "_noelem"            # table present but per-element targets off
