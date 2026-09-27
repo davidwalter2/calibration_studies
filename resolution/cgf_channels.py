@@ -836,10 +836,18 @@ def block_cf_exponent(legs, k, avec, sigma, tau, channels=("ioni", "ms", "rad"))
     """The trusted imaginary-argument exponent of model_phi, per channel
     switchable. Verbatim from cf_propagation_test.model_phi."""
     from cf_track_resolution import ioni_step_exponent, ms_step_exponent
-    A_ms, A_ioni, A_ms_start = step_transports(legs, k)
+    import cf_knockon
+    A_ms, A_ioni, A_ms_start, A_ioni_start = step_transports(legs, k,
+                                                            ioni_start=True)
     S = np.zeros(len(tau), dtype=np.complex128)
     for j in range(k + 1):
         leg = legs[j]
+        # the knock-on correction couples the ionisation and scattering
+        # channels, so it needs both; the exact 1/p map alone needs ioni only
+        if ("ioni" in channels and cf_knockon.active() and len(leg["ioni"])
+                and ("ms" in channels or not cf_knockon.KNOCKON_JOINT)):
+            S += cf_knockon.knockon_exponent(leg, A_ioni[j], A_ioni_start[j],
+                                             avec, sigma, tau)
         if "ioni" in channels and len(leg["ioni"]):
             q = np.sign(leg["refqop"]) or 1.0
             w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
@@ -852,8 +860,9 @@ def block_cf_exponent(legs, k, avec, sigma, tau, channels=("ioni", "ms", "rad"))
             w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
             wr = (w if len(w) == len(leg["rad"])
                   else np.full(len(leg["rad"]), np.mean(w)))
-            S += cf_brems_exact.rad_exponent(tau, leg["rad"], leg["radspec"],
-                                             leg["radvgrid"], weights=wr)
+            S += cf_brems_exact.rad_exponent(
+                tau, leg["rad"], leg["radspec"], leg["radvgrid"], weights=wr,
+                exact_qop=bool(cf_knockon.QOP_EXACT))
         if "ms" in channels and len(leg["ms"]):
             wv = np.einsum("i,sij->sj", avec, A_ms[j])
             wv0 = np.einsum("i,sij->sj", avec, A_ms_start[j])

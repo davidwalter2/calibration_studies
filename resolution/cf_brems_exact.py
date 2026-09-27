@@ -116,7 +116,7 @@ def step_spectrum(rec, spec, vg):
     return vg, out
 
 
-def rad_exponent(tau, recs, spec, vg, weights=None):
+def rad_exponent(tau, recs, spec, vg, weights=None, exact_qop=False):
     """S_rad(t) = sum_steps INT dv (dN/dv) (e^{i a v E} - 1 - i a v E).
 
     tau      : (nt,) real CF argument grid
@@ -124,6 +124,11 @@ def rad_exponent(tau, recs, spec, vg, weights=None):
     spec     : (nstep, 2*NRADV) tabulated shapes
     vg       : (NRADV,) shared v grid
     weights  : (nstep,) transport weight per step (default 1)
+    exact_qop: map the loss into q/p EXACTLY, e^{i a T_eff} with
+               T_eff = p^2 T (2E - T)/(E p' (p + p')), p' = sqrt((E-T)^2 - M^2),
+               keeping the linear centring -i a vE (cf_knockon, QOP_EXACT: the
+               reference subtracts the mean ENERGY loss, so the channel's mean
+               becomes the Jensen excess).  False is the linear map, bit for bit.
     Returns the complex exponent; the CF factor is exp(S_rad).
     """
     tau = np.asarray(tau, dtype=float)
@@ -153,6 +158,26 @@ def rad_exponent(tau, recs, spec, vg, weights=None):
         # the exponent 1e6 too large and collapse the CF to zero.)
         a = tau * rec[R_CS] * w
         x = np.outer(a, v * E)                       # (nt, nv)
+        if exact_qop:
+            T = v * E
+            p = rec[R_P]
+            # p' floored at 1e-3 p: a loss that leaves the primary below that
+            # never reaches a plane, and the floor keeps T_eff finite
+            pp = np.sqrt(np.maximum((E - T) ** 2 - (E * E - p * p),
+                                    (1e-3 * p) ** 2))
+            xe = np.outer(a, p * p * T * (2.0 * E - T) / (E * pp * (p + pp)))
+            sm = np.abs(xe) < 1e-4
+            re = np.empty_like(xe)
+            im = np.empty_like(xe)
+            re[sm] = -0.5 * xe[sm] ** 2
+            im[sm] = (xe[sm] - x[sm]) - xe[sm] ** 3 / 6.
+            bg = ~sm
+            sh = np.sin(0.5 * xe[bg])
+            re[bg] = -2.0 * sh * sh
+            im[bg] = np.sin(xe[bg]) - x[bg]
+            q = wtrap * dNdv
+            S += (re @ q) + 1j * (im @ q)
+            continue
         # e^{ix} - 1 - ix, evaluated stably. The series is the accurate branch
         # only when |x| is small ACROSS THE WHOLE SUPPORT -- as in the
         # delta-ray term, where guarding on |a| instead of |a|*eps_max is

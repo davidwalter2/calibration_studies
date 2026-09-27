@@ -34,7 +34,9 @@ THE CONFIGURATION (matches the layered-toy table except where stated)
          ReferenceSpeciesDedx); every other switch at the cfi default
   offline radiation ON, Kokoulin per species (muon only), the six default-ON MS
          harmonisations (MS_ELEC_TMAX, MS_ELEC_EDGE, MS_SNAP_YMAX=0, MS_FINE_G,
-         MS_CHI0_G4, MS_FF_G4).  MS_WVI_SPLIT stays OFF: its J0 series is
+         MS_CHI0_G4, MS_FF_G4), the exact hard knock-on collision (cf_knockon:
+         joint energy/angle law + exact 1/p map, default ON; result files
+         tagged `_kj1_qx1`, untagged = the linear model).  MS_WVI_SPLIT stays OFF: its J0 series is
          valid only to q^2 U/4 = 60 and the real material sequence (long air
          gaps) sits orders of magnitude above that, where the guard fires
          (cf_track_resolution, "DEFAULT OFF").  On the layered toy it was ON;
@@ -178,13 +180,38 @@ def _gen_module():
     return m
 
 
-def _plane_body(radii, q):
+def _plane_body(radii, q, phi0=PHI):
     g = _gen_module()
-    org, nrm, uu = g.helix_frames(radii, PT, ETA, PHI, BFIELD, q)
+    org, nrm, uu = g.helix_frames(radii, PT, ETA, phi0, BFIELD, q)
     f = lambda v: ", ".join("%.6f" % x for x in v)          # noqa: E731
     # byte for byte gen_toy_realmat.py's writer, minus its header line
     return (f"radii = [{f(radii)}]\norigin = [{f(org)}]\n"
             f"normal = [{f(nrm)}]\nuaxis  = [{f(uu)}]\n")
+
+
+def _driver_sources():
+    """(sim, model) driver texts for a private area: the production cut
+    from TOY_CUT, the hadron-probe watcher block, the plane module from
+    TOY_PLANES_MOD."""
+    s = open(os.path.join(SRCTEST, "runToyGeomCheck.py")).read()
+    s = hp._sub1(s, r"^import FWCore\.ParameterSet\.Config as cms$",
+                 "import os\nimport FWCore.ParameterSet.Config as cms",
+                 "sim: import os", flags=re.M)
+    s = hp._sub1(s, r"^process\.g4SimHits\.Physics\.DefaultCutValue = "
+                    r"cms\.double\(1\.0\)$",
+                 'process.g4SimHits.Physics.DefaultCutValue = cms.double(\n'
+                 '    float(os.environ.get("TOY_CUT", "1.0")))\n'
+                 "print('[toy] DefaultCutValue = %g cm'\n"
+                 "      % process.g4SimHits.Physics.DefaultCutValue.value())",
+                 "sim: production cut", flags=re.M)
+    s = hp._sub1(s, r"^    output=cms\.string\(opts\.output\),\n\)\)$",
+                 hp._HAD_BLOCK.rstrip("\n"), "sim: watcher block", flags=re.M)
+    m = open(os.path.join(SRCTEST, "runToyModel.py")).read()
+    m = hp._sub1(m, r"^import toyPlanes_pt3 as planes$",
+                 "import importlib, os as _os\nplanes = importlib.import_module("
+                 '_os.environ["TOY_PLANES_MOD"])', "model: planes import",
+                 flags=re.M)
+    return s, m
 
 
 def cmd_setup(args):
@@ -227,25 +254,8 @@ def cmd_setup(args):
         open(planes_path(g), "w").write(out)
         print(f"[{g}] {_md5(planes_path(g))}  {pmod}.py  (q = {q:+.0f})")
 
-        s = open(os.path.join(SRCTEST, "runToyGeomCheck.py")).read()
-        s = hp._sub1(s, r"^import FWCore\.ParameterSet\.Config as cms$",
-                     "import os\nimport FWCore.ParameterSet.Config as cms",
-                     "sim: import os", flags=re.M)
-        s = hp._sub1(s, r"^process\.g4SimHits\.Physics\.DefaultCutValue = "
-                        r"cms\.double\(1\.0\)$",
-                     'process.g4SimHits.Physics.DefaultCutValue = cms.double(\n'
-                     '    float(os.environ.get("TOY_CUT", "1.0")))\n'
-                     "print('[toy] DefaultCutValue = %g cm'\n"
-                     "      % process.g4SimHits.Physics.DefaultCutValue.value())",
-                     "sim: production cut", flags=re.M)
-        s = hp._sub1(s, r"^    output=cms\.string\(opts\.output\),\n\)\)$",
-                     hp._HAD_BLOCK.rstrip("\n"), "sim: watcher block", flags=re.M)
+        s, m = _driver_sources()
         open(os.path.join(td, "runToyGeomCheck.py"), "w").write(s)
-        m = open(os.path.join(SRCTEST, "runToyModel.py")).read()
-        m = hp._sub1(m, r"^import toyPlanes_pt3 as planes$",
-                     "import importlib, os as _os\nplanes = importlib.import_module("
-                     '_os.environ["TOY_PLANES_MOD"])', "model: planes import",
-                     flags=re.M)
         open(os.path.join(td, "runToyModel.py"), "w").write(m)
         print(f"[{g}] wrote runToyGeomCheck.py and runToyModel.py in {td}")
 
@@ -537,14 +547,19 @@ def cell(pdg, func, useh=True, nucel=False, recoil=True):
 
 def _variant(nucel, recoil=True):
     """File-name tag. The recoil sub-channel is part of the elastic channel's
-    default; only its OFF state (a diagnostic) is tagged."""
+    default; only its OFF state (a diagnostic) is tagged.  The knock-on
+    correction (cf_knockon) is tagged `_kj{0,1}_qx{0,1}` when either of its
+    switches is on."""
+    import cf_knockon as ck
+    kt = (f"_kj{int(bool(ck.KNOCKON_JOINT))}_qx{int(bool(ck.QOP_EXACT))}"
+          if ck.active() else "")
     if ARM == "off" and not nucel and not MODEL_TAG:
-        return ""
+        return kt
     v = f"_{ARM}_nucel{int(nucel)}" + ("" if (recoil or not nucel) else "_norecoil")
     v += MODEL_TAG
     if nucel and MODEL_TAG and not cne.NUCEL_ELEMENTS:
         v += "_noelem"            # table present but per-element targets off
-    return v
+    return v + kt
 
 
 def _res_path(pdg, func=None, useh=True, nucel=False, recoil=True):

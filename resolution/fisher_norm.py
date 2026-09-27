@@ -300,7 +300,8 @@ def plane_scales(legs, func, floor=1e-8, nt=1 << 17, npad=32, lncut=-60.0,
 # ==========================================================================
 
 _CACHE_MODULES = ("cf_propagation_test", "cf_brems_exact", "cf_track_resolution",
-                  "cf_ms_exact", "cf_nucel_exact", "cgf_channels", "fisher_norm",
+                  "cf_ms_exact", "cf_nucel_exact", "cf_knockon", "cgf_channels",
+                  "fisher_norm",
                   # hbasis picks the a-vector basis and curv2local builds H;
                   # both change sigma, so both belong in the code fingerprint
                   "hbasis", "curv2local")
@@ -352,6 +353,8 @@ def scale_identity(legs, func, floor, nt, npad, lncut, channels, nplane):
         # the same way RAD_CHANNEL does.  It has to be in this hash for the
         # same reason all the others are.
         knobs_nucel=repr(_cnu.physics_state()),
+        # the knock-on correction enters block_cf_exponent as well
+        knobs_knockon=repr(__import__("cf_knockon").physics_state()),
         # USE_H switches the a-vector between the curvilinear FUNCTIONALS
         # vector and H_k^T e_i, i.e. it changes sigma on every plane. Without
         # it here a curvilinear-basis s_F would be served to an H-basis call.

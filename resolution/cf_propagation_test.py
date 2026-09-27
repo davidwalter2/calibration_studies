@@ -62,6 +62,7 @@ from cf_track_resolution import ioni_step_exponent, ms_step_exponent
 import cf_brems_exact
 import prodfiles
 import cf_nucel_exact
+import cf_knockon                                               # noqa: E402
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -482,11 +483,14 @@ def load_model(path):
     return legs
 
 
-def step_transports(legs, k):
+def step_transports(legs, k, ioni_start=False):
     """Exact transport A_{s->k} of every step's noise up to the end of leg k.
 
-    Returns (A_ms, A_ioni): lists over legs j<=k of (nstep_j, 5, 5) arrays
-    aligned with that leg's msmoliv / ioniurbanv records.
+    Returns (A_ms, A_ioni, A_ms_start): lists over legs j<=k of
+    (nstep_j, 5, 5) arrays aligned with that leg's msmoliv / ioniurbanv
+    records.  With `ioni_start` a fourth list, the START-of-step transport
+    aligned with the ioniurbanv records (cf_knockon's sub-step rule), is
+    appended; the default return is unchanged.
     """
     # suffix products P_j = F_k F_{k-1} ... F_{j+1}
     suffix = [np.eye(5)]
@@ -494,7 +498,7 @@ def step_transports(legs, k):
         suffix.append(suffix[-1] @ legs[m]["F"])
     suffix = suffix[::-1]  # suffix[j] = F_k...F_{j+1}, for j = 0..k
 
-    A_ms, A_ioni, A_ms_start = [], [], []
+    A_ms, A_ioni, A_ms_start, A_ioni_start = [], [], [], []
     for j in range(k + 1):
         leg = legs[j]
         Pj = suffix[j] @ leg["F"]  # = F_k ... F_j
@@ -503,6 +507,7 @@ def step_transports(legs, k):
             A_ms.append(np.zeros((0, 5, 5)))
             A_ioni.append(np.zeros((0, 5, 5)))
             A_ms_start.append(np.zeros((0, 5, 5)))
+            A_ioni_start.append(np.zeros((0, 5, 5)))
             continue
         # A for every step of this leg
         Astep = np.empty_like(jacc)
@@ -524,6 +529,9 @@ def step_transports(legs, k):
         for s in range(len(jacc)):
             Astart[s] = Pj @ np.linalg.inv(jacc[s - 1]) if s > 0 else Pj
         A_ms_start.append(Astart[idx_ms])
+        A_ioni_start.append(Astart[idx_io])
+    if ioni_start:
+        return A_ms, A_ioni, A_ms_start, A_ioni_start
     return A_ms, A_ioni, A_ms_start
 
 
@@ -586,7 +594,7 @@ def _phi_key(legs, k, avec, sigma, tau):
     return (id(legs), int(k), avec.tobytes(), float(sigma),
             id(tau), len(tau), float(tau[-1]),
             physics_state(), _ctr.physics_state(), _ms.physics_state(),
-            cf_nucel_exact.physics_state())
+            cf_nucel_exact.physics_state(), cf_knockon.physics_state())
 
 
 def model_phi(legs, k, avec, sigma, tau):
@@ -609,10 +617,18 @@ def model_phi(legs, k, avec, sigma, tau):
 
 
 def _model_phi_uncached(legs, k, avec, sigma, tau):
-    A_ms, A_ioni, A_ms_start = step_transports(legs, k)
+    A_ms, A_ioni, A_ms_start, A_ioni_start = step_transports(legs, k,
+                                                            ioni_start=True)
     S = np.zeros(len(tau), dtype=np.complex128)
     for j in range(k + 1):
         leg = legs[j]
+        # --- hard knock-on collisions exactly (cf_knockon): the joint law of
+        # the energy loss and the deflection, and the exact 1/p map.  A
+        # correction to the ionisation and scattering channels below, zero
+        # (and not evaluated) with both of its switches off.
+        if cf_knockon.active() and len(leg["ioni"]):
+            S += cf_knockon.knockon_exponent(leg, A_ioni[j], A_ioni_start[j],
+                                             avec, sigma, tau)
         # --- ionization: the noise sits in the qop component only, so the
         # per-step weight is a scalar. Fold it into the step's own qop-per-MeV
         # column (cs) so the shared vectorized exponent can be called once for
@@ -641,8 +657,9 @@ def _model_phi_uncached(legs, k, avec, sigma, tau):
             # the ionization log; both are per-step, so reuse the ioni
             # transport when the counts match and fall back to the leg mean.
             wr = w if len(w) == len(leg["rad"]) else np.full(len(leg["rad"]), np.mean(w))
-            S += cf_brems_exact.rad_exponent(tau, leg["rad"], leg["radspec"],
-                                             leg["radvgrid"], weights=wr)
+            S += cf_brems_exact.rad_exponent(
+                tau, leg["rad"], leg["radspec"], leg["radvgrid"], weights=wr,
+                exact_qop=bool(cf_knockon.QOP_EXACT))
         # --- multiple scattering: an isotropic 2D kick in (lambda, phi).
         # Measuring the azimuthal angle as phi*cos(lambda) makes the two
         # projected angles iid with variance thp2, so by azimuthal isotropy
