@@ -132,26 +132,20 @@ def collect(args):
                     c = colmap.get(int(g))
                     if c is not None:
                         D[c] += dm[j]
-            from cf_mass_likelihood import ms_step_exponent, ioni_step_exponent
-            import cf_brems_exact
+            import cf_rows
+            # every family from the shared row functions; this cache has no
+            # knock-on slots, so the knock-on pieces are part of the
+            # ionisation family (Sio: the ionisation rows' whole exponent)
             Sms = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
-            # the radiative (brems + pair) channel of the parmtype-11 blocks,
-            # returned by leg_exponents as family 12
             Srad = np.zeros(len(TG), dtype=np.complex128)
             vg = 0.
-            for vgauss, groups, _, rvg in legs:
+            for vgauss, (msb, iob, rad), _, rvg in legs:
                 vg += vgauss
-                for famcode, weff, steps in groups:
-                    if famcode == 10:
-                        Sms += ms_step_exponent(steps, abs(weff) / sig, TG)
-                    elif famcode == 11:
-                        Sio += ioni_step_exponent(steps, weff / sig, TG)
-                    else:
-                        rr, rp = steps
-                        Srad += cf_brems_exact.rad_exponent(
-                            TG, rr, rp, rvg,
-                            weights=np.full(len(rr), weff / sig))
+                f_ = cf_rows.fit_families(TG, sig, msb, iob, rad)
+                Sms += f_["Sms"].real
+                Sio += f_["Sio"] + f_["Skx"] + f_["Skj"]
+                Srad += f_["Srad"]
             m0s.append(mr)
             mgens.append(mg)
             sigs.append(sig)
@@ -197,7 +191,8 @@ def candidate_splines(d, kernel):
     phiK = (np.interp(tgi, tabs, phiK_tab.real)
             + 1j * np.interp(tgi, tabs, phiK_tab.imag))
     S = (-0.5 * d["vgf"][:, None] * TG[None, :] ** 2
-         + d["Sms"] + 1j * d["Sio_im"] + d["Sio_re"])
+         + d["Sms"] + 1j * d["Sio_im"] + d["Sio_re"]
+         + d["Srad_re"] + 1j * d["Srad_im"])
     Phi = np.exp(S) * phiK
     mgrid = np.linspace(-0.15, 0.15, 301)
     lnL = np.empty((n, len(mgrid)), dtype=np.float32)
@@ -251,6 +246,9 @@ def newton_fit(dm0, D, mgrid, lnL, ridge, gauss_sigma=None, nit=25):
 
 def run_fit(args, inject=None):
     d = np.load(args.cache)
+    if "Srad_re" not in d:
+        raise SystemExit(f"{args.cache} predates the shared row functions "
+                         "(no radiative family): rebuild it with --collect")
     k = np.load(args.kernel_cache)
     D = d["D"].astype(np.float64)
     n, npar = D.shape

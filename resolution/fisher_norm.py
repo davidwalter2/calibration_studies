@@ -299,7 +299,7 @@ def plane_scales(legs, func, floor=1e-8, nt=1 << 17, npad=32, lncut=-60.0,
 # the disk layer entirely; RES_CACHE_DIR relocates it.
 # ==========================================================================
 
-_CACHE_MODULES = ("cf_propagation_test", "cf_brems_exact", "cf_track_resolution",
+_CACHE_MODULES = ("cf_propagation_test", "cf_rows", "cf_brems_exact", "cf_track_resolution",
                   "cf_ms_exact", "cf_nucel_exact", "cf_knockon", "cgf_channels",
                   "fisher_norm",
                   # hbasis picks the a-vector basis and curv2local builds H;
@@ -355,6 +355,7 @@ def scale_identity(legs, func, floor, nt, npad, lncut, channels, nplane):
         knobs_nucel=repr(_cnu.physics_state()),
         # the knock-on correction enters block_cf_exponent as well
         knobs_knockon=repr(__import__("cf_knockon").physics_state()),
+        knobs_brems=repr(__import__("cf_brems_exact").physics_state()),
         # USE_H switches the a-vector between the curvilinear FUNCTIONALS
         # vector and H_k^T e_i, i.e. it changes sigma on every plane. Without
         # it here a curvilinear-basis s_F would be served to an H-basis call.

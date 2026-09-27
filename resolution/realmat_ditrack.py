@@ -150,6 +150,18 @@ DECAYS = {
     "lam": dict(tex=r"\Lambda", mass=1.115683, old=2212, new=-211, pt_new=0.8,
                 geom="lam_pim", tag="lam", seed0=401,
                 res="realmat_ditrack_lam_260927", fig="ditrack_cleanprop_lam"),
+    "jpsiee": dict(tex=r"J/\psi \to ee", mass=3.0969, old=11, new=-11, pt_new=3.0,
+                   geom="qpje", tag="jpsiee", seed0=501,
+                   res="realmat_ditrack_jpsiee_260927", fig="ditrack_cleanprop_jpsiee"),
+    # the Z: both legs are dedicated samples (`pt_old`), at the pT two
+    # same-eta legs need for m_Z (>= m_Z/2 = 45.6 GeV; 48 GeV opens them by
+    # 2.5 rad)
+    "zmm": dict(tex=r"Z \to \mu\mu", mass=91.1876, old=13, new=-13, pt_new=48.0,
+                pt_old=48.0, geom_old="zmm_m", geom="zmm_p", tag="zmm", seed0=601,
+                res="realmat_ditrack_zmm_260927", fig="ditrack_cleanprop_zmm"),
+    "zee": dict(tex=r"Z \to ee", mass=91.1876, old=11, new=-11, pt_new=48.0,
+                pt_old=48.0, geom_old="zee_m", geom="zee_p", tag="zee", seed0=701,
+                res="realmat_ditrack_zee_260927", fig="ditrack_cleanprop_zee"),
 }
 DECAY = None      # the configured decay (`configure`)
 DEC = None
@@ -185,18 +197,24 @@ def configure(decay):
     global DECAY, DEC, LEGS, L0, L1, DPHI, M_PARENT, RES
     DECAY, DEC = decay, DECAYS[decay]
     old, new = DEC["old"], DEC["new"]
-    DPHI = dphi_for_mass(DEC["mass"], rc.PT, _mass(old), DEC["pt_new"], _mass(new))
+    own_old = "pt_old" in DEC          # the first leg a dedicated sample too
+    pt_old = DEC.get("pt_old", rc.PT)
+    DPHI = dphi_for_mass(DEC["mass"], pt_old, _mass(old), DEC["pt_new"], _mass(new))
     M_PARENT = DEC["mass"]
     L0, L1 = rc.lab(old), rc.lab(new)
-    qn = float(hp.SPECIES[new]["q"])
-    LEGS = {L0: dict(pdg=old, q=float(hp.SPECIES[old]["q"]), pt=rc.PT, phi=rc.PHI,
-                     geom=rc.gkey(old), mass=_mass(old), new=False),
+    qo, qn = float(hp.SPECIES[old]["q"]), float(hp.SPECIES[new]["q"])
+    LEGS = {L0: dict(pdg=old, q=qo, pt=pt_old, phi=rc.PHI,
+                     geom=DEC["geom_old"] if own_old else rc.gkey(old),
+                     mass=_mass(old), new=own_old,
+                     seeds=list(range(DEC["seed0"] + 50, DEC["seed0"] + 60))),
             L1: dict(pdg=new, q=qn, pt=DEC["pt_new"], phi=rc.PHI + DPHI,
                      geom=DEC["geom"], mass=_mass(new), new=True,
                      seeds=list(range(DEC["seed0"], DEC["seed0"] + 10)))}
-    g = DEC["geom"]
-    rc.GEOM[g] = (f"realmat_full_{g}",
-                  f"toyPlanes_realmat_full_{g}_pt{_ptstr(DEC['pt_new'])}", qn)
+    for L in LEGS.values():
+        if L["new"]:
+            rc.GEOM[L["geom"]] = (f"realmat_full_{L['geom']}",
+                                  f"toyPlanes_realmat_full_{L['geom']}_pt{_ptstr(L['pt'])}",
+                                  L["q"])
     RES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs",
                        DEC["res"])
 
@@ -238,7 +256,14 @@ def model_path(leg):
 
 
 def planes_path(leg):
-    return rc.planes_path(LEGS[leg]["geom"])
+    L = LEGS[leg]
+    return rc.planes_path(L["geom"]) if L["new"] else rc.species_planes_path(L["pdg"])
+
+
+def new_legs():
+    """The legs with a dedicated sample and geometry (the second leg always,
+    the first when the decay sets `pt_old`)."""
+    return [lg for lg in (L0, L1) if LEGS[lg]["new"]]
 
 
 configure("jpsi")
@@ -324,13 +349,14 @@ def _check_gradient():
 
 def cmd_setup(args):
     m0, g, worst = _check_gradient()
-    N = LEGS[L1]
-    print(f"{DECAY}: {L0} (pT {rc.PT:g}, phi {rc.PHI}) + {L1} (pT {N['pt']:g}, "
-          f"phi {N['phi']:.12f}); DPHI = {DPHI:.12f} rad")
+    print(f"{DECAY}: " + " + ".join(
+        f"{lg} (pT {LEGS[lg]['pt']:g}, phi {LEGS[lg]['phi']:.12f}"
+        f"{', dedicated sample' if LEGS[lg]['new'] else ', single-track sample'})"
+        for lg in (L0, L1)) + f"; DPHI = {DPHI:.12f} rad")
     print(f"pair mass of the two start states {1e3 * m0:.6f} MeV "
           f"(target {1e3 * M_PARENT:.3f}); analytic vs FD gradient max rel "
           f"diff {worst:.1e}")
-    if abs(m0 - M_PARENT) > 1e-9 or worst > 1e-6:
+    if abs(m0 - M_PARENT) > 1e-9 * max(1.0, M_PARENT) or worst > 1e-6:
         raise SystemExit("kinematics check failed")
     ref_xml = os.path.realpath(os.path.join(rc.SRCDATA, "realmat_full",
                                             "tracker.xml"))
@@ -344,69 +370,53 @@ def cmd_setup(args):
         raise SystemExit("helix_frames(q=-1) does NOT reproduce the published "
                          "plane file")
     print("helix_frames(q=-1) reproduces the published plane file: IDENTICAL")
-    twoR = 2.0 * N["pt"] / (0.3 * rc.BFIELD) * 100.0
-    if twoR <= max(radii):
-        raise SystemExit(f"the {L1} leg curls up at r = {twoR:.1f} cm, before "
-                         f"the outermost plane at {max(radii):.1f} cm")
-    G = N["geom"]
-    gdir, pmod, q = rc.GEOM[G]
-    td = rc.testdir(G)
-    dd = os.path.join(rc.geomdir(G), "Analysis", "HitAnalyzer", "data", gdir)
-    os.makedirs(td, exist_ok=True)
-    os.makedirs(dd, exist_ok=True)
-    xo = os.path.join(dd, "tracker.xml")
     import shutil
-    shutil.copyfile(ref_xml, xo)
-    assert rc._md5(xo) == rc._md5(ref_xml)
-    print(f"[{G}] {rc._md5(xo)}  {gdir}/tracker.xml  IDENTICAL to the reference")
-    out = (f"# generated by realmat_ditrack.py setup: gen_toy_realmat."
-           f"helix_frames(q={q:+.0f}, phi0={N['phi']!r}, pt={N['pt']!r}) on the "
-           f"radii of toyPlanes_realmat_full_pt3.py; do not hand edit\n"
-           + rc._plane_body(radii, q, phi0=N["phi"], pt=N["pt"]))
-    open(rc.planes_path(G), "w").write(out)
-    print(f"[{G}] {rc._md5(rc.planes_path(G))}  {pmod}.py")
-    s, m = rc._driver_sources()
-    s = hp._sub1(s, r"MinPhi=cms\.double\(0\.70\), MaxPhi=cms\.double\(0\.70\),",
-                 'MinPhi=cms.double(float(os.environ["TOY_PHI"])),\n'
-                 '        MaxPhi=cms.double(float(os.environ["TOY_PHI"])),',
-                 "sim: gun azimuth")
-    # the watcher radii come from the leg's own plane module (the stock
-    # driver assumes `toyPlanes_<geometry>_pt3`; the radii are the same
-    # cylinders for every leg, the module name is not)
-    s = hp._sub1(s, r"_pmod = 'toyPlanes_%s_pt3' % opts\.toyGeom\.split\('/'\)\[-2\]",
-                 "_pmod = os.environ.get('TOY_PLANES_MOD', 'toyPlanes_%s_pt3' "
-                 "% opts.toyGeom.split('/')[-2])", "sim: watcher plane module")
-    s += ("\nprint('[toy] gun phi = %.12f'\n"
-          "      % process.generator.PGunParameters.MinPhi.value())\n")
-    open(os.path.join(td, "runToyGeomCheck.py"), "w").write(s)
-    # the model driver likewise takes a realmat geometry's planes from
-    # `toyPlanes_<geometry>_pt3`, OVERRIDING TOY_PLANES_MOD: point it at the
-    # leg's own plane module
-    m = hp._sub1(m, r"    _pmod = 'toyPlanes_%s_pt3' % opts\.toyGeom\.split\('/'\)\[-2\]",
-                 "    _pmod = _os.environ.get('TOY_PLANES_MOD', 'toyPlanes_%s_pt3' "
-                 "% opts.toyGeom.split('/')[-2])", "model: plane module")
-    # the propagator's momentum floor (PropagationPtotLimit, 1 GeV by default:
-    # a guard against run-away legs in fits, not physics) refuses a leg below
-    # it; the clean-propagation export takes it from TOY_PLIMIT
-    m += ("\nprocess.Geant4ePropagator.PropagationPtotLimit = cms.double(\n"
-          "    float(_os.environ.get('TOY_PLIMIT', '1.0')))\n"
-          "print('[toy] PropagationPtotLimit = %g GeV'\n"
-          "      % process.Geant4ePropagator.PropagationPtotLimit.value())\n")
-    open(os.path.join(td, "runToyModel.py"), "w").write(m)
-    print(f"[{G}] wrote runToyGeomCheck.py and runToyModel.py in {td}")
-    if N["pt"] == rc.PT:
-        # the new planes must be the phi = 0.70 planes of the same charge
-        # rotated by DPHI
-        a, b = {}, {}
-        exec(open(rc.planes_path(rc.gkey(N["pdg"]))).read(), a)
-        exec(open(rc.planes_path(G)).read(), b)
-        c, s_ = math.cos(DPHI), math.sin(DPHI)
-        R = np.array([[c, -s_, 0.0], [s_, c, 0.0], [0.0, 0.0, 1.0]])
-        for key in ("origin", "normal", "uaxis"):
-            u = np.asarray(a[key]).reshape(-1, 3) @ R.T
-            v = np.asarray(b[key]).reshape(-1, 3)
-            print(f"rotation check {key:<6}: max |R(DPHI) phi=0.70 - new| = "
-                  f"{np.abs(u - v).max():.2e}")
+    for leg in new_legs():
+        N = LEGS[leg]
+        twoR = 2.0 * N["pt"] / (0.3 * rc.BFIELD) * 100.0
+        if twoR <= max(radii):
+            raise SystemExit(f"the {leg} leg curls up at r = {twoR:.1f} cm, before "
+                             f"the outermost plane at {max(radii):.1f} cm")
+        G = N["geom"]
+        gdir, pmod, q = rc.GEOM[G]
+        td = rc.testdir(G)
+        dd = os.path.join(rc.geomdir(G), "Analysis", "HitAnalyzer", "data", gdir)
+        os.makedirs(td, exist_ok=True)
+        os.makedirs(dd, exist_ok=True)
+        xo = os.path.join(dd, "tracker.xml")
+        shutil.copyfile(ref_xml, xo)
+        assert rc._md5(xo) == rc._md5(ref_xml)
+        print(f"[{G}] {rc._md5(xo)}  {gdir}/tracker.xml  IDENTICAL to the reference")
+        if not os.path.exists(rc.planes_path(G)) or args.force:
+            out = (f"# generated by realmat_ditrack.py setup: gen_toy_realmat."
+                   f"helix_frames(q={q:+.0f}, phi0={N['phi']!r}, pt={N['pt']!r}) on the "
+                   f"radii of toyPlanes_realmat_full_pt3.py; do not hand edit\n"
+                   + rc._plane_body(radii, q, phi0=N["phi"], pt=N["pt"]))
+            open(rc.planes_path(G), "w").write(out)
+        print(f"[{G}] {rc._md5(rc.planes_path(G))}  {pmod}.py")
+        s, m = rc._driver_sources()
+        s = hp._sub1(s, r"MinPhi=cms\.double\(0\.70\), MaxPhi=cms\.double\(0\.70\),",
+                     'MinPhi=cms.double(float(os.environ["TOY_PHI"])),\n'
+                     '        MaxPhi=cms.double(float(os.environ["TOY_PHI"])),',
+                     "sim: gun azimuth")
+        # the watcher radii come from the leg's own plane module (the stock
+        # driver assumes `toyPlanes_<geometry>_pt3`; the radii are the same
+        # cylinders for every leg, the module name is not)
+        s = hp._sub1(s, r"_pmod = 'toyPlanes_%s_pt3' % opts\.toyGeom\.split\('/'\)\[-2\]",
+                     "_pmod = os.environ.get('TOY_PLANES_MOD', 'toyPlanes_%s_pt3' "
+                     "% opts.toyGeom.split('/')[-2])", "sim: watcher plane module")
+        s += ("\nprint('[toy] gun phi = %.12f'\n"
+              "      % process.generator.PGunParameters.MinPhi.value())\n")
+        open(os.path.join(td, "runToyGeomCheck.py"), "w").write(s)
+        # the propagator's momentum floor (PropagationPtotLimit, 1 GeV by
+        # default: a guard against run-away legs in fits, not physics) refuses a
+        # leg below it; the clean-propagation export takes it from TOY_PLIMIT
+        m += ("\nprocess.Geant4ePropagator.PropagationPtotLimit = cms.double(\n"
+              "    float(_os.environ.get('TOY_PLIMIT', '1.0')))\n"
+              "print('[toy] PropagationPtotLimit = %g GeV'\n"
+              "      % process.Geant4ePropagator.PropagationPtotLimit.value())\n")
+        open(os.path.join(td, "runToyModel.py"), "w").write(m)
+        print(f"[{G}] wrote runToyGeomCheck.py and runToyModel.py in {td}")
 
 
 def _plane_offsets(leg):
@@ -430,53 +440,22 @@ def _plane_offsets(leg):
 
 
 def cmd_recentre(args):
-    """Put the new leg's planes ON its own reference trajectory.
-
-    The planes come from `helix_frames`, a helix of FIXED radius; the model's
-    reference loses energy, curls tighter and drifts off the plane origins --
-    50 um at pT 3, 2 cm at the outer plane at pT 0.8.  The sim records the
-    state where the primary crosses the shell CYLINDER, the model where the
-    reference crosses the flat tangent PLANE, and 2 cm off the origin the two
-    are 0.2 mm apart along the normal.  So move each origin to where the
-    reference crosses the cylinder (back along its direction from the plane
-    crossing), with the radial normal and tangential u of `helix_frames`,
-    rewrite the plane module and re-export (`export --force`).  The sim is
-    untouched: it scores the same cylinders."""
-    ns, X, loc, d = _plane_offsets(L1)
-    r = np.asarray(ns["radii"], dtype=np.float64)
-    print(f"{L1}: before  max |reflocx| {np.abs(loc[:, 0]).max() * 1e4:.1f} um, "
-          f"max |reflocy| {np.abs(loc[:, 1]).max() * 1e4:.1f} um, max |r_ref - r| "
-          f"{np.abs(np.hypot(X[:, 0], X[:, 1]) - r).max() * 1e4:.2f} um")
-    # back along d from X to the cylinder |x_T| = r: |X_T - s d_T|^2 = r^2,
-    # a2 s^2 + b s + c = 0; the root nearest zero, in the stable form c/q
-    a2 = d[:, 0] ** 2 + d[:, 1] ** 2
-    b = -2.0 * (X[:, 0] * d[:, 0] + X[:, 1] * d[:, 1])
-    c = X[:, 0] ** 2 + X[:, 1] ** 2 - r ** 2
-    qq = -0.5 * (b + np.copysign(np.sqrt(np.maximum(b * b - 4 * a2 * c, 0.0)), b))
-    s = np.where(c != 0.0, c / qq, 0.0)
-    Y = X - s[:, None] * d
-    ph = np.arctan2(Y[:, 1], Y[:, 0])
-    org = np.stack([r * np.cos(ph), r * np.sin(ph), Y[:, 2]], axis=1)
-    nrm = np.stack([np.cos(ph), np.sin(ph), np.zeros_like(ph)], axis=1)
-    uu = np.stack([-np.sin(ph), np.cos(ph), np.zeros_like(ph)], axis=1)
-    f = lambda v: ", ".join("%.6f" % x for x in np.ravel(v))       # noqa: E731
-    m_it = re.search(r"re-centred x(\d+)", open(planes_path(L1)).readline())
-    it = int(m_it.group(1)) + 1 if m_it else 1
-    head = (f"# generated by realmat_ditrack.py: the {L1} leg's planes re-centred x{it} "
-            f"on the reference crossings of {os.path.basename(model_path(L1))}; "
-            f"do not hand edit\n")
-    body = (f"radii = [{f(r)}]\norigin = [{f(org)}]\n"
-            f"normal = [{f(nrm)}]\nuaxis  = [{f(uu)}]\n")
-    open(planes_path(L1), "w").write(head + body)
-    print(f"{L1}: planes re-centred (iteration {it}); max origin move "
-          f"{np.abs(org - np.asarray(ns['origin']).reshape(-1, 3)).max():.4f} cm "
-          f"-> {planes_path(L1)}")
-    print("re-export the model (`export --force`) and run `recentre` again to "
-          "check the residual offsets")
+    """Put every dedicated leg's planes ON its own reference trajectory
+    (`realmat_closure.recentre_planes`): export, re-centre, repeat until the
+    largest origin move is below --tol, then export once more.  The sim is
+    untouched: it scores the same cylinders.  The single-track legs are
+    re-centred by `realmat_closure.py recentre`."""
+    for leg in new_legs():
+        for it in range(args.iterations):
+            cmd_export(argparse.Namespace(force=True, leg=leg))
+            move = rc.recentre_planes(planes_path(leg), model_path(leg), leg)
+            if move < args.tol:
+                break
+        cmd_export(argparse.Namespace(force=True, leg=leg))
 
 
-def _env_new(extra=None):
-    N = LEGS[L1]
+def _env_new(leg, extra=None):
+    N = LEGS[leg]
     sp = hp.SPECIES[N["pdg"]]
     e = dict(TOY_PLANES_MOD=rc.GEOM[N["geom"]][1], TOY_PDG=str(N["pdg"]),
              TOY_PNAME=sp["g4"], TOY_RMAX="107.0", TOY_CUT=repr(rc.CUT),
@@ -487,32 +466,34 @@ def _env_new(extra=None):
 
 
 def _sim_one(a):
-    seed, nev, force = a
-    N = LEGS[L1]
-    out = sim_path(L1, seed)
+    leg, seed, nev, force = a
+    N = LEGS[leg]
+    out = sim_path(leg, seed)
     log = out[:-5] + ".log"
     if os.path.exists(out) and rc._complete(log, nev) and not force:
-        return seed, 0, log, "cached"
-    ee = _env_new({"TOY_CENSUS": out[:-9] + "_census.bin"})
+        return leg, seed, 0, log, "cached"
+    ee = _env_new(leg, {"TOY_CENSUS": out[:-9] + "_census.bin"})
     r = rc._run(N["geom"], "runToyGeomCheck.py",
                 f"events={nev} pt={N['pt']!r} eta={rc.ETA} output={out} "
                 f"seed={seed} toyGeom={rc.toygeom(N['geom'])}", log, ee)
     if r == 0 and not rc._complete(log, nev):
         r = 99
-    return seed, r, log, "ran"
+    return leg, seed, r, log, "ran"
 
 
 def cmd_sim(args):
     from concurrent.futures import ThreadPoolExecutor
     os.makedirs(os.path.join(rc.OUT, "sim"), exist_ok=True)
-    N = LEGS[L1]
-    jobs = [(s, args.events, args.force) for s in N["seeds"][:args.jobs]]
-    print(f"{len(jobs)} {L1} jobs x {args.events} events, pT {N['pt']:g}, "
-          f"phi = {N['phi']:.6f}, arm {rc.ARM}", flush=True)
+    jobs = [(lg, s, args.events, args.force) for lg in new_legs()
+            for s in LEGS[lg]["seeds"][:args.jobs]]
+    for lg in new_legs():
+        N = LEGS[lg]
+        print(f"{lg}: {args.jobs} jobs x {args.events} events, pT {N['pt']:g}, "
+              f"phi = {N['phi']:.6f}, arm {rc.ARM}", flush=True)
     t0, bad = time.time(), 0
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        for seed, r, log, how in ex.map(_sim_one, jobs):
-            print(f"  {L1} seed={seed} rc={r} {how:<6} {time.time() - t0:7.0f} s",
+        for lg, seed, r, log, how in ex.map(_sim_one, jobs):
+            print(f"  {lg} seed={seed} rc={r} {how:<6} {time.time() - t0:7.0f} s",
                   flush=True)
             if r:
                 bad += 1
@@ -523,22 +504,24 @@ def cmd_sim(args):
 
 def cmd_export(args):
     os.makedirs(os.path.join(rc.OUT, "model"), exist_ok=True)
-    N = LEGS[L1]
-    out = model_path(L1)
-    log = out[:-5] + ".log"
-    if os.path.exists(out) and not args.force:
-        print(f"exists -> {out}")
-        return
-    r = rc._run(N["geom"], "runToyModel.py",
-                f"pt={N['pt']!r} eta={rc.ETA} phi={N['phi']!r} partId={N['pdg']} "
-                f"output={out} toyGeom={rc.toygeom(N['geom'])}", log,
-                _env_new(dict(rc.FOUR_ON, TOY_PLIMIT="0.1")))
-    print(f"rc={r} -> {out}", flush=True)
-    if r:
-        raise SystemExit(f"export failed, see {log}")
-    t = open(log, errors="ignore").read()
-    eff = re.search(r"\[cvh\] effective: (.*)", t)
-    print(f"    {eff.group(0) if eff else '*** no [cvh] effective line ***'}")
+    legs = [args.leg] if getattr(args, "leg", None) else new_legs()
+    for leg in legs:
+        N = LEGS[leg]
+        out = model_path(leg)
+        log = out[:-5] + ".log"
+        if os.path.exists(out) and not args.force:
+            print(f"exists -> {out}")
+            continue
+        r = rc._run(N["geom"], "runToyModel.py",
+                    f"pt={N['pt']!r} eta={rc.ETA} phi={N['phi']!r} partId={N['pdg']} "
+                    f"output={out} toyGeom={rc.toygeom(N['geom'])}", log,
+                    _env_new(leg, dict(rc.FOUR_ON, TOY_PLIMIT="0.1")))
+        print(f"{leg}: rc={r} -> {out}", flush=True)
+        if r:
+            raise SystemExit(f"export failed, see {log}")
+        t = open(log, errors="ignore").read()
+        eff = re.search(r"\[cvh\] effective: (.*)", t)
+        print(f"    {eff.group(0) if eff else '*** no [cvh] effective line ***'}")
 
 
 _SIMC = {}
@@ -560,10 +543,15 @@ def cmd_live(args):
     process census: every process the arm switches off has ZERO primary steps
     (species-specific names zero in `all` as well), every process the arm
     restores relative to `off` fires on the primary."""
-    N = LEGS[L1]
+    for leg in new_legs():
+        _live_one(leg)
+
+
+def _live_one(leg):
+    N = LEGS[leg]
     pdg = N["pdg"]
-    logs = sorted(glob.glob(sim_glob(L1)[:-5] + ".log"))
-    print(f"### {L1} ({DECAY} leg, arm {rc.ARM})  {len(logs)} logs")
+    logs = sorted(glob.glob(sim_glob(leg)[:-5] + ".log"))
+    print(f"### {leg} ({DECAY} leg, arm {rc.ARM})  {len(logs)} logs")
     if not logs:
         raise SystemExit("no logs")
     tot, prov = {}, set()
@@ -603,7 +591,7 @@ def cmd_live(args):
               f"{'OK (restored, fires on the primary)' if got[0] > 0 else '*** INERT ***'}")
         if got[0] == 0:
             raise SystemExit(f"{nm} is restored by arm {rc.ARM} but never fired")
-    v = load_sim(L1)["valid"]
+    v = load_sim(leg)["valid"]
     print(f"    events {v.shape[0]}, reached every plane "
           f"{100 * v.all(axis=1).mean():.3f} %, outermost {100 * v[:, -1].mean():.3f} %")
 
@@ -643,7 +631,7 @@ def cmd_pairs(args):
         if not ok and not args.nofail:
             raise SystemExit("pair gate failed")
     N = LEGS[L1]
-    if N["pt"] != rc.PT:
+    if N["pt"] != rc.PT or LEGS[L0]["new"]:
         return
     a = cpt.load_model(rc.model_path(N["pdg"]))
     b = cpt.load_model(model_path(L1))
@@ -1092,7 +1080,10 @@ def main():
                     help="the old leg's model-file suffix (`_mat`: the export with "
                          "the per-step material table the elastic channel needs)")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("setup").set_defaults(f=cmd_setup)
+    s = sub.add_parser("setup")
+    s.add_argument("--force", action="store_true",
+                   help="rewrite the dedicated legs' planes (undoes re-centring)")
+    s.set_defaults(f=cmd_setup)
     s = sub.add_parser("sim")
     s.add_argument("--events", type=int, default=rc.NEV)
     s.add_argument("--jobs", type=int, default=10)
@@ -1102,6 +1093,7 @@ def main():
     sub.add_parser("live").set_defaults(f=cmd_live)
     s = sub.add_parser("export")
     s.add_argument("--force", action="store_true")
+    s.add_argument("--leg", default=None, help="one dedicated leg; default all")
     s.set_defaults(f=cmd_export)
     s = sub.add_parser("pairs")
     s.add_argument("--nofail", action="store_true")
@@ -1117,7 +1109,10 @@ def main():
                         "leg's weights set to zero)")
     s.set_defaults(f=cmd_closure)
     sub.add_parser("summary").set_defaults(f=cmd_summary)
-    sub.add_parser("recentre").set_defaults(f=cmd_recentre)
+    s = sub.add_parser("recentre")
+    s.add_argument("--iterations", type=int, default=4)
+    s.add_argument("--tol", type=float, default=1e-4)
+    s.set_defaults(f=cmd_recentre)
     s = sub.add_parser("legclosure")
     s.add_argument("--leg", default=None, help="leg key; default the new leg")
     s.add_argument("--funcs", nargs="+", default=list(rc.FUNCS))

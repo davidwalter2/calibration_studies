@@ -74,11 +74,12 @@ import selection  # noqa: E402  (the standard two-track selection)
 TG = None
 ioni_sq2 = ioni_step_exponent = ms_step_exponent = None
 cf_brems_exact = None
+cf_rows = None
 
 
 def load_cf_primitives():
     """Import the resolution-CF primitives into module globals."""
-    global TG, ioni_sq2, ioni_step_exponent, ms_step_exponent, cf_brems_exact
+    global TG, ioni_sq2, ioni_step_exponent, ms_step_exponent, cf_brems_exact, cf_rows
     if TG is not None:
         return
     t0 = time.time()
@@ -90,6 +91,8 @@ def load_cf_primitives():
 
     TG, ioni_sq2, ioni_step_exponent, ms_step_exponent = _TG, _isq, _ise, _mse
     cf_brems_exact = _brems
+    import cf_rows as _rows
+    cf_rows = _rows
     print(f"CF primitives imported in {time.time()-t0:.0f} s", flush=True)
 
 # Physics conventions, identical to cf_mass_likelihood (imported by value so
@@ -507,9 +510,7 @@ def process_file(fname):
             )
             rvg = np.asarray(a["radvgrid"][ic], dtype=np.float64)
 
-        Sms = np.zeros(len(TG))
-        Sio = np.zeros(len(TG), dtype=np.complex128)
-        Srad = np.zeros(len(TG), dtype=np.complex128)
+        ms_blocks, io_blocks, wrad = [], [], {}
         ok = True
         for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
             sel = fam == famcode
@@ -530,26 +531,27 @@ def process_file(fname):
                     continue
                 sgn = IONI_SGN if famcode == 11 else (np.sign(uw[m].sum()) or 1.0)
                 if famcode == 10:
-                    Sms += ms_step_exponent(steps, np.sqrt(vpool / sq2) / sig, TG)
+                    ms_blocks.append((gg, steps, np.sqrt(vpool / sq2) / sig))
                 else:
                     wsc = np.sqrt(vpool / sq2) / sig
-                    Sio += ioni_step_exponent(steps, sgn * wsc, TG)
-                    if want_rad:
-                        rm = ridx == gg
-                        nrs = int(rm.sum())
-                        if nrs:
-                            Srad += cf_brems_exact.rad_exponent(
-                                TG,
-                                rrec[rm],
-                                rspc[rm],
-                                rvg,
-                                weights=np.full(nrs, RAD_SGN * wsc),
-                            )
+                    io_blocks.append((gg, steps, sgn * wsc))
+                    wrad[int(gg)] = RAD_SGN * wsc
             if not ok:
                 break
         if not ok:
             ndrop += 1
             continue
+        # every family from the shared row functions (cf_rows); this cache
+        # has no knock-on slots, so the knock-on pieces (exact map + joint)
+        # are part of the ionisation family: Sio is the ionisation rows'
+        # whole exponent
+        fam_S = cf_rows.fit_families(
+            TG, 1.0, ms_blocks, io_blocks,
+            dict(uim=uim, ridx=ridx, uvm=uvm, rrec=rrec, rspc=rspc, rvg=rvg,
+                 wrad=wrad) if want_rad else None)
+        Sms = fam_S["Sms"].real
+        Sio = fam_S["Sio"] + fam_S["Skx"] + fam_S["Skj"]
+        Srad = fam_S["Srad"]
 
         # --- D row: dm/dtheta on the fit block -----------------------------
         D = np.zeros(nfit)

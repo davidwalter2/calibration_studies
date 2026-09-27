@@ -152,6 +152,19 @@ def planes_path(g):
     return os.path.join(testdir(g), GEOM[g][1] + ".py")
 
 
+def species_planes_mod(pdg):
+    """Each species' own planes: the charge geometry's helix_frames planes
+    (`planes_path(gkey)`), re-centred on the species' reference by
+    `recentre` -- 51 mm apart at the outer plane between an e- and a mu- of
+    the same pT, which is 1.2 mm along the normal between the flat plane and
+    the scored cylinder."""
+    return f"toyPlanes_realmat_full_{lab(pdg)}_pt3"
+
+
+def species_planes_path(pdg):
+    return os.path.join(testdir(gkey(pdg)), species_planes_mod(pdg) + ".py")
+
+
 def lab(pdg):
     return hp.SPECIES[pdg]["label"].replace("-", "m").replace("+", "p")
 
@@ -223,6 +236,13 @@ def _driver_sources():
                  "import importlib, os as _os\nplanes = importlib.import_module("
                  '_os.environ["TOY_PLANES_MOD"])', "model: planes import",
                  flags=re.M)
+    # the stock driver takes a realmat geometry's planes from
+    # `toyPlanes_<geometry>_pt3`, OVERRIDING TOY_PLANES_MOD: every species and
+    # every ditrack leg has its own planes (`species_planes_mod`), centred on
+    # its own reference (`recentre`)
+    m = hp._sub1(m, r"    _pmod = 'toyPlanes_%s_pt3' % opts\.toyGeom\.split\('/'\)\[-2\]",
+                 "    _pmod = _os.environ.get('TOY_PLANES_MOD', 'toyPlanes_%s_pt3' "
+                 "% opts.toyGeom.split('/')[-2])", "model: plane module")
     return s, m
 
 
@@ -270,6 +290,14 @@ def cmd_setup(args):
         open(os.path.join(td, "runToyGeomCheck.py"), "w").write(s)
         open(os.path.join(td, "runToyModel.py"), "w").write(m)
         print(f"[{g}] wrote runToyGeomCheck.py and runToyModel.py in {td}")
+        for pdg in hp.SPECIES:
+            if gkey(pdg) != g or os.path.exists(species_planes_path(pdg)):
+                continue
+            head2, body2 = open(planes_path(g)).read().split("\n", 1)
+            open(species_planes_path(pdg), "w").write(
+                f"# {species_planes_mod(pdg)}: the {g} helix_frames planes before "
+                f"re-centring (realmat_closure.py setup); do not hand edit\n" + body2)
+            print(f"[{g}] {species_planes_mod(pdg)}.py  (copy, to be re-centred)")
 
     # the mirror, checked: same radii, same z, azimuth reflected about PHI
     a, b = {}, {}
@@ -286,6 +314,77 @@ def cmd_setup(args):
           f"{np.abs(0.5 * (pm + pp) - PHI).max():.2e} rad")
 
 
+def recentre_planes(planes_file, model_file, label):
+    """Put a leg's planes ON its own reference trajectory.
+
+    The planes come from `helix_frames`, a helix of FIXED radius; the model's
+    reference loses energy, curls tighter and drifts off the plane origins
+    (1.3 mm for a 3 GeV muon at the outer plane, 51 mm for an electron).  The
+    sim records the state where the primary crosses the shell CYLINDER, the
+    model where the reference crosses the flat tangent PLANE, and d off the
+    origin the two are d^2/2r apart along the normal.  So each origin moves to
+    where the reference crosses the cylinder (back along its direction from
+    the plane crossing), with the radial normal and tangential u of
+    `helix_frames`.  The sim is untouched (it scores the same cylinders); the
+    model must be re-exported.  Returns the largest origin move [cm]."""
+    import uproot
+    from toy_loader import plane_frames
+    ns = {}
+    exec(open(planes_file).read(), ns)
+    o, R = plane_frames(ns["origin"], ns["normal"], ns["uaxis"])
+    f = uproot.open(model_file)
+    t = f[next(k for k in f.keys() if k.split(";")[0].endswith("/legs"))]
+    a = t.arrays(["reflocx", "reflocy", "reflocz", "refdxdz", "refdydz"],
+                 library="np")
+    loc = np.stack([a["reflocx"], a["reflocy"], a["reflocz"]], axis=1)
+    X = o + np.einsum("kji,kj->ki", R, loc)
+    dl = np.stack([a["refdxdz"], a["refdydz"], np.ones(len(o))], axis=1)
+    d = np.einsum("kji,kj->ki", R, dl)
+    d /= np.linalg.norm(d, axis=1, keepdims=True)
+    r = np.asarray(ns["radii"], dtype=np.float64)
+    print(f"{label}: before  max |reflocx| {np.abs(loc[:, 0]).max() * 1e4:.1f} um, "
+          f"max |reflocy| {np.abs(loc[:, 1]).max() * 1e4:.1f} um, max |r_ref - r| "
+          f"{np.abs(np.hypot(X[:, 0], X[:, 1]) - r).max() * 1e4:.2f} um")
+    # back along d from X to the cylinder |x_T| = r: a2 s^2 + b s + c = 0,
+    # the root nearest zero in the stable form c/q
+    a2 = d[:, 0] ** 2 + d[:, 1] ** 2
+    b = -2.0 * (X[:, 0] * d[:, 0] + X[:, 1] * d[:, 1])
+    c = X[:, 0] ** 2 + X[:, 1] ** 2 - r ** 2
+    qq = -0.5 * (b + np.copysign(np.sqrt(np.maximum(b * b - 4 * a2 * c, 0.0)), b))
+    sfac = np.where(c != 0.0, c / qq, 0.0)
+    Y = X - sfac[:, None] * d
+    ph = np.arctan2(Y[:, 1], Y[:, 0])
+    org = np.stack([r * np.cos(ph), r * np.sin(ph), Y[:, 2]], axis=1)
+    nrm = np.stack([np.cos(ph), np.sin(ph), np.zeros_like(ph)], axis=1)
+    uu = np.stack([-np.sin(ph), np.cos(ph), np.zeros_like(ph)], axis=1)
+    f = lambda v: ", ".join("%.6f" % x for x in np.ravel(v))       # noqa: E731
+    m_it = re.search(r"re-centred x(\d+)", open(planes_file).readline())
+    it = int(m_it.group(1)) + 1 if m_it else 1
+    head = (f"# generated by realmat_closure.recentre_planes: {label} planes "
+            f"re-centred x{it} on the reference crossings of "
+            f"{os.path.basename(model_file)}; do not hand edit\n")
+    body = (f"radii = [{f(r)}]\norigin = [{f(org)}]\n"
+            f"normal = [{f(nrm)}]\nuaxis  = [{f(uu)}]\n")
+    move = float(np.abs(org - np.asarray(ns["origin"]).reshape(-1, 3)).max())
+    open(planes_file, "w").write(head + body)
+    print(f"{label}: planes re-centred (iteration {it}); max origin move "
+          f"{move:.5f} cm -> {planes_file}")
+    return move
+
+
+def cmd_recentre(args):
+    """Re-centre each species' planes on its reference, re-export, repeat
+    until the largest origin move is below `--tol` (cm)."""
+    for pdg in args.pdg:
+        for it in range(args.iterations):
+            args_e = argparse.Namespace(pdg=[pdg], force=True)
+            cmd_export(args_e)
+            move = recentre_planes(species_planes_path(pdg), model_path(pdg), lab(pdg))
+            if move < args.tol:
+                break
+        cmd_export(argparse.Namespace(pdg=[pdg], force=True))
+
+
 # =========================================================================
 # running
 # =========================================================================
@@ -293,7 +392,7 @@ def cmd_setup(args):
 def _env(pdg, extra=None):
     sp = hp.SPECIES[pdg]
     g = gkey(pdg)
-    e = dict(TOY_PLANES_MOD=GEOM[g][1], TOY_PDG=str(pdg), TOY_PNAME=sp["g4"],
+    e = dict(TOY_PLANES_MOD=species_planes_mod(pdg), TOY_PDG=str(pdg), TOY_PNAME=sp["g4"],
              TOY_RMAX="107.0", TOY_CUT=repr(CUT),
              TOY_INACT=",".join(hp.inact_of(pdg, ARM)))
     e.update(extra or {})
@@ -457,7 +556,7 @@ def _sim(pdg):
     if pdg not in _SIMC:
         from toy_loader import load_toy_sim
         ns = {}
-        exec(open(planes_path(gkey(pdg))).read(), ns)
+        exec(open(species_planes_path(pdg)).read(), ns)
         _SIMC[pdg] = load_toy_sim(sim_glob(pdg), ns["origin"], ns["normal"],
                                   ns["uaxis"])
     return _SIMC[pdg]
@@ -689,7 +788,7 @@ def main():
     sub.add_parser("setup").set_defaults(f=cmd_setup)
     for name, f in (("sim", cmd_sim), ("live", cmd_live), ("export", cmd_export),
                     ("pairs", cmd_pairs), ("closure", cmd_closure),
-                    ("table", cmd_table)):
+                    ("table", cmd_table), ("recentre", cmd_recentre)):
         q = sub.add_parser(name)
         q.add_argument("--pdg", type=int, nargs="+",
                        default=ORDER8 if name == "table" else [13, -13])
@@ -710,6 +809,9 @@ def main():
             q.add_argument("--force", action="store_true")
         if name == "export":
             q.add_argument("--force", action="store_true")
+        if name == "recentre":
+            q.add_argument("--iterations", type=int, default=4)
+            q.add_argument("--tol", type=float, default=1e-4)
         if name == "pairs":
             q.add_argument("--nofail", action="store_true")
         if name == "closure":

@@ -323,8 +323,24 @@ def simpson(x, h):
     return np.sum(D * (h0 + c1 * D / 2.0 + c2 * D * D / 3.0), axis=1)
 
 
-def step_correction(tau_a, tau_b, T, dN, X, dXdT, th, joint, exact):
-    """dS on the t points of one step: tau_a = t*a (nt,), tau_b = t*b (nt,)."""
+def step_correction(tau_a, tau_b, T, dN, X, dXdT, th, joint, exact, part="all"):
+    """dS on the t points of one step: tau_a = t*a (nt,), tau_b = t*b (nt,).
+
+    part: "all" -- INT dN [e^{iaX} J - e^{iaT} - J + 1];
+          "map" -- its J = 1 piece, INT dN [e^{iaX} - e^{iaT}];
+          "joint" -- the rest, INT dN (e^{iaX} - 1)(J - 1)."""
+    if part == "map":
+        return step_correction(tau_a, tau_b, T, dN, X, dXdT, None, False, exact)
+    if part == "joint":
+        if not joint:
+            return np.zeros(len(tau_a), dtype=np.complex128)
+        J = j0(tau_b[:, None] * th[None, :])
+        amp = dN[None, :] * (J - 1.0)
+        if exact:
+            A = filon(X, amp / dXdT[None, :], tau_a)
+        else:
+            A = filon(T, amp, tau_a)
+        return A - simpson(T, amp)
     B = filon(T, dN, tau_a)
     if joint:
         J = j0(tau_b[:, None] * th[None, :])
@@ -340,12 +356,17 @@ def step_correction(tau_a, tau_b, T, dN, X, dXdT, th, joint, exact):
 
 
 # ------------------------------------------------------------- the channel
-def knockon_exponent(leg, A_end, A_start, avec, sigma, tau):
-    """dS of one leg at plane k: summed over its ionisation records."""
+def knockon_rows(tau, st, rid, wq, wb, frac, part="all"):
+    """dS of a set of ionisation ROWS (`cf_rows`): per entry (record rid,
+    q/p weight wq [z per unit q/p, charge included], angular weight wb [z per
+    radian], share frac of the record's rate), summed.  The record's law and
+    nodes are evaluated once however many entries share it.  `part` selects
+    the exact-map or the joint piece (`step_correction`)."""
+    tau = np.asarray(tau, dtype=np.float64)
     S = np.zeros(len(tau), dtype=np.complex128)
-    if not active() or not len(leg["ioni"]):
+    if not active() or not len(st) or not len(rid):
         return S
-    st = leg["ioni"]
+    st = np.asarray(st)
     reg = st[:, 0]
     if not np.isin(reg, EXACT_REGIMES).any():
         # regime-1 records carry no exact knock-on spectrum (and no beta^2, E)
@@ -359,17 +380,18 @@ def knockon_exponent(leg, A_end, A_start, avec, sigma, tau):
     b2, E = st[:, 11], st[:, 12]
     g = st[:, 10] * 1e-3
     p = E * np.sqrt(b2)
-    q = np.sign(leg["refqop"]) or 1.0
-    coslam = max(leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0, 1e-3)
-    v1 = np.einsum("i,sij->sj", avec, A_end)
-    v0 = np.einsum("i,sij->sj", avec, A_start)
     kok_on = ctr.IONI_KOKOULIN != 0.0
     ismu = ctr._is_muon_record(b2, E) & (E - ctr._MMU > ctr._KOK_MUMIN)
     act = np.isin(reg, EXACT_REGIMES) & (xi > 0) & (tmax > e0) & (e0 > 0)
     joint, exact = bool(KNOCKON_JOINT), bool(QOP_EXACT)
-    nsub = max(int(KNOCKON_NSUB), 1)
     xmax = float(xi[act].max()) if act.any() else 0.0
+    rid = np.asarray(rid)
+    order = np.argsort(rid, kind="stable")
+    bounds = np.searchsorted(rid[order], np.arange(len(st) + 1))
     for s in np.flatnonzero(act):
+        ents = order[bounds[s]:bounds[s + 1]]
+        if not len(ents):
+            continue
         thin = xi[s] < KNOCKON_THIN * xmax
         T = nodes(e0[s], law_top(reg[s], tmax[s], E[s], p[s]),
                   KNOCKON_NPERDEC_THIN if thin else KNOCKON_NPERDEC)
@@ -378,18 +400,27 @@ def knockon_exponent(leg, A_end, A_start, avec, sigma, tau):
         X = t_eff(T, E[s], p[s]) if exact else T
         dXdT = dteff_dt(T, E[s], p[s]) if exact else np.ones_like(T)
         th = theta_kick(T, E[s], p[s], tmax[s]) if joint else None
-        for i in range(nsub):
-            f = (i + 0.5) / nsub
-            v = v0[s] + f * (v1[s] - v0[s])
-            al = q * v[0] * g[s] / sigma
-            be = np.hypot(v[1], v[2] / coslam) / sigma
+        for e in ents:
+            al = wq[e] * g[s]
+            be = wb[e]
             if al == 0.0 and (be == 0.0 or not joint):
                 continue
             for lo in range(0, len(tau), _TCHUNK):
                 t = tau[lo:lo + _TCHUNK]
                 S[lo:lo + _TCHUNK] += step_correction(
-                    t * al, t * be, T, dN, X, dXdT, th, joint, exact) / nsub
+                    t * al, t * be, T, dN, X, dXdT, th, joint, exact, part) * frac[e]
     return S
+
+
+def knockon_exponent(leg, A_end, A_start, avec, sigma, tau):
+    """dS of one clean-propagation leg at plane k: its ionisation rows at the
+    exact transport weights, KNOCKON_NSUB sub-steps (`cf_rows`)."""
+    if not active() or not len(leg["ioni"]):
+        return np.zeros(len(tau), dtype=np.complex128)
+    import cf_rows
+    rid, wq, wb, frac = cf_rows.transport_entries(leg, A_end, A_start, avec,
+                                                  sigma, KNOCKON_NSUB, "vector")
+    return knockon_rows(tau, leg["ioni"], rid, wq, wb, frac)
 
 
 def mean_shift(leg, A_end, A_start, avec, sigma):

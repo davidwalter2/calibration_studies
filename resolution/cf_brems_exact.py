@@ -73,6 +73,18 @@ RADV_NCOLS = 11
 
 NRADV = 48   # Geant4ePropagator::kNRadV; `radstepnv` in maker files
 
+# The exported spectrum (48 points) is refined RAD_NSUB-fold before its
+# quadrature (`refine_spectra`): log-log between points, the last interval
+# continued to the step's kinematic endpoint.  Numerics, identical for every
+# species and every caller; 4 is converged to 1e-4 in the CF.
+RAD_NSUB = 4
+PHYSICS_GLOBALS = ("RAD_NSUB",)
+
+
+def physics_state():
+    g = globals()
+    return tuple((n, repr(g[n])) for n in PHYSICS_GLOBALS)
+
 M_MU = 0.1056583745      # GeV
 M_E = 0.510998946e-3     # GeV
 SQRT_E = np.sqrt(np.e)

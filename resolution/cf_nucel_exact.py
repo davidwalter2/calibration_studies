@@ -480,76 +480,83 @@ def joint_exponent(tau, nrate, jt, w, wq, E=None, p=None, chunk=2048):
     return out
 
 
-def leg_exponent(S, leg, A_ms, A_ms_start, A_ioni, avec, sigma, tau, nsub):
-    """THE nuclear-elastic exponent of one leg, accumulated INTO `S` in place:
-    the angular family (per MS row, NSUB sub-steps on the MS channel's own
-    weights), the recoil family (NUCEL_RECOIL; per row's material, the leg-mean
-    ionisation weight) and the joint correction (NUCEL_JOINT).  The one place
-    both CF builders call -- `cf_propagation_test.model_phi` (the closure) and
-    `cgf_channels.block_cf_exponent` (the Fisher scale, which defines the u
-    axis) -- so the two cannot drift apart.  In-place accumulation keeps the
-    closure's floating-point summation order, i.e. bit-identity with the code
-    this replaced."""
+def rows_exponent(S, leg, tau, rid, wb, frac, wq_row, wb_mid):
+    """THE nuclear-elastic exponent of one leg's scattering ROWS (`cf_rows`),
+    accumulated INTO `S` in place:
+      angular  per entry (row rid, angular weight wb, share frac of the row's
+               collisions);
+      recoil   per row at weight wq_row[s] [z per MeV of recoil energy: the
+               q/p weight times the step's q/p per MeV, cs 1e-3]
+               (NUCEL_RECOIL), the row's whole rate;
+      joint    per row at (wb_mid[s], wq_row[s]) (NUCEL_JOINT).
+    `leg` carries the rows (`ms`), their materials (`msmat`, `mattab`) and
+    the species (`pdg_from_leg`)."""
     if not NUCEL_CHANNEL or not len(leg["ms"]):
         return S
     pdg = pdg_from_leg(leg)
     if pdg is None:
         return S
-    wv = np.einsum("i,sij->sj", avec, A_ms)
-    wv0 = np.einsum("i,sij->sj", avec, A_ms_start)
-    coslam = leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0
-
-    def _weffn(v):
-        return np.sqrt(v[:, 1] ** 2 + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
-    weff, weff0 = _weffn(wv), _weffn(wv0)
-    r = leg_rates(leg, pdg, mass_of(pdg), nsub=nsub)
+    r = leg_rates(leg, pdg, mass_of(pdg), nsub=1)
     if r is None:
         return S
     nrate, kidx, kernels = r
-    ns = max(int(nsub), 1)
-    for s in range(len(leg["ms"])):
-        if weff[s] <= 0.0 and weff0[s] <= 0.0:
+    for e in range(len(rid)):
+        s_ = rid[e]
+        if nrate[s_] <= 0.0 or wb[e] <= 0.0:
             continue
-        if nrate[s] <= 0.0:
-            continue
-        ugrid, gtab = kernels[kidx[s]]
-        for i in range(ns):
-            f = (i + 0.5) / ns
-            w = weff0[s] + f * (weff[s] - weff0[s])
-            if w > 0.0:
-                S += nucel_step_exponent(tau, nrate[s], ugrid, gtab, w)
-    if not (NUCEL_RECOIL and len(leg["ioni"])):
+        ugrid, gtab = kernels[kidx[s_]]
+        S += nucel_step_exponent(tau, nrate[s_] * frac[e], ugrid, gtab, wb[e])
+    if not NUCEL_RECOIL:
         return S
-    # The ionization and Moliere step lists are NOT parallel, so they cannot be
-    # paired by index -- the recoil takes the leg-mean ionisation weight, as
-    # the radiative channel does when the counts differ.  Column 10 of the
-    # ionization record is qop per GeV (the 1e-3: per MeV of recoil).
-    qsgn = np.sign(leg["refqop"]) or 1.0
-    wq_all = qsgn * np.einsum("i,sij->sj", avec, A_ioni)[:, 0] / sigma
-    cs_all = np.asarray(leg["ioni"])[:, 10] * 1e-3
-    wq_eff = float(np.mean(wq_all * cs_all)) \
-        if len(wq_all) == len(cs_all) \
-        else float(np.mean(wq_all) * np.mean(cs_all))
     dkidx, dkern = dE_step_kernels(leg, pdg)
-    for s in range(len(nrate)):
-        if nrate[s] <= 0.0:
+    for s_ in range(len(nrate)):
+        if nrate[s_] <= 0.0:
             continue
-        vg, gq = dkern[dkidx[s]]
-        S += nucel_qop_exponent(tau, nrate[s] * ns, vg, gq, wq_eff)
+        vg, gq = dkern[dkidx[s_]]
+        S += nucel_qop_exponent(tau, nrate[s_], vg, gq, wq_row[s_])
     if NUCEL_JOINT and _has_composition(leg):
         ms = np.asarray(leg["ms"])
         m = mass_of(pdg)
         p0 = float(ms[0, 3])
         ekin = (np.sqrt(p0 * p0 + m * m) - m) * 1e3
-        for s in range(len(nrate)):
-            if nrate[s] <= 0.0:
+        for s_ in range(len(nrate)):
+            if nrate[s_] <= 0.0:
                 continue
-            comp = step_composition(leg, s)
+            comp = step_composition(leg, s_)
             jt = material_joint(pdg, comp, ekin) if comp else None
-            ps = float(ms[s, 3])
-            S += joint_exponent(tau, nrate[s] * ns, jt, 0.5 * (weff[s] + weff0[s]),
-                                wq_eff, np.sqrt(ps * ps + m * m), ps)
+            ps = float(ms[s_, 3])
+            S += joint_exponent(tau, nrate[s_], jt, wb_mid[s_], wq_row[s_],
+                                np.sqrt(ps * ps + m * m), ps)
     return S
+
+
+def leg_exponent(S, leg, A_ms, A_ms_start, A_ioni, avec, sigma, tau, nsub):
+    """The nuclear-elastic exponent of one clean-propagation leg at plane k,
+    INTO `S`: its scattering rows at the exact transport weights (`cf_rows`),
+    NSUB sub-steps for the angular family.  The recoil takes the leg-mean
+    ionisation weight (the ionisation and scattering logs are not parallel)
+    and the joint term the step-midpoint angular weight.  The one place both
+    CF builders call -- `cf_propagation_test.model_phi` (the closure) and
+    `cgf_channels.block_cf_exponent` (the Fisher scale)."""
+    if not NUCEL_CHANNEL or not len(leg["ms"]) or pdg_from_leg(leg) is None:
+        return S
+    import cf_rows
+    rid, wq_s, wb, frac = cf_rows.transport_entries(leg, A_ms, A_ms_start, avec,
+                                                    sigma, nsub, "length")
+    _, wb_end = cf_rows.end_weights(leg, A_ms, avec, sigma)
+    _, wb_start = cf_rows.end_weights(leg, A_ms_start, avec, sigma)
+    wb_mid = 0.5 * (wb_end + wb_start)
+    wq_eff = 0.0
+    if NUCEL_RECOIL and len(leg["ioni"]):
+        # the leg-mean ionisation weight per MeV: column 10 of the ionisation
+        # record is q/p per GeV (the 1e-3: per MeV of recoil)
+        wq_all, _ = cf_rows.end_weights(leg, A_ioni, avec, sigma)
+        cs_all = np.asarray(leg["ioni"])[:, 10] * 1e-3
+        wq_eff = float(np.mean(wq_all * cs_all)) \
+            if len(wq_all) == len(cs_all) \
+            else float(np.mean(wq_all) * np.mean(cs_all))
+    wq_row = np.full(len(leg["ms"]), wq_eff)
+    return rows_exponent(S, leg, tau, rid, wb, frac, wq_row, wb_mid)
 
 
 def prewarm(legs_list, nproc=None):

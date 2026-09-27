@@ -107,6 +107,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cf_brems_exact
 import cf_nucel_exact
 import cf_propagation_test as cpt
+import cf_rows
 from cf_ms_exact import G4_FF_SQUARED, moliere_params
 from cf_propagation_test import FUNCTIONALS, model_variance, step_transports
 from cgf_saddlepoint import _LOG_MAX, ioni_cgf_derivs
@@ -585,7 +586,7 @@ def collect_ms_steps(legs, k, avec, sigma):
 
 def collect_rad_steps(legs, k, avec, sigma):
     """(recs, spec, vgrid, weights) for every radiative sub-step feeding
-    plane k, exactly as model_phi weights them (cf_propagation_test.rad_substeps),
+    plane k, exactly as model_phi weights them (cf_rows.transport_entries),
     q/p weights only: the q/p CGF this feeds has no angular argument."""
     A_ms, _, A_ms_start = step_transports(legs, k)
     R, S, W = [], [], []
@@ -595,10 +596,13 @@ def collect_rad_steps(legs, k, avec, sigma):
         if leg.get("rad") is None or not len(leg["rad"]):
             continue
         vg = leg["radvgrid"]
-        for recs, wr, _ in cpt.rad_substeps(leg, A_ms[j], A_ms_start[j], avec, sigma):
-            R.append(recs)
-            S.append(leg["radspec"])
-            W.append(wr)
+        rid, wq, _, frac = cf_rows.transport_entries(leg, A_ms[j], A_ms_start[j],
+                                                     avec, sigma, cpt.MS_NSUB, "vector")
+        recs = np.array(np.asarray(leg["rad"])[rid], dtype=np.float64, copy=True)
+        recs[:, cf_brems_exact.R_STEPCM] *= frac
+        R.append(recs)
+        S.append(np.asarray(leg["radspec"])[rid])
+        W.append(wq)
     if not R:
         return None, None, None, np.zeros(0)
     return np.concatenate(R), np.concatenate(S), vg, np.concatenate(W)
@@ -830,64 +834,18 @@ def block_fisher_spa(blk, n=4000, lo=1e-8):
 
 # ==================================================== exact CF reference =====
 def block_cf_exponent(legs, k, avec, sigma, tau, channels=("ioni", "ms", "rad")):
-    """The trusted imaginary-argument exponent of model_phi, per channel
-    switchable. Verbatim from cf_propagation_test.model_phi."""
-    from cf_track_resolution import ioni_step_exponent, ms_step_exponent
-    import cf_knockon
+    """model_phi's log-CF, per channel switchable: the SAME per-leg builder
+    (`cf_propagation_test.leg_exponent`, on the `cf_rows` row functions).  The
+    Fisher scale 1/I is computed from this and sF DEFINES the u axis, so a
+    channel present in one and absent from the other would silently relabel
+    every probe.  The nuclear-elastic channel follows NUCEL_CHANNEL alone,
+    not the `channels` tuple, for the same reason."""
     A_ms, A_ioni, A_ms_start, A_ioni_start = step_transports(legs, k,
                                                             ioni_start=True)
     S = np.zeros(len(tau), dtype=np.complex128)
     for j in range(k + 1):
-        leg = legs[j]
-        # the knock-on correction couples the ionisation and scattering
-        # channels, so it needs both; the exact 1/p map alone needs ioni only
-        if ("ioni" in channels and cf_knockon.active() and len(leg["ioni"])
-                and ("ms" in channels or not cf_knockon.KNOCKON_JOINT)):
-            S += cf_knockon.knockon_exponent(leg, A_ioni[j], A_ioni_start[j],
-                                             avec, sigma, tau)
-        if "ioni" in channels and len(leg["ioni"]):
-            q = np.sign(leg["refqop"]) or 1.0
-            w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
-            st = leg["ioni"].copy()
-            st[:, 10] *= w
-            S += ioni_step_exponent(st, 1.0, tau)
-        if ("rad" in channels and leg.get("rad") is not None
-                and len(leg["rad"])):
-            for recs, wr, wb in cpt.rad_substeps(leg, A_ms[j], A_ms_start[j], avec, sigma):
-                S += cf_brems_exact.rad_exponent(
-                    tau, recs, leg["radspec"], leg["radvgrid"], weights=wr,
-                    exact_qop=bool(cf_knockon.QOP_EXACT), bweights=wb)
-        if "ms" in channels and len(leg["ms"]):
-            wv = np.einsum("i,sij->sj", avec, A_ms[j])
-            wv0 = np.einsum("i,sij->sj", avec, A_ms_start[j])
-            coslam = leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0
-
-            def _weff(v):
-                return np.sqrt(v[:, 1] ** 2
-                               + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
-            weff, weff0 = _weff(wv), _weff(wv0)
-            for s in range(len(leg["ms"])):
-                if weff[s] <= 0.0 and weff0[s] <= 0.0:
-                    continue
-                rec = leg["ms"][s:s + 1].copy()
-                rec[:, 2] /= cpt.MS_NSUB
-                for i in range(cpt.MS_NSUB):
-                    f = (i + 0.5) / cpt.MS_NSUB
-                    w = weff0[s] + f * (weff[s] - weff0[s])
-                    if w > 0.0:
-                        S += cpt.KMS_SCALE * ms_step_exponent(rec, w, tau)
-        # --- nuclear elastic, through the SAME function the closure's
-        # model_phi calls (cf_nucel_exact.leg_exponent), because this is what the
-        # FISHER scale 1/I is computed from, and sF is what DEFINES the u axis.
-        # A channel present in one and absent from the other would leave sF
-        # built from a 3-channel CF while the closure compares a 4-channel one
-        # -- not a small error but a silent relabelling of every probe.
-        # It is therefore gated on NUCEL_CHANNEL alone and deliberately NOT on
-        # the `channels` tuple, so the two sites cannot drift apart through a
-        # caller that forgot to add "nucel" to its channel list.
-        if cf_nucel_exact.NUCEL_CHANNEL:
-            cf_nucel_exact.leg_exponent(S, leg, A_ms[j], A_ms_start[j], A_ioni[j],
-                                        avec, sigma, tau, cpt.MS_NSUB)
+        S += cpt.leg_exponent(legs[j], A_ms[j], A_ioni[j], A_ms_start[j],
+                              A_ioni_start[j], avec, sigma, tau, channels=channels)
     return S
 
 

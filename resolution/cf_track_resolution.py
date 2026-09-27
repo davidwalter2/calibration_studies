@@ -119,20 +119,10 @@ from wums import logging, output_tools, plot_tools
 from cf_ms_exact import moliere_params, gshape, gshape_elec
 import cf_ioni_exact
 import hitres_classes
-import cf_delta_ray
 import cf_brems_exact
 import pubhtml
 import ratiopanel
 import prodfiles
-
-# Discrete delta-ray (knock-on) transverse recoil, see cf_delta_ray.  Stored as
-# the NET change to the MS block: S_delta - carve*S_ms, so it is exactly zero
-# when switched off and needs no second copy of Sms.  DELTA_TMAXCAP truncates
-# the spectrum where the recoil stops being resolution and becomes a visible
-# kink the selection removes (default 50 MeV ~ 30x the per-layer MS angle).
-DELTA_ON = os.environ.get("CF_DELTA", "1") not in ("0", "", "false", "False")
-DELTA_TCUT = float(os.environ.get("CF_DELTA_TCUT", "0.35e-3"))     # GeV
-DELTA_TMAXCAP = float(os.environ.get("CF_DELTA_TMAXCAP", "0.05"))  # GeV
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -779,18 +769,6 @@ IONI_KOKOULIN = 1.0 if env_flag("CVH_IONI_KOKOULIN", True) else 0.0
 IONI_KOKOULIN_TCUT = 0.0
 IONI_KOKOULIN_NBIN = 96
 
-# ------------------------------------------ the hard knock-on collision
-# The two pieces of cf_knockon at the fit level, each its own family
-# (Skx: the exact energy -> q/p map on the ionisation and radiative rows;
-# Skj: the joint law of loss and deflection on the msmoliv rows, over S_del's
-# range).  Default OFF, as the in-maker `exportCfKnockon`: with both off
-# nothing is evaluated, no array is written and every other array is
-# unchanged bit for bit.  The joint piece takes X = T_eff when the map is on,
-# so a cache records both switches (`knockon_model`) and model_phi requires
-# them to match.
-FIT_KNOCKON_MAP = 1.0 if env_flag("CF_FIT_KNOCKON_MAP", False) else 0.0
-FIT_KNOCKON_JOINT = 1.0 if env_flag("CF_FIT_KNOCKON_JOINT", False) else 0.0
-
 # ------------------------------------------------------- the knob REGISTRY
 # Every module-level global that changes what this module COMPUTES, in one
 # place, so that a cache key can be built from the registry instead of from
@@ -998,8 +976,7 @@ _WVI_MINCOLL = 10.0
 PHYSICS_GLOBALS = ("IONI_A3_SCALE", "IONI_EXC_SCALE", "IONI_TMAX_SCALE",
                    "IONI_KOKOULIN", "IONI_KOKOULIN_TCUT", "IONI_KOKOULIN_NBIN",
                    "MS_ELEC_TMAX", "MS_ELEC_EDGE", "MS_FINE_G", "MS_SNAP_YMAX",
-                   "MS_WVI_SPLIT", "MS_WVI_NPERX", "MS_WVI_LG",
-                   "FIT_KNOCKON_MAP", "FIT_KNOCKON_JOINT")
+                   "MS_WVI_SPLIT", "MS_WVI_NPERX", "MS_WVI_LG")
 _NOT_PHYSICS = ("COVTOL", "_ME_GEV",   # a tolerance and a physical constant
                 # a G4 constant, a series length, and three numerical guards
                 "_WVI_SSFACTOR", "_WVI_KMAX", "_WVI_ARGMAX", "_WVI_MAXARG_SEEN",
@@ -1376,12 +1353,12 @@ def extract(args):
     Sms_l, Sio_re_l, Sio_im_l, Sdel_l = [], [], [], []
     Srad_re_l, Srad_im_l = [], []
     Skx_l, Skj_l = [], []
-    kx_on, kj_on = bool(FIT_KNOCKON_MAP), bool(FIT_KNOCKON_JOINT)
-    if kx_on or kj_on:
-        import cf_knockon
-    if kj_on and not DELTA_ON:
-        raise ValueError("FIT_KNOCKON_JOINT corrects the delta-ray family "
-                         "S_del, which CF_DELTA=0 switches off")
+    # every family from the shared row functions (cf_rows); the knock-on
+    # pieces under cf_knockon's switches, as in the clean-propagation model
+    import cf_knockon
+    import cf_rows
+    kx_on = bool(cf_knockon.active() and cf_knockon.QOP_EXACT)
+    kj_on = bool(cf_knockon.active() and cf_knockon.KNOCKON_JOINT)
     nsel = ndropcov = ndropgen = 0
     pt = None
     _warned_noclass = False
@@ -1450,8 +1427,8 @@ def extract(args):
         if kj_on and not want_rad:
             # the joint piece pairs each MS row with its step's ionisation
             # weight through the radiative rows (parallel to msmoliv)
-            raise ValueError(f"{fn}: FIT_KNOCKON_JOINT needs the `radstepv` "
-                             f"export for the step pairing")
+            raise ValueError(f"{fn}: the knock-on joint piece needs the "
+                             f"`radstepv` export for the step pairing")
         # the strides of the flat step-record branches, as the FILE declares
         # them (absent in older files -> resolved from the record counts)
         _need = _need + [b for b in prodfiles.stride_keys(
@@ -1553,12 +1530,7 @@ def extract(args):
             else:
                 ridx = rrec = rspc = rvg = None
 
-            Sms = np.zeros(len(TG))
-            Sdel = np.zeros(len(TG))
-            Sio = np.zeros(len(TG), dtype=np.complex128)
-            Srad = np.zeros(len(TG), dtype=np.complex128)
-            Skx = np.zeros(len(TG), dtype=np.complex128)
-            wms_b, wio_b = {}, {}      # block weights for the joint pairing
+            ms_blocks, io_blocks, wrad = [], [], {}
             ok = True
             for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
                 sel = fam == famcode
@@ -1575,17 +1547,7 @@ def extract(args):
                         if sq2 <= 0.:
                             continue
                         wstd = np.sqrt(vpool / sq2) / sig
-                        wms_b[int(g)] = wstd
-                        _sms = ms_step_exponent(steps, wstd, TG)
-                        Sms += _sms
-                        if DELTA_ON:
-                            # carve, do NOT add: Moliere's Z(Z+1) already
-                            # carries this electron scattering continuously.
-                            _cf = cf_delta_ray.carve_factor(
-                                steps, DELTA_TCUT, DELTA_TMAXCAP)
-                            Sdel += (cf_delta_ray.delta_step_exponent(
-                                steps, wstd, TG, DELTA_TCUT,
-                                tmax_cap=DELTA_TMAXCAP) - _cf * _sms)
+                        ms_blocks.append((g, steps, wstd))
                     else:
                         if args.ioni_norm == "raw":
                             # THE gsig2-FREE NORMALISATION. The step's noise is
@@ -1678,35 +1640,23 @@ def extract(args):
                         # the EVEN closure (k_ms, k_hit, <e^{-u z^2}>), is
                         # insensitive to the charge factor; only Sio_im flips
                         # on the mu- half of the sample.
-                        Sio += ioni_step_exponent(steps, chg * wstd, TG)
-                        wio_b[int(g)] = chg * wstd
-                        if kx_on:
-                            Skx += cf_knockon.fit_map(steps, chg * wstd, TG)
+                        io_blocks.append((g, steps, chg * wstd))
                         # THE RADIATIVE TERM, same block, same weight, same
-                        # charge. `rad_exponent` takes cs from the record and
-                        # the energies in GeV, so the weight passed here is
-                        # the q/p -> z scalar itself (no 1e-3: the ionization
-                        # records store MeV, the radiative ones GeV).
-                        if want_rad:
-                            rm = ridx == g
-                            nrs = int(rm.sum())
-                            if nrs:
-                                Srad += cf_brems_exact.rad_exponent(
-                                    TG, rrec[rm], rspc[rm], rvg,
-                                    weights=np.full(nrs, chg * wstd))
-                                if kx_on:
-                                    Skx += cf_knockon.map_rad(
-                                        TG, rrec[rm], rspc[rm], rvg,
-                                        np.full(nrs, chg * wstd))
+                        # charge (the radiative records' cs maps GeV).
+                        wrad[int(g)] = chg * wstd
                 if not ok:
                     break
             if not ok:
                 continue
-            if kj_on:
-                kb, ka = cf_knockon.pair_weights(uim, ridx, uvm, rrec,
-                                                 wms_b, wio_b)
-                Skj = cf_knockon.fit_joint(uvm, ka, kb, uim, ridx, TG,
-                                           DELTA_TCUT, DELTA_TMAXCAP, kx_on)
+            # every family from the shared row functions (cf_rows), the
+            # weights already standardised
+            fam_S = cf_rows.fit_families(
+                TG, 1.0, ms_blocks, io_blocks,
+                dict(uim=uim, ridx=ridx, uvm=uvm, rrec=rrec, rspc=rspc, rvg=rvg,
+                     wrad=wrad) if want_rad else None)
+            Sms, Sdel = fam_S["Sms"].real, fam_S["Sdel"].real
+            Sio, Srad = fam_S["Sio"], fam_S["Srad"]
+            Skx, Skj = fam_S["Skx"], fam_S["Skj"]
 
             zs.append((a["refParms"][ic][0] - qg) / sig)
             sigs.append(sig)
@@ -1863,12 +1813,14 @@ def knockon_exponent(d):
     off).  A cache built without an array the switches ask for, or with the
     joint piece under the other map setting, is an error, never a silent
     zero."""
-    kx, kj = bool(FIT_KNOCKON_MAP), bool(FIT_KNOCKON_JOINT)
+    import cf_knockon
+    kx = bool(cf_knockon.active() and cf_knockon.QOP_EXACT)
+    kj = bool(cf_knockon.active() and cf_knockon.KNOCKON_JOINT)
     if not (kx or kj):
         return 0.0
     keys = d.files if hasattr(d, "files") else d
     if "knockon_model" not in keys:
-        raise ValueError("FIT_KNOCKON_MAP/JOINT is on and the cache has no "
+        raise ValueError("the knock-on switches are on and the cache has no "
                          "knock-on families; re-extract with the switches on")
     cx, cj = (bool(v) for v in np.asarray(d["knockon_model"]))
     if (kx and not cx) or (kj and not cj) or (kj and cx != kx):
@@ -1913,13 +1865,9 @@ def model_phi(d, args, bank=None):
         keys = d.files if hasattr(d, "files") else d
         if "Sdel" in keys:
             S = S + np.exp(kd) * d["Sdel"]
-    # the hard knock-on collision (FIT_KNOCKON_MAP / _JOINT); not added at all
-    # when both are off, so the switched-off model is bit-identical
-    if FIT_KNOCKON_MAP or FIT_KNOCKON_JOINT:
-        if FIT_KNOCKON_JOINT and kd is None:
-            raise ValueError("FIT_KNOCKON_JOINT corrects the delta-ray family; "
-                             "give --kdel (0 is the unscaled family)")
-        S = S + knockon_exponent(d)
+    # the hard knock-on collision (cf_knockon's switches); not added at all
+    # when both are off
+    S = S + knockon_exponent(d)
     return np.exp(S)
 
 

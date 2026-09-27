@@ -63,6 +63,7 @@ import cf_brems_exact
 import prodfiles
 import cf_nucel_exact
 import cf_knockon                                               # noqa: E402
+import cf_rows                                                  # noqa: E402
 
 hep.style.use(hep.style.ROOT)
 logger = logging.child_logger(__name__)
@@ -102,17 +103,11 @@ MS_NSUB = 4       # sub-step quadrature of the MS kick; 1 = point-like
 # with CVH_IONONLY=1 -- because the three are one convention, not three knobs
 # (toy_radoff.py, Documents/Resolution/NOTES_RADOFF.md).
 RAD_CHANNEL = True
-# The exported radiative spectrum (48 points, and 0 beyond each step's
-# kinematic endpoint) is refined RAD_NSUB-fold at LOAD time
-# (cf_brems_exact.refine_spectra): log-log between points, the last interval
-# continued to the endpoint.  Numerics, identical for every species; 4 is
-# converged to 1e-4 in the CF.  1 = the export grid as it is.
-RAD_NSUB = 4
 
 # The knob registry (see cf_track_resolution.PHYSICS_GLOBALS for why it
 # exists).  `_NOT_PHYSICS` names the globals that look like knobs and only
 # control chunking or cache capacity.
-PHYSICS_GLOBALS = ("KMS_SCALE", "MS_NSUB", "RAD_CHANNEL", "RAD_NSUB")
+PHYSICS_GLOBALS = ("KMS_SCALE", "MS_NSUB", "RAD_CHANNEL")
 _NOT_PHYSICS = ("ECF_CHUNK", "_PHI_CACHE_MAX")
 
 
@@ -481,10 +476,13 @@ def load_model(path):
                    if mattab is not None else None),
             mattab=mattab,
         ))
-        if (have_rad and RAD_NSUB > 1 and legs[-1]["rad"] is not None
+        if (have_rad and cf_brems_exact.RAD_NSUB > 1 and legs[-1]["rad"] is not None
                 and len(legs[-1]["rad"])):
+            # the export grid refined once at load (the fit refines per block,
+            # `cf_rows.fit_families`): the same refine_spectra
             legs[-1]["radvgrid"], legs[-1]["radspec"] = cf_brems_exact.refine_spectra(
-                legs[-1]["rad"], legs[-1]["radspec"], legs[-1]["radvgrid"], RAD_NSUB)
+                legs[-1]["rad"], legs[-1]["radspec"], legs[-1]["radvgrid"],
+                cf_brems_exact.RAD_NSUB)
         if mattab is not None and len(legs[-1]["msmat"]) != len(legs[-1]["ms"]):
             raise RuntimeError(f"{path} leg {k}: {len(legs[-1]['msmat'])} "
                                f"material indices for {len(legs[-1]['ms'])} MS steps")
@@ -543,34 +541,6 @@ def step_transports(legs, k, ioni_start=False):
     if ioni_start:
         return A_ms, A_ioni, A_ms_start, A_ioni_start
     return A_ms, A_ioni, A_ms_start
-
-
-def rad_substeps(leg, A_ms_end, A_ms_start, avec, sigma):
-    """[(recs, q/p weights, angular weights)] of one leg's radiative channel,
-    one entry per sub-step.  The radiative records are aligned with the
-    SCATTERING log (Geant4ePropagator pushes them in lockstep with msmoliv),
-    so they take the scattering steps' transports, and the emission point is
-    uniform along the step exactly as a scattering kick's is: MS_NSUB
-    sub-steps at the centres of equal parts, transport interpolated linearly
-    between the step's start and end, each with 1/MS_NSUB of the step (its
-    length, hence its dN/dv normalisation).  The angular weight is the
-    scattering channel's |(lambda, phi/cos lambda)| weight: the primary's
-    recoil against the emitted photon is an isotropic 2D kick
-    (cf_brems_exact.rad_exponent)."""
-    q = np.sign(leg["refqop"]) or 1.0
-    w1 = np.einsum("i,sij->sj", avec, A_ms_end)
-    w0 = np.einsum("i,sij->sj", avec, A_ms_start)
-    coslam = max(leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0, 1e-3)
-    nsub = max(int(MS_NSUB), 1)
-    recs = np.array(leg["rad"], dtype=np.float64, copy=True)
-    recs[:, cf_brems_exact.R_STEPCM] /= nsub
-    out = []
-    for i in range(nsub):
-        f = (i + 0.5) / nsub
-        w = w0 + f * (w1 - w0)
-        out.append((recs, q * w[:, 0] / sigma,
-                    np.hypot(w[:, 1], w[:, 2] / coslam) / sigma))
-    return out
 
 
 def model_variance(legs, k, avec):
@@ -632,7 +602,8 @@ def _phi_key(legs, k, avec, sigma, tau):
     return (id(legs), int(k), avec.tobytes(), float(sigma),
             id(tau), len(tau), float(tau[-1]),
             physics_state(), _ctr.physics_state(), _ms.physics_state(),
-            cf_nucel_exact.physics_state(), cf_knockon.physics_state())
+            cf_nucel_exact.physics_state(), cf_knockon.physics_state(),
+            cf_brems_exact.physics_state())
 
 
 def model_phi(legs, k, avec, sigma, tau):
@@ -659,89 +630,53 @@ def _model_phi_uncached(legs, k, avec, sigma, tau):
                                                             ioni_start=True)
     S = np.zeros(len(tau), dtype=np.complex128)
     for j in range(k + 1):
-        leg = legs[j]
-        # --- hard knock-on collisions exactly (cf_knockon): the joint law of
-        # the energy loss and the deflection, and the exact 1/p map.  A
-        # correction to the ionisation and scattering channels below, zero
-        # (and not evaluated) with both of its switches off.
-        if cf_knockon.active() and len(leg["ioni"]):
-            S += cf_knockon.knockon_exponent(leg, A_ioni[j], A_ioni_start[j],
-                                             avec, sigma, tau)
-        # --- ionization: the noise sits in the qop component only, so the
-        # per-step weight is a scalar. Fold it into the step's own qop-per-MeV
-        # column (cs) so the shared vectorized exponent can be called once for
-        # the whole leg with unit weight -- exactly equivalent, much faster.
-        if len(leg["ioni"]):
-            # The exported cs = E/p^3 maps a step's energy loss to d(q/p) for a
-            # POSITIVE charge: qop = q/p, so d(qop) = -q/p^2 dp = +q (E/p^3) dE.
-            # The charge factor therefore has to be put back by hand, and it is
-            # not cosmetic: it flips the sign of the ionization skew, i.e. of
-            # the mean-vs-mode displacement that dominates this residual.
-            q = np.sign(leg["refqop"]) or 1.0
-            w = q * np.einsum("i,sij->sj", avec, A_ioni[j])[:, 0] / sigma
-            steps = leg["ioni"].copy()
-            steps[:, 10] *= w
-            S += ioni_step_exponent(steps, 1.0, tau)
-        # --- radiative (brems + pair): same compound-Poisson structure and the
-        # same qop-only weighting as ionization. Centred (the "-1-ix" in the
-        # exponent), which is exactly right because the propagator's mean-loss
-        # table is built with ionOnly=false and has ALREADY subtracted the
-        # radiative mean -- so only the fluctuation is being added here, with
-        # no double counting of the mean.
-        if RAD_CHANNEL and leg.get("rad") is not None and len(leg["rad"]):
-            for recs, wr, wb in rad_substeps(leg, A_ms[j], A_ms_start[j], avec, sigma):
-                S += cf_brems_exact.rad_exponent(
-                    tau, recs, leg["radspec"], leg["radvgrid"], weights=wr,
-                    exact_qop=bool(cf_knockon.QOP_EXACT), bweights=wb)
-        # --- multiple scattering: an isotropic 2D kick in (lambda, phi).
-        # Measuring the azimuthal angle as phi*cos(lambda) makes the two
-        # projected angles iid with variance thp2, so by azimuthal isotropy
-        # the CF depends only on the quadrature sum of the two weights.
-        if len(leg["ms"]):
-            wv = np.einsum("i,sij->sj", avec, A_ms[j])
-            wv0 = np.einsum("i,sij->sj", avec, A_ms_start[j])
-            coslam = leg["refpt"] / leg["refp"] if leg["refp"] > 0 else 1.0
-            def _weff(v):
-                return np.sqrt(v[:, 1] ** 2 + (v[:, 2] / max(coslam, 1e-3)) ** 2) / sigma
-            weff, weff0 = _weff(wv), _weff(wv0)
-            # SUB-STEP QUADRATURE. Scattering happens continuously
-            # THROUGH a step, not point-like at its end. Applying the kick at
-            # the end gives a step only DD*D^2 of position variance; the exact
-            # continuous result is DD*(1/L) int_0^L (D+u)^2 du =
-            # DD*(D^2 + D*L + L^2/3). The omitted D*L + L^2/3 is 8.8% of the
-            # position variance overall (verified against the propagator's own
-            # dQMS, which reproduces exactly when the per-step thick-scatterer
-            # S1/S3 terms are included) and DOMINATES for steps near the target
-            # plane, where D -> 0 kills the angle term but not DD*L^2/3.
-            # Splitting each step into NSUB equal sub-kicks, with the transport
-            # weight interpolated linearly between the step start and end,
-            # converges to the exact result; NSUB=4 leaves <1% of the term.
-            for s in range(len(leg["ms"])):
-                if weff[s] <= 0.0 and weff0[s] <= 0.0:
-                    continue
-                if MS_NSUB <= 1:
-                    S += KMS_SCALE * ms_step_exponent(leg["ms"][s:s + 1], weff[s], tau)
-                    continue
-                rec = leg["ms"][s:s + 1].copy()
-                rec[:, 2] /= MS_NSUB          # xg -> chi_c^2 scales with material
-                for i in range(MS_NSUB):
-                    f = (i + 0.5) / MS_NSUB   # 0 = step start, 1 = step end
-                    w = weff0[s] + f * (weff[s] - weff0[s])
-                    if w > 0.0:
-                        S += KMS_SCALE * ms_step_exponent(rec, w, tau)
-        # --- nuclear elastic (hadElastic): a compound Poisson of RARE, LARGE
-        # isotropic kicks -- 0.026-0.100 expected collisions over the whole
-        # modelled track, but 25-35 mrad each.  It rides on exactly the same
-        # `weff` and the same sub-step quadrature as MS, because it is the same
-        # kind of object (an isotropic 2D angular kick applied at a uniformly
-        # random point inside the step); only the per-kick kernel differs,
-        # Moliere -> the G4 elastic sampler.  Hadrons only: the muon has no
-        # such process and `pdg_from_leg` returns None for it.
-        # (the whole nuclear-elastic channel: angle, recoil, joint -- shared
-        # with cgf_channels.block_cf_exponent, see cf_nucel_exact.leg_exponent)
-        cf_nucel_exact.leg_exponent(S, leg, A_ms[j], A_ms_start[j], A_ioni[j],
-                                    avec, sigma, tau, MS_NSUB)
+        S += leg_exponent(legs[j], A_ms[j], A_ioni[j], A_ms_start[j],
+                          A_ioni_start[j], avec, sigma, tau)
     return np.exp(S)
+
+
+def leg_exponent(leg, A_ms, A_ioni, A_ms_start, A_ioni_start, avec, sigma, tau,
+                 channels=("ioni", "ms", "rad")):
+    """One leg's log-CF at a plane: every channel as ROWS (`cf_rows`) at the
+    exact transport weights of the leg's steps to the plane.
+
+      knock-on   the hard collision's joint law and exact 1/p map
+                 (`cf_knockon`), on the ionisation rows, KNOCKON_NSUB
+                 sub-steps -- with "ioni" (and "ms" for its joint half);
+      ionisation Urban + the record's knock-on law, linear map, each row at
+                 its END weight: the noise sits in q/p alone;
+      radiation  brems (+ pair): q/p change and recoil angle jointly, on the
+                 scattering log's transports (the radiative records are
+                 parallel to it), MS_NSUB sub-steps;
+      scattering an isotropic 2D Moliere kick; scattering happens THROUGH a
+                 step, not at its end, and MS_NSUB sub-steps with the
+                 transport interpolated converge to the continuous result
+                 (NSUB = 4 leaves < 1 % of the D L + L^2/3 position term);
+      nuclear elastic (hadElastic): angle, recoil and their joint law
+                 (`cf_nucel_exact.leg_exponent`), always with "ms".
+    The single place the closure (`model_phi`) and the Fisher scale
+    (`cgf_channels.block_cf_exponent`) build a leg, so the two cannot drift."""
+    S = np.zeros(len(tau), dtype=np.complex128)
+    if ("ioni" in channels and cf_knockon.active() and len(leg["ioni"])
+            and ("ms" in channels or not cf_knockon.KNOCKON_JOINT)):
+        S += cf_knockon.knockon_exponent(leg, A_ioni, A_ioni_start, avec, sigma, tau)
+    if "ioni" in channels and len(leg["ioni"]):
+        wq, _ = cf_rows.end_weights(leg, A_ioni, avec, sigma)
+        S += cf_rows.ioni_rows(tau, leg["ioni"], wq)
+    if ("rad" in channels and RAD_CHANNEL and leg.get("rad") is not None
+            and len(leg["rad"])):
+        rid, wq, wb, frac = cf_rows.transport_entries(leg, A_ms, A_ms_start, avec,
+                                                      sigma, MS_NSUB, "vector")
+        S += cf_rows.rad_rows(tau, leg["rad"], leg["radspec"], leg["radvgrid"],
+                              rid, wq, wb, frac)
+    if "ms" in channels and len(leg["ms"]):
+        rid, _, wb, frac = cf_rows.transport_entries(leg, A_ms, A_ms_start, avec,
+                                                     sigma, MS_NSUB, "length")
+        S += cf_rows.ms_rows(tau, leg["ms"], rid, wb, frac, scale=KMS_SCALE)
+    if cf_nucel_exact.NUCEL_CHANNEL:
+        cf_nucel_exact.leg_exponent(S, leg, A_ms, A_ms_start, A_ioni, avec,
+                                    sigma, tau, MS_NSUB)
+    return S
 
 
 def weier_scalar(phi, u, tau):
