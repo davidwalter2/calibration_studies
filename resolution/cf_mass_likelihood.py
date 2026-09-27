@@ -57,7 +57,10 @@ import uproot
 
 from wums import logging, output_tools, plot_tools
 from cf_track_resolution import ms_step_exponent, ioni_step_exponent, ioni_sq2, TG
+import cf_track_resolution as ctr
+import cf_knockon
 import cf_brems_exact
+import cf_delta_ray
 import pubhtml
 import ratiopanel
 import prodfiles
@@ -106,6 +109,9 @@ RAD_SGN = IONI_SGN
 # channel of the parmtype-11 block, and is numbered here only so that one
 # list can carry all three.
 FAM_RAD = 12
+# the knock-on joint piece of a leg (cf_knockon.joint_rows): its MS rows with
+# their paired (angle, energy) weights, in absolute mass units like the others
+FAM_KJ = 13
 
 
 def parse_args():
@@ -125,6 +131,9 @@ def parse_args():
     p.add_argument("--pairs-cache", default=os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "runs/cf_masspairs_cache.npz"))
     p.add_argument("--covtol", type=float, default=5e-3)
+    p.add_argument("--kdel", type=float, default=None,
+                   help="closure: log-scale on the delta-ray family Sdel "
+                        "(omit to leave it off, as before)")
     p.add_argument("--vtx-tol", type=float, default=1e-3,
                    help="gen production-vertex match tolerance [cm] for true "
                         "J/psi pairs; <=0 keeps all opposite-charge combinations "
@@ -298,6 +307,7 @@ def leg_exponents(av, ic, a, pt):
     else:
         ridx = rrec = rspc = rvg = None
     groups = []
+    wms_b, wio_b = {}, {}          # block weights for the knock-on pairing
     for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
         sel = fam == famcode
         for g in np.unique(gi[sel]):
@@ -320,13 +330,32 @@ def leg_exponents(av, ic, a, pt):
             sgn = IONI_SGN if famcode == 11 else (np.sign(u[m].sum()) or 1.)
             weff = sgn * np.sqrt(vpool / sq2)
             groups.append((famcode, weff, steps))
+            (wms_b if famcode == 10 else wio_b)[int(g)] = weff
             # the radiative channel of the same block, same weight, same sign
             if famcode == 11 and have_rad:
                 rm = ridx == g
                 if rm.any():
                     groups.append((FAM_RAD, RAD_SGN * abs(weff),
                                    (rrec[rm], rspc[rm])))
+    if ctr.FIT_KNOCKON_JOINT:
+        if not have_rad:
+            raise ValueError("FIT_KNOCKON_JOINT needs the `radstepv` export "
+                             "for the step pairing")
+        kb, ka = cf_knockon.pair_weights(uim, ridx, uvm, rrec, wms_b, wio_b)
+        groups.append((FAM_KJ, None, (uvm, ka, kb, uim, ridx)))
     return vgauss, groups, v.sum(), rvg
+
+
+def delta_family(steps, wstd, Sms_block):
+    """The discrete delta-ray family of one MS block, net of its Moliere carve
+    (cf_track_resolution.extract's Sdel, the same call); zero when CF_DELTA
+    is off."""
+    if not ctr.DELTA_ON:
+        return 0.0
+    cf = cf_delta_ray.carve_factor(steps, ctr.DELTA_TCUT, ctr.DELTA_TMAXCAP)
+    return (cf_delta_ray.delta_step_exponent(steps, wstd, TG, ctr.DELTA_TCUT,
+                                             tmax_cap=ctr.DELTA_TMAXCAP)
+            - cf * Sms_block)
 
 
 def build_pairs(args, outdir):
@@ -336,8 +365,10 @@ def build_pairs(args, outdir):
     files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files")
     zs, sigs, mgen, vgf = [], [], [], []
-    Sms_l, Sio_re_l, Sio_im_l = [], [], []
+    Sms_l, Sio_re_l, Sio_im_l, Sdel_l = [], [], [], []
     Srad_re_l, Srad_im_l = [], []
+    Skx_l, Skj_l = [], []
+    kx_on, kj_on = bool(ctr.FIT_KNOCKON_MAP), bool(ctr.FIT_KNOCKON_JOINT)
     rad_model = None
     nsel = ndropid = 0
     pt = None
@@ -382,35 +413,58 @@ def build_pairs(args, outdir):
             Sms = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
             Srad = np.zeros(len(TG), dtype=np.complex128)
+            Skx = np.zeros(len(TG), dtype=np.complex128)
+            Skj = np.zeros(len(TG), dtype=np.complex128)
+            Sdel = np.zeros(len(TG))
             vg = 0.
             for vgauss, groups, _, rvg in legs:
                 vg += vgauss
                 for famcode, weff, steps in groups:
                     if famcode == 10:
-                        Sms += ms_step_exponent(steps, abs(weff) / sig, TG)
+                        _sms = ms_step_exponent(steps, abs(weff) / sig, TG)
+                        Sms += _sms
+                        Sdel += delta_family(steps, abs(weff) / sig, _sms)
                     elif famcode == 11:
                         Sio += ioni_step_exponent(steps, weff / sig, TG)
+                        if kx_on:
+                            Skx += cf_knockon.fit_map(steps, weff / sig, TG)
+                    elif famcode == FAM_KJ:
+                        um, ka, kb, mi, ri = steps
+                        Skj += cf_knockon.fit_joint(
+                            um, ka / sig, kb / sig, mi, ri, TG, ctr.DELTA_TCUT,
+                            ctr.DELTA_TMAXCAP, kx_on)
                     else:
                         rr, rp = steps
                         Srad += cf_brems_exact.rad_exponent(
                             TG, rr, rp, rvg,
                             weights=np.full(len(rr), weff / sig))
+                        if kx_on:
+                            Skx += cf_knockon.map_rad(
+                                TG, rr, rp, rvg, np.full(len(rr), weff / sig))
             zs.append((mr - mg) / sig)
             sigs.append(sig)
             mgen.append(mg)
             vgf.append(vg / var)
             Sms_l.append(Sms.astype(np.float32))
+            Sdel_l.append(Sdel.astype(np.float32))
             Sio_re_l.append(Sio.real.astype(np.float32))
             Sio_im_l.append(Sio.imag.astype(np.float32))
             Srad_re_l.append(Srad.real.astype(np.float32))
             Srad_im_l.append(Srad.imag.astype(np.float32))
+            if kx_on:
+                Skx_l.append(Skx)
+            if kj_on:
+                Skj_l.append(Skj)
             nsel += 1
         logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} candidates "
                     f"(drop identity {ndropid})")
     os.makedirs(os.path.dirname(args.pairs_cache), exist_ok=True)
-    np.savez_compressed(args.pairs_cache, z=np.array(zs), sigma=np.array(sigs),
+    np.savez_compressed(args.pairs_cache,
+                        **ctr.knockon_arrays(Skx_l, Skj_l, kx_on, kj_on),
+                        z=np.array(zs), sigma=np.array(sigs),
                         eta=np.array(mgen), vgf=np.array(vgf),
-                        Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
+                        Sms=np.array(Sms_l), Sdel=np.array(Sdel_l),
+                        Sio_re=np.array(Sio_re_l),
                         Sio_im=np.array(Sio_im_l),
                         Srad_re=np.array(Srad_re_l),
                         Srad_im=np.array(Srad_im_l), tgrid=TG,
@@ -440,8 +494,10 @@ def build_pairs_tt(args, outdir):
     files = prodfiles.resolve(args.files, args.ntasks, logger=logger.info)
     logger.info(f"{len(files)} files (TwoTrack per-candidate trees)")
     zs, sigs, mgen, vgf = [], [], [], []
-    Sms_l, Sio_re_l, Sio_im_l = [], [], []
+    Sms_l, Sio_re_l, Sio_im_l, Sdel_l = [], [], [], []
     Srad_re_l, Srad_im_l = [], []
+    Skx_l, Skj_l = [], []
+    kx_on, kj_on = bool(ctr.FIT_KNOCKON_MAP), bool(ctr.FIT_KNOCKON_JOINT)
     rad_model = None
     nsel = ndrop = 0
     pt = None
@@ -478,6 +534,9 @@ def build_pairs_tt(args, outdir):
                 "the radiative export is present in some input files and not "
                 "in others; a cache mixing the two would carry the term for "
                 "part of the sample only")
+        if kj_on and not want_rad:
+            raise ValueError(f"{fn}: FIT_KNOCKON_JOINT needs the `radstepv` "
+                             f"export for the step pairing")
         a = t.arrays(_b, library="np")
         for ic in range(len(a["Jpsi_mass"])):
             sig = float(a["Jpsi_sigmamass"][ic])
@@ -517,6 +576,9 @@ def build_pairs_tt(args, outdir):
             Sms = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
             Srad = np.zeros(len(TG), dtype=np.complex128)
+            Skx = np.zeros(len(TG), dtype=np.complex128)
+            Sdel = np.zeros(len(TG))
+            wms_b, wio_b = {}, {}      # block weights for the knock-on pairing
             ok = True
             for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
                 sel = fam == famcode
@@ -541,10 +603,17 @@ def build_pairs_tt(args, outdir):
                     sgn = (IONI_SGN if famcode == 11
                            else (np.sign(uw[m].sum()) or 1.))
                     if famcode == 10:
-                        Sms += ms_step_exponent(steps, np.sqrt(vpool / sq2) / sig, TG)
+                        wms = np.sqrt(vpool / sq2) / sig
+                        _sms = ms_step_exponent(steps, wms, TG)
+                        Sms += _sms
+                        Sdel += delta_family(steps, wms, _sms)
+                        wms_b[int(g)] = wms
                     else:
                         wsc = np.sqrt(vpool / sq2) / sig
                         Sio += ioni_step_exponent(steps, sgn * wsc, TG)
+                        wio_b[int(g)] = sgn * wsc
+                        if kx_on:
+                            Skx += cf_knockon.fit_map(steps, sgn * wsc, TG)
                         # the radiative channel of the SAME block: same
                         # weight, same sign (RAD_SGN); the join is on the
                         # global index VALUE
@@ -555,26 +624,44 @@ def build_pairs_tt(args, outdir):
                                 Srad += cf_brems_exact.rad_exponent(
                                     TG, rrec[rm], rspc[rm], rvg,
                                     weights=np.full(nrs, RAD_SGN * wsc))
+                                if kx_on:
+                                    Skx += cf_knockon.map_rad(
+                                        TG, rrec[rm], rspc[rm], rvg,
+                                        np.full(nrs, RAD_SGN * wsc))
                 if not ok:
                     break
             if not ok:
                 ndrop += 1
                 continue
+            if kj_on:
+                kb, ka = cf_knockon.pair_weights(uim, ridx, uvm, rrec,
+                                                 wms_b, wio_b)
+                Skj = cf_knockon.fit_joint(uvm, ka, kb, uim, ridx, TG,
+                                           ctr.DELTA_TCUT, ctr.DELTA_TMAXCAP,
+                                           kx_on)
             zs.append((float(a["Jpsi_mass"][ic]) - mg) / sig)
             sigs.append(sig)
             mgen.append(mg)
             vgf.append(vg / (sig * sig))
             Sms_l.append(Sms.astype(np.float32))
+            Sdel_l.append(Sdel.astype(np.float32))
             Sio_re_l.append(Sio.real.astype(np.float32))
             Sio_im_l.append(Sio.imag.astype(np.float32))
             Srad_re_l.append(Srad.real.astype(np.float32))
             Srad_im_l.append(Srad.imag.astype(np.float32))
+            if kx_on:
+                Skx_l.append(Skx)
+            if kj_on:
+                Skj_l.append(Skj)
             nsel += 1
         logger.info(f"{fn.split('/')[-2]}: cumulative {nsel} candidates (drop {ndrop})")
     os.makedirs(os.path.dirname(args.pairs_cache), exist_ok=True)
-    np.savez_compressed(args.pairs_cache, z=np.array(zs), sigma=np.array(sigs),
+    np.savez_compressed(args.pairs_cache,
+                        **ctr.knockon_arrays(Skx_l, Skj_l, kx_on, kj_on),
+                        z=np.array(zs), sigma=np.array(sigs),
                         eta=np.array(mgen), vgf=np.array(vgf),
-                        Sms=np.array(Sms_l), Sio_re=np.array(Sio_re_l),
+                        Sms=np.array(Sms_l), Sdel=np.array(Sdel_l),
+                        Sio_re=np.array(Sio_re_l),
                         Sio_im=np.array(Sio_im_l),
                         Srad_re=np.array(Srad_re_l),
                         Srad_im=np.array(Srad_im_l), tgrid=TG,

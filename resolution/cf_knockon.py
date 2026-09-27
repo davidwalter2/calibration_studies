@@ -345,3 +345,396 @@ def mean_shift(leg, A_end, A_start, avec, sigma):
         vbar = 0.5 * (v0[s] + v1[s])
         out += q * vbar[0] * g[s] / sigma * m
     return float(out)
+
+
+# ================================================== THE FIT-LEVEL FAMILIES
+# The same two pieces in the resolution CF of the CVH track fit
+# (cf_track_resolution.extract / model_phi, cf_mass_likelihood.build_pairs /
+# build_pairs_tt, and the in-maker `cvhcf` that is validated against them).
+# There the model has no per-step transports: every step row carries the
+# scalar weight of its block, fixed by the fit's influence coefficients, and
+# the pieces ride on the rows that already carry their marginals.
+#
+#   MAP   dS_x = INT dN [e^{i a T_eff} - e^{i a T}]   on the IONISATION rows
+#         (`ioniurbanv`, regime 2/3), over the channel's own spectrum and
+#         range [max(e0, FIT_MAP_TLO tmax), tmax], a = w_io,b * cs * 1e-3 per
+#         MeV (map_block), the part below the lower limit in closed form
+#         (_map_below); and on the RADIATIVE rows with the radiative
+#         block's weight (map_rad).
+#   JOINT dS_j = INT dN (e^{i a X} - 1)(J0(b theta) - 1)   on the `msmoliv`
+#         rows, over exactly what the discrete delta-ray family S_del
+#         (cf_delta_ray.delta_step_exponent) carries: rate xi/T^2 times its
+#         first-order spin factor, theta = sqrt(2 m_e T)/p, T in
+#         [DELTA_TCUT, min(Tmax, DELTA_TMAXCAP)] (joint_rows).  X = T_eff when
+#         the map is on, T otherwise.  b is the row's MS block weight, a the
+#         ionisation weight of the same leg at the same step (pair_weights).
+#
+# The identity  e^{iaX}J - e^{iaT} - J + 1 = (e^{iaX} - e^{iaT})
+# + (e^{iaX} - 1)(J - 1)  makes the two the split of step_correction's single
+# integrand; the joint piece is evaluated as
+#     INT dN (J - 1) e^{iaX} dT  -  INT dN (J - 1) dT
+# (Filon-Simpson in x = X(T), Simpson), whose oscillatory amplitude dN (J - 1)
+# vanishes at small T, so it carries none of the map piece's cancellation.
+#
+# Every row is its own quadrature (the per-row reference form); nothing is
+# pooled here.
+FIT_NPERDEC = 40
+FIT_MAP_TLO = 1e-4       # map lower limit as a fraction of tmax (above e0)
+PHYSICS_GLOBALS = PHYSICS_GLOBALS + ("FIT_NPERDEC", "FIT_MAP_TLO")
+
+
+def _odd(x):
+    if len(x) % 2 == 0:
+        x = np.insert(x, 1, np.sqrt(x[0] * x[1]))
+    return x
+
+
+def _joint_nodes(tlo, thi, tkin, nper):
+    """[tlo, thi] at nper per decade; when the range ends at the kinematic
+    limit (thi == tkin, a hadron below the cap) the 30 nodes in (tmax - T)
+    of `nodes` are added, where theta -> 0 under the exact factor."""
+    if thi >= tkin:
+        return nodes(tlo, tkin, nper, tlo=tlo)
+    n1 = max(int(np.ceil(np.log10(thi / tlo) * nper)), 2)
+    return _odd(np.geomspace(tlo, thi, n1 + 1))
+
+
+def map_rows(rows, alpha, tau):
+    """dS_x summed over ionisation rows (stride >= 13 `ioniurbanv`, energies
+    in MeV) with per-row signed weights alpha [z per MeV].  Regime-1/0 rows
+    carry no exact spectrum and contribute nothing (as knockon_exponent)."""
+    tau = np.asarray(tau, dtype=np.float64)
+    S = np.zeros(len(tau), dtype=np.complex128)
+    if not len(rows):
+        return S
+    if rows.shape[1] < 13:
+        if ((rows[:, 0] == 2) | (rows[:, 0] == 3)).any():
+            raise ValueError("knock-on map needs the stride-13 regime-2/3 record")
+        return S
+    reg, gam = rows[:, 0], rows[:, 9]
+    xi = rows[:, 6] * gam * ctr.IONI_A3_SCALE
+    e0 = rows[:, 7] * gam
+    tmax = rows[:, 8] * gam * ctr.IONI_TMAX_SCALE
+    b2, E = rows[:, 11], rows[:, 12]
+    p = E * np.sqrt(b2)
+    kok_on = ctr.IONI_KOKOULIN != 0.0
+    ismu = ctr._is_muon_record(b2, E) & (E - ctr._MMU > ctr._KOK_MUMIN)
+    alpha = np.broadcast_to(np.asarray(alpha, dtype=np.float64), (len(rows),))
+    act = (((reg == 2) | (reg == 3)) & (xi > 0) & (tmax > e0) & (e0 > 0)
+           & (alpha != 0.0))
+    for s in np.flatnonzero(act):
+        T = nodes(e0[s], tmax[s], FIT_NPERDEC,
+                  tlo=max(e0[s], FIT_MAP_TLO * tmax[s]))
+        dN = rate(T, xi[s], tmax[s], b2[s], E[s], reg[s] == 2,
+                  kok_on and bool(ismu[s]))
+        X = t_eff(T, E[s], p[s])
+        amp = dN / dteff_dt(T, E[s], p[s])
+        c = _teff_c2(E[s], p[s])
+        for lo in range(0, len(tau), _TCHUNK):
+            ta = tau[lo:lo + _TCHUNK] * alpha[s]
+            S[lo:lo + _TCHUNK] += (filon(X, amp, ta) - filon(T, dN, ta)
+                                   + _map_below(e0[s], T[0], xi[s], c, ta))
+    return S
+
+
+def _teff_c2(E, p):
+    """c in T_eff = T + c T^2 + O(T^3):  c = 3E/(2p^2) - 1/(2E)."""
+    return 1.5 * E / (p * p) - 0.5 / E
+
+
+def _map_below(e0, lo, xi, c, a):
+    """The map piece on [e0, lo] in closed form.  There dN = xi/T^2 (the
+    spin and beta^2 terms are O(T/tmax)) and a (T_eff - T) = a c T^2 << 1, so
+        INT xi/T^2 (e^{i a T_eff} - e^{i a T}) dT = i a xi c INT e^{i a T} dT
+                                                 = xi c (e^{i a lo} - e^{i a e0})
+    up to O(a c lo^2, lo/E).  It is NOT negligible: its amplitude xi c does
+    not fall with t (it is the boundary term of a constant amplitude times
+    e^{i a T}), and truncating at 1e-4 tmax instead of e0 moves dS by 6 % of
+    its largest value on Z-momentum muons."""
+    if not lo > e0:
+        return 0.0
+    return xi * c * 2j * np.sin(0.5 * a * (lo - e0)) * np.exp(0.5j * a * (lo + e0))
+
+
+def map_block(rows, wstd, tau):
+    """dS_x of one pooled ionisation block: rows with the block's signed
+    standardized weight wstd (the weight ioni_step_exponent takes);
+    a = wstd * cs * 1e-3 per row."""
+    if not len(rows):
+        return np.zeros(len(tau), dtype=np.complex128)
+    return map_rows(rows, wstd * rows[:, 10].astype(np.float64) * 1e-3, tau)
+
+
+def map_mean(rows, wstd):
+    """d dS_x / d(i t) at t = 0 of map_block, analytic:
+    sum_rows a INT dN (T_eff - T) dT on the same range (fine Simpson)."""
+    if not len(rows) or rows.shape[1] < 13:
+        return 0.0
+    reg, gam = rows[:, 0], rows[:, 9]
+    xi = rows[:, 6] * gam * ctr.IONI_A3_SCALE
+    e0 = rows[:, 7] * gam
+    tmax = rows[:, 8] * gam * ctr.IONI_TMAX_SCALE
+    b2, E = rows[:, 11], rows[:, 12]
+    p = E * np.sqrt(b2)
+    al = wstd * rows[:, 10].astype(np.float64) * 1e-3
+    kok_on = ctr.IONI_KOKOULIN != 0.0
+    ismu = ctr._is_muon_record(b2, E) & (E - ctr._MMU > ctr._KOK_MUMIN)
+    act = ((reg == 2) | (reg == 3)) & (xi > 0) & (tmax > e0) & (e0 > 0)
+    out = 0.0
+    for s in np.flatnonzero(act):
+        T = nodes(e0[s], tmax[s], 400, tlo=max(e0[s], FIT_MAP_TLO * tmax[s]))
+        dN = rate(T, xi[s], tmax[s], b2[s], E[s], reg[s] == 2,
+                  kok_on and bool(ismu[s]))
+        h = (dN * (t_eff(T, E[s], p[s]) - T))[None, :]
+        below = xi[s] * _teff_c2(E[s], p[s]) * max(T[0] - e0[s], 0.0)
+        out += al[s] * (float(simpson(T, h)[0]) + below)
+    return out
+
+
+def map_rad(tau, recs, spec, vg, weights):
+    """dS_x of radiative rows: rad_exponent(exact_qop=True) minus the linear
+    one, on the same trapezoid rule, formed cancellation-free as
+    e^{i xe} - e^{i x} = 2i sin((xe - x)/2) e^{i (xe + x)/2}."""
+    import cf_brems_exact as cbe
+    tau = np.asarray(tau, dtype=float)
+    S = np.zeros(len(tau), dtype=np.complex128)
+    wtrap = np.zeros(len(vg))
+    dv = np.diff(np.asarray(vg, dtype=float))
+    wtrap[:-1] += 0.5 * dv
+    wtrap[1:] += 0.5 * dv
+    for rec, sp, w in zip(recs, spec, weights):
+        if w == 0.0:
+            continue
+        v, dNdv = cbe.step_spectrum(rec, sp, vg)
+        if not np.any(dNdv > 0.):
+            continue
+        E, p = rec[cbe.R_ETOT], rec[cbe.R_P]
+        T = v * E
+        pp = np.sqrt(np.maximum((E - T) ** 2 - (E * E - p * p),
+                                (1e-3 * p) ** 2))
+        a = tau * rec[cbe.R_CS] * w
+        x = np.outer(a, T)
+        xe = np.outer(a, p * p * T * (2.0 * E - T) / (E * pp * (p + pp)))
+        h = np.sin(0.5 * (xe - x))
+        c = 0.5 * (xe + x)
+        q = wtrap * dNdv
+        S += (-2.0 * h * np.sin(c)) @ q + 1j * ((2.0 * h * np.cos(c)) @ q)
+    return S
+
+
+def joint_rows(ms_rows, alpha, beta, tau, tcut_gev, tmaxcap_gev, exact,
+               groups=None):
+    """dS_j summed over `msmoliv` rows [effZ, effA, xg, pGeV, beta, thp2,
+    dOverX0, ...] with per-row signed energy weights alpha [z per MeV] and
+    angular weights beta [z per radian] (pair_weights).  S_del's own range,
+    rate, spin factor and theta: T in [tcut, min(Tmax, cap)], dN =
+    f_spin xi/T^2, theta = sqrt(2 m_e T)/p.  With `groups` (the rows'
+    material group) also returns {group: dS_j}."""
+    import cf_delta_ray as cdr
+    tau = np.asarray(tau, dtype=np.float64)
+    nt = len(tau)
+    S = np.zeros(nt, dtype=np.complex128)
+    grp = {}
+    if len(ms_rows):
+        Z, A, xg, pg = (ms_rows[:, 0], ms_rows[:, 1], ms_rows[:, 2],
+                        ms_rows[:, 3])
+        bt = np.clip(ms_rows[:, 4], 1e-9, 1. - 1e-15)
+        tkin = cdr._tmx(ms_rows, tcut_gev, 0) * 1e3          # MeV, uncapped
+        thi = np.minimum(tkin, tmaxcap_gev * 1e3) if tmaxcap_gev else tkin
+        tlo = tcut_gev * 1e3
+        alpha = np.broadcast_to(np.asarray(alpha, np.float64), (len(ms_rows),))
+        beta = np.abs(np.broadcast_to(np.asarray(beta, np.float64),
+                                      (len(ms_rows),)))
+        good = ((xg > 0.) & (thi > tlo) & (pg > 0.) & (alpha != 0.)
+                & (beta != 0.))
+        for s in np.flatnonzero(good):
+            xi = cdr.xi_mev(Z[s], A[s], xg[s], bt[s])
+            fsp = 1. - 0.5 * bt[s] ** 2 / np.log(max(thi[s] / tlo, 1.0001))
+            p = pg[s] * 1e3
+            E = p / bt[s]
+            T = _joint_nodes(tlo, thi[s], tkin[s], FIT_NPERDEC)
+            dN = fsp * xi / T ** 2
+            th = np.sqrt(2.0 * ME_MEV * T) / p
+            if exact:
+                X = t_eff(T, E, p)
+                dXdT = dteff_dt(T, E, p)
+            else:
+                X, dXdT = T, np.ones_like(T)
+            val = np.empty(nt, dtype=np.complex128)
+            for lo in range(0, nt, _TCHUNK):
+                t = tau[lo:lo + _TCHUNK]
+                h = dN[None, :] * (j0((t * beta[s])[:, None] * th[None, :]) - 1.0)
+                val[lo:lo + _TCHUNK] = (filon(X, h / dXdT[None, :], t * alpha[s])
+                                        - simpson(T, h))
+            S += val
+            if groups is not None:
+                g = int(groups[s])
+                grp[g] = grp.get(g, 0.0) + val
+    return (S, grp) if groups is not None else S
+
+
+def pair_weights(midx, ridx, ms_rows, rad_rows, wms, wio):
+    """Per `msmoliv` row: (beta, alpha) = (w_ms of its MS block,
+    w_io of the ionisation block of the same leg at the same step * cs * 1e-3).
+    The pairing of ks_nucel_cf.maker_step_weights and cvhcf's elastic family:
+    the radiative rows are one per Geant4 step, parallel to the MS rows, and
+    carry the leg's ionisation block index; wms / wio are {global index:
+    weight} of the blocks the caller formed (wio signed)."""
+    if len(rad_rows) != len(ms_rows) or (
+            len(ms_rows) and not np.array_equal(rad_rows[:, 4], ms_rows[:, 3])):
+        raise ValueError("radiative rows are not parallel to the MS rows")
+    beta = np.array([wms.get(int(g), 0.0) for g in midx], dtype=np.float64)
+    alpha = (np.array([wio.get(int(g), 0.0) for g in ridx], dtype=np.float64)
+             * rad_rows[:, 10].astype(np.float64) * 1e-3)
+    return beta, alpha
+
+
+# ---------------------------------------------------------------- pooling
+# One quadrature per pool instead of per row: the pieces are linear in each
+# row's xi at fixed kinematics and weights, so a pool of rows with nearly
+# equal (a, b, p, tmax) is replaced by one row with the summed xi and the
+# xi-weighted means of the rest.  The per-row functions above are the
+# reference; the pooled forms are accepted only where they agree with it at
+# the float32 floor (knockon_fit/gates.py pool).
+def _wmean(x, w):
+    return float(np.sum(x * w) / np.sum(w))
+
+
+def map_block_pooled(rows, wstd, tau, groups=None):
+    """map_block with the block's rows pooled per (regime, material group);
+    `groups` (the rows' group, the last `ioniurbanv` column) None pools per
+    regime only.  With groups also returns {group: dS_x}, whose sum is the
+    flat result exactly (the same pools)."""
+    tau = np.asarray(tau, dtype=np.float64)
+    S = np.zeros(len(tau), dtype=np.complex128)
+    grp = {}
+    if not len(rows) or rows.shape[1] < 13:
+        S = map_block(rows, wstd, tau)
+        return (S, grp) if groups is not None else S
+    reg, gam = rows[:, 0], rows[:, 9]
+    xi = rows[:, 6] * gam * ctr.IONI_A3_SCALE
+    e0 = rows[:, 7] * gam
+    tmax = rows[:, 8] * gam * ctr.IONI_TMAX_SCALE
+    b2, E = rows[:, 11], rows[:, 12]
+    cs = rows[:, 10].astype(np.float64)
+    act = ((reg == 2) | (reg == 3)) & (xi > 0) & (tmax > e0) & (e0 > 0)
+    gcol = np.zeros(len(rows), np.int64) if groups is None else np.asarray(groups).astype(np.int64)
+    for rg, gg in sorted({(int(a), int(b)) for a, b in zip(reg[act], gcol[act])}):
+        m = act & (reg == rg) & (gcol == gg)
+        w = xi[m]
+        pool = np.zeros((1, rows.shape[1]))
+        pool[0, 0] = rg
+        pool[0, 6] = w.sum() / ctr.IONI_A3_SCALE
+        pool[0, 7] = _wmean(e0[m], w)
+        pool[0, 8] = _wmean(tmax[m], w) / ctr.IONI_TMAX_SCALE
+        pool[0, 9] = 1.0
+        pool[0, 10] = _wmean(cs[m], w)
+        pool[0, 11] = _wmean(b2[m], w)
+        pool[0, 12] = _wmean(E[m], w)
+        v = map_rows(pool, wstd * pool[0, 10] * 1e-3, tau)
+        S += v
+        if groups is not None:
+            grp[gg] = grp.get(gg, 0.0) + v
+    return (S, grp) if groups is not None else S
+
+
+def joint_rows_pooled(ms_rows, alpha, beta, keys, tau, tcut_gev, tmaxcap_gev,
+                      exact, groups=None):
+    """joint_rows with the rows of equal `keys` (the (MS block, ionisation
+    block, material group) of each row) pooled into one.  With `groups`
+    (the rows' group) also returns {group: dS_j}."""
+    import cf_delta_ray as cdr
+    tau = np.asarray(tau, dtype=np.float64)
+    S = np.zeros(len(tau), dtype=np.complex128)
+    if not len(ms_rows):
+        return S
+    alpha = np.broadcast_to(np.asarray(alpha, np.float64), (len(ms_rows),))
+    beta = np.abs(np.broadcast_to(np.asarray(beta, np.float64), (len(ms_rows),)))
+    Z, A, xg, pg = ms_rows[:, 0], ms_rows[:, 1], ms_rows[:, 2], ms_rows[:, 3]
+    bt = np.clip(ms_rows[:, 4], 1e-9, 1. - 1e-15)
+    tkin = cdr._tmx(ms_rows, tcut_gev, 0) * 1e3
+    thi = np.minimum(tkin, tmaxcap_gev * 1e3) if tmaxcap_gev else tkin
+    tlo = tcut_gev * 1e3
+    good = (xg > 0.) & (thi > tlo) & (pg > 0.) & (alpha != 0.) & (beta != 0.)
+    if not good.any():
+        return S
+    xi = np.where(good, cdr.xi_mev(Z, A, xg, bt), 0.0)
+    fsp = 1. - 0.5 * bt ** 2 / np.log(np.maximum(thi / tlo, 1.0001))
+    w = xi * fsp
+    grp = {}
+    keys = np.asarray(keys).reshape(len(ms_rows), -1)
+    for k in np.unique(keys[good], axis=0):
+        m = good & np.all(keys == np.reshape(k, (1, -1)), axis=1)
+        ww = w[m]
+        p = _wmean(pg[m], ww) * 1e3
+        b = _wmean(bt[m], ww)
+        tk = _wmean(tkin[m], ww)
+        th_ = min(tk, tmaxcap_gev * 1e3) if tmaxcap_gev else tk
+        al, be = _wmean(alpha[m], ww), _wmean(beta[m], ww)
+        E = p / b
+        T = _joint_nodes(tlo, th_, tk, FIT_NPERDEC)
+        dN = ww.sum() / T ** 2
+        th = np.sqrt(2.0 * ME_MEV * T) / p
+        if exact:
+            X, dXdT = t_eff(T, E, p), dteff_dt(T, E, p)
+        else:
+            X, dXdT = T, np.ones_like(T)
+        for lo in range(0, len(tau), _TCHUNK):
+            t = tau[lo:lo + _TCHUNK]
+            h = dN[None, :] * (j0((t * be)[:, None] * th[None, :]) - 1.0)
+            v = filon(X, h / dXdT[None, :], t * al) - simpson(T, h)
+            S[lo:lo + _TCHUNK] += v
+            if groups is not None:
+                g = int(np.asarray(groups)[m][0])
+                if g not in grp:
+                    grp[g] = np.zeros(len(tau), dtype=np.complex128)
+                grp[g][lo:lo + _TCHUNK] += v
+    return (S, grp) if groups is not None else S
+
+
+# The consumers' entry points.  FIT_POOL selects the pooled forms (default:
+# they agree with the per-row reference to <= 3e-7 on S -- below the float32
+# floor of the caches -- on low-pT and Z-momentum muons and on kaons, at 1/40
+# of the cost); 0 is the per-row reference.
+FIT_POOL = 1
+PHYSICS_GLOBALS = PHYSICS_GLOBALS + ("FIT_POOL",)
+
+
+# The pools are (block, material group): the material group is the last
+# column of `ioniurbanv` (stride 14) and column 9 of `msmoliv` (stride 10),
+# as the in-maker split reads them, so a flat family is exactly the sum of its
+# per-group split.  Rows without the column pool per block.
+IONI_GROUP_STRIDE = 14
+MS_GROUP_COL = 9
+
+
+def ioni_groups(rows):
+    return rows[:, -1] if rows.shape[1] >= IONI_GROUP_STRIDE else None
+
+
+def ms_groups(rows):
+    return rows[:, MS_GROUP_COL] if rows.shape[1] > MS_GROUP_COL else None
+
+
+def fit_map(rows, wstd, tau):
+    """dS_x of one ionisation block (map_block / map_block_pooled)."""
+    if not FIT_POOL:
+        return map_block(rows, wstd, tau)
+    g = ioni_groups(rows) if len(rows) else None
+    return map_block_pooled(rows, wstd, tau, g)[0] if g is not None \
+        else map_block_pooled(rows, wstd, tau)
+
+
+def fit_joint(ms_rows, alpha, beta, midx, ridx, tau, tcut_gev, tmaxcap_gev,
+              exact):
+    """dS_j of MS rows, pooled by (MS block, ionisation block, group)."""
+    if not FIT_POOL:
+        return joint_rows(ms_rows, alpha, beta, tau, tcut_gev, tmaxcap_gev,
+                          exact)
+    cols = [np.asarray(midx), np.asarray(ridx)]
+    g = ms_groups(ms_rows) if len(ms_rows) else None
+    if g is not None:
+        cols.append(g)
+    keys = np.stack(cols, axis=1)
+    return joint_rows_pooled(ms_rows, alpha, beta, keys, tau, tcut_gev,
+                             tmaxcap_gev, exact)

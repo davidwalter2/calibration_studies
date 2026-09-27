@@ -762,6 +762,18 @@ IONI_KOKOULIN = 1.0 if env_flag("CVH_IONI_KOKOULIN", True) else 0.0
 IONI_KOKOULIN_TCUT = 0.0
 IONI_KOKOULIN_NBIN = 96
 
+# ------------------------------------------ the hard knock-on collision
+# The two pieces of cf_knockon at the fit level, each its own family
+# (Skx: the exact energy -> q/p map on the ionisation and radiative rows;
+# Skj: the joint law of loss and deflection on the msmoliv rows, over S_del's
+# range).  Default OFF, as the in-maker `exportCfKnockon`: with both off
+# nothing is evaluated, no array is written and every other array is
+# unchanged bit for bit.  The joint piece takes X = T_eff when the map is on,
+# so a cache records both switches (`knockon_model`) and model_phi requires
+# them to match.
+FIT_KNOCKON_MAP = 1.0 if env_flag("CF_FIT_KNOCKON_MAP", False) else 0.0
+FIT_KNOCKON_JOINT = 1.0 if env_flag("CF_FIT_KNOCKON_JOINT", False) else 0.0
+
 # ------------------------------------------------------- the knob REGISTRY
 # Every module-level global that changes what this module COMPUTES, in one
 # place, so that a cache key can be built from the registry instead of from
@@ -969,7 +981,8 @@ _WVI_MINCOLL = 10.0
 PHYSICS_GLOBALS = ("IONI_A3_SCALE", "IONI_EXC_SCALE", "IONI_TMAX_SCALE",
                    "IONI_KOKOULIN", "IONI_KOKOULIN_TCUT", "IONI_KOKOULIN_NBIN",
                    "MS_ELEC_TMAX", "MS_ELEC_EDGE", "MS_FINE_G", "MS_SNAP_YMAX",
-                   "MS_WVI_SPLIT", "MS_WVI_NPERX", "MS_WVI_LG")
+                   "MS_WVI_SPLIT", "MS_WVI_NPERX", "MS_WVI_LG",
+                   "FIT_KNOCKON_MAP", "FIT_KNOCKON_JOINT")
 _NOT_PHYSICS = ("COVTOL", "_ME_GEV",   # a tolerance and a physical constant
                 # a G4 constant, a series length, and three numerical guards
                 "_WVI_SSFACTOR", "_WVI_KMAX", "_WVI_ARGMAX", "_WVI_MAXARG_SEEN",
@@ -1345,6 +1358,13 @@ def extract(args):
     chi2n, nvhit, ptrk, ptgen, chisq, ndofs = [], [], [], [], [], []
     Sms_l, Sio_re_l, Sio_im_l, Sdel_l = [], [], [], []
     Srad_re_l, Srad_im_l = [], []
+    Skx_l, Skj_l = [], []
+    kx_on, kj_on = bool(FIT_KNOCKON_MAP), bool(FIT_KNOCKON_JOINT)
+    if kx_on or kj_on:
+        import cf_knockon
+    if kj_on and not DELTA_ON:
+        raise ValueError("FIT_KNOCKON_JOINT corrects the delta-ray family "
+                         "S_del, which CF_DELTA=0 switches off")
     nsel = ndropcov = ndropgen = 0
     pt = None
     _warned_noclass = False
@@ -1410,6 +1430,11 @@ def extract(args):
                 "the radiative export is present in some input files and not "
                 "in others; a cache mixing the two would carry the term for "
                 "part of the sample only")
+        if kj_on and not want_rad:
+            # the joint piece pairs each MS row with its step's ionisation
+            # weight through the radiative rows (parallel to msmoliv)
+            raise ValueError(f"{fn}: FIT_KNOCKON_JOINT needs the `radstepv` "
+                             f"export for the step pairing")
         # the strides of the flat step-record branches, as the FILE declares
         # them (absent in older files -> resolved from the record counts)
         _need = _need + [b for b in prodfiles.stride_keys(
@@ -1515,6 +1540,8 @@ def extract(args):
             Sdel = np.zeros(len(TG))
             Sio = np.zeros(len(TG), dtype=np.complex128)
             Srad = np.zeros(len(TG), dtype=np.complex128)
+            Skx = np.zeros(len(TG), dtype=np.complex128)
+            wms_b, wio_b = {}, {}      # block weights for the joint pairing
             ok = True
             for famcode, (uidx, uv) in ((10, (uim, uvm)), (11, (uii, uvi))):
                 sel = fam == famcode
@@ -1531,6 +1558,7 @@ def extract(args):
                         if sq2 <= 0.:
                             continue
                         wstd = np.sqrt(vpool / sq2) / sig
+                        wms_b[int(g)] = wstd
                         _sms = ms_step_exponent(steps, wstd, TG)
                         Sms += _sms
                         if DELTA_ON:
@@ -1634,6 +1662,9 @@ def extract(args):
                         # insensitive to the charge factor; only Sio_im flips
                         # on the mu- half of the sample.
                         Sio += ioni_step_exponent(steps, chg * wstd, TG)
+                        wio_b[int(g)] = chg * wstd
+                        if kx_on:
+                            Skx += cf_knockon.fit_map(steps, chg * wstd, TG)
                         # THE RADIATIVE TERM, same block, same weight, same
                         # charge. `rad_exponent` takes cs from the record and
                         # the energies in GeV, so the weight passed here is
@@ -1646,10 +1677,19 @@ def extract(args):
                                 Srad += cf_brems_exact.rad_exponent(
                                     TG, rrec[rm], rspc[rm], rvg,
                                     weights=np.full(nrs, chg * wstd))
+                                if kx_on:
+                                    Skx += cf_knockon.map_rad(
+                                        TG, rrec[rm], rspc[rm], rvg,
+                                        np.full(nrs, chg * wstd))
                 if not ok:
                     break
             if not ok:
                 continue
+            if kj_on:
+                kb, ka = cf_knockon.pair_weights(uim, ridx, uvm, rrec,
+                                                 wms_b, wio_b)
+                Skj = cf_knockon.fit_joint(uvm, ka, kb, uim, ridx, TG,
+                                           DELTA_TCUT, DELTA_TMAXCAP, kx_on)
 
             zs.append((a["refParms"][ic][0] - qg) / sig)
             sigs.append(sig)
@@ -1684,6 +1724,10 @@ def extract(args):
             Sio_im_l.append(Sio.imag.astype(np.float32))
             Srad_re_l.append(Srad.real.astype(np.float32))
             Srad_im_l.append(Srad.imag.astype(np.float32))
+            if kx_on:
+                Skx_l.append(Skx)
+            if kj_on:
+                Skj_l.append(Skj)
             nsel += 1
             # --max-tracks breaks per TRACK, not at a file boundary: with one
             # file per shard (extract_parallel) a file-boundary check would
@@ -1698,7 +1742,8 @@ def extract(args):
         if nsel >= args.max_tracks:
             break
     os.makedirs(os.path.dirname(args.cache), exist_ok=True)
-    np.savez_compressed(args.cache, z=np.array(zs), sigma=np.array(sigs),
+    np.savez_compressed(args.cache, **knockon_arrays(Skx_l, Skj_l, kx_on, kj_on),
+                        z=np.array(zs), sigma=np.array(sigs),
                         eta=np.array(etas), phi=np.array(phis),
                         charge=np.array(chgs), vgf=np.array(vgf),
                         normchi2=np.array(chi2n), nvalidhits=np.array(nvhit),
@@ -1780,6 +1825,47 @@ def hit_exponent(d, args, bank):
     return S
 
 
+def knockon_arrays(Skx_l, Skj_l, kx_on, kj_on):
+    """The cache arrays of the knock-on families: nothing when both are off
+    (the cache is then the pre-knock-on one bit for bit), else
+    `knockon_model` = [map, joint] (the switches the arrays were built
+    under) and Skx_re/_im, Skj_re/_im for the switched-on pieces."""
+    if not (kx_on or kj_on):
+        return {}
+    out = dict(knockon_model=np.array([int(kx_on), int(kj_on)]))
+    for nm, on, lst in (("Skx", kx_on, Skx_l), ("Skj", kj_on, Skj_l)):
+        if on:
+            a = np.array(lst).reshape(len(lst), len(TG))
+            out[nm + "_re"] = a.real.astype(np.float32)
+            out[nm + "_im"] = a.imag.astype(np.float32)
+    return out
+
+
+def knockon_exponent(d):
+    """Skx + Skj of a cache under the module's switches (0 when both are
+    off).  A cache built without an array the switches ask for, or with the
+    joint piece under the other map setting, is an error, never a silent
+    zero."""
+    kx, kj = bool(FIT_KNOCKON_MAP), bool(FIT_KNOCKON_JOINT)
+    if not (kx or kj):
+        return 0.0
+    keys = d.files if hasattr(d, "files") else d
+    if "knockon_model" not in keys:
+        raise ValueError("FIT_KNOCKON_MAP/JOINT is on and the cache has no "
+                         "knock-on families; re-extract with the switches on")
+    cx, cj = (bool(v) for v in np.asarray(d["knockon_model"]))
+    if (kx and not cx) or (kj and not cj) or (kj and cx != kx):
+        raise ValueError(f"cache knock-on families built under map={cx:d} "
+                         f"joint={cj:d}, switches ask for map={kx:d} "
+                         f"joint={kj:d}")
+    S = 0.0
+    if kx:
+        S = S + (d["Skx_re"] + 1j * d["Skx_im"])
+    if kj:
+        S = S + (d["Skj_re"] + 1j * d["Skj_im"])
+    return S
+
+
 def model_phi(d, args, bank=None):
     """Complex phi_z(t) per track on TG with the per-family k applied.
     Total variance is renormalized so z stays standardized to the
@@ -1810,6 +1896,13 @@ def model_phi(d, args, bank=None):
         keys = d.files if hasattr(d, "files") else d
         if "Sdel" in keys:
             S = S + np.exp(kd) * d["Sdel"]
+    # the hard knock-on collision (FIT_KNOCKON_MAP / _JOINT); not added at all
+    # when both are off, so the switched-off model is bit-identical
+    if FIT_KNOCKON_MAP or FIT_KNOCKON_JOINT:
+        if FIT_KNOCKON_JOINT and kd is None:
+            raise ValueError("FIT_KNOCKON_JOINT corrects the delta-ray family; "
+                             "give --kdel (0 is the unscaled family)")
+        S = S + knockon_exponent(d)
     return np.exp(S)
 
 
