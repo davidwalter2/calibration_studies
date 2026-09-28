@@ -37,7 +37,7 @@ import cf_propagation_test as cpt                     # noqa: E402
 import cf_nucel_exact as cne                          # noqa: E402
 from toy_loader import plane_frames                   # noqa: E402
 
-CUTS = (0.02, 0.05, 0.1)       # rad
+CUTS = (0.01, 0.02, 0.05, 0.1)  # rad
 FLAG = 0.02                    # rad, `unkicked`
 US = (0.01, 0.1, 1.0, 3.0)
 NBOOT = 100

@@ -74,6 +74,8 @@ and azimuth), the same tracker.xml, its own seeds and its own model export:
     jpsi  mu- + mu+ (pT 3,   seeds 201-210)
     ks    pi- + pi+ (pT 3,   seeds 301-310)
     lam   p   + pi- (pT 0.8, seeds 401-410)
+    phi   K-  + K+  (pT 3,   seeds 801-810)
+    kstar K+  + pi- (pT 3,   seeds 901-910)
 The cylinders are azimuthally symmetric but the field is the real 3D map, so a
 new leg is simulated and exported at its own azimuth rather than rotated from
 the phi = 0.70 sample (`pairs` prints the difference for equal pT).
@@ -146,6 +148,9 @@ REFB = {"qop": "refqop", "dxdz": "refdxdz", "dydz": "refdydz",
 #   lam   p   (old) + pi- (new, pT 0.8)    DPHI 0.1283  -- equal momenta are
 #         kinematically impossible (m >= 1335 MeV), the proton carries most of
 #         the Lambda's momentum; pT_pi >= 0.61 GeV is needed to reach r = 107 cm
+#   phi   K-  (old) + K+  (new, pT 3)      Q = 32 MeV: nearly collinear kaons
+#   kstar K+  (old) + pi- (new, pT 3)      K*0 at its PDG mass (the width is
+#         not simulated: the parent mass is a fixed opening angle)
 # Seeds of the new leg never overlap the old leg's (101-110): equal seeds would
 # replay the same random stream in both legs.
 DECAYS = {
@@ -170,6 +175,12 @@ DECAYS = {
     "zee": dict(tex=r"Z \to ee", mass=91.1876, old=11, new=-11, pt_new=48.0,
                 pt_old=48.0, geom_old="zee_m", geom="zee_p", tag="zee", seed0=701,
                 res="realmat_ditrack_zee_260927", fig="ditrack_cleanprop_zee"),
+    "phi": dict(tex=r"\phi \to K K", mass=1.019461, old=-321, new=321, pt_new=3.0,
+                geom="phi_kp", tag="phi", seed0=801,
+                res="realmat_ditrack_phi_260928", fig="ditrack_cleanprop_phi"),
+    "kstar": dict(tex=r"K^{*0} \to K \pi", mass=0.89555, old=321, new=-211, pt_new=3.0,
+                  geom="kstar_pim", tag="kstar", seed0=901,
+                  res="realmat_ditrack_kstar_260928", fig="ditrack_cleanprop_kstar"),
 }
 DECAY = None      # the configured decay (`configure`)
 DEC = None
