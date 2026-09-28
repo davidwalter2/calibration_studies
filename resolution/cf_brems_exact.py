@@ -36,9 +36,9 @@ G4MuBremsstrahlungModel / G4MuPairProductionModel differential cross sections
 -- the same model objects that build the dE/dx table and that run in the full
 simulation. Offline, each shape is renormalized to its own
 ComputeDEDXPerVolume (see step_spectrum), which
-  - absorbs the differing absolute-normalization convention of
-    ComputeDMicroscopicCrossSection (measured factor 1.051 brems, 1.63e-3
-    pair, both constant to ~1%, i.e. a convention offset not a shape error);
+  - absorbs the tabulation's quadrature and kinematic endpoint (measured:
+    the exported shapes integrate to 1.02 of the brems and 0.993-0.998 of the
+    pair dE/dx, constant to 0.4 %);
   - keeps the total mean exactly equal to what the propagator subtracted, so
     the centring leaves no residual bias;
   - gets the brems/pair MIXTURE right (pair is 58% of the radiative mean at
@@ -162,14 +162,15 @@ def step_spectrum(rec, spec, vg):
     combined shape gets the mixture wrong -- that is precisely what a
     hand-built brems-only shape gets wrong by ~2.5x at 5-15 GeV.
 
-    Why normalize at all, given the shapes come from Geant4: the absolute
-    normalization of ComputeDMicroscopicCrossSection does not match a naive
-    dsigma/deps reading. Measured against each model's own ComputeDEDXPerVolume
-    the required factor is 1.051 for brems and 1.63e-3 for pair, both CONSTANT
-    (rel-rms 0.2% / 1.1%, <=4% residual Z-dependence) -- i.e. a convention
-    offset, not a shape difference. Renormalizing absorbs it exactly, and also
-    absorbs the v-grid cutoff, so the mean is right by construction and stays
-    centred on what the propagator subtracted.
+    Why normalize at all, given the shapes come from Geant4: the tabulated
+    shapes integrate to 1.02 (brems) and 0.993-0.998 (pair) of each model's
+    own ComputeDEDXPerVolume -- the 189-point grid's quadrature and the
+    kinematic endpoint.  Renormalizing absorbs that, so the mean is right by
+    construction and stays centred on what the propagator subtracted.  (The
+    pair shape is only right if the pair model's per-element screening is set
+    before each evaluation -- Geant4ePropagator's PairProbe; left unset it is
+    the unscreened cross section, 700-1800x too large and several times too
+    soft, which this renormalization cannot repair.)
     """
     v, brem, pair = step_spectrum_parts(rec, spec, vg)
     return v, brem + pair

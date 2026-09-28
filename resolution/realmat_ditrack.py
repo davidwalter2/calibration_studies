@@ -79,6 +79,9 @@ new leg is simulated and exported at its own azimuth rather than rotated from
 the phi = 0.70 sample (`pairs` prints the difference for equal pT).
 Arms (`--arm`, both legs): `off` (clean) or `elonly` (hadElastic on) with
 `--model-tag _mat` and `closure --nucel` (the per-element elastic channel).
+`norad` (bremsstrahlung and pair production off for the primary) is judged
+against the ionisation-only export (`export` writes `_ion` models with
+CVH_IONONLY) with the radiative channel off.
 
 THE LOW-MOMENTUM LEG (Lambda's pi-, pT 0.8 GeV)
   * it LOOPS (helix diameter 1.40 m): ~70 % of events re-cross the outer
@@ -269,12 +272,15 @@ def xstat_seeds(leg):
 def model_path(leg):
     """The old leg's model follows realmat_closure's MODEL_TAG (`_mat`: the
     export with the per-step material table); the new legs' exports carry the
-    table in any case."""
+    table in any case.  The `norad` arm's model is the ionisation-only export
+    (`_ion`: the reference without the radiative mean, CVH_IONONLY)."""
     L = LEGS[leg]
     if not L["new"]:
-        return rc.model_path(L["pdg"])
-    return os.path.join(rc.OUT, "model",
-                        f"model_{leg}_{DEC['tag']}_pt{_ptstr(L['pt'])}_all4.root")
+        path = rc.model_path(L["pdg"])
+    else:
+        path = os.path.join(rc.OUT, "model",
+                            f"model_{leg}_{DEC['tag']}_pt{_ptstr(L['pt'])}_all4.root")
+    return path[:-5] + "_ion.root" if rc.ARM == "norad" else path
 
 
 def planes_path(leg):
@@ -538,10 +544,13 @@ def cmd_export(args):
         if os.path.exists(out) and not args.force:
             print(f"exists -> {out}")
             continue
+        env = dict(rc.FOUR_ON, TOY_PLIMIT="0.1")
+        if rc.ARM == "norad":
+            env["CVH_IONONLY"] = "1"
         r = rc._run(N["geom"], "runToyModel.py",
                     f"pt={N['pt']!r} eta={rc.ETA} phi={N['phi']!r} partId={N['pdg']} "
                     f"output={out} toyGeom={rc.toygeom(N['geom'])}", log,
-                    _env_new(leg, dict(rc.FOUR_ON, TOY_PLIMIT="0.1")))
+                    _env_new(leg, env))
         print(f"{leg}: rc={r} -> {out}", flush=True)
         if r:
             raise SystemExit(f"export failed, see {log}")
@@ -690,8 +699,9 @@ def weier_shift(phi, u, tau):
 
 def _setup_physics():
     """realmat_closure.cell's configuration, asserted: the six MS
-    harmonisations, radiation on, Kokoulin for muons only (both legs must
-    agree), the nuclear-elastic channel (recoil included) as `--nucel` says."""
+    harmonisations, radiation on (off in the `norad` arm), Kokoulin for
+    muons only (both legs must agree), the nuclear-elastic channel (recoil
+    included) as `--nucel` says."""
     assert os.environ.get("RES_NO_PHI_CACHE"), "phi cache is LIVE"
     assert (ctr.MS_ELEC_TMAX, ctr.MS_ELEC_EDGE, ctr.MS_SNAP_YMAX, ctr.MS_FINE_G,
             ctr.MS_WVI_SPLIT) == (1.0, 1.0, 0.0, 1.0, 0.0), "MS defaults moved"
@@ -700,7 +710,9 @@ def _setup_physics():
     assert len(kok) == 1, "the legs disagree on Kokoulin (one global switch)"
     cne.NUCEL_CHANNEL = bool(NUCEL)
     cne.NUCEL_RECOIL = True
-    cpt.RAD_CHANNEL = True
+    # the `norad` arm: radiation off in the sim, the reference without the
+    # radiative mean (`model_path`) and no radiative channel in the prediction
+    cpt.RAD_CHANNEL = rc.ARM != "norad"
     ctr.IONI_KOKOULIN = 1.0 if kok.pop() else 0.0
     ctr.IONI_KOKOULIN_TCUT = 0.0
 

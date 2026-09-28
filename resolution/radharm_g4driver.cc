@@ -102,9 +102,14 @@ struct MuBremProbe : public G4MuBremsstrahlungModel {
   explicit MuBremProbe(const G4ParticleDefinition* p) : G4MuBremsstrahlungModel(p) {}
   using G4MuBremsstrahlungModel::ComputeDMicroscopicCrossSection;
 };
+// The pair models cache the target's screening (Z^(1/3), Z^(2/3), ln Z) and
+// refresh it only in MaxSecondaryEnergyForElement, which ComputeD... does not
+// call: `element` sets it before every evaluation (Geant4ePropagator's
+// PairProbe does the same).
 struct MuPairProbe : public G4MuPairProductionModel {
   explicit MuPairProbe(const G4ParticleDefinition* p) : G4MuPairProductionModel(p) {}
   using G4MuPairProductionModel::ComputeDMicroscopicCrossSection;
+  void element(double tkin, double Z) { MaxSecondaryEnergyForElement(tkin, Z); }
 };
 struct HBremProbe : public G4hBremsstrahlungModel {
   explicit HBremProbe(const G4ParticleDefinition* p) : G4hBremsstrahlungModel(p) {}
@@ -113,6 +118,7 @@ struct HBremProbe : public G4hBremsstrahlungModel {
 struct HPairProbe : public G4hPairProductionModel {
   explicit HPairProbe(const G4ParticleDefinition* p) : G4hPairProductionModel(p) {}
   using G4hPairProductionModel::ComputeDMicroscopicCrossSection;
+  void element(double tkin, double Z) { MaxSecondaryEnergyForElement(tkin, Z); }
 };
 
 double argd(int argc, char** argv, const char* key, double def) {
@@ -247,9 +253,11 @@ int main(int argc, char** argv) {
           const double w = natoms[ie] * len * etot;
           if (ismu) {
             sb += w * ((MuBremProbe*)bremP)->ComputeDMicroscopicCrossSection(ekin, ZZ, eps);
+            ((MuPairProbe*)pairP)->element(ekin, ZZ);
             sp += w * ((MuPairProbe*)pairP)->ComputeDMicroscopicCrossSection(ekin, ZZ, eps);
           } else {
             sb += w * ((HBremProbe*)bremP)->ComputeDMicroscopicCrossSection(ekin, ZZ, eps);
+            ((HPairProbe*)pairP)->element(ekin, ZZ);
             sp += w * ((HPairProbe*)pairP)->ComputeDMicroscopicCrossSection(ekin, ZZ, eps);
           }
         }
