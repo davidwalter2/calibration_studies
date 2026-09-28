@@ -53,7 +53,7 @@ def lib():
     f64 = np.ctypeslib.ndpointer(np.float64, flags="C_CONTIGUOUS")
     i32 = np.ctypeslib.ndpointer(np.int32, flags="C_CONTIGUOUS")
     ci, cd = ctypes.c_int, ctypes.c_double
-    L.cvhcf_row_config_set.argtypes = [ci, ci, ci, ci, cd, cd, cd, ci, cd, cd, cd, cd, cd, ci, ci]
+    L.cvhcf_row_config_set.argtypes = [ci, ci, ci, ci, cd, cd, cd, ci, cd, cd, cd, cd, cd, ci, ci, ci]
     L.cvhcf_row_config_set.restype = None
     L.cvhcf_ioni_rows.argtypes = [f64, ci, f64, ci, ci, f64, f64, f64]
     L.cvhcf_ms_rows.argtypes = [f64, ci, f64, ci, ci, i32, f64, f64, ci, cd, f64]
@@ -108,7 +108,8 @@ def sync_config(**nucel):
         float(ctr.IONI_KOKOULIN), float(ctr.IONI_KOKOULIN_TCUT), float(ctr.IONI_A3_SCALE),
         float(ctr.IONI_EXC_SCALE), float(ctr.IONI_TMAX_SCALE),
         int(bool(nucel.get("recoil", cne.NUCEL_RECOIL))),
-        int(bool(nucel.get("joint", cne.NUCEL_JOINT))))
+        int(bool(nucel.get("joint", cne.NUCEL_JOINT))),
+        int(bool(cf_knockon.QOP_LOG)))
 
 
 def _f64(a):

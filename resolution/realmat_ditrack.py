@@ -131,6 +131,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import realmat_closure as rc                                     # noqa: E402
 from realmat_closure import cne, cpt, ctr, fn, gc, hb, hp, mx    # noqa: E402
 import cgf_channels as cc                                        # noqa: E402
+import cf_knockon as ck                                          # noqa: E402
 
 LOCAL = hb.LOCAL                    # (qop, dxdz, dydz, locx, locy)
 REFB = {"qop": "refqop", "dxdz": "refdxdz", "dydz": "refdydz",
@@ -828,7 +829,9 @@ def cmd_closure(args):
         for leg in LEGS:
             s = sims[leg]
             a, b, P, H = vec[leg][k]
-            dloc = np.stack([s[c][:nev, k] - legs[leg][k][REFB[c]] for c in LOCAL],
+            # the q/p slot in the variable the model's map uses (cf_knockon)
+            dloc = np.stack([ck.qop_dev(s[c][:nev, k], legs[leg][k][REFB[c]]) if c == "qop"
+                             else s[c][:nev, k] - legs[leg][k][REFB[c]] for c in LOCAL],
                             axis=1)
             good &= s["valid"][:nev, k] & np.isfinite(dloc).all(axis=1)
             dlocs[leg] = dloc
@@ -854,7 +857,7 @@ def cmd_closure(args):
             mean_split[leg] = (1e3 * b * dl.mean(axis=0)).tolist()
             qr = legs[leg][k]["refqop"]
             q = np.sign(qr)
-            psim = 1.0 / np.abs(dl[:, 0] + qr)
+            psim = 1.0 / np.abs(sims[leg]["qop"][:nev, k][good])
             pref = 1.0 / abs(qr)
             dq_lin = -q * (psim - pref) / pref ** 2
             jensen[leg] = 1e3 * float(b[0] * np.mean(dl[:, 0] - dq_lin))
@@ -924,7 +927,6 @@ def cmd_closure(args):
     for rw in rows:
         print(f"   k={rw['k']:>2}  sim {rw['sim_mean_MeV']:+.4f} +- "
               f"{rw['sim_mean_err_MeV']:.4f}   model {rw['model_mean_MeV']:+.4f}")
-    import cf_knockon as ck
     out = dict(config=dict(decay=DECAY, knockon=dict(ck.physics_state()),
                            nucel=bool(NUCEL),
                            nucel_elements=bool(cne.NUCEL_ELEMENTS),

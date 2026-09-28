@@ -53,6 +53,7 @@ import cf_propagation_test as cpt                                # noqa: E402
 import fisher_norm as fn                                         # noqa: E402
 import hbasis                                                    # noqa: E402
 import prodfiles                                                 # noqa: E402
+import cf_knockon                                               # noqa: E402
 from cf_propagation_test import (FUNCTIONALS, REF_BRANCH,        # noqa: E402
                                  SIM_BRANCH, load_model, model_phi,
                                  model_variance, weier_scalar)
@@ -227,7 +228,11 @@ def closure_rows(legs, sim, func, scale, probes=UCURVE):
     for k in keep:
         good = goods[k]
         s = float(scale[k])
-        z = (sim[SIM_BRANCH[func]][good, k] - legs[k][REF_BRANCH[func]]) / s
+        if func == "qop":
+            # the q/p deviation in the variable the model's map uses
+            z = cf_knockon.qop_dev(sim["qop"][good, k], legs[k]["refqop"]) / s
+        else:
+            z = (sim[SIM_BRANCH[func]][good, k] - legs[k][REF_BRANCH[func]]) / s
         e = np.exp(-np.asarray(probes)[:, None] * z[None, :] ** 2)
         rows.append(e.mean(axis=1) - models[k])
         errs.append(e.std(axis=1) / np.sqrt(good.sum()))

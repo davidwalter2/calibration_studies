@@ -56,6 +56,8 @@ import os
 
 import numpy as np
 
+import cf_knockon
+
 # Leading columns of a radiative step record (Geant4ePropagator::RadiativeStep).
 # The order must match G4ePropagationExport.cc's push_back sequence exactly.
 (R_EFFZ, R_EFFA, R_XG, R_ETOT, R_P, R_DX0, R_STEPCM,
@@ -299,8 +301,7 @@ def rad_exponent(tau, recs, spec, vg, weights=None, exact_qop=False,
             pp = np.sqrt(np.maximum((E - T) ** 2 - M * M, (1e-3 * p) ** 2))
             gm1 = rad_angle_cfm1(np.outer(tau * bw, T / pp * M / E), M)
             a_ = tau * rec[R_CS] * w
-            ph = np.outer(a_, (p * p * T * (2.0 * E - T) / (E * pp * (p + pp)))
-                          if exact_qop else T)
+            ph = np.outer(a_, cf_knockon.qop_map(T, E, p, pp) if exact_qop else T)
             qb = wtrap * dNb
             S += ((np.cos(ph) * gm1) @ qb) + 1j * ((np.sin(ph) * gm1) @ qb)
         # a: dE -> the standardized variable, via the step's cs and the
@@ -318,7 +319,7 @@ def rad_exponent(tau, recs, spec, vg, weights=None, exact_qop=False,
             # never reaches a plane, and the floor keeps T_eff finite
             M = species_mass(E, p)
             pp = np.sqrt(np.maximum((E - T) ** 2 - M * M, (1e-3 * p) ** 2))
-            xe = np.outer(a, p * p * T * (2.0 * E - T) / (E * pp * (p + pp)))
+            xe = np.outer(a, cf_knockon.qop_map(T, E, p, pp))
             sm = np.abs(xe) < 1e-4
             re = np.empty_like(xe)
             im = np.empty_like(xe)

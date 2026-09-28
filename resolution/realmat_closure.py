@@ -670,10 +670,12 @@ def _variant(nucel, recoil=True):
     part of the elastic channel's default; only their OFF states (diagnostics)
     are tagged, `_norecoil` / `_nojoint`.  The knock-on
     correction (cf_knockon) is tagged `_kj{0,1}_qx{0,1}` when either of its
-    switches is on."""
+    switches is on, `_ql` when its map's q/p variable is logarithmic."""
     import cf_knockon as ck
     kt = (f"_kj{int(bool(ck.KNOCKON_JOINT))}_qx{int(bool(ck.QOP_EXACT))}"
           if ck.active() else "")
+    if ck.QOP_EXACT and ck.QOP_LOG:
+        kt += "_ql"
     if ARM == "off" and not nucel and not MODEL_TAG:
         return kt
     v = f"_{ARM}_nucel{int(nucel)}" + ("" if (recoil or not nucel) else "_norecoil")

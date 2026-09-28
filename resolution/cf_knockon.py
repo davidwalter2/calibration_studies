@@ -116,6 +116,13 @@ def _flag(name, dflt):
 # independent-channel model bit for bit.
 KNOCKON_JOINT = 1.0 if _flag("CF_KNOCKON_JOINT", True) else 0.0
 QOP_EXACT = 1.0 if _flag("CF_QOP_EXACT", True) else 0.0
+# The q/p VARIABLE of the exact map (with QOP_EXACT).  0: q/p itself, one
+# collision's change q (1/p' - 1/p).  1: q/p on a LOGARITHMIC scale,
+# |q/p|_ref ln(|q/p| / |q/p|_ref) -- q ln(p/p')/p per collision, which ADDS
+# over successive collisions exactly (p_final = p0 prod(1 - v_i)), so
+# repeated radiation compounds without error; both reduce to q cs T as
+# T -> 0.  The closure's statistic follows the switch (`qop_dev`).
+QOP_LOG = 1.0 if _flag("CF_QOP_LOG", False) else 0.0
 KNOCKON_NSUB = 1
 KNOCKON_NPERDEC = 40
 # The joint law starts at the SIMULATION's e- production threshold: below it
@@ -136,7 +143,7 @@ PMIN_FRAC = 1e-3
 # ioniurbanv regimes carrying an exact knock-on law: 2/3 Bethe-Bloch spin 1/2
 # and 0, 4/5 Moller (e-) and Bhabha (e+)
 EXACT_REGIMES = (2, 3, 4, 5)
-PHYSICS_GLOBALS = ("KNOCKON_JOINT", "QOP_EXACT", "KNOCKON_NSUB",
+PHYSICS_GLOBALS = ("KNOCKON_JOINT", "QOP_EXACT", "QOP_LOG", "KNOCKON_NSUB",
                    "KNOCKON_NPERDEC", "KNOCKON_TCUT", "KNOCKON_NPERDEC_THIN",
                    "KNOCKON_THIN", "PMIN_FRAC")
 _NOT_PHYSICS = ("ME_MEV", "_TCHUNK", "_NSER", "_ZSER", "EXACT_REGIMES")
@@ -153,18 +160,49 @@ def active():
 
 
 # ------------------------------------------------------------- kinematics
+def qop_map(T, E, p, pp):
+    """The q/p-variable change of an energy loss T at (E, p) with outgoing
+    momentum pp, in units of the linear one (-> T as T -> 0): p^2 T (2E - T) /
+    (E pp (p + pp)) for q/p itself, (p^2/E) ln(p/pp) under QOP_LOG.
+    Cancellation-free: ln(p/pp) = -log1p(r)/2 with r = T (T - 2E)/p^2 unless
+    pp is floored (pp^2 above the unfloored value), then r = pp^2/p^2 - 1."""
+    if QOP_LOG:
+        r = T * (T - 2.0 * E) / (p * p)
+        fl = pp * pp > (p * p) * (1.0 + r) * (1.0 + 1e-9) + 1e-300
+        r = np.where(fl, pp * pp / (p * p) - 1.0, r)
+        return (p * p / E) * (-0.5 * np.log1p(r))
+    return p * p * T * (2.0 * E - T) / (E * pp * (p + pp))
+
+
+def dqop_map(T, E, p, pp):
+    """d qop_map / dT (pp unfloored)."""
+    if QOP_LOG:
+        return (p * p / E) * (E - T) / (pp * pp)
+    return (p ** 3 / E) * (E - T) / pp ** 3
+
+
+def qop_dev(qop, refqop):
+    """The q/p deviation the closure statistics carry, in the variable the
+    map uses: qop - refqop, or |refqop| ln(qop/refqop) with refqop's sign
+    under QOP_LOG (qop and refqop share the charge's sign)."""
+    qop = np.asarray(qop, dtype=np.float64)
+    if QOP_LOG and QOP_EXACT:
+        return refqop * np.log(qop / refqop)
+    return qop - refqop
+
+
 def t_eff(T, E, p):
     """The q/p change of an energy loss T in units of the linear one (so
-    T_eff -> T as T -> 0).  Cancellation-free form."""
+    T_eff -> T as T -> 0), in the map's variable (`qop_map`)."""
     M2 = E * E - p * p
     pp = np.sqrt(np.maximum((E - T) ** 2 - M2, 1e-300))
-    return p * p * T * (2.0 * E - T) / (E * pp * (p + pp))
+    return qop_map(T, E, p, pp)
 
 
 def dteff_dt(T, E, p):
     M2 = E * E - p * p
     pp = np.sqrt(np.maximum((E - T) ** 2 - M2, 1e-300))
-    return (p ** 3 / E) * (E - T) / pp ** 3
+    return dqop_map(T, E, p, pp)
 
 
 def theta_kick(T, E, p, tmax):
@@ -715,7 +753,7 @@ def map_rad(tau, recs, spec, vg, weights):
                                 (1e-3 * p) ** 2))
         a = tau * rec[cbe.R_CS] * w
         x = np.outer(a, T)
-        xe = np.outer(a, p * p * T * (2.0 * E - T) / (E * pp * (p + pp)))
+        xe = np.outer(a, qop_map(T, E, p, pp))
         h = np.sin(0.5 * (xe - x))
         c = 0.5 * (xe + x)
         q = wtrap * dNdv

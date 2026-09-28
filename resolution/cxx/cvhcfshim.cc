@@ -75,7 +75,8 @@ void cvhcf_row_config_set(int knockonJoint,
                           double ioniExcScale,
                           double ioniTmaxScale,
                           int nucelRecoil,
-                          int nucelJoint) {
+                          int nucelJoint,
+                          int qopLog) {
   cvhcf::RowConfig &c = rowConfig();
   c.knockonJoint = knockonJoint != 0;
   c.qopExact = qopExact != 0;
@@ -92,6 +93,7 @@ void cvhcf_row_config_set(int knockonJoint,
   c.ioniTmaxScale = ioniTmaxScale;
   c.nucelRecoil = nucelRecoil != 0;
   c.nucelJoint = nucelJoint != 0;
+  c.qopLog = qopLog != 0;
 }
 
 // scipy's j0 / k1 as the model evaluates them (which = 0 / 1), elementwise
@@ -144,7 +146,8 @@ int cvhcf_rad_rows(const double *tau, int nt, const double *recs, int rstride, i
                    const double *vg, int nv, const int *rid, const double *wq, const double *wb, const double *frac,
                    int ne, int exactQop, double *sre, double *sim) {
   try {
-    cvhcf::radRows(tau, nt, recs, rstride, n, spec, vg, nv, rid, wq, wb, frac, ne, exactQop != 0, sre, sim);
+    cvhcf::radRows(tau, nt, recs, rstride, n, spec, vg, nv, rid, wq, wb, frac, ne, exactQop != 0, sre, sim,
+                   rowConfig().qopLog);
   } catch (std::exception &ex) {
     lastError = ex.what();
     return -3;
