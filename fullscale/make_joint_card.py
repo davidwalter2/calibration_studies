@@ -1045,6 +1045,9 @@ def build_jpsi(args, log=print, matctx=None):
         if im_k:
             arrays[name]["im"] = np.asarray(d[im_k])[idx]
             datasets[f"S_im_{name}"] = arrays[name]["im"]
+    make_card.fold_knockon(d, idx, arrays, log)
+    if "ioni" in arrays and "im" in arrays["ioni"]:
+        datasets["S_im_ioni"] = arrays["ioni"]["im"]
     log(f"  {n} candidates, nt = {nt}, families "
         f"{[f['name'] for f in families]}, upsample {args.fit_upsample_jpsi}")
 
@@ -1307,6 +1310,14 @@ def main():
     for tag, path in (("jpsi", args.jpsi_pairs), ("z", args.z_pairs)):
         if path:
             check_jac_map(np.load(path, allow_pickle=True), cat, tag)
+    # one CF model for every leg: the J/psi and Z exponents must describe the
+    # same detector response
+    args.cf_provenance = make_card.check_provenance(
+        [(tag, make_card.cf_provenance(np.load(path, allow_pickle=True)))
+         for tag, path in (("jpsi", args.jpsi_pairs), ("z", args.z_pairs))
+         if path])
+    log(f"  CF model {args.cf_provenance['cf_model']!r}, knockon_model "
+        f"{args.cf_provenance['knockon_model']}")
     log(f"  parameter map: the D block of every pairs cache matches the "
         f"quadratic extraction on all {nfit} (fitidx, parmtype, subidx)")
 
@@ -1542,6 +1553,7 @@ def finish(args, entries, names, nfit, cat, parmtype, subidx, pscale,
                         if args.z_pairs else None),
             "jpsi_pairs": (os.path.abspath(args.jpsi_pairs)
                            if args.jpsi_pairs else None),
+            "cf_provenance": args.cf_provenance,
             "jpsi_fsr": (os.path.abspath(args.jpsi_fsr)
                          if args.jpsi_fsr else None),
             "nglobal": int(cat["nglobal"]),
@@ -1578,7 +1590,9 @@ def finish(args, entries, names, nfit, cat, parmtype, subidx, pscale,
         base = base[: -len(".hdf5")]
     os.makedirs(folder, exist_ok=True)
     t0 = time.time()
-    writer.write(outfolder=folder, outfilename=base)
+    writer.write(outfolder=folder, outfilename=base,
+                 meta_data_dict={"meta_info": {
+                     "cf_provenance": args.cf_provenance}})
     path = os.path.join(folder, base) + ".hdf5"
     log(f"  wrote {path} ({os.path.getsize(path)/1e9:.3f} GB) in "
         f"{time.time()-t0:.1f} s")

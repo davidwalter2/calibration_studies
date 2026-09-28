@@ -13,6 +13,8 @@ import os
 
 import numpy as np
 
+import make_card  # knockon_state: the knock-on switches, 2- or 3-entry
+
 
 def key_of(d):
     r = np.asarray(d["run"], np.int64)
@@ -46,6 +48,11 @@ def main():
             raise SystemExit(f"{a.tail[i-1]} was built on a different tau grid")
         if str(parts[0]["cf_model"]) != str(d["cf_model"]):
             raise SystemExit(f"{a.tail[i-1]} was built with a different CF model")
+        if make_card.knockon_state(parts[0]) != make_card.knockon_state(d):
+            raise SystemExit(
+                f"{a.tail[i-1]} has knockon_model "
+                f"{list(make_card.knockon_state(d))}, the base "
+                f"{list(make_card.knockon_state(parts[0]))}")
 
     have = key_of(parts[0])
     keep = [np.ones(len(have), bool)]
@@ -66,7 +73,7 @@ def main():
     out = {}
     for k in sorted(keys):
         v0 = parts[0][k]
-        if k in ("tgrid", "cf_source", "cf_model", "rad_model",
+        if k in ("tgrid", "cf_source", "cf_model", "knockon_model", "rad_model",
                  "ioni_sign_fixed", "ioni_charge_signed", "hitclsnames",
                  "jac_globalidx", "jac_parmtype", "jac_subidx"):
             out[k] = v0

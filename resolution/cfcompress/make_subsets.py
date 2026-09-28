@@ -71,12 +71,19 @@ def main():
                ntot=np.int64(n), src=np.str_(c["path"]))
     for k in c["scal"]:
         res[k] = np.asarray(d[k])[idx]
-    for k in c["mats"]:
+    # the knock-on pieces (cf_inmaker `Skx_*`, `Skj_*`) whenever the cache
+    # carries them: they are part of the ionisation family's exponent
+    mats = c["mats"] + [k for k in ("Skx_re", "Skx_im", "Skj_re", "Skj_im")
+                        if k in d.files and k not in c["mats"]]
+    for k in mats:
         t0 = time.time()
         res[k] = np.ascontiguousarray(d[k][idx])
         print(f"  {k:8s} {res[k].shape} {res[k].dtype}  {time.time()-t0:.1f} s",
               flush=True)
-    for k in ("rad_model", "ioni_sign_fixed", "ioni_charge_signed"):
+    # the provenance of the model: `cf_model` (the maker's model tag),
+    # `knockon_model` ([map, joint(, log)]), which the card makers check
+    for k in ("cf_source", "cf_model", "knockon_model", "rad_model",
+              "ioni_sign_fixed", "ioni_charge_signed"):
         if k in d.files:
             res[k] = d[k]
     if c["kernel"]:

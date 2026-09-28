@@ -71,7 +71,15 @@ CACHE_KEYS = {"ms": ("Sms", None), "ioni": ("Sio_re", "Sio_im"),
               # the hadronic nuclear-elastic family, built OFFLINE from the
               # step records (resolution/ksclosure/nucel/ks_nucel_cf.py);
               # opt-in with --add-nucel-family, absent from every in-maker cache
-              "nucel": ("Snuc_re", "Snuc_im")}
+              "nucel": ("Snuc_re", "Snuc_im"),
+              # the hard knock-on collision (cf_knockon): the exact 1/p map,
+              # which carries the knock-on Jensen mean, and the joint
+              # angle-recoil piece. Not families of their own: they are pieces
+              # of the ionisation rows' exponent and are ADDED to `ioni`
+              # (`fold_knockon`), as every extractor that builds a card input
+              # does (globalfit/extract.py, cf_global_masslik.py)
+              "kx": ("Skx_re", "Skx_im"), "kj": ("Skj_re", "Skj_im")}
+KNOCKON_FAMILIES = ("kx", "kj")
 
 
 def parse_args(argv=None):
@@ -457,6 +465,74 @@ def selection_table(d, args, log=print):
     return tab
 
 
+def knockon_state(d):
+    """(map, joint, log): the knock-on switches a cache's families were built
+    under, (0, 0, 0) for a cache without them. A two-entry `knockon_model`
+    predates the log-scale map and is read with log = 0."""
+    keys = d.files if hasattr(d, "files") else d
+    if "knockon_model" not in keys:
+        return (0, 0, 0)
+    v = [int(x) for x in np.asarray(d["knockon_model"]).ravel()]
+    if len(v) not in (2, 3):
+        raise SystemExit(f"knockon_model = {v}: expected [map, joint] or "
+                         "[map, joint, log]")
+    return tuple(v + [0] * (3 - len(v)))
+
+
+def cf_provenance(d):
+    """The CF model a cache was built with: the maker's `cf_model` tag
+    ("" when the cache carries none) and its knock-on switches."""
+    keys = d.files if hasattr(d, "files") else d
+    tag = str(np.asarray(d["cf_model"]).ravel()[0]) if "cf_model" in keys else ""
+    return {"cf_model": tag, "knockon_model": list(knockon_state(d))}
+
+
+def check_provenance(provs):
+    """Refuse to put caches built with different CF models into one card.
+    `provs` is [(label, cf_provenance(d))]; returns the common provenance."""
+    (l0, p0), rest = provs[0], provs[1:]
+    for lab, p in rest:
+        if p["cf_model"] != p0["cf_model"]:
+            raise SystemExit(f"{lab} was built with a different CF model than "
+                             f"{l0}:\n  {p['cf_model']!r}\n  {p0['cf_model']!r}")
+        if p["knockon_model"] != p0["knockon_model"]:
+            raise SystemExit(f"{lab} has knockon_model {p['knockon_model']}, "
+                             f"{l0} {p0['knockon_model']}")
+    return p0
+
+
+def fold_knockon(d, idx, arrays, log=print, resample=None):
+    """Add the knock-on pieces (`Skx_*`, `Skj_*`) to the `ioni` family's arrays
+    in place, for the candidates `idx`, each piece passed through `resample`
+    first when the family arrays are on another tau grid. Every piece
+    `knockon_model` switches on must be in the cache: a missing one is an
+    error, never a silent zero. Returns the names of the pieces folded."""
+    mx, jt, lg = knockon_state(d)
+    want = [nm for nm, on in zip(KNOCKON_FAMILIES, (mx, jt)) if on]
+    if not want:
+        return []
+    if "ioni" not in arrays:
+        raise SystemExit(f"the cache has knock-on pieces {want} but no "
+                         "ionisation family to add them to")
+    for nm in want:
+        re_k, im_k = CACHE_KEYS[nm]
+        miss = [k for k in (re_k, im_k) if k not in d.files]
+        if miss:
+            raise SystemExit(f"knockon_model {[mx, jt, lg]} switches on {nm} "
+                             f"but the cache has no {miss}")
+        for comp, k in (("re", re_k), ("im", im_k)):
+            a = np.asarray(d[k])[idx]
+            if resample is not None:
+                a = resample(a)
+            if comp in arrays["ioni"]:
+                arrays["ioni"][comp] += a.astype(arrays["ioni"][comp].dtype)
+            else:
+                arrays["ioni"][comp] = a.copy()
+    log(f"  knock-on pieces {want} (map, joint, log = {mx}, {jt}, {lg}) "
+        "added to the ionisation family")
+    return want
+
+
 def discover_families(keys, want_del=False, want_nucel=False):
     fams = []
     for name in (FAMILY_ORDER + (["del"] if want_del else [])
@@ -800,6 +876,9 @@ def build(args, log=print):
         if im_k:
             arrays[name]["im"] = np.asarray(d[im_k])[idx]
             datasets[f"S_im_{name}"] = arrays[name]["im"]
+    fold_knockon(d, idx, arrays, log)
+    if "ioni" in arrays and "im" in arrays["ioni"]:
+        datasets["S_im_ioni"] = arrays["ioni"]["im"]
 
     # ---- truncation normalisation classes --------------------------------
     norm = None
@@ -1031,6 +1110,7 @@ def build(args, log=print):
     info = {"n": n, "n_cache": int(len(d['z'])), "window": [lo, hi],
             "born_window": list(args.born_window), "mreco": mreco,
             "mgen": mgen, "weights_info": winfo,
+            "cf_provenance": cf_provenance(d),
             "provider_config": (provider.config() if provider is not None
                                 else {"kind": "delta (residual mode)"})}
     return term, datasets, decl, info
@@ -1047,6 +1127,8 @@ def main():
             args.dump, config=json.dumps(term.config()),
             params=np.array(list(term.param_names)), mreco=info["mreco"],
             mgen=info["mgen"], argv=np.array(sys.argv[1:], dtype=object),
+            cf_model=np.array(info["cf_provenance"]["cf_model"]),
+            knockon_model=np.array(info["cf_provenance"]["knockon_model"]),
             **datasets, **decl)
         print(f"  -> {args.dump}")
     if args.output:
@@ -1061,7 +1143,11 @@ def main():
             name = name[:-5]
         os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
         t0 = time.time()
-        writer.write(outfolder=os.path.dirname(out) or ".", outfilename=name)
+        # the CF model the card's exponents were built with, carried into
+        # every fit output as `meta_info_input`
+        writer.write(outfolder=os.path.dirname(out) or ".", outfilename=name,
+                     meta_data_dict={"meta_info": {
+                         "cf_provenance": info["cf_provenance"]}})
         p = os.path.join(os.path.dirname(out), name) + ".hdf5"
         print(f"  -> {p} ({os.path.getsize(p)/1e9:.2f} GB) in "
               f"{time.time()-t0:.1f} s")

@@ -11,8 +11,12 @@ THE ASSEMBLY, read off `unbinned.MassCFTerm._family_parts`. `tgrid` is the
 STANDARDIZED argument (the Gaussian family enters as `-0.5 vgf t^2`, which is
 a unit-variance Gaussian at `vgf = 1`), so the CF of `z` is directly
 
-    log phi_z(t) = k_ms Sms + k_ioni (Sio_re + i Sio_im)
+    log phi_z(t) = k_ms Sms + k_ioni (Sio + Skx + Skj)
                             + k_rad (Srad_re + i Srad_im) - 0.5 k_hit vgf t^2
+
+(Sio, Skx, Skj complex: the knock-on exact map and joint piece are part of the
+ionisation family, as the card makers fold them; Skx carries the knock-on
+Jensen mean)
 
 with every `k` at its default 1, plus the Jensen displacement `i t d_i/sigma_i`
 with `d_i/sigma_i = 1.5 (sigma_i/m_i)(1 + f_ang,i)`. Then
@@ -52,12 +56,14 @@ def model_odd(d, u, jensen=True, kioni=1.0, krad=1.0, idx=None):
     m = z * sig + mg
 
     s_re = -0.5 * vgf[:, None] * t[None, :] ** 2
-    for k, sc in (("Sms", 1.0), ("Sio_re", kioni), ("Srad_re", krad)):
+    for k, sc in (("Sms", 1.0), ("Sio_re", kioni), ("Skx_re", kioni),
+                  ("Skj_re", kioni), ("Srad_re", krad)):
         b = blk(k)
         if b is not None:
             s_re = s_re + sc * b
     s_im = np.zeros_like(s_re)
-    for k, sc in (("Sio_im", kioni), ("Srad_im", krad)):
+    for k, sc in (("Sio_im", kioni), ("Skx_im", kioni), ("Skj_im", kioni),
+                  ("Srad_im", krad)):
         b = blk(k)
         if b is not None:
             s_im = s_im + sc * b

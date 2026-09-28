@@ -54,10 +54,20 @@ import time
 
 import numpy as np
 
+_FULL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "fullscale")
+if _FULL not in sys.path:
+    sys.path.insert(0, _FULL)
+# the knock-on pieces and the CF provenance, handled as the full-scale card does
+from make_card import (cf_provenance, fold_knockon,  # noqa: E402
+                       CACHE_KEYS as _FULL_KEYS)
+
 MZ_REF = 91.1876
 FAMILY_ORDER = ["ms", "ioni", "rad"]
 CACHE_KEYS = {"ms": ("Sms", None), "ioni": ("Sio_re", "Sio_im"),
-              "rad": ("Srad_re", "Srad_im"), "del": ("Sdel", None)}
+              "rad": ("Srad_re", "Srad_im"), "del": ("Sdel", None),
+              # added to `ioni`, never families of their own (fold_knockon)
+              "kx": _FULL_KEYS["kx"], "kj": _FULL_KEYS["kj"]}
 
 
 def parse_args(argv=None):
@@ -223,6 +233,10 @@ def build(args, log=print):
             arrays[name]["im"] = _resample(np.asarray(d[im_k])[idx], tsrc, tgrid,
                                            args.upsample)
             datasets[f"S_im_{name}"] = arrays[name]["im"]
+    fold_knockon(d, idx, arrays, log,
+                 resample=lambda a: _resample(a, tsrc, tgrid, args.upsample))
+    if "ioni" in arrays and "im" in arrays["ioni"]:
+        datasets["S_im_ioni"] = arrays["ioni"]["im"]
 
     phik = (np.asarray(k["phik_t"]), np.asarray(k["phik_re"]),
             np.asarray(k["phik_im"]))
@@ -335,6 +349,7 @@ def build(args, log=print):
 
     info = {"n": n, "n_cache": n0, "window": [lo, hi],
             "born_window": list(args.born_window), "mreco": mreco, "mgen": mgen,
+            "cf_provenance": cf_provenance(d),
             "provider_config": provider.config()}
     return term, datasets, decl, info
 
@@ -351,6 +366,8 @@ def main():
             args.dump, config=json.dumps(term.config()),
             params=np.array(list(term.param_names)), mreco=info["mreco"],
             mgen=info["mgen"], argv=np.array(sys.argv[1:], dtype=object),
+            cf_model=np.array(info["cf_provenance"]["cf_model"]),
+            knockon_model=np.array(info["cf_provenance"]["knockon_model"]),
             **{k: v for k, v in datasets.items()}, **decl)
         print(f"  -> {args.dump}")
 
@@ -366,7 +383,9 @@ def main():
             name = name[:-5]
         os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
         t0 = time.time()
-        writer.write(outfolder=os.path.dirname(out) or ".", outfilename=name)
+        writer.write(outfolder=os.path.dirname(out) or ".", outfilename=name,
+                     meta_data_dict={"meta_info": {
+                         "cf_provenance": info["cf_provenance"]}})
         print(f"  -> {os.path.join(os.path.dirname(out), name)}.hdf5 "
               f"in {time.time()-t0:.1f} s")
 
