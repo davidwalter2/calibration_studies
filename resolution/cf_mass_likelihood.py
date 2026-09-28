@@ -494,7 +494,7 @@ def build_pairs_tt(args, outdir):
                 "in others; a cache mixing the two would carry the term for "
                 "part of the sample only")
         if kj_on and not want_rad:
-            raise ValueError(f"{fn}: FIT_KNOCKON_JOINT needs the `radstepv` "
+            raise ValueError(f"{fn}: CF_KNOCKON_JOINT needs the `radstepv` "
                              f"export for the step pairing")
         a = t.arrays(_b, library="np")
         for ic in range(len(a["Jpsi_mass"])):

@@ -285,8 +285,11 @@ def _toy_sim_meta(path):
     full = [i for i in range(nev) if len(a["detid"][i]) == npl]
     p0 = np.array([a["pabs"][i][0] for i in full])
     p1 = np.array([a["pabs"][i][-1] for i in full])
+    dE = (p0 - p1) * 1e3
     return dict(nev=nev, npl=npl, r=np.array([np.median(x) for x in r]),
-                nfull=len(full), dE=float(np.median(p0 - p1)) * 1e3,
+                nfull=len(full), dE=float(np.median(dE)),
+                dEmean=float(np.mean(dE)),
+                dEmean_err=float(np.std(dE) / np.sqrt(max(len(dE), 1))),
                 seq=np.arange(npl))
 
 

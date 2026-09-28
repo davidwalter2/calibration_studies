@@ -341,15 +341,18 @@ def gshape(tau, ymax=None):
 # differs from both by 1.833 units of log (the `(1+t/Y)^-4` starts biting a
 # decade below Y where a kinematic edge does not).
 #
-# Everything here is DEFAULT-INERT: the tables are built at import, nothing
-# reads them unless `cf_track_resolution.MS_ELEC_EDGE` is set.
+# The tables are built at import; the scattering channel reads them for every
+# step (the nuclear piece under `MS_FINE_G`, the electron piece under
+# `MS_ELEC_TMAX` with the kernel `MS_ELEC_EDGE` selects).
 # =========================================================================
 
-# 141 rows, 0.1 decade, in Y = ymax^2 (the y^2 scale, NOT the y scale
+# 171 rows, 0.1 decade, in Y = ymax^2 (the y^2 scale, NOT the y scale
 # `gshape` takes) -- ten times finer than `_YMAXG`, because the electron
 # ceiling is a per-species number and must not be snapped the way the nuclear
-# form-factor ceiling is.
-_ELEC_Y = np.logspace(2., 16., 141)
+# form-factor ceiling is.  From Y = 0.1: the ceiling at the e- production
+# threshold (cf_knockon.KNOCKON_TCUT) is y = 3-7 on the tracker's elements,
+# whatever the momentum (theta_cut and chi_a both scale as 1/p).
+_ELEC_Y = np.logspace(-1., 16., 171)
 # quadrature in v = -ln(y^2/Y) (below the ceiling) and w = +ln(y^2/Y) (above,
 # for the dipole only).  h = 0.0247 in ln(y^2) against `_Y2`'s 0.1088: 4.4x
 # finer, so the `dipole` row is the NUMERICS CONTROL for `gshape` itself.
@@ -402,7 +405,7 @@ _build_elec_tables()
 def gshape_elec(tau, y2max, kind="hard", beta2=0.0):
     """Electron-term exponent shape with its own ceiling, `y2max = (theta_e,max
     /chi_a)^2` -- note this is the SQUARE of what `gshape` takes -- by linear
-    interpolation in log(y2max) between the 141 rows of `_ELEC_Y`."""
+    interpolation in log(y2max) between the 171 rows of `_ELEC_Y`."""
     tau = np.abs(np.asarray(tau, dtype=np.float64))
     ly = np.clip(np.log(y2max), np.log(_ELEC_Y[0]), np.log(_ELEC_Y[-1]))
     fi = (ly - np.log(_ELEC_Y[0])) / (np.log(_ELEC_Y[1]) - np.log(_ELEC_Y[0]))

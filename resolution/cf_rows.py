@@ -161,6 +161,16 @@ def fit_pairing(uim, ridx, uvm, wms):
     return wb, beta
 
 
+def check_parallel(rrec, uvm, uim, ridx):
+    """The pairing joins the radiative and MS rows BY POSITION: refuse rows
+    that are not one per Geant4 step on both sides (same count, same
+    momentum)."""
+    rrec, uvm = np.asarray(rrec), np.asarray(uvm)
+    if not (len(rrec) == len(uvm) == len(uim) == len(ridx)) or (
+            len(uvm) and not np.array_equal(rrec[:, cf_brems_exact.R_P], uvm[:, 3])):
+        raise ValueError("radiative rows are not parallel to the MS rows")
+
+
 def fit_families(tau, sig, ms_blocks, io_blocks, rad=None):
     """The fit-level CF families of one track or leg from the ROW functions.
 
@@ -191,6 +201,7 @@ def fit_families(tau, sig, ms_blocks, io_blocks, rad=None):
                               np.ones(n))
     beta, wb_rad = {}, None
     if rad is not None and len(rad["ridx"]):
+        check_parallel(rad["rrec"], rad["uvm"], rad["uim"], rad["ridx"])
         wb_rad, beta = fit_pairing(rad["uim"], rad["ridx"], rad["uvm"], wms)
     for g, rows, w in io_blocks:
         n = len(rows)

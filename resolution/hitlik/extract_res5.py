@@ -43,15 +43,30 @@ NORM of the weight -- and trivially exact for the 1-dof ionization/radiative
 blocks).  This is ``matres``'s ``sqrt(v_pool/sq2)/sigma`` with the ``/sigma``
 absorbed into the whitening.
 
+Every family comes from the shared row functions (``cf_rows``), as in
+``cf_track_resolution.extract``: ``ms`` the scattering rows, ``io`` the
+ionisation rows' whole exponent (the linear map plus the hard knock-on
+collision's exact-map and joint pieces, linear in the step's material like
+the rest), ``rad`` the radiative rows (exact 1/p map, and the primary's recoil
+at the paired MS block's angular weight).  A group's share of the knock-on
+pieces is evaluated on its whole ionisation block, so the split sums to the
+flat family (``matres/extract_groups.py``, same convention).
+
 Cost
 ----
-The five components differ ONLY by the scalar ``wstd_k``, and every exponent
-primitive (``ms_step_exponent``, ``ioni_step_exponent``,
-``delta_step_exponent``, ``rad_exponent``) depends on ``(wstd, tau)`` through
-the PRODUCT alone.  So all five are obtained from ONE call per (block, group)
-on the concatenated grid ``tau_ext = concat_k(TG * wstd_k / wstd_ref)``, and
-the extraction costs the per-call overhead of the single-functional one, not
-five times it.
+The five components differ ONLY by the block weights ``wstd_k``.  The
+families that depend on ``(wstd, tau)`` through the PRODUCT alone (scattering
+``ms_rows``, ionisation ``ioni_rows``, the knock-on exact map) are obtained
+from ONE call per (block, group) on the concatenated grid
+``tau_ext = concat_k(TG * wstd_k / wstd_ref)``, at the per-call overhead of
+the single-functional extraction.  The JOINT pieces depend on the PAIR
+``(wq tau, wb tau)`` of a q/p and an angular weight, whose ratio differs per
+component, and are evaluated per (block, group) and component on ``TG``: the
+radiative family (each emission's q/p change with the primary's recoil
+against the photon, at the paired MS block's angular weight) and the knock-on
+joint piece of the ionisation family (the collision's loss with its
+deflection, at the ionisation block's paired angular weight,
+``cf_rows.fit_pairing``).
 
 Output (npz).  The candidate axis is FLATTENED over components: row
 ``i = it * ncomp + k``, so a downstream ``MaterialCFTerm`` treats each
@@ -64,7 +79,8 @@ independent -- see ``xcum`` below, which sizes it).
     sigma       (N,)             1.0 (the whitening already carries it)
     comp        (N,) int8        which component
     trk         (N,) int32       track index (0..n-1)
-    grp_ptr     (N+1,) int64 / grp_id (nnz,) int16 / S<fam> (nnz,nt) f32
+    grp_ptr     (N+1,) int64 / grp_id (nnz,) int16 / S<fam> (nnz,nt) f32,
+                                 fam in ms, io_re, io_im, rad_re, rad_im
     vQms,vQio   (nnz,) f32       the FIT's Q-matrix variance of that
                                  (component, group) row -- the "Rossi"
                                  Gaussian convention, 14 % narrower than the
@@ -94,7 +110,6 @@ import json
 import os
 import sys
 import time
-from multiprocessing import Pool
 
 import numpy as np
 import uproot
@@ -111,31 +126,42 @@ import prodfiles  # noqa: E402
 import selection  # noqa: E402  (the standard selection owns --max-chi2-ndof)
 
 COVTOL = 5e-3
-FAMS = ("ms", "del", "io_re", "io_im", "rad_re", "rad_im")
+FAMS = ("ms", "io_re", "io_im", "rad_re", "rad_im")
 
 TG = None
-ioni_sq2 = ioni_step_exponent = ms_step_exponent = None
-cf_brems_exact = cf_delta_ray = hitres_classes = None
-DELTA_TCUT = DELTA_TMAXCAP = None
+ioni_sq2 = None
+cf_brems_exact = cf_knockon = cf_rows = hitres_classes = None
 
 
 def load_cf_primitives():
-    global TG, ioni_sq2, ioni_step_exponent, ms_step_exponent
-    global cf_brems_exact, cf_delta_ray, hitres_classes
-    global DELTA_TCUT, DELTA_TMAXCAP
+    global TG, ioni_sq2, cf_brems_exact, cf_knockon, cf_rows, hitres_classes
     if TG is not None:
         return
     import cf_brems_exact as _brems
-    import cf_delta_ray as _delta
+    import cf_knockon as _kon
+    import cf_rows as _rows
     import hitres_classes as _hc
     import cf_track_resolution as CTR
-    cf_brems_exact, cf_delta_ray, hitres_classes = _brems, _delta, _hc
+    cf_brems_exact, cf_knockon, cf_rows, hitres_classes = _brems, _kon, _rows, _hc
     TG = CTR.TG
     ioni_sq2 = CTR.ioni_sq2
-    ioni_step_exponent = CTR.ioni_step_exponent
-    ms_step_exponent = CTR.ms_step_exponent
-    DELTA_TCUT = CTR.DELTA_TCUT
-    DELTA_TMAXCAP = CTR.DELTA_TMAXCAP
+
+
+def ms_family(tau, rows, w):
+    """The scattering family of a set of MS rows at one angular weight."""
+    n = len(rows)
+    return np.real(cf_rows.ms_rows(tau, rows, np.arange(n), np.full(n, w),
+                                   np.ones(n)))
+
+
+def knockon_part(tau, rows, idx, wq, wb, part):
+    """One piece ("map" / "joint") of the hard knock-on collision for the rows
+    `idx` of an ionisation block at the block's q/p and angular weights.  The
+    block is passed whole, so a row's quadrature is the flat family's
+    whatever the split."""
+    n = len(idx)
+    return cf_rows.knockon_rows(tau, rows, idx, np.full(n, wq), np.full(n, wb),
+                                np.ones(n), part=part)
 
 
 def parse_args():
@@ -145,10 +171,13 @@ def parse_args():
     p.add_argument("--ntasks", type=int, default=0)
     p.add_argument("--groups", default=None)
     p.add_argument("--ncomp", type=int, default=5)
+    p.add_argument("--marginal", action="store_true",
+                   help="normalise each parameter by its own sqrt(V_kk) instead of the "
+                        "Cholesky whitening: z_k = r_k/sigma_k, the per-parameter pull "
+                        "(components correlated; for closure plots, not for a likelihood)")
     p.add_argument("--hitmode", choices=["subdet", "class18"], default="class18")
     p.add_argument("--ioni-norm", choices=["var", "raw"], default="var")
     p.add_argument("--no-rad", action="store_true")
-    p.add_argument("--no-delta", action="store_true")
     p.add_argument("--max-hess", type=float, default=0.0)
     p.add_argument("--max-grad", type=float, default=0.0)
     p.add_argument("--max-cands", type=int, default=0,
@@ -157,9 +186,10 @@ def parse_args():
     p.add_argument("--tmax", type=float, default=8.0)
     p.add_argument("--validate", action="store_true",
                    help="also compute component 0 the SINGLE-functional way "
-                        "(wstd = sqrt(v/sq2)/sigma) and report the max "
-                        "difference -- the gate that the 5-component route "
-                        "reproduces the established q/p one")
+                        "(wstd = sqrt(v/sq2)/sigma, the flat families of "
+                        "cf_rows.fit_families) and report the max difference "
+                        "per family -- the gate that the 5-component route, "
+                        "summed over groups, reproduces the established q/p one")
     p.add_argument("-j", "--jobs", type=int, default=8)
     p.add_argument("-o", "--output", required=True)
     # THE STANDARD SELECTION owns `--max-chi2-ndof` (`resolution/selection.py`).
@@ -231,7 +261,9 @@ class Ext:
 def process_file(fname):
     args, pt_all, subdet_all, io2ms = _ARGS, _PARMTYPE, _SUBDET, _IO2MS
     ncomp = args.ncomp
-    fams = tuple(f for f in FAMS if not (f == "del" and args.no_delta))
+    marginal = bool(getattr(args, "marginal", False))
+    kx_on = bool(cf_knockon.active() and cf_knockon.QOP_EXACT)
+    kj_on = bool(cf_knockon.active() and cf_knockon.KNOCKON_JOINT)
 
     try:
         f = uproot.open(fname)
@@ -260,6 +292,11 @@ def process_file(fname):
     want_rad = (not args.no_rad) and all(b in keys for b in _RB)
     if want_rad:
         want += list(_RB)
+    if kj_on and not want_rad:
+        # the joint piece pairs each ionisation block with its step's MS
+        # angular weight through the radiative rows (parallel to msmoliv)
+        raise ValueError(f"{fname}: the knock-on joint piece needs the "
+                         f"`radstepv` export for the step pairing")
     _CB = ("reshitidx", "hitDetId", "hitUProj", "clusterSizeX", "clusterChargeBin")
     if args.hitmode == "class18":
         if not all(b in keys for b in _CB):
@@ -284,7 +321,7 @@ def process_file(fname):
             ok_cut = m if ok_cut is None else (ok_cut & m)
 
     E = Ext(TG[_TSEL], ncomp)
-    store = G.GroupStore(fams, ncomp * len(_TSEL))   # nt slot = ncomp * nt
+    store = G.GroupStore(FAMS, ncomp * len(_TSEL))   # nt slot = ncomp * nt
     out = {k: [] for k in ("eta", "phi", "charge", "chi2ndof", "nvhit",
                            "trackPt", "genPt", "covdev", "sigqop")}
     rres, infl_l = [], []
@@ -293,7 +330,7 @@ def process_file(fname):
     vQms_l, vQio_l = [], []
     xcum_l = []
     nsel = ndrop = ncut = 0
-    valmax = 0.0
+    valfam = {}
     grp_mult = []
     cap = 0 if not args.max_cands else max(1, args.max_cands)
 
@@ -333,7 +370,10 @@ def process_file(fname):
         except np.linalg.LinAlgError:
             ndrop += 1
             continue
-        L = np.linalg.inv(Lc)                       # lower triangular
+        if marginal:
+            L = np.diag(1.0 / np.sqrt(np.diag(V)))
+        else:
+            L = np.linalg.inv(Lc)                   # lower triangular
         A = np.einsum("kp,bpj->bkj", L, Bb)         # (nb, 5, 5) -> a_{b,k}
         vk = np.einsum("bkj,bkj->bk", A, A)         # (nb, ncomp<=5)
         vk = vk[:, :ncomp]
@@ -392,17 +432,24 @@ def process_file(fname):
         per_group = {}
         vQms = {}
         vQio = {}
-        val_ref = None
-        val_new = None
         # the MS a-vectors kept for the cross-cumulant estimate
         ms_w = []
+        # per-component block weights: the angular weight of each MS block
+        # and the signed q/p weight of each ionisation block, for the joint
+        # pieces
+        wms_b, wio_b, rad_blocks = {}, {}, []
+        # --validate: the q/p component's blocks at the single-functional
+        # weights, for the flat families of cf_rows.fit_families
+        vms, vio, vwrad = [], [], {}
 
         def acc(g, f, arr):
             per_group.setdefault(g, {})
             per_group[g][f] = per_group[g].get(f, 0.0) + arr
 
+        if want_rad:
+            cf_rows.check_parallel(rrec, uvm, uim, ridx)
         ok = True
-        # ---- MS + delta (parmtype 10) ---------------------------------------
+        # ---- MS (parmtype 10) -----------------------------------------------
         sel10 = fam == 10
         for gg in np.unique(gi[sel10]):
             m = sel10 & (gi == gg)
@@ -419,33 +466,34 @@ def process_file(fname):
             wref = float(w.max())
             if wref <= 0.0:
                 continue
+            wms_b[int(gg)] = w
             scales = w / wref
             te = E.grid(scales)
             grp = steps[:, G.MS_GROUP].astype(np.int64)
-            cf = (0.0 if ("del" not in fams) else
-                  cf_delta_ray.carve_factor(steps, DELTA_TCUT, DELTA_TMAXCAP))
             for g in np.unique(grp):
                 sg = steps[grp == g]
-                sms = E.split(ms_step_exponent(sg, wref, te))
-                acc(int(g), "ms", sms)
+                acc(int(g), "ms", E.split(ms_family(te, sg, wref)))
                 vQms[int(g)] = vQms.get(int(g), 0.0) + \
                     (w ** 2) * float(sg[:, G.MS_THP2].sum())
-                if "del" in fams:
-                    sd = E.split(cf_delta_ray.delta_step_exponent(
-                        sg, wref, te, DELTA_TCUT, tmax_cap=DELTA_TMAXCAP))
-                    acc(int(g), "del", sd - cf * sms)
             # the block's a-vectors, for the cross-cumulant size
             ms_w.append(A[m][:, :ncomp, :].reshape(-1, ncomp, 5))
             if args.validate:
-                s0 = ms_step_exponent(steps, float(w[0]), E.tg)
-                s1 = ms_step_exponent(steps, np.sqrt(vb[m].sum() / sq2) / sig, E.tg)
-                val_ref = s1 if val_ref is None else val_ref + s1
-                val_new = s0 if val_new is None else val_new + s0
+                vms.append((gg, steps, np.sqrt(vb[m].sum() / sq2) / sig))
         if not ok:
             ndrop += 1
             continue
 
-        # ---- ionization + radiative (parmtype 11) ---------------------------
+        # per component: the angular weight of each radiative row (its
+        # parallel MS row's block) and of each ionisation block (beta, the
+        # knock-on joint piece)
+        if want_rad:
+            wbr, beta = zip(*(cf_rows.fit_pairing(
+                uim, ridx, uvm, {g: float(v[k]) for g, v in wms_b.items()})
+                for k in range(ncomp)))
+        else:
+            wbr, beta = None, [{}] * ncomp
+
+        # ---- ionization + knock-on + radiative (parmtype 11) ----------------
         sel11 = fam == 11
         for gg in np.unique(gi[sel11]):
             m = sel11 & (gi == gg)
@@ -471,6 +519,10 @@ def process_file(fname):
             wref = float(np.max(np.abs(w)))
             if wref <= 0.0:
                 continue
+            wio_b[int(gg)] = chg * w
+            if args.validate:
+                vio.append((gg, steps, chg * (w[0] if sq2 is None else
+                                              np.sqrt(vb[m].sum() / sq2) / sig)))
             scales = w / wref
             te = E.grid(scales)
             g10k = io2ms[gg]
@@ -485,8 +537,19 @@ def process_file(fname):
                 break
             grp_io = grp_ms[pair]
             for g in np.unique(grp_io):
-                sub = steps[grp_io == g]
-                Sc = E.split(ioni_step_exponent(sub, chg * wref, te))
+                idx = np.flatnonzero(grp_io == g)
+                sub = steps[idx]
+                # the linear map and the knock-on exact map depend on
+                # (w, tau) through w*tau only: the concatenated grid
+                Sc = E.split(cf_rows.ioni_rows(te, sub, np.full(len(sub), chg * wref)))
+                if kx_on:
+                    Sc = Sc + E.split(knockon_part(te, steps, idx, chg * wref,
+                                                   0.0, "map"))
+                if kj_on:
+                    # the joint piece depends on the pair (w tau, beta tau)
+                    Sc = Sc + np.stack([knockon_part(
+                        E.tg, steps, idx, chg * float(w[k]),
+                        beta[k].get(int(gg), 0.0), "joint") for k in range(ncomp)])
                 acc(int(g), "io_re", Sc.real)
                 acc(int(g), "io_im", Sc.imag)
                 if sq2 is not None:
@@ -498,17 +561,30 @@ def process_file(fname):
                     if len(rrows) != len(mrows):
                         ok = False
                         break
-                    for g in np.unique(grp_ms):
-                        sub = grp_ms == g
-                        ns = int(sub.sum())
-                        Sc = E.split(cf_brems_exact.rad_exponent(
-                            te, rrec[rrows[sub]], rspc[rrows[sub]], rvg,
-                            weights=np.full(ns, chg * wref)))
-                        acc(int(g), "rad_re", Sc.real)
-                        acc(int(g), "rad_im", Sc.imag)
+                    rad_blocks.append((int(gg), rrows))
+                    if args.validate:
+                        vwrad[int(gg)] = vio[-1][2]
         if not ok:
             ndrop += 1
             continue
+
+        # ---- radiative, per component: each emission is the joint event of
+        #      its q/p change and the recoil angle, the PAIR (wq tau, wb tau)
+        if rad_blocks:
+            # the spectra refined once per track (cf_brems_exact.RAD_NSUB)
+            vf, spf = cf_brems_exact.refine_spectra(rrec, rspc, rvg,
+                                                    cf_brems_exact.RAD_NSUB)
+            for gg, rrows in rad_blocks:
+                # the radiative row inherits the group of its parallel MS row
+                grp_r = uvm[rrows, G.MS_GROUP].astype(np.int64)
+                for g in np.unique(grp_r):
+                    rr = rrows[grp_r == g]
+                    ns = len(rr)
+                    Sc = np.stack([cf_rows.rad_rows(
+                        E.tg, rrec, spf, vf, rr, np.full(ns, wio_b[gg][k]),
+                        wbr[k][rr], np.ones(ns)) for k in range(ncomp)])
+                    acc(int(g), "rad_re", Sc.real)
+                    acc(int(g), "rad_im", Sc.imag)
 
         # ---- hit classes, per component -------------------------------------
         selh = (fam == 8) | (fam == 9)
@@ -559,8 +635,23 @@ def process_file(fname):
         else:
             xcum_l.append(np.zeros(6, np.float32))
 
-        if args.validate and val_ref is not None:
-            valmax = max(valmax, float(np.max(np.abs(val_new - val_ref))))
+        if args.validate:
+            # component 0 summed over groups against the flat q/p families
+            F = cf_rows.fit_families(
+                E.tg, 1.0, vms, vio,
+                dict(uim=uim, ridx=ridx, uvm=uvm, rrec=rrec, rspc=rspc, rvg=rvg,
+                     wrad=vwrad) if want_rad else None)
+
+            def comp0(f):
+                return sum((np.asarray(r[f])[0] for r in per_group.values()
+                            if f in r), np.zeros(E.nt))
+            got = dict(ms=comp0("ms"), io=comp0("io_re") + 1j * comp0("io_im"),
+                       rad=comp0("rad_re") + 1j * comp0("rad_im"))
+            ref = dict(ms=F["Sms"].real, io=F["Sio"] + F["Skx"] + F["Skj"],
+                       rad=F["Srad"])
+            for f in got:
+                valfam[f] = max(valfam.get(f, 0.0),
+                                float(np.max(np.abs(got[f] - ref[f]))))
 
         # ---- emit ncomp rows -------------------------------------------------
         grp_mult.append(len(per_group))
@@ -610,9 +701,9 @@ def process_file(fname):
     res["rres"] = (np.stack(rres) if rres else np.zeros((0, 5)))
     res["inflat"] = (np.stack(infl_l).astype(np.float32) if infl_l
                      else np.zeros((0, 5), np.float32))
-    stats = dict(nsel=nsel, ndrop=ndrop, ncut=ncut, sel=_stdsumm,
-                 want_rad=int(want_rad),
-                 grp_mult=grp_mult, valmax=valmax)
+    stats = dict(nsel=nsel, ndrop=ndrop, ncut=ncut,
+                 sel=_stdsumm, want_rad=int(want_rad),
+                 grp_mult=grp_mult, valfam=valfam)
     return fname, res, stats
 
 
@@ -633,13 +724,16 @@ def main():
     gnames = G.read_groups(args.groups)[0] if args.groups else None
 
     t0 = time.time()
-    with Pool(args.jobs, initializer=_init,
-              initargs=(args, parmtype, subdet, io2ms)) as p:
+    # SPAWN, not fork: the parent has already opened a file with uproot, whose
+    # reader threads make a forked worker deadlock in a futex (observed 9/25).
+    import multiprocessing as mp
+    with mp.get_context("spawn").Pool(args.jobs, initializer=_init,
+                                      initargs=(args, parmtype, subdet, io2ms)) as p:
         parts = [r for r in p.map(process_file, fs) if r is not None]
     parts = [r for r in parts if r[2]["nsel"] > 0]
     print(f"extraction {time.time() - t0:.0f} s", flush=True)
 
-    fams = tuple(f for f in FAMS if not (f == "del" and args.no_delta))
+    fams = FAMS
     stores = [r[1] for r in parts]
     ncomp = args.ncomp
     nt = len(tau_subset(args))
@@ -708,13 +802,20 @@ def main():
             [gnames.get(g, f"group{g}") for g in range(ng)], dtype=object)
     out["groups_file"] = np.array(args.groups or "", dtype=object)
     gm = np.concatenate([np.asarray(r[2]["grp_mult"]) for r in parts])
+    valfam = {}
+    for r in parts:
+        for f, v in r[2]["valfam"].items():
+            valfam[f] = max(valfam.get(f, 0.0), v)
     prov = dict(files=len(fs), ntracks=int(n), ncomp=int(ncomp),
                 nrows=int(n * ncomp),
                 nsel=int(sum(r[2]["nsel"] for r in parts)),
                 ndrop=int(sum(r[2]["ndrop"] for r in parts)),
                 ncut=int(sum(r[2]["ncut"] for r in parts)),
                 grp_mult_mean=float(gm.mean()) if len(gm) else 0.0,
-                valmax=float(max(r[2]["valmax"] for r in parts)),
+                valmax=float(max(valfam.values(), default=0.0)),
+                valfam=valfam,
+                physics=dict(cf_knockon=dict(cf_knockon.physics_state()),
+                             cf_brems_exact=dict(cf_brems_exact.physics_state())),
                 argv=vars(args))
     # EVERY CALLER LOGS THE STANDARD SELECTION, cut by cut
     _sel = selection.merge([r[2].get("sel") for r in parts])
@@ -730,7 +831,8 @@ def main():
     print(f"covdev max {out['covdev'].max():.2e}  "
           f"median {np.median(out['covdev']):.2e}", flush=True)
     if args.validate:
-        print(f"VALIDATE max|comp0(new) - qop(reference)| = {prov['valmax']:.3e}")
+        for f, v in sorted(valfam.items()):
+            print(f"VALIDATE max|comp0 - flat q/p family| {f:<4} {v:.3e}")
 
 
 if __name__ == "__main__":

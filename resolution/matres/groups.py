@@ -42,9 +42,10 @@ Moliere multiple scat.  chi_c^2 ∝ x and Omega_0 = chi_c^2/chi_a^2 ∝ x at fix
 Urban ionization        the mean excitation/ionization numbers a_1, a_2, a_3 all
                         carry the step length, and ``ioni_step_exponent``
                         returns sum_steps a_j (e^{i th} - 1 - i th) -- linear.
-Radiative (brems+pair)  the mean number of emissions is ∝ x; ``rad_exponent``
+Radiative (brems+pair)  the mean number of emissions is ∝ x; ``rad_rows``
                         is a sum over steps with per-step weights -- linear.
-delta-ray recoil        xi ∝ x, ``delta_step_exponent`` is a sum over steps.
+Knock-on collision      xi ∝ x, ``knockon_rows`` is a sum over the ionisation
+                        rows (part of the ionisation family) -- linear.
 ======================  ==========================================================
 
 Therefore, with the fit's influence weights **held fixed** (the same two-step
@@ -70,7 +71,7 @@ parmtype-8/9 blocks of class c, and ``v_other`` the non-hit Gaussian remainder
 STEP -> GROUP RESOLUTION
 ------------------------
 ``msmoliv`` carries the group id in column 9 (``MoliereMsStep::stepGroup``), so
-the MS and delta channels split exactly.  ``radstepv`` has no group column but
+the MS channel splits exactly.  ``radstepv`` has no group column but
 its log is pushed under the *same* ``if (ioniStepLogging_ && thisPathLength >
 0.)`` guard as the Moliere log, so the two are 1:1 within a block (verified:
 identical row counts in every block of every file inspected) and the radiative

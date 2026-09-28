@@ -15,10 +15,9 @@ the law and its range from the record's regime, so one code path serves all
 species; tmax is the kinematic ceiling in all regimes.
 
 as a centred compound Poisson in the ENERGY, mapped LINEARLY into q/p
-(d qop = q cs dT, cs = E/p^3).  The scattering channel carries the same
-collisions' angular kicks -- its electron term runs to the kinematic ceiling
-theta(Tmax) -- as an INDEPENDENT compound Poisson.  Per collision the truth is
-one event with both:
+(d qop = q cs dT, cs = E/p^3).  Geant4 delivers every collision above the e-
+production threshold (KNOCKON_TCUT) as an explicit delta ray: one event with
+both
 
     d qop = q (1/p' - 1/p) = q cs T_eff(T),
             T_eff = p^2 (p - p')/(E p') = p^2 T (2E - T)/(E p' (p + p')),
@@ -27,20 +26,24 @@ one event with both:
             (the electron's transverse momentum, exact for a free electron,
             over the primary's momentum after the collision)
 
-with the kick's azimuth uniform.  So per collision the model's
+with the kick's azimuth uniform; its msc carries the electrons only below the
+threshold.  The model mirrors that split: the scattering channel's electron
+term stops at KNOCKON_TCUT (cf_track_resolution.ms_step_exponent) and this
+channel turns each collision above it from the ionisation channel's
 
-    [e^{i a T} - 1 - i a T]  +  [J0(b theta) - 1]
+    [e^{i a T} - 1 - i a T]      into      [e^{i a T_eff} J0(b theta) - 1 - i a T].
 
-becomes the exact  [e^{i a T_eff} J0(b theta) - 1 - i a T].  The centring
-stays linear: the reference subtracts the mean ENERGY loss, so the channel's
-mean becomes the Jensen excess of q/p over q cs E[dE].  The difference, added
-to the exponent, is
+The centring stays linear: the reference subtracts the mean ENERGY loss, so
+the channel's mean becomes the Jensen excess of q/p over q cs E[dE].  The
+difference, added to the exponent, is
 
-    dS = INT dN(T) [ e^{i a X} J - e^{i a T} - J + 1 ] dT ,
+    dS = INT dN(T) [ e^{i a X} J - e^{i a T} ] dT ,
 
 X = T_eff under QOP_EXACT (else T), J = J0(b theta) under KNOCKON_JOINT
-(else 1).  Both DEFAULT ON; with both off dS = 0, nothing is evaluated and
-every number is bit-identical to the linear model.
+(else 1; the scattering channel's electron term then runs to the kinematic
+ceiling instead, the independent-channel model).  Both DEFAULT ON; with both
+off dS = 0, nothing is evaluated and every number is bit-identical to the
+linear model.
 
 VALIDATION (realmat_full, 200 k per sample; CLOSURE_STATE.md)
   J/psi one-plane vertex mass (realmat_ditrack.py), 19 planes x 9 probes:
@@ -50,9 +53,11 @@ VALIDATION (realmat_full, 200 k per sample; CLOSURE_STATE.md)
     it in the bending plane of muons and pions; kaons and protons (Tmax 40,
     10 MeV) move by <= 2.2e-4.
 
-    KNOCKON_JOINT  (e^{iaT} - 1)(J0 - 1): the shape of any direction that mixes
-                   q/p with the angles.  Mean and variance unchanged (the cross
-                   moment vanishes by azimuthal symmetry).
+    KNOCKON_JOINT  e^{iaX} (J0 - 1): the collision's deflection with exact
+                   two-body kinematics, jointly with its loss -- the angular
+                   marginal of every delta ray above the threshold (where the
+                   scattering channel's electron term stops) and the shape of
+                   any direction that mixes q/p with the angles.
     QOP_EXACT      e^{i a T_eff} - e^{i a T}: the Jensen term.  Only the hard
                    collisions are stretched (T_eff/T - 1 is 29 % at Tmax for a
                    3.1 GeV muon, 1e-3 at 1 MeV), so the tail and the mean move
@@ -326,9 +331,10 @@ def simpson(x, h):
 def step_correction(tau_a, tau_b, T, dN, X, dXdT, th, joint, exact, part="all"):
     """dS on the t points of one step: tau_a = t*a (nt,), tau_b = t*b (nt,).
 
-    part: "all" -- INT dN [e^{iaX} J - e^{iaT} - J + 1];
-          "map" -- its J = 1 piece, INT dN [e^{iaX} - e^{iaT}];
-          "joint" -- the rest, INT dN (e^{iaX} - 1)(J - 1)."""
+    part: "all"   -- INT dN [e^{iaX} J - e^{iaT}];
+          "map"   -- its J = 1 piece, INT dN [e^{iaX} - e^{iaT}];
+          "joint" -- the rest, INT dN e^{iaX} (J - 1): the collision's
+                     deflection, jointly with its loss."""
     if part == "map":
         return step_correction(tau_a, tau_b, T, dN, X, dXdT, None, False, exact)
     if part == "joint":
@@ -336,23 +342,14 @@ def step_correction(tau_a, tau_b, T, dN, X, dXdT, th, joint, exact, part="all"):
             return np.zeros(len(tau_a), dtype=np.complex128)
         J = j0(tau_b[:, None] * th[None, :])
         amp = dN[None, :] * (J - 1.0)
-        if exact:
-            A = filon(X, amp / dXdT[None, :], tau_a)
-        else:
-            A = filon(T, amp, tau_a)
-        return A - simpson(T, amp)
+        return filon(X, amp / dXdT[None, :], tau_a) if exact else filon(T, amp, tau_a)
     B = filon(T, dN, tau_a)
-    if joint:
-        J = j0(tau_b[:, None] * th[None, :])
-        C = simpson(T, dN[None, :] * (J - 1.0))
-    else:
-        J = 1.0
-        C = 0.0
+    J = j0(tau_b[:, None] * th[None, :]) if joint else 1.0
     if exact:
         A = filon(X, dN[None, :] * J / dXdT[None, :], tau_a)
     else:
         A = filon(T, dN[None, :] * J, tau_a)
-    return A - B - C
+    return A - B
 
 
 # ------------------------------------------------------------- the channel

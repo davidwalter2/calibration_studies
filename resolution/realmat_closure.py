@@ -449,7 +449,7 @@ def cmd_sim(args):
         fcntl.flock(lk, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         raise SystemExit("another `sim` holds the lock")
-    seeds = SEEDS[:args.jobs]
+    seeds = list(range(args.first_seed, args.first_seed + args.jobs))
     jobs = [(pdg, s, args.events, args.force) for pdg in args.pdg for s in seeds]
     print(f"{len(jobs)} jobs: {len(args.pdg)} species x {len(seeds)} seeds x "
           f"{args.events} events, {args.workers} at once", flush=True)
@@ -562,6 +562,14 @@ def _sim(pdg):
     return _SIMC[pdg]
 
 
+def _dE_ok(dE_m, s):
+    """The reference's energy loss is the MEAN loss: it must agree with the
+    sim's mean over the tracks that reach every plane, within 4 sigma or 1 %
+    (the reference's own dE/dx tables).  For e+- the survivors' mean is biased
+    low by the tracks that radiate out of the acceptance."""
+    return abs(dE_m - s["dEmean"]) < max(4.0 * s["dEmean_err"], 0.01 * dE_m)
+
+
 def cmd_pairs(args):
     """The four pair tests of geom_closure.cmd_pairs, plus a frame test that
     catches a mis-mirrored plane set: on every plane the sim's median local x
@@ -583,7 +591,7 @@ def cmd_pairs(args):
         dxs = np.array([np.nanmedian(sim["locx"][sim["valid"][:, k], k])
                         - m["reflocx"][k] for k in range(len(rpl))])
         ok = (nok and seqok and dr < 0.01 and np.abs(dxs).max() < 0.05
-              and 0.0 < dE_m - s["dE"] < 6.0)
+              and _dE_ok(dE_m, s))
         print(f"--- {hp.SPECIES[pdg]['label']:<5} model {os.path.basename(mp)}  "
               f"sim {len(files)} files")
         print(f"    (1) legs {len(m['detid'])} vs sim planes {s['npl']} "
@@ -592,8 +600,9 @@ def cmd_pairs(args):
         print(f"    (3) max |refglobr - sim median r| = {dr:.5f} cm; "
               f"max |refglobr - plane radius| = "
               f"{np.abs(np.asarray(m['refglobr']) - rpl).max():.5f} cm")
-        print(f"    (4) dE model(mean) {dE_m:.3f} MeV  sim(median, first file) "
-              f"{s['dE']:.3f} MeV  gap {dE_m - s['dE']:+.3f} MeV")
+        print(f"    (4) dE model(mean) {dE_m:.3f} MeV  sim(mean, first file, tracks "
+              f"on every plane) {s['dEmean']:.3f} +- {s['dEmean_err']:.3f} MeV  "
+              f"(median {s['dE']:.3f})")
         print(f"    (5) max |median(sim locx) - reflocx| = "
               f"{1e4 * np.abs(dxs).max():.1f} um  (outermost "
               f"{1e4 * dxs[-1]:+.1f} um)")
@@ -804,6 +813,9 @@ def main():
                            help="nuclear-elastic channel ON in the prediction")
         if name == "sim":
             q.add_argument("--jobs", type=int, default=len(SEEDS))
+            q.add_argument("--first-seed", type=int, default=SEEDS[0],
+                           help="seeds first..first+jobs-1; the sample is every "
+                                "s1?? file, so 111 adds an independent 200 k")
             q.add_argument("--events", type=int, default=NEV)
             q.add_argument("--workers", type=int, default=20)
             q.add_argument("--force", action="store_true")

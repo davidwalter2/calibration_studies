@@ -18,7 +18,7 @@ in what replaces the per-(row, group) log-CF exponent:
 ``gaussq``
     every family replaced by the variance the FIT ITSELF used -- the
     Q-matrix (``thp2``) convention for MS and ``ioni_sq2`` for ionization,
-    with no radiative and no delta variance (the fit's ``Q`` has neither).
+    with no radiative variance (the fit's ``Q`` has none).
     By construction ``sum_g kappa2_g + vgf == 1`` exactly for every row, so
     this arm IS the fit's own pull model, i.e. the Gaussian chi2.
     It is NARROWER than ``gauss``: ``Q``'s MS is Rossi's core scattering power
@@ -47,8 +47,17 @@ for _p in (_HERE, _RES, _MAT):
 
 import groups as G  # noqa: E402
 
-FAMS = ("ms", "del", "io_re", "io_im", "rad_re", "rad_im")
+FAMS = ("ms", "io_re", "io_im", "rad_re", "rad_im")
 ARMS = ("cf", "gauss", "gaussq")
+
+
+def check_families(d, keys, grows, npz):
+    """The model's families are FAMS: the scattering channel's electron term
+    and the knock-on joint piece carry the delta-ray recoil, so an extraction
+    with a nonzero delta-ray family ``Sdel`` is a different model."""
+    if "Sdel" in keys and np.any(np.asarray(d["Sdel"])[grows]):
+        raise ValueError(f"{npz} carries a delta-ray family Sdel, which the CF "
+                         "model does not have: re-extract it")
 
 
 def kappa2_from_grid(S, tgrid):
@@ -165,6 +174,7 @@ def load_perhit(npz, max_tracks=0, comps="hit", max_chi2_ndof=0.0,
     out["grp_ptr"] = np.concatenate([[0], np.cumsum(cnt)]).astype(np.int64)
     out["grp_id"] = np.asarray(d["grp_id"], np.int64)[grows]
     out["grp_seg"] = np.repeat(np.arange(len(rows)), cnt)
+    check_families(d, keys, grows, npz)
     for f in FAMS:
         out["S" + f] = np.asarray(d["S" + f])[grows]
     out["vQms"] = np.asarray(d["vQms"])[grows]
@@ -253,6 +263,7 @@ def load(npz, max_tracks=0, comps=None, max_chi2_ndof=0.0, max_inflat=0.0,
     out["grp_ptr"] = np.concatenate([[0], np.cumsum(cnt)]).astype(np.int64)
     out["grp_id"] = np.asarray(d["grp_id"], np.int64)[grows]
     out["grp_seg"] = np.repeat(np.arange(len(rows)), cnt)
+    check_families(d, keys, grows, npz)
     for f in FAMS:
         out["S" + f] = np.asarray(d["S" + f])[grows]
     out["vQms"] = np.asarray(d["vQms"])[grows]

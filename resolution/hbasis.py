@@ -99,16 +99,17 @@ USE_H = False
 BFIELD = 3.8
 
 # H's ENERGY-LOSS TERM, as a scale on the exported `dEdxlast` (1.0: H exactly
-# as `curv2local` builds it).  The term couples the local q/p to the position:
-# a displaced track reaches a tilted plane after an extra path x_T tan(alpha)
-# and is charged the LAST step's dE/dx for it.  That assumes the medium around
-# the plane is uniform over the displacement.  A detector plane sits in a thin
-# sensor between parallel layers: a parallel-displaced track crosses the same
-# thicknesses up to the plane, and at mm displacements and large incidence the
-# extra path lies almost entirely OUTSIDE the 0.3 mm sensor -- so the term
-# over-states the q/p width (x2.1 at the outer planes of a pT = 0.8 GeV pion).
-# `set_h_eloss` sets it on both module views.
-H_ELOSS = float(os.environ.get("HBASIS_ELOSS", "1.0"))
+# as `curv2local` builds it, for a UNIFORM medium).  The term couples the local
+# q/p to the position: a displaced track reaches a tilted plane after an extra
+# path x_T tan(alpha) and is charged the LAST step's dE/dx for it.  Every
+# closure geometry is layered -- the sims score cylinders of thin shells, and
+# a detector plane sits in a thin sensor between parallel layers -- so a
+# parallel-displaced track crosses the same thicknesses up to the plane and
+# the extra path lies outside the material: 0 is the geometry's value.  With
+# 1.0 the term over-states the q/p width (x2.1 at the outer planes of a
+# pT = 0.8 GeV pion, where tan(alpha) ~ 1).  `set_h_eloss` sets it on both
+# module views.
+H_ELOSS = float(os.environ.get("HBASIS_ELOSS", "0.0"))
 
 PHYSICS_GLOBALS = ("USE_H", "BFIELD", "H_ELOSS")
 # a PDG constant re-exported from curv2local for callers' convenience, not a

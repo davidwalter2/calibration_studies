@@ -9,10 +9,16 @@ exponents are kept split by the material group of each Geant4 step
 over the whole track, and the Gaussian hit share is kept split by hit class
 instead of collapsed into the scalar ``vgf``.
 
+Every family comes from the shared row functions (``cf_rows``): ``ms`` the
+scattering rows, ``io`` the ionisation rows' whole exponent (the linear map
+plus the hard knock-on collision's exact-map and joint pieces, as the flat
+caches without knock-on slots carry it), ``rad`` the radiative rows (exact 1/p
+map, and the primary's recoil at the paired MS block's angular weight).
+
 See ``groups.py`` for the physics of the decomposition and for how the Urban
 ionization rows are matched back to a group.  Summing the per-group arrays over
-groups reproduces the flat cache bit-for-bit up to float32 rounding
-(``--validate`` measures it).
+groups reproduces the flat families (``cf_rows.fit_families``) up to float32
+rounding (``--validate`` measures it).
 
 Output (npz)
 ------------
@@ -57,7 +63,7 @@ import json
 import os
 import sys
 import time
-from multiprocessing import Pool
+import multiprocessing as mp
 
 import numpy as np
 import uproot
@@ -77,28 +83,49 @@ import selection  # noqa: E402  (the standard two-track selection)
 # import time), exactly as globalfit/extract.py does.
 # ---------------------------------------------------------------------------
 TG = None
-ioni_sq2 = ioni_step_exponent = ms_step_exponent = None
-cf_brems_exact = cf_delta_ray = None
+ioni_sq2 = None
+cf_brems_exact = cf_knockon = cf_rows = None
 hitres_classes = None
 
 
 def load_cf_primitives():
-    global TG, ioni_sq2, ioni_step_exponent, ms_step_exponent
-    global cf_brems_exact, cf_delta_ray, hitres_classes
+    global TG, ioni_sq2, cf_brems_exact, cf_knockon, cf_rows, hitres_classes
     if TG is not None:
         return
     t0 = time.time()
     import cf_brems_exact as _brems
-    import cf_delta_ray as _delta
+    import cf_knockon as _kon
+    import cf_rows as _rows
     import hitres_classes as _hc
     from cf_track_resolution import TG as _TG
     from cf_track_resolution import ioni_sq2 as _isq
-    from cf_track_resolution import ioni_step_exponent as _ise
-    from cf_track_resolution import ms_step_exponent as _mse
 
-    TG, ioni_sq2, ioni_step_exponent, ms_step_exponent = _TG, _isq, _ise, _mse
-    cf_brems_exact, cf_delta_ray, hitres_classes = _brems, _delta, _hc
+    TG, ioni_sq2 = _TG, _isq
+    cf_brems_exact, cf_knockon, cf_rows, hitres_classes = _brems, _kon, _rows, _hc
     print(f"CF primitives imported in {time.time()-t0:.0f} s", flush=True)
+
+
+def ms_family(tau, rows, w):
+    """The scattering family of a set of MS rows at one angular weight."""
+    n = len(rows)
+    return np.real(cf_rows.ms_rows(tau, rows, np.arange(n), np.full(n, w),
+                                   np.ones(n)))
+
+
+def io_family(tau, rows, idx, wq, beta, kx_on, kj_on):
+    """The ionisation family of the rows `idx` of one ionisation block: the
+    linear map plus the hard knock-on collision's exact-map and joint pieces
+    (at the block's paired angular weight `beta`).  The knock-on pieces are
+    evaluated on the whole block with entries for `idx` only, so a row's
+    quadrature is the flat family's whatever the split."""
+    n = len(idx)
+    wqv = np.full(n, wq)
+    S = cf_rows.ioni_rows(tau, rows[idx], wqv)
+    for on, part in ((kx_on, "map"), (kj_on, "joint")):
+        if on:
+            S = S + cf_rows.knockon_rows(tau, rows, idx, wqv, np.full(n, beta),
+                                         np.ones(n), part=part)
+    return S
 
 
 # physics conventions, by value (see globalfit/extract.py)
@@ -107,11 +134,8 @@ IONI_SGN = -1.0
 RAD_SGN = IONI_SGN
 MASS_WINDOW = 0.35
 COVTOL = 5e-3
-DELTA_TCUT = 0.35e-3
-DELTA_TMAXCAP = 0.05
 
-FAMS_MASS = ("ms", "io_re", "io_im", "rad_re", "rad_im")
-FAMS_QOP = ("ms", "del", "io_re", "io_im", "rad_re", "rad_im")
+FAMS = ("ms", "io_re", "io_im", "rad_re", "rad_im")
 
 
 def parse_args():
@@ -130,8 +154,6 @@ def parse_args():
                         "present only in single-track productions)")
     p.add_argument("--ioni-norm", choices=["var", "raw"], default="var")
     p.add_argument("--no-rad", action="store_true")
-    p.add_argument("--no-delta", action="store_true",
-                   help="qop functional only: drop the delta-recoil family")
     p.add_argument("--no-jac", action="store_true", help="do not store the D rows")
     p.add_argument("--max-hess", type=float, default=0.0)
     p.add_argument("--max-grad", type=float, default=0.0)
@@ -146,7 +168,7 @@ def parse_args():
     p.add_argument("--tmax", type=float, default=0.0,
                    help="drop tau points above this value (0 = keep all)")
     p.add_argument("--validate", action="store_true",
-                   help="also compute the FLAT exponents the reference builds and "
+                   help="also compute the FLAT families (cf_rows.fit_families) and "
                         "report max|sum_g S_g - S_flat| per family")
     p.add_argument("-j", "--jobs", type=int, default=8)
     p.add_argument("-o", "--output", required=True)
@@ -216,9 +238,10 @@ def subdet_class_index(subdet, isy):
 def process_file(fname):
     args, pt_all, subdet_all, g2f, io2ms = _ARGS, _PARMTYPE, _SUBDET, _G2F, _IO2MS
     ismass = args.functional == "mass"
-    fams = FAMS_MASS if ismass else tuple(
-        f for f in FAMS_QOP if not (f == "del" and args.no_delta))
+    fams = FAMS
     nfit = int((g2f >= 0).sum()) if g2f is not None else 0
+    kx_on = bool(cf_knockon.active() and cf_knockon.QOP_EXACT)
+    kj_on = bool(cf_knockon.active() and cf_knockon.KNOCKON_JOINT)
 
     try:
         f = uproot.open(fname)
@@ -251,6 +274,11 @@ def process_file(fname):
     want_rad = (not args.no_rad) and all(b in keys for b in _RB)
     if want_rad:
         want += list(_RB)
+    if kj_on and not want_rad:
+        # the joint piece pairs each ionisation block with its step's MS
+        # angular weight through the radiative rows (parallel to msmoliv)
+        raise ValueError(f"{fname}: the knock-on joint piece needs the "
+                         f"`radstepv` export for the step pairing")
     _CB = ("reshitidx", "hitDetId", "hitUProj", "clusterSizeX", "clusterChargeBin")
     have_cls18 = all(b in keys for b in _CB)
     if args.hitmode == "class18":
@@ -286,6 +314,8 @@ def process_file(fname):
     m, stdsumm = selection.standard(a, args, n=nent)
     ok_cut = m if ok_cut is None else (ok_cut & m)
 
+    # every family is evaluated on the stored grid only
+    TGS = TG[_TSEL]
     store = G.GroupStore(fams, len(_TSEL))
     out = {k: [] for k in ("sigma", "vgf", "vg_other", "chi2ndof", "fioni")}
     out.update({k: [] for k in (("m0", "mgen", "D") if ismass else
@@ -366,14 +396,18 @@ def process_file(fname):
             rvg = np.asarray(a["radvgrid"][ic], np.float64)
 
         per_group = {}
-        flat = {f: np.zeros(len(TG)) for f in fams} if args.validate else None
+        # --validate: the blocks as the flat families take them
+        ms_blocks, io_blocks, wrad = [], [], {}
 
         def acc(g, f, arr):
             per_group.setdefault(g, {})
             per_group[g][f] = per_group[g].get(f, 0.0) + arr
 
+        if want_rad:
+            cf_rows.check_parallel(rrec, uvm, uim, ridx)
         ok = True
-        # ---- MS + delta blocks (parmtype 10) -------------------------------
+        # ---- MS blocks (parmtype 10) ---------------------------------------
+        wms = {}
         sel10 = fam == 10
         for gg in np.unique(gi[sel10]):
             m = sel10 & (gi == gg)
@@ -389,26 +423,24 @@ def process_file(fname):
             if sq2 <= 0.0:
                 continue
             wstd = np.sqrt(vpool / sq2) / sig
+            wms[int(gg)] = wstd
             grp = steps[:, G.MS_GROUP].astype(np.int64)
-            cf = (0.0 if ("del" not in fams) else
-                  cf_delta_ray.carve_factor(steps, DELTA_TCUT, DELTA_TMAXCAP))
             for g in np.unique(grp):
-                sg = steps[grp == g]
-                sms = ms_step_exponent(sg, wstd, TG)
-                acc(int(g), "ms", sms)
-                if "del" in fams:
-                    sd = cf_delta_ray.delta_step_exponent(
-                        sg, wstd, TG, DELTA_TCUT, tmax_cap=DELTA_TMAXCAP)
-                    acc(int(g), "del", sd - cf * sms)
+                acc(int(g), "ms", ms_family(TGS, steps[grp == g], wstd))
             if args.validate:
-                flat["ms"] += ms_step_exponent(steps, wstd, TG)
-                if "del" in fams:
-                    flat["del"] += (cf_delta_ray.delta_step_exponent(
-                        steps, wstd, TG, DELTA_TCUT, tmax_cap=DELTA_TMAXCAP)
-                        - cf * ms_step_exponent(steps, wstd, TG))
+                ms_blocks.append((gg, steps, wstd))
         if not ok:
             ndrop += 1
             continue
+
+        # the angular weights of the radiative rows (the parallel MS row's
+        # block) and of the ionisation blocks (beta, the knock-on joint
+        # piece), and the spectra refined once per track
+        beta = {}
+        if want_rad:
+            wbr, beta = cf_rows.fit_pairing(uim, ridx, uvm, wms)
+            vf, spf = cf_brems_exact.refine_spectra(rrec, rspc, rvg,
+                                                    cf_brems_exact.RAD_NSUB)
 
         # ---- ionization + radiative blocks (parmtype 11) -------------------
         # The parmtype-10 and parmtype-11 global indices of a module are
@@ -455,14 +487,12 @@ def process_file(fname):
             nblk_io += 1
             grp_io = grp_ms[pair]
             for g in np.unique(grp_io):
-                sub = steps[grp_io == g]
-                S = ioni_step_exponent(sub, sgn * wsc, TG)
+                S = io_family(TGS, steps, np.flatnonzero(grp_io == g), sgn * wsc,
+                              beta.get(int(gg), 0.0), kx_on, kj_on)
                 acc(int(g), "io_re", S.real)
                 acc(int(g), "io_im", S.imag)
             if args.validate:
-                S = ioni_step_exponent(steps, sgn * wsc, TG)
-                flat["io_re"] += S.real
-                flat["io_im"] += S.imag
+                io_blocks.append((gg, steps, sgn * wsc))
             if want_rad:
                 rrows = np.where(ridx == gg)[0]
                 if len(rrows):
@@ -472,21 +502,18 @@ def process_file(fname):
                         # than guess a correspondence
                         ok = False
                         break
-                    rsgn = RAD_SGN if ismass else chg
-                    for g in np.unique(grp_ms):
-                        sub = grp_ms == g
-                        ns = int(sub.sum())
-                        S = cf_brems_exact.rad_exponent(
-                            TG, rrec[rrows[sub]], rspc[rrows[sub]], rvg,
-                            weights=np.full(ns, rsgn * wsc))
+                    wr = (RAD_SGN if ismass else chg) * wsc
+                    # the radiative row inherits the group of its parallel MS row
+                    grp_r = uvm[rrows, G.MS_GROUP].astype(np.int64)
+                    for g in np.unique(grp_r):
+                        rr = rrows[grp_r == g]
+                        S = cf_rows.rad_rows(TGS, rrec, spf, vf, rr,
+                                             np.full(len(rr), wr), wbr[rr],
+                                             np.ones(len(rr)))
                         acc(int(g), "rad_re", S.real)
                         acc(int(g), "rad_im", S.imag)
                     if args.validate:
-                        S = cf_brems_exact.rad_exponent(
-                            TG, rrec[rrows], rspc[rrows], rvg,
-                            weights=np.full(len(rrows), rsgn * wsc))
-                        flat["rad_re"] += S.real
-                        flat["rad_im"] += S.imag
+                        wrad[int(gg)] = wr
         if not ok:
             ndrop += 1
             continue
@@ -532,30 +559,33 @@ def process_file(fname):
                    for g, r in per_group.items()}
             top = max(amp.values()) if amp else 0.0
             drop = [g for g, v in amp.items() if v < args.prune_frac * top]
-            fx = {f: np.zeros(len(TG)) for f in fams}
+            fx = {f: np.zeros(len(TGS)) for f in fams}
             for g in drop:
                 for f, v in per_group.pop(g).items():
                     fx[f] += v
             for f in fams:
-                fixbuf[f].append(fx[f][_TSEL].astype(np.float32))
+                fixbuf[f].append(fx[f].astype(np.float32))
 
         # ---- validation -------------------------------------------------------
         if args.validate:
+            F = cf_rows.fit_families(
+                TGS, 1.0, ms_blocks, io_blocks,
+                dict(uim=uim, ridx=ridx, uvm=uvm, rrec=rrec, rspc=rspc, rvg=rvg,
+                     wrad=wrad) if want_rad else None)
+            Sio = F["Sio"] + F["Skx"] + F["Skj"]
+            flat = {"ms": F["Sms"].real, "io_re": Sio.real, "io_im": Sio.imag,
+                    "rad_re": F["Srad"].real, "rad_im": F["Srad"].imag}
             for f in fams:
-                s = np.zeros(len(TG))
+                s = np.zeros(len(TGS))
                 for r in per_group.values():
                     if f in r:
                         s += r[f]
                 if args.prune_frac > 0.0:
-                    s = s[_TSEL] + fixbuf[f][-1]
-                else:
-                    s = s[_TSEL]
-                flatmax[f] = max(flatmax[f],
-                                 float(np.max(np.abs(s - flat[f][_TSEL]))))
+                    s = s + fixbuf[f][-1]
+                flatmax[f] = max(flatmax[f], float(np.max(np.abs(s - flat[f]))))
 
         grp_mult.append(len(per_group))
-        store.add_candidate({g: {f: v[_TSEL] for f, v in r.items()}
-                             for g, r in per_group.items()})
+        store.add_candidate(per_group)
         out["sigma"].append(sig)
         out["vgf"].append(vg / (sig * sig))
         out["vg_other"].append(vg / (sig * sig) - v_i / (sig * sig))
@@ -648,13 +678,15 @@ def main():
     tsel = tau_subset(args)
     print(f"tau grid: {len(tsel)} of {len(TG)} points, max {TG[tsel][-1]:.4f}",
           flush=True)
-    fams = FAMS_MASS if args.functional == "mass" else tuple(
-        f for f in FAMS_QOP if not (f == "del" and args.no_delta))
+    fams = FAMS
 
     t0 = time.time()
     parts, stats = [], []
-    with Pool(args.jobs, initializer=_init,
-              initargs=(args, parmtype, subdet, g2f, io2ms)) as pool:
+    # SPAWN, not fork: the parent has already opened files with uproot, whose
+    # reader threads make a forked worker deadlock in a futex
+    with mp.get_context("spawn").Pool(
+            args.jobs, initializer=_init,
+            initargs=(args, parmtype, subdet, g2f, io2ms)) as pool:
         for i, r in enumerate(pool.imap_unordered(process_file, files)):
             if r is None:
                 continue
@@ -727,7 +759,9 @@ def main():
     out["provenance"] = np.array(json.dumps(dict(
         files=len(files), argv=sys.argv, functional=args.functional,
         hitmode=args.hitmode, prune_frac=args.prune_frac,
-        ioni_gap_min=float(gmin), ioni_lost_max=float(lmax))))
+        ioni_gap_min=float(gmin), ioni_lost_max=float(lmax),
+        physics=dict(cf_knockon=dict(cf_knockon.physics_state()),
+                     cf_brems_exact=dict(cf_brems_exact.physics_state())))))
     if args.functional == "mass" and not args.no_jac:
         out["fit_parmtype"] = cat_pt
         out["fit_subidx"] = cat_si

@@ -119,7 +119,7 @@ def refine_spectra(recs, spec, vg, nsub):
     out = np.zeros((len(recs), 2 * len(vf)))
     for s, (rec, sp) in enumerate(zip(recs, spec)):
         E, p = rec[R_ETOT], rec[R_P]
-        vmax = (E - np.sqrt(max(E * E - p * p, 0.0))) / E if E > 0.0 else 0.0
+        vmax = (E - species_mass(E, p)) / E if E > 0.0 else 0.0
         for h in range(2):
             y = np.asarray(sp[h * nb:(h + 1) * nb], dtype=np.float64)
             pos = np.flatnonzero(y > 0.0)
@@ -210,18 +210,37 @@ _MMU_GEV = 0.1056583745
 
 def rad_angle_cfm1(c, mass):
     """E[J0(c w)] - 1 for the photon-angle law of the species of mass
-    `mass` [GeV], c = (projected weight) x theta / w."""
+    `mass` [GeV], c = (projected weight) x theta / w: G4ModifiedTsai for e+-,
+    G4ModifiedMephi for every heavier species (muBrems and hBrems share it)."""
     c = np.asarray(c, dtype=np.float64)
-    if abs(mass - _ME_GEV) < 1e-6:
+    if is_epm(mass):
         a1, a2 = 1.6, 1.6 / 3.0
         return (0.25 * np.expm1(-1.5 * np.log1p((a1 * c) ** 2))
                 + 0.75 * np.expm1(-1.5 * np.log1p((a2 * c) ** 2)))
-    if abs(mass - _MMU_GEV) < 1e-4:
-        from scipy.special import k1
-        with np.errstate(divide="ignore", invalid="ignore"):
-            g = np.where(c > 0.0, c * k1(np.maximum(c, 1e-300)), 1.0) - 1.0
-        return g
-    raise ValueError(f"rad_angle_cfm1: no photon-angle law for mass {mass} GeV")
+    from scipy.special import k1
+    with np.errstate(divide="ignore", invalid="ignore"):
+        g = np.where(c > 0.0, c * k1(np.maximum(c, 1e-300)), 1.0) - 1.0
+    return g
+
+
+def is_epm(mass):
+    """e+- or not, from a mass rebuilt from the records' float32 E and p:
+    sqrt(E^2 - p^2) is only good to a few MeV there (to ~1 MeV for an e+- at
+    3 GeV, ~9 MeV for a muon above 11 GeV), and the lightest heavy species is
+    at 106 MeV."""
+    return mass < 0.01
+
+
+# the charged species a track can be: e, mu, pi, K, p [GeV]
+_SPECIES_MASSES = np.array([_ME_GEV, _MMU_GEV, 0.13957039, 0.493677, 0.93827208816])
+
+
+def species_mass(E, p):
+    """The projectile's mass [GeV], snapped to the nearest charged species:
+    the rebuilt sqrt(E^2 - p^2) is good to a few MeV (see is_epm) and the
+    closest pair, mu and pi, is 34 MeV apart."""
+    M = float(np.sqrt(max(E * E - p * p, 0.0)))
+    return float(_SPECIES_MASSES[np.argmin(np.abs(_SPECIES_MASSES - M))])
 
 
 def rad_exponent(tau, recs, spec, vg, weights=None, exact_qop=False,
@@ -271,7 +290,7 @@ def rad_exponent(tau, recs, spec, vg, weights=None, exact_qop=False,
         if bw != 0.0 and np.any(dNb > 0.):
             # the recoil: theta = (k/p') theta_gamma, theta_gamma = w M/E
             p = rec[R_P]
-            M = np.sqrt(max(E * E - p * p, 0.0))
+            M = species_mass(E, p)
             T = v * E
             pp = np.sqrt(np.maximum((E - T) ** 2 - M * M, (1e-3 * p) ** 2))
             gm1 = rad_angle_cfm1(np.outer(tau * bw, T / pp * M / E), M)
@@ -293,8 +312,8 @@ def rad_exponent(tau, recs, spec, vg, weights=None, exact_qop=False,
             p = rec[R_P]
             # p' floored at 1e-3 p: a loss that leaves the primary below that
             # never reaches a plane, and the floor keeps T_eff finite
-            pp = np.sqrt(np.maximum((E - T) ** 2 - (E * E - p * p),
-                                    (1e-3 * p) ** 2))
+            M = species_mass(E, p)
+            pp = np.sqrt(np.maximum((E - T) ** 2 - M * M, (1e-3 * p) ** 2))
             xe = np.outer(a, p * p * T * (2.0 * E - T) / (E * pp * (p + pp)))
             sm = np.abs(xe) < 1e-4
             re = np.empty_like(xe)

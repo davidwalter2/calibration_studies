@@ -800,6 +800,13 @@ IONI_KOKOULIN_NBIN = 96
 # model's Z(Z+1) keeps scattering off electrons all the way to the nuclear
 # form-factor angle.
 #
+# The model mirrors the split: under CF_KNOCKON_JOINT the electron term stops
+# at the e- production threshold (cf_knockon.KNOCKON_TCUT) and the knock-on
+# channel carries every collision above it as ONE event -- its loss, the exact
+# 1/p map and the exact two-body deflection (cf_knockon.step_correction) -- on
+# G4's own delta-ray spectrum.  Without it the channels are independent and
+# the electron term runs to the kinematic ceiling.
+#
 # theta(Tmax) is strongly species dependent at fixed momentum (8.5e-3 rad for a
 # 3.1 GeV muon, 1.1e-3 rad for a proton), which is the one term in the whole
 # enumeration that is.  Setting this to 1.0 imposes the ceiling and is the
@@ -1201,6 +1208,15 @@ def _kokoulin_exponent(xi, t0, tmax, beta2, etot, a, nbin=96, spinhalf=True):
     return S
 
 
+def _knockon_carries_delta():
+    """True when the knock-on channel carries the collisions above the e-
+    production threshold as joint events (cf_knockon.KNOCKON_JOINT): then the
+    scattering channel's electron term stops at that threshold, as Geant4's msc
+    does."""
+    import cf_knockon
+    return bool(cf_knockon.KNOCKON_JOINT)
+
+
 def ms_step_exponent(steps, wstd, tau):
     """Moliere log-CF exponent of one pooled MS block in standardized-z
     units, FF-cut per step, vectorized over steps with the ymax bucketing
@@ -1243,6 +1259,16 @@ def ms_step_exponent(steps, wstd, tau):
         bg = bt * gam
         rat = _ME_GEV / mgev
         tmx = 2. * _ME_GEV * bg * bg / (1. + 2. * gam * rat + rat * rat)
+        if _knockon_carries_delta():
+            # the collisions above the e- production threshold are the
+            # knock-on channel's, with their exact kinematics
+            # (cf_knockon.step_correction); msc keeps the electrons below it
+            import cf_knockon
+            if MS_ELEC_EDGE >= 2.0:
+                raise ValueError("MS_ELEC_EDGE >= 2 puts the delta-ray kinematics "
+                                 "into the scattering channel, which the knock-on "
+                                 "channel carries under CF_KNOCKON_JOINT")
+            tmx = np.minimum(tmx, cf_knockon.KNOCKON_TCUT * 1e-3)
         # 1 - cos = Tmax m_e / p^2 ;  theta^2 = 2 (1 - cos)
         te = 2. * tmx * _ME_GEV / (pg * pg)
         yme = np.minimum(np.sqrt(te / chia2), ym)
@@ -1296,7 +1322,9 @@ def ms_step_exponent(steps, wstd, tau):
         # exist there), grouped so the shape is evaluated once per distinct
         # (ceiling, beta^2).  MS_ELEC_EDGE selects the kernel; 0.0 is the
         # published dipole and is what the archived numbers were taken with.
-        lye = np.round(np.log(np.clip(yme[m], 1e1, 1e7)), 3)
+        # the electron ceiling reaches down to the production threshold's
+        # angle, a few chi_a (the table starts at y = 10^-1/2)
+        lye = np.round(np.log(np.clip(yme[m], 10. ** -0.5, 1e7)), 3)
         lb2 = np.round(bt2[m], 6) if MS_ELEC_EDGE >= 2.0 else np.zeros_like(lye)
         for key in np.unique(np.stack([lye, lb2], axis=1), axis=0):
             v, b2 = float(key[0]), float(key[1])

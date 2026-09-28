@@ -88,8 +88,8 @@ THE LOW-MOMENTUM LEG (Lambda's pi-, pT 0.8 GeV)
   * `helix_frames`' fixed-radius planes miss its energy-losing reference by
     2 cm at the outer plane; `recentre` moves the planes onto the model's
     reference crossings (converges in one iteration; the sim is untouched);
-  * H's energy-loss term (hbasis.H_ELOSS) over-states its local q/p width
-    x2.1 at the outer planes; run it with HBASIS_ELOSS=0 (see hbasis).
+  * H's energy-loss term (hbasis.H_ELOSS) is 0 for these layered geometries;
+    at 1 it would over-state its local q/p width x2.1 at the outer planes.
 
 SUBCOMMANDS (global options --decay, --arm, --model-tag before the command)
     setup      private area of the new leg: geometry, planes, drivers (gun
@@ -617,14 +617,15 @@ def cmd_pairs(args):
         dxs = np.array([np.nanmedian(sim["locx"][sim["valid"][:, k], k])
                         - m["reflocx"][k] for k in range(len(rpl))])
         ok = (nok and seqok and dr < 0.01 and np.abs(dxs).max() < 0.05
-              and 0.0 < dE_m - s["dE"] < 6.0)
+              and rc._dE_ok(dE_m, s))
         print(f"--- {leg}  model {os.path.basename(mp)}  sim {len(files)} files, "
               f"{sim['valid'].shape[0]} events")
         print(f"    (1) legs {len(m['detid'])} vs sim planes {s['npl']}  "
               f"(2) sequence identical {seqok}")
         print(f"    (3) max |refglobr - sim median r| = {dr:.5f} cm")
-        print(f"    (4) dE model(mean) {dE_m:.3f} MeV  sim(median, first file) "
-              f"{s['dE']:.3f} MeV  gap {dE_m - s['dE']:+.3f} MeV")
+        print(f"    (4) dE model(mean) {dE_m:.3f} MeV  sim(mean, first file, tracks "
+              f"on every plane) {s['dEmean']:.3f} +- {s['dEmean_err']:.3f} MeV  "
+              f"(median {s['dE']:.3f})")
         print(f"    (5) max |median(sim locx) - reflocx| = "
               f"{1e4 * np.abs(dxs).max():.1f} um")
         print(f"    {'PASS' if ok else '*** FAIL ***'}")
