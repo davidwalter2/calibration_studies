@@ -91,7 +91,12 @@ THE LOW-MOMENTUM LEG (Lambda's pi-, pT 0.8 GeV)
   * H's energy-loss term (hbasis.H_ELOSS) is 0 for these layered geometries;
     at 1 it would over-state its local q/p width x2.1 at the outer planes.
 
-SUBCOMMANDS (global options --decay, --arm, --model-tag before the command)
+THE EXTENDED SAMPLE (`--xstat`): 80 more jobs of 20 000 events per leg and
+arm in sim_xstat/ (seeds `xstat_seeds`), 1.8 M per leg with the ten in sim/;
+`sim --xstat` makes them for BOTH legs, every analysis under `--xstat` reads
+sim/ + sim_xstat/ and writes to runs/<res>_xstat/.
+
+SUBCOMMANDS (global options --decay, --arm, --model-tag, --xstat before the command)
     setup      private area of the new leg: geometry, planes, drivers (gun
                azimuth from TOY_PHI, plane module from TOY_PLANES_MOD)
     sim        the new leg, seeded split
@@ -171,6 +176,8 @@ DPHI = None
 M_PARENT = None
 RES = None
 NUCEL = False     # the elastic channel in the prediction (`closure --nucel`)
+XSTAT = False     # the extended sample: sim/ plus sim_xstat/ (`--xstat`)
+XSTAT_JOBS = 80   # jobs of 20 000 events per leg and arm in sim_xstat/
 
 
 def _mass(pdg):
@@ -230,19 +237,33 @@ def variant():
 
 
 def sim_path(leg, seed):
+    """A leg's sim file: the old leg under realmat_closure's name, the new legs
+    under the decay's; in sim_xstat/ under `--xstat`."""
     L = LEGS[leg]
-    if not L["new"]:
-        return rc.sim_path(L["pdg"], seed)
-    return os.path.join(rc.OUT, "sim", f"{leg}_{DEC['tag']}_pt{_ptstr(L['pt'])}_"
-                                       f"{rc.ARM}_s{seed}_sim.root")
+    base = (os.path.basename(rc.sim_path(L["pdg"], seed)) if not L["new"] else
+            f"{leg}_{DEC['tag']}_pt{_ptstr(L['pt'])}_{rc.ARM}_s{seed}_sim.root")
+    return os.path.join(rc.OUT, "sim_xstat" if XSTAT else "sim", base)
 
 
 def sim_glob(leg):
+    """The leg's sample: its ten seeds in sim/ (the old leg: realmat_closure's
+    sample); under `--xstat` every seed of the leg in sim/ and sim_xstat/."""
     L = LEGS[leg]
+    if XSTAT:
+        stem = os.path.basename(sim_path(leg, 0))[:-len("0_sim.root")]
+        return os.path.join(rc.OUT, "sim*", stem + "*_sim.root")
     if not L["new"]:
         return rc.sim_glob(L["pdg"])
     return os.path.join(rc.OUT, "sim", f"{leg}_{DEC['tag']}_pt{_ptstr(L['pt'])}_"
                                        f"{rc.ARM}_s{DEC['seed0'] // 100}??_sim.root")
+
+
+def xstat_seeds(leg):
+    """Seeds of a leg's sim_xstat/ jobs: 1000 + seed0 + i for the new leg,
+    1100 + seed0 + i for the old one (distinct from each other and from every
+    sample in sim/)."""
+    first = 1000 + DEC["seed0"] + (0 if leg == L1 else 100)
+    return list(range(first, first + XSTAT_JOBS))
 
 
 def model_path(leg):
@@ -473,7 +494,8 @@ def _sim_one(a):
     log = out[:-5] + ".log"
     if os.path.exists(out) and rc._complete(log, nev) and not force:
         return leg, seed, 0, log, "cached"
-    ee = _env_new(leg, {"TOY_CENSUS": out[:-9] + "_census.bin"})
+    census = {"TOY_CENSUS": out[:-9] + "_census.bin"}
+    ee = _env_new(leg, census) if N["new"] else rc._env(N["pdg"], census)
     r = rc._run(N["geom"], "runToyGeomCheck.py",
                 f"events={nev} pt={N['pt']!r} eta={rc.ETA} output={out} "
                 f"seed={seed} toyGeom={rc.toygeom(N['geom'])}", log, ee)
@@ -484,13 +506,16 @@ def _sim_one(a):
 
 def cmd_sim(args):
     from concurrent.futures import ThreadPoolExecutor
-    os.makedirs(os.path.join(rc.OUT, "sim"), exist_ok=True)
-    jobs = [(lg, s, args.events, args.force) for lg in new_legs()
-            for s in LEGS[lg]["seeds"][:args.jobs]]
-    for lg in new_legs():
+    os.makedirs(os.path.dirname(sim_path(L1, 0)), exist_ok=True)
+    legs = list(LEGS) if XSTAT else new_legs()
+    seeds = {lg: xstat_seeds(lg) if XSTAT else LEGS[lg]["seeds"][:args.jobs] for lg in legs}
+    jobs = [(lg, s, args.events, args.force) for lg in legs for s in seeds[lg]]
+    for lg in legs:
         N = LEGS[lg]
-        print(f"{lg}: {args.jobs} jobs x {args.events} events, pT {N['pt']:g}, "
-              f"phi = {N['phi']:.6f}, arm {rc.ARM}", flush=True)
+        print(f"{lg}: {len(seeds[lg])} jobs x {args.events} events, pT {N['pt']:g}, "
+              f"phi = {N['phi']:.6f}, arm {rc.ARM}"
+              + (f", seeds {seeds[lg][0]}-{seeds[lg][-1]} -> sim_xstat/" if XSTAT else ""),
+              flush=True)
     t0, bad = time.time(), 0
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
         for lg, seed, r, log, how in ex.map(_sim_one, jobs):
@@ -529,7 +554,7 @@ _SIMC = {}
 
 
 def load_sim(leg):
-    key = (DECAY, leg, rc.ARM)
+    key = (DECAY, leg, rc.ARM, XSTAT)
     if key not in _SIMC:
         from toy_loader import load_toy_sim
         ns = {}
@@ -1081,6 +1106,10 @@ def main():
     ap.add_argument("--model-tag", default="",
                     help="the old leg's model-file suffix (`_mat`: the export with "
                          "the per-step material table the elastic channel needs)")
+    ap.add_argument("--xstat", action="store_true",
+                    help="the extended sample (sim/ plus sim_xstat/, 1.8 M per leg "
+                         "and arm): `sim` makes the extension for both legs, the "
+                         "analyses read it and write to runs/<res>_xstat/")
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("setup")
     s.add_argument("--force", action="store_true",
@@ -1121,11 +1150,14 @@ def main():
     s.add_argument("--nucel", action="store_true")
     s.set_defaults(f=cmd_legclosure)
     a = ap.parse_args()
-    global NUCEL
+    global NUCEL, XSTAT, RES
     configure(a.decay)
     rc.ARM = a.arm
     rc.MODEL_TAG = a.model_tag
     NUCEL = bool(getattr(a, "nucel", False))
+    XSTAT = a.xstat
+    if XSTAT:
+        RES += "_xstat"
     a.f(a)
 
 
