@@ -5,16 +5,19 @@ WHY IT EXISTS. `cf_track_resolution.extract` and
 `cf_mass_likelihood.build_pairs_tt` build the per-candidate CF exponents
 OFFLINE, from a raw export of every Geant4 step record -- 430 kB and 2.2 s per
 candidate, i.e. 16 TB and 24k core-hours at the 40M candidates the full
-calibration needs. The CVH makers compute the same exponents at fit time
-(TrackPropagation/Geant4e/src/CvhCfExponents.cc, `cvhcf`) and write 6 x 64
-floats per candidate. This module turns those branches into the SAME cache the
+calibration needs. The CVH makers compute the same families at fit time
+(TrackPropagation/Geant4e/src/CvhCfExponents.cc, `cvhcf`, the C++ of
+`cf_rows.fit_families`) and write 9 x 64 floats per candidate: Sms, Sio,
+Srad and the hard knock-on collision's Skx, Skj. This module turns those branches into the SAME cache the
 two extractors produce, so every consumer downstream -- `cf_skew_closure.py`,
 `cf_track_resolution.py --closure`, `cf_masslik_fit.py` -- runs on it unchanged.
 
 IT IS A READER, NOT A MODEL. Nothing here computes an exponent. The physics
-lives in `cvhcf` (validated against the offline reference by
-`cvhcf_validate.py`, worst |dS| ~ 1e-11 against a 1e-6 requirement) and the
-offline modules remain the reference definition.
+lives in `cvhcf` (the row functions of `cf_rows`, validated against them by
+`cxx/gate_cvhcf_rows.py` and `cvhcf_validate.py`) and the offline modules
+remain the reference definition.  The knock-on families enter the cache as
+`Skx_*` / `Skj_*` with `knockon_model` = [map, joint], the switches the maker
+ran with (its `cfmodel` tag), exactly as the offline extractors write them.
 
 THE GRID. The maker exports 64 tau, the stride-4 subset of the offline
 `linspace(0, 14, 448)` truncated at 8, and writes it into the runtree as
@@ -180,11 +183,14 @@ _MASS_AUX_INT = {"run": "run", "lumi": "lumi", "event": "event",
 # is what `matres/make_material_card.py` keys off (`d["S" + f]` for f in
 # `d["families"]`), so ONE card builder serves both this cache and
 # `extract_groups.py`'s.
-_GRP_FAMS = ("grp_ms", "grp_io_re", "grp_io_im", "grp_rad_re", "grp_rad_im")
-_GRP_BRANCH = ("ms", "ioni_re", "ioni_im", "rad_re", "rad_im")
+_GRP_FAMS = ("grp_ms", "grp_io_re", "grp_io_im", "grp_rad_re", "grp_rad_im",
+             "grp_kx_re", "grp_kx_im", "grp_kj_re", "grp_kj_im")
+_GRP_BRANCH = ("ms", "ioni_re", "ioni_im", "rad_re", "rad_im",
+               "kx_re", "kx_im", "kj_re", "kj_im")
 # the flat branch suffix each per-group family must sum back to
-_GRP_FLAT = ("ms", "ioni_re", "ioni_im", "rad_re", "rad_im")
-_GRP_FLATKEY = ("Sms", "Sio_re", "Sio_im", "Srad_re", "Srad_im")
+_GRP_FLAT = _GRP_BRANCH
+_GRP_FLATKEY = ("Sms", "Sio_re", "Sio_im", "Srad_re", "Srad_im",
+                "Skx_re", "Skx_im", "Skj_re", "Skj_im")
 
 
 def _grp_branches(t, prefix):
@@ -200,11 +206,26 @@ def _grp_branches(t, prefix):
     return names
 
 
+# the flat families, (cache key, branch suffix): cf_rows.fit_families
+_FAMS = (("Sms", "ms"), ("Sio_re", "ioni_re"), ("Sio_im", "ioni_im"),
+         ("Srad_re", "rad_re"), ("Srad_im", "rad_im"),
+         ("Skx_re", "kx_re"), ("Skx_im", "kx_im"), ("Skj_re", "kj_re"), ("Skj_im", "kj_im"))
+
+
 def _fam_arrays(t, prefix):
-    """The six family branch names for `prefix`, or None if absent."""
-    names = [f"{prefix}_{s}" for s in
-             ("ms", "del", "ioni_re", "ioni_im", "rad_re", "rad_im")]
+    """The family branch names for `prefix`, or None if absent."""
+    names = [f"{prefix}_{s}" for _, s in _FAMS]
     return names if all(n in t.keys() for n in names) else None
+
+
+def knockon_model(tag):
+    """[map, joint]: the knock-on switches (cf_knockon QOP_EXACT,
+    KNOCKON_JOINT) the maker's `cfmodel` tag records."""
+    import re
+    m = re.search(r"knockon:joint=(\d),qopExact=(\d)", tag)
+    if m is None:
+        raise SystemExit(f"the model tag carries no knock-on switches: {tag!r}")
+    return [int(m.group(2)), int(m.group(1))]
 
 
 def _jac_block(t, stop, idx, jaccat, fn):
@@ -307,7 +328,8 @@ def read_files(args, mass):
                 f"file; a cache mixing the two would carry two models")
         fams = _fam_arrays(t, prefix)
         if fams is None:
-            raise SystemExit(f"{fn} has no {prefix}_* branches")
+            raise SystemExit(f"{fn} has no {prefix}_* families (ms, ioni, rad, kx, "
+                             f"kj): it was not written by the row-function model")
         nt = len(tgrid)
         gbr = None
         if grp:
@@ -366,8 +388,10 @@ def read_files(args, mass):
             stop = min(t.num_entries, 3 * int(args.max_tracks) + 100)
         a = t.arrays(need, library="np", entry_stop=stop)
 
-        S = {k: _stack(a, n, nt) for k, n in
-             zip(("Sms", "Sdel", "Sio_re", "Sio_im", "Srad_re", "Srad_im"), fams)}
+        kx_on, kj_on = knockon_model(tag)
+        S = {k: _stack(a, n, nt) for (k, _), n in zip(_FAMS, fams)
+             if not ((k.startswith("Skx") and not kx_on)
+                     or (k.startswith("Skj") and not kj_on))}
         ok = np.asarray(a[f"{prefix}_ok"]).astype(bool)
         vgf = np.asarray(a[f"{prefix}_vgf"], dtype=np.float64)
 
@@ -564,7 +588,7 @@ def _hitclass(a, ic, pt, cols):
 
 
 # --------------------------------------------------------------------------
-def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
+def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass,
                 jaccat=None, groups_file=None, compress=True):
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
     ngroups = cols.pop("_ngroups", None)
@@ -617,16 +641,15 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass, keep_del,
     # family is in the model. `cvhcf` always builds it, so it is 1 whenever the
     # model tag says the term is present.
     out["rad_model"] = np.array(int("rad:" in tag))
+    # the knock-on switches the families were built under, as
+    # cf_track_resolution.knockon_arrays writes them (nothing when both off)
+    kx_on, kj_on = knockon_model(tag)
+    if kx_on or kj_on:
+        out["knockon_model"] = np.array([kx_on, kj_on])
     if mass:
         # The sign of an ionization block in the candidate mass CF is -1 for
         # both legs and both charges, hard-wired in the maker.
         out["ioni_sign_fixed"] = np.array(1)
-        if not keep_del:
-            # `build_pairs_tt` has no `Sdel`: the discrete delta-ray recoil is
-            # not part of the published mass model. The maker computes it
-            # anyway (it is free), and `--mass-del` keeps it so the two can be
-            # compared -- but the default cache is the reference model.
-            out.pop("Sdel", None)
     else:
         # The cached Sio_im already carries the charge of the ionization q/p
         # map. Never read as a value, only as a key.
@@ -783,8 +806,7 @@ def do_compare(argv):
     print(f"  rows aligned: max |dz| = {dz:.3e} over {n} entries"
           + ("" if dz < 1e-12 else "   <-- NOT ALIGNED, the rest is meaningless"))
     print(f"  {'key':<10} {'max |d|':>12} {'max |A|':>12}")
-    for k in ("Sms", "Sdel", "Sio_re", "Sio_im", "Srad_re", "Srad_im",
-              "sigma", "vgf", "z"):
+    for k in [k for k, _ in _FAMS] + ["sigma", "vgf", "z"]:
         if k not in d1.files or k not in d2.files:
             continue
         A = np.asarray(d1[k], dtype=np.float64)[:n]
@@ -857,14 +879,11 @@ def main():
                         "A per-group cache is mostly float32 CF exponents, "
                         "which barely compress, and zipping 20 GB costs more "
                         "wall time than the disk it saves.")
-    p.add_argument("--mass-del", action="store_true",
-                   help="keep the delta-ray family in the MASS cache (the "
-                        "reference `build_pairs_tt` model does not have it)")
     a = p.parse_args()
     mass = a.mode == "pairs"
     tgrid, tag, cols, nsel, ndrop, hitclass, jaccat = read_files(a, mass)
     write_cache(a.cache, tgrid, tag, cols, mass, nsel, ndrop, hitclass,
-                a.mass_del, jaccat, groups_file=a.groups_file,
+                jaccat, groups_file=a.groups_file,
                 compress=not a.no_compress)
 
 

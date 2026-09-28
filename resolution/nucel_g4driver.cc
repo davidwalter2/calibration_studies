@@ -56,12 +56,28 @@
 // <prefix>.theta.bin (N float64, rad -- the polar deflection of the PRIMARY
 // per elastic collision) and <prefix>.eloss.bin (N float64, MeV -- the kinetic
 // energy the PRIMARY loses to the nuclear recoil in that same collision).
+//
+// COMPOUND MODE.  `--mat "Z1:A1:w1,Z2:A2:w2,..."` (A in g/mole, w MASS
+// fractions) replaces --Z/--A by a real multi-element G4Material, and every
+// collision's target is drawn the way G4HadronicProcess draws it:
+// G4CrossSectionDataStore::SampleZandA picks the element with probability
+// n_i sigma_i / Sigma and then the isotope from the element's natural
+// abundances.  The rate is the compound's own macroscopic cross section.  This
+// is the independent reference the per-element mixture tables are gated
+// against (the single-element path uses one fixed nucleus, (llround(A), Z)).
+// It additionally writes <prefix>.z.bin (N int32, the struck element's Z).
+//
+// RATE LIST.  `--ekinlist "T1,T2,..."` (MeV) writes one line
+// `rateat <T> <Sigma[1/mm]>` per kinetic energy to <prefix>.rec from the same
+// cross-section store and stops before sampling: a fine rate grid for the
+// cost of one process.
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -150,6 +166,26 @@ G4ParticleDefinition* particleOf(int pdg) {
   return nullptr;
 }
 
+// "Z:A:w,Z:A:w,..." -> element list; empty string -> empty list.
+struct ElemSpec {
+  double Z, A, w;
+};
+std::vector<ElemSpec> parseMat(const std::string& s) {
+  std::vector<ElemSpec> out;
+  std::stringstream ss(s);
+  std::string tok;
+  while (std::getline(ss, tok, ',')) {
+    if (tok.empty()) continue;
+    ElemSpec e{0., 0., 0.};
+    if (sscanf(tok.c_str(), "%lf:%lf:%lf", &e.Z, &e.A, &e.w) != 3) {
+      fprintf(stderr, "nucel_g4driver: bad --mat token '%s'\n", tok.c_str());
+      exit(2);
+    }
+    out.push_back(e);
+  }
+  return out;
+}
+
 double quantile(std::vector<double>& v, double q) {
   if (v.empty()) return 0.;
   const size_t k = std::min(v.size() - 1,
@@ -171,9 +207,11 @@ int main(int argc, char** argv) {
   const long seed = argl(argc, argv, "--seed", 20260817);
   const std::string out = args_(argc, argv, "--out", "nucel");
   const bool norays = argf(argc, argv, "--norays");
+  const std::vector<ElemSpec> comp = parseMat(args_(argc, argv, "--mat", ""));
+  const bool compound = !comp.empty();
 
-  const G4int iZ = (G4int)std::llround(Z);
-  const G4int iA = (G4int)std::llround(A);
+  const G4int iZ = (G4int)std::llround(compound ? comp[0].Z : Z);
+  const G4int iA = (G4int)std::llround(compound ? comp[0].A : A);
   G4ParticleDefinition* part = particleOf(pdg);
   if (part == nullptr) {
     fprintf(stderr, "nucel_g4driver: unknown pdg %d\n", pdg);
@@ -202,7 +240,19 @@ int main(int argc, char** argv) {
   //      kind the other drivers pass to SampleSecondaries is invisible to it,
   //      so the couple has to be registered GLOBALLY or the pion tables come
   //      out empty and every sampled angle is zero.
-  G4Material* mat = new G4Material("ToyLayerMat", Z, A * g / mole, rho * g / cm3);
+  G4Material* mat = nullptr;
+  if (!compound) {
+    mat = new G4Material("ToyLayerMat", Z, A * g / mole, rho * g / cm3);
+  } else {
+    double wsum = 0.;
+    for (const auto& e : comp) wsum += e.w;
+    mat = new G4Material("CompoundMat", rho * g / cm3, (G4int)comp.size());
+    for (size_t i = 0; i < comp.size(); ++i) {
+      const std::string nm = "El" + std::to_string(i);
+      auto* el = new G4Element(nm, nm, comp[i].Z, comp[i].A * g / mole);
+      mat->AddElement(el, comp[i].w / wsum);
+    }
+  }
   {
     G4Box* wb = new G4Box("World", 1. * m, 1. * m, 1. * m);
     G4LogicalVolume* wl = new G4LogicalVolume(wb, mat, "World");
@@ -325,6 +375,24 @@ int main(int argc, char** argv) {
   const double mfp = (sigma > 0.) ? 1. / sigma : -1.;
   const double nexp = sigma * len;
 
+  const std::string ekl = args_(argc, argv, "--ekinlist", "");
+  if (!ekl.empty()) {
+    FILE* fl = fopen((out + ".rec").c_str(), "w");
+    if (fl == nullptr) return 4;
+    fprintf(fl, "# pdg mass[MeV]\ninput %d %.17g\n", pdg, mass);
+    fprintf(fl, "model %s\nxs %s\n# ekin[MeV] Sigma[1/mm] at rho=%g g/cm3\n", modelName.c_str(), xsName.c_str(), rho);
+    std::stringstream ss(ekl);
+    std::string tok;
+    while (std::getline(ss, tok, ',')) {
+      if (tok.empty()) continue;
+      const double t = atof(tok.c_str());
+      G4DynamicParticle pr(part, G4ThreeVector(0., 0., 1.), t);
+      fprintf(fl, "rateat %.17g %.17g\n", t, store->GetCrossSection(&pr, mat) * mm);
+    }
+    fclose(fl);
+    return 0;
+  }
+
   FILE* fr = fopen((out + ".rec").c_str(), "w");
   if (fr == nullptr) {
     fprintf(stderr, "nucel_g4driver: cannot open %s.rec\n", out.c_str());
@@ -335,6 +403,12 @@ int main(int argc, char** argv) {
           pdg, Z, A, rho, ekin, len, n, seed, mass, etot, plab);
   fprintf(fr, "model %s\n", modelName.c_str());
   fprintf(fr, "xs %s\n", xsName.c_str());
+  if (compound) {
+    fprintf(fr, "# compound: Z A[g/mole] massfraction, per element\n");
+    fprintf(fr, "mat");
+    for (const auto& e : comp) fprintf(fr, " %.17g:%.17g:%.17g", e.Z, e.A, e.w);
+    fprintf(fr, "\n");
+  }
   // Sigma in 1/mm, mfp in mm, nexp dimensionless = the Poisson mean over --len
   fprintf(fr, "rate %.17g %.17g %.17g\n", sigma * mm, mfp / mm, nexp);
 
@@ -386,9 +460,11 @@ int main(int argc, char** argv) {
 
   // ----------------------------------------------------------------- kernel
   std::vector<double> th, dE;
+  std::vector<int> zhit;
   if (!norays) {
     th.reserve(n);
     dE.reserve(n);
+    if (compound) zhit.reserve(n);
   }
   double s1 = 0., s2 = 0., sE1 = 0., sE2 = 0.;
   long nbad = 0;
@@ -399,6 +475,15 @@ int main(int argc, char** argv) {
     G4DynamicParticle dp(part, G4ThreeVector(0., 0., 1.), ekin);
     G4HadProjectile proj(dp);
     G4Nucleus targ(iA, iZ);
+    int zStruck = iZ;
+    if (compound) {
+      // the process's own target selection: element by n_i sigma_i, then the
+      // isotope by natural abundance (needs the per-element cross sections
+      // of THIS material at THIS energy, which GetCrossSection caches)
+      store->GetCrossSection(&dp, mat);
+      const G4Element* el = store->SampleZandA(&dp, mat, targ);
+      zStruck = el->GetZasInt();
+    }
 
     G4HadFinalState* fs = model->ApplyYourself(proj, targ);
     if (fs == nullptr) {
@@ -423,6 +508,7 @@ int main(int argc, char** argv) {
     if (!norays) {
       th.push_back(a);
       dE.push_back(e);
+      if (compound) zhit.push_back(zStruck);
     }
   }
 
@@ -462,6 +548,13 @@ int main(int argc, char** argv) {
     if (fe != nullptr) {
       fwrite(dE.data(), sizeof(double), dE.size(), fe);
       fclose(fe);
+    }
+    if (compound) {
+      FILE* fz = fopen((out + ".z.bin").c_str(), "wb");
+      if (fz != nullptr) {
+        fwrite(zhit.data(), sizeof(int), zhit.size(), fz);
+        fclose(fz);
+      }
     }
   }
   fclose(fr);

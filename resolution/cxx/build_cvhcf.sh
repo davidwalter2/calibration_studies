@@ -16,12 +16,16 @@ CLHEP_INC=$(ls -d /cvmfs/cms.cern.ch/$ARCH/external/clhep/*/include 2>/dev/null 
 [ -n "$CLHEP_INC" ] || { echo "FATAL: no CLHEP include dir found on cvmfs"; exit 1; }
 echo "[build] CLHEP: $CLHEP_INC"
 
+# built under a private name and renamed into place, so that a process
+# holding the previous library keeps its (unlinked) file intact
+TMP="$OUT.tmp$$"
 g++ -O3 -std=c++17 -fPIC -shared \
     -I"$SRC" -I"$HERE/stub" -I"$CLHEP_INC" \
     "$SRC/TrackPropagation/Geant4e/src/CGFQoPBlock.cc" \
     "$SRC/TrackPropagation/Geant4e/src/CvhCfExponents.cc" \
     "$HERE/cvhcfshim.cc" \
-    -o "$OUT"
+    -o "$TMP"
+mv -f "$TMP" "$OUT"
 echo "[build] wrote $OUT"
 # `grep -q` closes the pipe early, which under `pipefail` would fail the
 # build on a SUCCESSFUL check; count instead.

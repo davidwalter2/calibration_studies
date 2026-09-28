@@ -84,6 +84,9 @@ opts.register('eventsFile', '', VarParsing.VarParsing.multiplicity.singleton,
               'file with one run:lumi:event per line (appended to eventsToProcess)')
 opts.register('exportCfGroupExponents', False, VarParsing.VarParsing.multiplicity.singleton,
               VarParsing.VarParsing.varType.bool, 'per-material-group CF exponents')
+opts.register('exportCfNucel', False, VarParsing.VarParsing.multiplicity.singleton,
+              VarParsing.VarParsing.varType.bool,
+              'nuclear-elastic (hadElastic) family of the CF exponents (cfmass_nuc_*, nuc_N)')
 opts.register('exportHitResBlocks', True, VarParsing.VarParsing.multiplicity.singleton,
               VarParsing.VarParsing.varType.bool, 'parmtype-8/9 hit-resolution dV blocks')
 opts.register('exportVtxResidual', True, VarParsing.VarParsing.multiplicity.singleton,
@@ -263,6 +266,7 @@ process.globalCor = cms.EDProducer(
     exportStepRecords=cms.bool(bool(opts.exportStepRecords)),
     exportCfExponents=cms.bool(bool(opts.exportCfExponents)),
     exportCfGroupExponents=cms.bool(bool(opts.exportCfGroupExponents)),
+    exportCfNucel=cms.bool(bool(opts.exportCfNucel)),
     exportHitResBlocks=cms.bool(bool(opts.exportHitResBlocks)),
     exportVtxResidual=cms.bool(bool(opts.exportVtxResidual)),
     useIdealGeometry=cms.bool(bool(opts.useIdealGeometry)),

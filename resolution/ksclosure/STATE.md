@@ -829,7 +829,8 @@ average 0.10 elastic collisions per leg of 0.03-0.5 rad.  This section adds the
 offline channel of `Documents/Resolution/NUCLEAR_ELASTIC.md` to the K_S mass
 term on the real geometry and asks whether it explains the 1.6 % beyond 3
 sigma and the radius dependence of section 8.  Code in `nucel/`, caches and fits
-in `runs/nucel/`, figures in `~/public_html/ZMass/cvh/260924_ks_nucel/`.
+in `runs/nucel_pe/` (per-element targets), figures in
+`~/public_html/ZMass/cvh/260926_nucel_survival/ks/`.
 
 ### 12.1 The channel on the mass functional
 
@@ -843,16 +844,19 @@ in `runs/nucel/`, figures in `~/public_html/ZMass/cvh/260924_ks_nucel/`.
   influence the fit gives a Moliere kick at the same place.  Checked: the
   Moliere exponent rebuilt from the same records and weights reproduces
   `cfmass_ms` to **9.5e-7** on 2500 candidates (the float32 floor 1.4e-6);
-* `N_s = mu(species, Z_s, A_s, p_s) xg_s` per step -- the (Z, A) of every
-  record rounded as `cf_nucel_exact.leg_rates` rounds it, the step's own
-  momentum, pi+ on the positive leg and pi- on the negative one (the records
-  are drained leg by leg; a leg is a segment between momentum jumps, given to
-  the leg whose fitted momentum is nearest);
-* `g, h, mu` from `nucel/nucel_tables.py`: `nucel_g4driver` (the
-  species-correct model `G4ElasticHadrNucleusHE` and dataset
-  `G4BGGPionElasticXS`) run on every (species, Z, A, p) bucket, 69 (Z, A) x
-  pi+- x 74 momenta 0.18-48 GeV, 5e5 draws each; nearest momentum bucket with
-  the angle rescaled by p_bucket/p_step, rate log-log interpolated;
+* `N_s = mu_mat(species, p_s) xg_s` per step with ONE TARGET PER ELEMENT of
+  the step's material (`mu_mat = sum_i w_i mu_i`, kernels rate-weighted over
+  the elements); the material from the record's `msmatv` when the file has
+  it, otherwise identified from the record's (effZ, effA, zzp1OverA) against
+  the job table plus the 2016 geometry XML (100 % of the K_S path resolves);
+  the step's own momentum, pi+ on the positive leg and pi- on the negative one
+  (the records are drained leg by leg; a leg is a segment between momentum
+  jumps, given to the leg whose fitted momentum is nearest);
+* `g, h, mu` from the shipped per-(species, element, momentum) Geant4 tables
+  `TrackPropagation/Geant4e/data/cvhcf_nucel_v1.bin` (`nucel/nucel_tables.py`;
+  construction, model edges and measured interpolation errors in
+  `Documents/Resolution/NUCLEAR_ELASTIC.md`, "Kernel tables for the track
+  fit"), evaluated by `nucel_tables.Table` exactly as the in-maker port does;
 * the recoil sub-channel (`NUCEL_RECOIL`) takes the maker's IONISATION weight
   of the same leg at the same momentum (interpolated in p along the leg), so
   the leg-mean-weight approximation of `cf_nucel_exact` is not needed here; the
@@ -872,10 +876,16 @@ the note's 35.2 mrad and 0.0517.  pi+ and pi- agree above ~1 GeV; at 0.18 GeV
 the pi+ rate is 13 % lower.  On carbon mu(pi-) runs 1.10e-2 (0.18 GeV) ->
 4.1e-3 (0.83 GeV) -> 3.1e-3 cm^2/g (48 GeV) and <theta> 466 -> 118 -> 2.5 mrad.
 
-Per candidate: **N = 0.204** collisions (median 0.187); 0.084 of them (41 %)
-have a median kick alone worth more than 3 sigma_m; **0.0149** fall in each
-leg's FIRST MS block (the material from the decay vertex up to and including
-the first measured module), 0.0141 of them > 3 sigma_m.
+Per candidate (per-element targets, the shipped tables): **N = 0.205**
+collisions (median 0.187); 0.113 of them have a mean kick alone worth more
+than 3 sigma_m; **0.0149** fall in each leg's FIRST MS block (the material
+from the decay vertex up to and including the first measured module), 0.0143
+of them > 3 sigma_m.  The hydrogen of the composites is a target in its own
+right: against one rounded target per record the collision number moves by
++0.8 % but the angular second cumulant `nuc_v` by x3.4 (median 11.4 sigma_m^2)
+and the recoil mean by x14 (median -0.010 sigma_m) -- hydrogen's 3x wider
+angles and 12x larger recoil.  The Moliere weight gate is 9.5e-7 on 20 000
+candidates (float32 floor 1.4e-6).
 
 ### 12.2 The production with step records
 
@@ -899,14 +909,15 @@ selected event is refit).  `prod/submit_ks_steprec.sh` ->
 |---|---|
 | (i) family OFF == in-maker composition | all 54 columns x 52 829 rows of the parent cache BIT-IDENTICAL; the family-free fit reproduces the parent's alpha, error and EDM to every digit (+0.260945 +- 0.042498, EDM 4.72e-19) |
 | (ii) vgf + sum_b v_b(MS, ioni)/sigma_m^2 = 1 | max deviation **6.3e-7** on 4498 candidates, also against `Jpsi_massvms/vioni` |
-| (ii) the family's own second cumulant | > 0 on 52 829/52 829; median **3.4 sigma_m^2** (q10/q90 2.3/4.6) |
+| (ii) the family's own second cumulant | > 0 on 52 829/52 829; median **11.4 sigma_m^2** (q10/q90 6.4/18.7) |
 | (iii) normalisation / positivity | S_total(0) = 0 exactly; the inverted density integrates to 0.99996 (median; min 0.99983) over \|z\| < 95, to 0.9992 over \|z\| < 40 (the family's mass lives far out); min density / max density -6e-6 (inversion ringing) |
 
 sigma_m stays the fit's Gaussian width: the family is a non-Gaussian EXPONENT,
 not a share of it, so the closure (ii) is untouched and the CF's second
-cumulant becomes 1 + v_nuc (+ 9e-6 from the recoil).  With v_nuc ~ 3.4 on
-99.4 % of the candidates, the second cumulant is not a width here: the channel
-is a rare, far tail.
+cumulant becomes 1 + v_nuc.  With v_nuc ~ 11 on every candidate, the second
+cumulant is not a width here: the channel is a rare, far tail.  (Gate (iii) was
+run on the one-target-per-record family; the per-element family's fits are
+EDM-certified and its base arm reproduces the parent fit to every digit.)
 
 ### 12.4 The track level on the real tracker (clean propagation)
 
@@ -943,24 +954,35 @@ removes exactly the tail the channel adds.
 
 ### 12.5 The mass term (same candidates, same card recipe, `rabbit_fit.py`)
 
-Every fit EDM-certified (largest 3.6e-18).  eps = alpha_mass / <f>, <f> = 0.630.
-"first block" is the family restricted to each leg's first MS block (12.1).
+Per-element targets (`runs/nucel_pe/`, `nucel/run_pe_fits.sh`).  Every fit
+EDM-certified (largest 1.9e-18).  eps = alpha_mass / <f>, <f> = 0.630.
+"first block" is the family restricted to each leg's first MS block (12.1);
+"first block x migration" scales it by the prompt-gun migration factor of
+section 12.7.
 
-| fit | without | **with** (recoil on) | recoil off | first block only |
+| fit | without | with, unconditioned | **first block only** | first block x migration |
 |---|---|---|---|---|
-| alpha_mass, nominal [1e-3] | +0.2609 +- 0.0425 | +0.2752 +- 0.0457 | +0.2686 +- 0.0457 | +0.2649 +- 0.0427 |
-| eps, nominal [1e-3] | +0.414 +- 0.068 | +0.437 +- 0.073 | +0.426 +- 0.073 | +0.420 +- 0.068 |
-| eps, a_res measured from truth | +0.410 | +0.433 | | |
-| eps, naive (no a_res, no Jensen) | +0.288 | +0.290 | | |
-| r < 2 / 2-4 / 4-10 / > 10 cm | +0.483 / +0.079 / +0.680 / +0.380 | +0.526 / +0.149 / +0.646 / +0.397 | | +0.484 / +0.090 / +0.683 / +0.391 |
-| radius-bin chi2/3 (alpha) | 11.1 (p 0.011) | 6.8 (p 0.077) | | 10.6 (p 0.014) |
-| p_min < 0.8 / 0.8-1.5 / > 1.5 GeV | +0.265 / +0.365 / +0.595 | +0.285 / +0.398 / +0.608 | | +0.264 / +0.373 / +0.605 |
-| from B / prompt | +0.557 / +0.198 | +0.565 / +0.235 | | +0.561 / +0.207 |
-| P(\|z\| >= 3), data 1.615 % | model 0.802 % | model **5.858 %** | | model **1.732 %** |
-| P(\|z\| >= 5), data 0.572 % | model 0.126 % | model 2.701 % | | model 0.812 % |
-| PIT pull std / robust | 1.050 / 1.017 | 0.856 / 0.886 | | **1.002 / 1.001** |
-| P(\|z_PIT\| >= 3) (Gaussian 0.27 %) | 0.895 % | 0.009 % | | **0.240 %** |
-| binned chi2/ndof, \|z\| < 10 | 227.5/39 | 1995.7/79 | | **93.3/63** |
+| alpha_mass, nominal [1e-3] | +0.2609 +- 0.0425 | +0.3091 +- 0.0457 | +0.2673 +- 0.0427 | +0.2678 +- 0.0427 |
+| eps, nominal [1e-3] | +0.414 +- 0.068 | +0.491 +- 0.073 | +0.424 +- 0.068 | +0.425 +- 0.068 |
+| P(\|z\| >= 3), data 1.615 % | model 0.802 % | model 6.439 % | model **1.752 %** | model 2.366 % |
+| P(\|z\| >= 5), data 0.572 % | model 0.126 % | model 3.226 % | model 0.836 % | model 1.268 % |
+| PIT pull std / robust | 1.050 / 1.017 | 0.845 / 0.878 | **1.001 / 1.000** | 0.989 / 0.988 |
+| P(\|z_PIT\| >= 3) (Gaussian 0.27 %) | 0.895 % | 0.002 % | **0.225 %** | 0.254 % |
+| binned chi2/ndof, \|z\| < 10 | 227.5/39 | 2156.3/79 | **94.8/63** | 143.6/79 |
+
+P(|z| >= 3) per bin, data / first block only / without (PIT tail of the
+first-block model): decay radius < 1 cm 2.25 / 1.73 / 0.81 % (0.25 %),
+1-2 cm 1.62 / 1.79 / 0.81 (0.06), 2-3 cm 1.46 / 1.66 / 0.82 (0.15),
+3-4 cm 1.65 / 1.59 / 0.82 (0.20), 4-10 cm 1.61 / 1.66 / 0.82 (0.36),
+> 10 cm 1.50 / 1.94 / 0.77 (0.24); softer pion p < 0.8 / 0.8-1.5 / > 1.5 GeV
+1.73 / 1.66, 1.57 / 1.71, 1.59 / 1.83 %; from B / prompt 1.53 / 1.68,
+1.74 / 1.87 %.  Per-bin alpha fits: family-free +0.483 / +0.079 / +0.680 /
++0.380 (r < 2 / 2-4 / 4-10 / > 10 cm, chi2/3 = 11.1), first-block family
++0.484 / +0.090 / +0.683 / +0.391 (chi2/3 = 10.6); p_min < 0.8 / 0.8-1.5 /
+> 1.5 GeV +0.265 / +0.365 / +0.595 and +0.264 / +0.373 / +0.605; from B /
+prompt +0.557 / +0.198 and +0.561 / +0.207 (the first-block family's
+collision number is the same to 0.1 % with one rounded target per record, on
+which these bin fits were made).
 
 (`nucel/ks_nucel_eval.py`: the PIT pull Phi^-1(F_i(z_i)) is N(0, 1) exactly
 when the per-candidate density is right; F_i by Gil-Pelaez inversion of the
@@ -970,48 +992,116 @@ upsampled CF, at each variant's fitted alpha; the a_res/Jensen corrections,
 ### 12.6 What it answers
 
 * **The tail is the nuclear-elastic channel -- the part the reconstruction
-  lets through.**  The unconditioned channel predicts 3.6x the observed tail
-  (5.9 % against 1.6 % beyond 3 sigma), uniformly in decay radius, momentum and
+  lets through.**  The unconditioned channel predicts 4.0x the observed tail
+  (6.4 % against 1.6 % beyond 3 sigma), uniformly in decay radius, momentum and
   origin.  The same channel restricted to the kicks nothing upstream of the
   mass can see -- the vertex-to-first-module block, 7 % of the collisions --
-  reproduces the tail with no free parameter: 1.73 % against 1.62 %, the PIT
-  pull N(0, 1) to 0.2 % in width, 0.240 % beyond 3 (Gaussian 0.27 %), chi2/ndof
-  93/63 against 228/39 without any family.  Per radius bin the first-block
-  model's PIT tail is 0.08-0.37 % everywhere.  The first block is a
-  DIAGNOSTIC boundary, not a derived acceptance: its success and the per-plane
-  acceptance pattern of 12.4 say the missing piece is the conditioning of the
-  channel on the track keeping its hits, which a kick inside the tracker
-  typically breaks (in the real sample: pattern recognition, the V0 vertex and
-  mass window, the refit chi2 and the minLegHits requirement).
+  reproduces the tail with no free parameter: 1.75 % against 1.62 %, the PIT
+  pull N(0, 1) to 0.1 % in width, 0.225 % beyond 3 (Gaussian 0.27 %),
+  chi2/ndof 95/63 against 228/39 without any family; per radius bin the
+  first-block model's PIT tail is 0.06-0.36 %.  Why the first block is the
+  right limit here, and in what sense it is an approximation, is the survival
+  measurement of 12.7.
 * **The tail is symmetric** (0.78 % high / 0.83 % low); section 8's
   "asymmetric, high-mass side" is corrected.
 * **The radius dependence survives.**  With the first-block family the radius
-  bins scatter by chi2 10.6/3 (11.1 without); the drop to 6.8 with the
-  unconditioned family comes from its inflated errors and wrong tail, not from
-  a better description.  The model-free structure of section 8 is a MEDIAN
-  residual (+0.58 MeV below 1 cm), which a symmetric tail does not move.
-* **eps moves by a tail-sized amount**: +0.006e-3 with the first-block family,
-  +0.023e-3 (+0.011 of it the recoil's mean loss) with the unconditioned one --
-  0.1 and 0.3 of the statistical error.  The recoil's mean loss is real
-  physics (not centred by the reference) and small: -6e-4 sigma_m median.
+  bins scatter by chi2 10.6/3 (11.1 without).  The model-free structure of
+  section 8 is a MEDIAN residual (+0.58 MeV below 1 cm), which a symmetric
+  tail does not move.
+* **eps moves by a tail-sized amount**: +0.010e-3 with the first-block family,
+  +0.077e-3 with the unconditioned one -- 0.15 and 1.1 of the statistical
+  error.  The recoil's mean loss is real physics (not centred by the
+  reference) and small: -0.010 sigma_m median.
 
-### 12.7 Consequence for a maker port
+### 12.7 The survival of a kick, measured in MC with truth
 
-The family is ready as physics -- Geant4's rates and kernels, the maker's
-weights, closed per plane on the real tracker -- but not as an unconditioned
-exponent: on reconstructed candidates it must be conditioned on the kick
-leaving the track's hit pattern intact.  The per-step quantity that decides
-that is the kick's effect on the DOWNSTREAM hits (the fit's own hit residual
-response), not on the mass; a first-principles version is a two-functional
-(mass, hit-compatibility) kernel per step, truncated where the pattern
-recognition would drop the hits.  Until then the first-block restriction is
-the measured boundary.
+`Documents/Resolution/NUCLEAR_ELASTIC.md`, "Survival of a kick on
+reconstructed tracks": pi, K, p/pbar guns at pT 0.3-4 and 2-20 GeV with a
+Geant4 watcher recording every real elastic collision of the primary, the
+standard CVH refit, the truth joined to the fitted blocks
+(`nucel/survival/`, production `/ceph/.../cvh/nucel_survival_260926/`).  What it
+says about the K_S:
 
-### 12.8 Files
+* **Inside the fitted span a kick survives with S(dchi2)**, dchi2 = v^T I_b v
+  the chi2 it costs the track (v = (kappa, L kappa): the true kick and its
+  displacement at the block's end surface; `I_b` the track's own kink
+  information, exported by the fit, `exportKinkResponse`) -- a threshold on
+  selected tracks: 1 below ~10, 0.92 / 0.66 / 0.27 / 0.035 at 10-20 / 20-30 /
+  30-50 / 50-100, nothing above 100 -- the same for pi, K, p at both momenta
+  (chi2 51.6 / 35 ndf about the pooled curve).  It factorises into the
+  pattern recognition (0.91 / 0.69 / 0.42 at 20-30 / 30-50 / 50-100 on all
+  rows, the scale of the initialStep MaxChi2 = 30; pixelPairStep, MaxChi2 = 9,
+  drops earlier) and the chi2/ndof < 3 selection.  Observed / family kicks
+  in the span: 0.35 (pT 0.3-4 GeV) to 0.55 (2-20 GeV) on selected tracks.
+* **The survivors do not move the fit much.**  A kick survives when its
+  RESOLVED projection is small, and that is the projection the fitted
+  parameters respond to: on tracks with one surviving kick P(|z_q/p| > 3) is
+  0.05-0.21 against 0.28-0.33 for the isotropic kernel.  The exact form --
+  per block the exported `I_b`, the functional's exported response `g_b` and
+  S(dchi2) -- closes the gun q/p tails at 2-20 GeV (all 481 tasks; P(|z| >= 3)
+  data 1.70 / 1.09 / 1.74 % for pi / K / p, exact form 1.60 / 1.11 / 1.75 %,
+  unconditioned 4.7 / 2.5 / 6.3 %; P(|z| >= 5) data 0.41 / 0.19 / 0.40 %,
+  exact 0.36 / 0.20 / 0.40 %, where the offline resolved-projection
+  approximation gives 0.31 / 0.18 / 0.32 %).  So the in-span survivors add a bounded
+  contribution, and a functional they barely move is described by the first
+  block alone -- which is what the K_S tail shows (1.75 % against 1.62 %,
+  leaving at most ~0.1 % for the in-span survivors and the first-block losses
+  to share).
+* **The first block keeps its kicks** (0.77-0.86 of the family for prompt
+  tracks that start on their first layer: the seeding drops the largest), and
+  a track that starts late carries MORE than its share (x1.15 / 2.0 / 3.3 for
+  2 / 3 / >= 4 silicon layers crossed before the first hit).  That migration
+  factor is a Bayes factor against the late-start rate WITHOUT a kick, which
+  is high for a displaced V0 leg: applied to the K_S it over-predicts
+  (2.37 % against 1.62 %, the "first block x migration" column) -- it does
+  not transfer from prompt guns.
+* **The last three entries of a track** carry a truncation migration, the
+  mirror image of the first block: tracks that the pattern recognition
+  stopped short of the particle's path carry 4-7x their share of kicks at
+  small dchi2, untruncated ones 0.8-0.9x.  The form is a Bayes factor
+  S_end(dchi2, m) in the observable missing outer layers m; it depends on the
+  outer end, which prompt and displaced tracks share (untested).  It carries
+  no q/p lever for single tracks.
+* **The exact form is exported by both makers** (`exportKinkResponse`, per MS
+  block entry: `kinkinfv` = I_b of the leg's own hits and material, 4 x 4 in
+  (kappa, xi); `kinkrespv` = g_b of the fitted functional with the fit's
+  constraints -- q/p single-track, the mass two-track; `kinkinffitv` = I_b with
+  the constraints, `kinkmsv` = the block's MS covariance, `kinkrespvtxv` for the
+  vertex DCA; the two-track maker also fills `reseigv`).  The
+  survival-weighted family is `m_b sum_s N_s E_theta E_psi E_L[S(v^T I_b v)
+  (exp(i tau g_b . v) - 1)]` (`nucel/survival/exact/gun_tails_exact.py`).  "First block only" is NOT a model: it is a limit that
+  holds for this functional under this fit configuration and changes with the
+  constraints (a vertex or beam-spot constraint gives the first block a lever
+  it has no survival model for, and for single tracks the first block carries
+  no q/p lever at all).  It is kept only as a diagnostic column; the K_S mass
+  term uses the survival-weighted family, which needs the K_S sample
+  reprocessed with `exportKinkResponse` (not yet run).
+
+### 12.8 Consequence for a maker port
+
+The family is ready as physics -- Geant4's rates and kernels per element, the
+maker's weights, closed per plane on the real tracker -- but not as an
+unconditioned exponent.  The conditioning is measured (12.7): a universal
+threshold S of the kick's exact dchi2 = v^T I_b v, applied per block entry
+with the functional's exported response g_b.  The fit exports I_b and g_b per
+MS block entry (`exportKinkResponse`, both makers; gates in
+`Documents/Resolution/NUCLEAR_ELASTIC.md`, "The form and the kink export");
+what remains for an in-maker survival-weighted family is to evaluate the form
+there: the S table (`nucel/survival/exact/results`, copied from
+`/ceph/.../nucel_survival_260926/exact/results/exact_model.json`), the angular
+quantiles of `nucel/survival/theta_tables.py`, the block lever-arm nodes from
+the MS covariance, and the first-block and last-entries migration factors.
+The export itself is in the private area CMSSW_15_0_19_patch2_ibgb
+(`/ceph/.../nucel_survival_260926/exact/ib_gb.patch` on 9ac88525e0b6), to be
+ported into CMSSW_15_0_19_patch2_dev2.
+
+### 12.9 Files
 
 | | |
 |---|---|
-| `nucel/nucel_tables.py` | (Z, A) scan of the records and the Geant4 kernel/rate table |
+| `nucel/nucel_tables.py` | the per-(species, element, momentum) Geant4 tables: element list, model edges, build, assemble; `Table` = the offline evaluation of the shipped binary (mixtures, momentum interpolation, CFs, material identification) |
+| `nucel/nucel_table_checks.py` | direct driver runs; rescaling/interpolation error, compound gate, float32 check |
+| `nucel/build_tables.sbatch`, `direct_runs.sbatch` | the slurm arrays for the tables and the direct runs |
 | `nucel/ks_nucel_cf.py` | the family on the mass functional, from the records; writes the pairs cache |
 | `nucel/make_variants.py` | base / nuc / nucnr card caches (+ the measured a_res column) |
 | `nucel/build_ks_nucel.sh`, `run_nucel_fits.sh`, `run_first_fits.sh` | cards and fits |
@@ -1021,9 +1111,19 @@ the measured boundary.
 | `nucel/plot_eps_bins.py` | eps per bin, three variants |
 | `nucel/make_evlists.py`, `smoke_check.py` | the production's event selection and its bit-identity check |
 | `nucel/runCleanPropModelLowP.py`, `points_pi_lowpt.txt` | the low-pT clean-propagation points |
+| `nucel/run_pe_fits.sh` | the per-element fits and evaluations of 12.5 (base / unconditioned / first block / first block x migration) |
+| `nucel/survival/exact/` | the exact form of 12.7: `run_exact_task.sh`, `array_exact.sbatch` (GEN-SIM rerun with the watcher's `writeDirections`, refit with `exportKinkResponse`), `exact_join.py` (the truth kick in the export's basis, its lever arm and exact dchi2; per-entry predicted counts), `exact_analysis.py` (S(dchi2), per iteration -> `exact_survival.json`, `exact_model.json`), `end_entries.py`, `gun_tails_exact.py` + `tails_exact.sbatch` + `exact_tails_summary.py`, `exact_plots.py`, the gates `run_gate.sh`, `withkink_cfg.py`, `kink_gates.py`; outputs `/ceph/.../cvh/nucel_survival_260926/exact/` (PROVENANCE.txt), figures `~/public_html/ZMass/cvh/260927_nucel_survival_exact/` |
+| `nucel/survival/` | the survival measurement of 12.7: `run_task.sh`, `array_survival.sbatch`, `refit_cfg.py` (production), `survival_dump.py`, `survival_join.py` (truth join), `theta_tables.py` (angular tables), `pool_model.py` (-> `survival_model.json`), `kick_response.py`, `gun_tails.py`, `survival_analysis.py`, `survival_plots.py`, `survival_model.py` (the survival-weighted and resolved-projection families) |
 
-Caches `runs/nucel/kspairs_{nucel,base,nuc,nucnr,nucfirst}_*.npz`, table
-`runs/nucel/nucel_table.npz` (per-bucket files on ceph under the production's
-`nucel_kernels/`), results `runs/nucel/results/`, `runs/nucel/eval_all.json`.
-Figures: `ks_nucel_pull[_log]`, `ks_nucel_pit`, `ks_nucel_tail_vs_radius`,
-`ks_nucel_eps_bins`, `perplane_tail{3,5}_{locx,locy}` (+ `perplane_table.txt`).
+Caches `runs/nucel_pe/kspairs_{nucel,base,nuc,nucnr,nucfirst,nucfirstmig}_all.npz`
+(per-element targets; `ks_nucel_cf.py --survival`, 25 slices merged), results
+`runs/nucel_pe/results/`, `runs/nucel_pe/eval_{unc_first,firstmig}.json`; the
+bin caches and fits of the one-target-per-record family in `runs/nucel/`.  Tables:
+the binary in the CMSSW area (above); buckets, element list, edges, direct
+runs, checks and the per-element smoke cache under
+`/ceph/submit/data/user/d/david_w/ZMass/cvh/nucel_trackfit_260926/tables/`.
+Figures: `~/public_html/ZMass/cvh/260926_nucel_survival/ks/{unc_first,firstmig}/`
+(`ks_nucel_pull[_log]`, `ks_nucel_pit`, `ks_nucel_tail_vs_radius`) and the
+survival figures one level up; `ks_nucel_eps_bins`,
+`perplane_tail{3,5}_{locx,locy}` (+ `perplane_table.txt`) in
+`260924_ks_nucel/`.

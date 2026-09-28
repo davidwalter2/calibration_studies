@@ -713,7 +713,7 @@ def ioni_step_exponent(steps, wstd, tau):
                         np.maximum(e0[m], max(IONI_KOKOULIN_TCUT, _KOK_TMIN)),
                         tmax[m], b2[m], et[m],
                         gsu[m][:, None] * tau[None, :],
-                        nbin=IONI_KOKOULIN_NBIN, spinhalf=half)
+                        spinhalf=half, reg=spin)
         if (act & ep).any():
             if steps.shape[1] < 13:
                 raise ValueError("regime 4/5 record with stride 11: beta^2 and E "
@@ -767,7 +767,6 @@ def ioni_step_exponent(steps, wstd, tau):
 # at either default.
 IONI_KOKOULIN = 1.0 if env_flag("CVH_IONI_KOKOULIN", True) else 0.0
 IONI_KOKOULIN_TCUT = 0.0
-IONI_KOKOULIN_NBIN = 96
 
 # ------------------------------------------------------- the knob REGISTRY
 # Every module-level global that changes what this module COMPUTES, in one
@@ -981,7 +980,7 @@ _WVI_SMAX_SEEN = [-np.inf]   # diagnostic: the largest MS exponent at the clamp
 _WVI_MINCOLL = 10.0
 
 PHYSICS_GLOBALS = ("IONI_A3_SCALE", "IONI_EXC_SCALE", "IONI_TMAX_SCALE",
-                   "IONI_KOKOULIN", "IONI_KOKOULIN_TCUT", "IONI_KOKOULIN_NBIN",
+                   "IONI_KOKOULIN", "IONI_KOKOULIN_TCUT",
                    "MS_ELEC_TMAX", "MS_ELEC_EDGE", "MS_FINE_G", "MS_SNAP_YMAX",
                    "MS_WVI_SPLIT", "MS_WVI_NPERX", "MS_WVI_LG")
 _NOT_PHYSICS = ("COVTOL", "_ME_GEV",   # a tolerance and a physical constant
@@ -1099,38 +1098,58 @@ _KOK_MUMIN = 1000.0      # G4MuBetheBlochModel::lowestKinEnergy = 1 GeV
 # its u-shape mimics the charge-odd mean-loss bias -- i.e. the mistake is in
 # the direction that looks like success.
 #
-# The mass is RECOVERABLE from the record, exactly, and does not need a new
-# column: the regime-2/3 record carries `beta^2` and `E` (NOTES_DELTASPEC s9.2,
+# The species is RECOVERABLE from the record and does not need a new column:
+# the regime-2/3 record carries `beta^2` and `E` (NOTES_DELTASPEC s9.2,
 # precisely so that a kaon's Tmax is not inverted as a muon's), and
 #
 #       E * sqrt(1 - beta^2) = (gamma m) * (1/gamma) = m
 #
-# is an identity, not an approximation.  Measured on the exported records it
-# returns the PDG masses to 1e-9 relative (`_mass_from_record` self-test in
-# barkas_probe.py `guards`).  So the guard is applied HERE, on every existing
-# file, rather than through a record-layout change that would need every model
-# in the study re-exported.
-#
-# The tolerance is loose (1 MeV) on purpose: it has to separate the muon from
-# the pion, its nearest neighbour, and 105.66 vs 139.57 MeV is a 34 MeV gap.
-_KOK_MASS_TOL = 1.0      # MeV
+# is an identity.  It is NOT a measurement of the mass to MeV precision,
+# though: the maker writes beta^2 as a float32, and 1 - beta^2 = (m/E)^2 is a
+# few float32 ulps at high momentum -- on a maker muon gun the rebuilt mass
+# is off by up to 10 MeV, and a 1 MeV tolerance around m_mu rejected half the
+# muon rows above the Kokoulin threshold.  So the rebuilt mass is SNAPPED to
+# the nearest charged species (cf_brems_exact's list: e, mu, pi, K, p), among
+# the species the record's REGIME admits when it is known: regime 2 is the
+# spin-1/2 Bethe-Bloch law (mu, p), 3 the spin-0 one (pi, K), 4/5 the e+-
+# Moller/Bhabha laws.  Within a regime the candidates are 830 MeV (mu, p) and
+# 354 MeV (pi, K) apart, so the classification holds until the float32
+# 1 - beta^2 loses the mass altogether (a muon above ~3 TeV); without the
+# regime the closest pair is mu/pi, 34 MeV apart (a muon above ~350 GeV).
+# So the guard is applied HERE, on every existing file, rather than through a
+# record-layout change that would need every model in the study re-exported.
+_REGIME_SPECIES = {2: (1, 4), 3: (2, 3), 4: (0,), 5: (0,)}   # cf_brems_exact order
 _KOK_SUPPRESSED = {"n": 0, "masses": set()}
 
 
 def _mass_from_record(beta2, etot):
-    """The projectile mass implied by the regime-2/3 record, in MeV.
-
-    m = E sqrt(1 - beta^2).  Exact for any particle; the record has both
-    columns, and a record that does not (stride 11) never reaches this code --
-    `ioni_step_exponent` raises on it."""
+    """The projectile mass implied by the regime-2/3 record, in MeV,
+    m = E sqrt(1 - beta^2), as the float32 columns give it (see above: to a
+    few MeV at high momentum)."""
     return np.asarray(etot, float) * np.sqrt(
         np.clip(1.0 - np.asarray(beta2, float), 0.0, None))
 
 
-def _is_muon_record(beta2, etot):
+def _record_species_mass(beta2, etot, reg=None):
+    """The record's species, as its mass in MeV: `_mass_from_record` snapped
+    to the nearest charged species among those the record's regime admits
+    (`_REGIME_SPECIES`; every species when the regime is not given or has no
+    law of its own)."""
+    m = np.atleast_1d(_mass_from_record(beta2, etot))
+    ref = 1e3 * cf_brems_exact._SPECIES_MASSES
+    reg = np.broadcast_to(np.asarray(-1 if reg is None else reg).astype(int), m.shape)
+    out = np.empty_like(m)
+    for r in np.unique(reg):
+        sel = reg == r
+        cand = ref[list(_REGIME_SPECIES.get(int(r), range(len(ref))))]
+        out[sel] = cand[np.argmin(np.abs(m[sel][:, None] - cand[None, :]), axis=1)]
+    return out
+
+
+def _is_muon_record(beta2, etot, reg=None):
     """Elementwise: is this step a MUON's?  The offline half of the C++
     `std::abs(GetPDGEncoding()) == 13`."""
-    return np.abs(_mass_from_record(beta2, etot) - _MMU) < _KOK_MASS_TOL
+    return _record_species_mass(beta2, etot, reg) == 1e3 * cf_brems_exact._MMU_GEV
 
 
 def kokoulin_factor(T, etot):
@@ -1140,24 +1159,33 @@ def kokoulin_factor(T, etot):
     f = np.ones_like(T)
     m = (T > _KOK_TMIN) & (T < E - _MMU)
     if np.any(m):
-        a1 = np.log(1.0 + 2.0 * T[m] / _MEL)
-        a3 = np.log(4.0 * E[m] * (E[m] - T[m]) / (_MMU * _MMU))
-        f[m] = 1.0 + _ALPHA_PRIME * a1 * (a3 - a1)
+        f[m] = 1.0 + kokoulin_excess(T[m], E[m])
     return f
 
 
-def _kokoulin_exponent(xi, t0, tmax, beta2, etot, a, nbin=96, spinhalf=True):
-    """The Kokoulin CORRECTION's contribution to the delta channel's exponent.
+def kokoulin_excess(T, etot):
+    """f_K(T) - 1 = alpha' a1 (a3 - a1) on the correction's range
+    (100 keV, E - m_mu), where the caller keeps T."""
+    a1 = np.log(1.0 + 2.0 * T / _MEL)
+    a3 = np.log(4.0 * etot * (etot - T) / (_MMU * _MMU))
+    return _ALPHA_PRIME * a1 * (a3 - a1)
 
-    f_K - 1 is smooth and slowly varying in ln T; e^{i a T} is not, and at
-    a T ~ 2e4 no practical quadrature in T resolves it.  So f_K - 1 is made
-    piecewise constant on a log grid and the OSCILLATORY integral is done in
-    CLOSED FORM on each bin with the same `exact_delta_exponent`.  The
-    substitution beta^2 -> beta^2 hi/Tmax is what turns that routine's
-    (upper limit == beta^2 denominator) convention into a genuine sub-range
-    integral whose beta^2 term still carries the KINEMATIC Tmax; summing
-    contiguous bins reproduces the full-range closed form to 7e-15.
-    """
+
+def _kokoulin_exponent(xi, t0, tmax, beta2, etot, a, spinhalf=True, reg=None):
+    """The Kokoulin CORRECTION's contribution to the delta channel's exponent,
+        INT_{lo}^{tmax} (f_K - 1) dN (e^{i a T} - 1 - i a T) dT,
+    lo = max(t0, 100 keV), dN the record's Bethe-Bloch law (cf_knockon.rate),
+    for the muon steps above 1 GeV (`a`: (nstep, nt) per MeV).
+
+    By Filon-Simpson (cf_knockon.filon_centred) on the knock-on channel's own
+    nodes (cf_knockon.nodes, KNOCKON_NPERDEC per decade and the refined end
+    point): the amplitude (f_K - 1) dN is smooth in T, the phase e^{iaT} exact
+    on every quadratic panel, so the oscillation that no T quadrature resolves
+    at a T ~ 2e4 costs nothing, and the centring 1 + iaT is subtracted inside
+    each panel, so the term keeps its relative precision at the small weights
+    of the angular functionals.  The amplitude is taken at the lower node as
+    the limit from above (f_K jumps from 1 at 100 keV)."""
+    import cf_knockon
     xi = np.atleast_1d(np.asarray(xi, float))
     t0 = np.atleast_1d(np.broadcast_to(np.asarray(t0, float), xi.shape))
     tmax = np.atleast_1d(np.asarray(tmax, float))
@@ -1166,7 +1194,8 @@ def _kokoulin_exponent(xi, t0, tmax, beta2, etot, a, nbin=96, spinhalf=True):
     a = np.atleast_2d(a)
     S = np.zeros(a.shape[1], dtype=np.complex128)
     lo0 = np.maximum(t0, _KOK_TMIN)
-    ismu = _is_muon_record(beta2, etot)
+    species = _record_species_mass(beta2, etot, reg)
+    ismu = species == 1e3 * cf_brems_exact._MMU_GEV
     # `etot - _MMU > _KOK_MUMIN` is the C++ `ekin > kKokMuMin` and is only the
     # KINEMATIC half of the guard; `ismu` is the species half, which the C++
     # has had all along and this module did not.
@@ -1175,8 +1204,8 @@ def _kokoulin_exponent(xi, t0, tmax, beta2, etot, a, nbin=96, spinhalf=True):
     if nsup:
         # Not an error -- Geant4 does exactly this -- but a job that ASKED for
         # the correction on a hadron has a configuration problem, so it is
-        # said once per distinct mass rather than never.
-        m0 = float(np.round(_mass_from_record(beta2[~ismu], etot[~ismu])[0], 3))
+        # said once per distinct species rather than never.
+        m0 = float(species[~ismu][0])
         if m0 not in _KOK_SUPPRESSED["masses"]:
             _KOK_SUPPRESSED["masses"].add(m0)
             msg = (f"IONI_KOKOULIN is on but {nsup} step(s) carry m = "
@@ -1190,21 +1219,11 @@ def _kokoulin_exponent(xi, t0, tmax, beta2, etot, a, nbin=96, spinhalf=True):
             # read as success is the exact failure this guard exists to stop.
             print("[cf_track_resolution] WARNING: " + msg, file=sys.stderr)
     _KOK_SUPPRESSED["n"] += nsup
-    if not act.any():
-        return S
-    xi, lo0, tmx, b2, et, aa = (xi[act], lo0[act], tmax[act], beta2[act],
-                                etot[act], a[act])
-    fr = np.linspace(0.0, 1.0, nbin + 1)
-    edges = lo0[:, None] * (tmx / lo0)[:, None] ** fr[None, :]
-    for m in range(nbin):
-        lo, hi = edges[:, m], edges[:, m + 1]
-        kap = kokoulin_factor(np.sqrt(lo * hi), et) - 1.0
-        g = kap != 0.0
-        if not g.any():
-            continue
-        S += exact_delta_exponent(xi[g] * kap[g], lo[g], hi[g],
-                                  b2[g] * hi[g] / tmx[g], et[g], aa[g],
-                                  spinhalf=spinhalf)
+    for i in np.flatnonzero(act):
+        T = cf_knockon.nodes(lo0[i], tmax[i], cf_knockon.KNOCKON_NPERDEC, tlo=lo0[i])
+        h = kokoulin_excess(T, etot[i]) * cf_knockon.rate(T, xi[i], tmax[i], beta2[i],
+                                                          etot[i], spinhalf, False)
+        S += cf_knockon.filon_centred(T, h, a[i])
     return S
 
 

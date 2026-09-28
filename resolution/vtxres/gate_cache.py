@@ -33,11 +33,12 @@ BEAM_MOVED = {
     'Jpsi_bsres', 'Jpsi_bscov', 'Jpsi_bsz', 'Jpsi_bschi2', 'Jpsi_bsvchk',
     'Jpsi_bsmeanbs', 'Jpsi_bsvbs', 'Jpsi_bsvhit', 'Jpsi_bsvms', 'Jpsi_bsvioni',
     'resinfbsv', 'bsvarv', 'Jpsi_bssgnchk',
-    'cfbs_ms', 'cfbs_del', 'cfbs_ioni_re', 'cfbs_ioni_im',
-    'cfbs_rad_re', 'cfbs_rad_im',
+    'cfbs_ms', 'cfbs_ioni_re', 'cfbs_ioni_im',
+    'cfbs_rad_re', 'cfbs_rad_im', 'cfbs_kx_re', 'cfbs_kx_im', 'cfbs_kj_re', 'cfbs_kj_im',
     'cfbs_hitcls', 'cfbs_hitcomp', 'cfbs_hitv', 'cfbs_grp', 'cfbs_grpcomp',
     'cfbs_grp_ms', 'cfbs_grp_ioni_re', 'cfbs_grp_ioni_im',
-    'cfbs_grp_rad_re', 'cfbs_grp_rad_im', 'cfbs_grp_vqms', 'cfbs_grp_vqio',
+    'cfbs_grp_rad_re', 'cfbs_grp_rad_im', 'cfbs_grp_kx_re', 'cfbs_grp_kx_im',
+    'cfbs_grp_kj_re', 'cfbs_grp_kj_im', 'cfbs_grp_vqms', 'cfbs_grp_vqio',
     'cfbs_grp_closure',
 }
 # Every name above is a BEAM-FUNCTIONAL output and nothing else: the two

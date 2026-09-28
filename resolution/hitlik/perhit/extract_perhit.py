@@ -73,10 +73,13 @@ import selection as _SEL  # noqa: E402  (ONE value for the chi2 cut)
 
 import hitres_classes  # noqa: E402
 
-FAMS = ("ms", "del", "io_re", "io_im", "rad_re", "rad_im")
+FAMS = ("ms", "io_re", "io_im", "rad_re", "rad_im")
 # the maker's branch suffix for each of them
-BRFAM = {"ms": "ms", "del": "del", "io_re": "ioni_re", "io_im": "ioni_im",
+BRFAM = {"ms": "ms", "io_re": "ioni_re", "io_im": "ioni_im",
          "rad_re": "rad_re", "rad_im": "rad_im"}
+# the knock-on families per component (flat, not split by group), present
+# when the maker ran with `perHitKnockon`
+KFAM = {"Skx": ("phcf_kx_re", "phcf_kx_im"), "Skj": ("phcf_kj_re", "phcf_kj_im")}
 
 BR = ["phres_d", "phres_nref", "phres_nmeas", "phres_ok", "phres_vchk",
       "phres_rankgap", "phres_qrank", "phres_nfree",
@@ -87,7 +90,8 @@ BR = ["phres_d", "phres_nref", "phres_nmeas", "phres_ok", "phres_vchk",
       "reseigidx", "reshitcls",
       "chisqval", "ndof", "nValidHits", "nValidPixelHits",
       "refParms", "genParms", "refCov", "trackPt", "genPt",
-      "gradmax", "hessmax"] + ["phcf_grp_" + BRFAM[f] for f in FAMS]
+      "gradmax", "hessmax"] + ["phcf_grp_" + BRFAM[f] for f in FAMS] \
+    + [b for pair in KFAM.values() for b in pair]
 
 NAN = float("nan")
 
@@ -126,6 +130,7 @@ def process(fname, args, ptype=None):
                 xc_ref0=[], xc_prev=[], dot_ref0=[])
     grp_id, grp_cnt, vQms, vQio = [], [], [], []
     Sacc = {f: [] for f in FAMS}
+    Kacc = {k: [] for k in KFAM}
     hit_cls, hit_v, hit_cnt = [], [], []
     rres, xcref, row_cnt = [], [], []
     nsel = ndrop = 0
@@ -198,6 +203,10 @@ def process(fname, args, ptype=None):
         for f in FAMS:
             S = np.asarray(a["phcf_grp_" + BRFAM[f]][ic], np.float64)
             Sacc[f].append(S.reshape(-1, nt)[order])
+        for k, (bre, bim) in KFAM.items():
+            if bre in a:
+                Kacc[k].append((np.asarray(a[bre][ic], np.float64)
+                                + 1j * np.asarray(a[bim][ic], np.float64)).reshape(-1, nt))
 
         # ---- per-(component, hit class) rows ------------------------------
         hc = np.asarray(a["phcf_hitcomp"][ic], np.int64)
@@ -288,6 +297,9 @@ def process(fname, args, ptype=None):
     for f in FAMS:
         res["S" + f] = (np.concatenate(Sacc[f]) if Sacc[f]
                         else np.zeros((0, nt)))
+    for k in KFAM:
+        if Kacc[k]:
+            res[k] = np.concatenate(Kacc[k]).astype(np.complex64)
     res["hit_cnt"] = np.concatenate(hit_cnt) if hit_cnt else np.zeros(0, np.int64)
     res["hit_cls"] = np.concatenate(hit_cls) if hit_cls else np.zeros(0, np.int64)
     res["hit_v"] = np.concatenate(hit_v) if hit_v else np.zeros(0)
@@ -390,6 +402,9 @@ def main():
     out["vQio"] = np.concatenate([r["vQio"] for r in parts]).astype(np.float32)
     for f in FAMS:
         out["S" + f] = np.concatenate([r["S" + f] for r in parts]).astype(np.float32)
+    for k in KFAM:
+        if all(k in r for r in parts):
+            out[k] = np.concatenate([r[k] for r in parts]).astype(np.complex64)
     hcnt = np.concatenate([r["hit_cnt"] for r in parts])
     out["hit_ptr"] = np.concatenate([[0], np.cumsum(hcnt)]).astype(np.int64)
     out["hit_cls"] = np.concatenate([r["hit_cls"] for r in parts]).astype(np.int16)

@@ -40,33 +40,43 @@ kick is isotropic, so its mean projection is exactly zero and nothing has been
 pre-subtracted from the reference.
 
 The kernel E_theta[J0(u*theta)] is a ONE-DIMENSIONAL function of u, so it is
-tabulated once per species/energy bucket and interpolated -- the same device
-`gshape` uses for Moliere.
+tabulated and interpolated -- the same device `gshape` uses for Moliere.
 
 WHAT IS TAKEN FROM GEANT4 AND WHAT IS NOT
 -----------------------------------------
 Everything.  The rate is `G4CrossSectionDataStore::GetCrossSection(dp, mat)` --
 the very call `G4HadronicProcess` inverts for its mean free path -- evaluated
 on the species-correct dataset that stock `G4HadronElasticPhysics` registers.
-The kernel is the empirical distribution of the primary's deflection under
-`ApplyYourself`, i.e. what the four models ACTUALLY draw, not a diffractive
-parameterisation of them.  Both come from `nucel_g4driver`.  Nothing here is
-fitted; see Documents/Resolution/NUCLEAR_ELASTIC.md for the parameter-free
-check (shift/N_pred constant to 4 % across four species and four different G4
-models).
+The kernel is the empirical distribution of the primary's deflection and
+recoil under `ApplyYourself`, i.e. what the four models ACTUALLY draw, not a
+diffractive parameterisation of them.  Both come from `nucel_g4driver`.
+Nothing here is fitted; see Documents/Resolution/NUCLEAR_ELASTIC.md for the
+parameter-free check (shift/N_pred constant to 4 % across four species and
+four different G4 models).
 
-THE MUON IS THE NULL.  It has no `hadElastic` at all, and the driver refuses to
-run for it, so `species_kernel` refuses too rather than returning a zero that
-could be mistaken for a computed result.
+THE TABLES.  The driver's samples are reduced once per (species, ELEMENT,
+momentum node) by `ksclosure/nucel/nucel_tables.py` into the binary the
+makers read, `TrackPropagation/Geant4e/data/cvhcf_nucel_v2.bin`
+(`NUCEL_TABLE`): the rate on a fine momentum grid, the angular CF, the recoil
+density and the joint (theta, dE) law, with compounds as rate-weighted
+mixtures of their elements and every kernel at the step's own momentum
+(the two nodes of its model segment that bracket it).  This module evaluates
+them through `nucel_tables.Table.rows`, of which the in-maker
+`cvhcf::nucelRows` is the port -- one model, one table, for the
+clean-propagation closure and the fit.
+
+THE MUON IS THE NULL.  It has no `hadElastic` at all and the tables carry no
+muon, so `pdg_from_leg` returns None for it and the channel is skipped rather
+than returning a zero that could be mistaken for a computed result.
 """
 
 import fcntl
 import hashlib
 import os
 import subprocess
+import sys
 
 import numpy as np
-from scipy.special import j0
 
 # --------------------------------------------------------------------------
 # the knob.  Default OFF, like every other correction in this study, pending
@@ -114,10 +124,13 @@ NUCEL_RECOIL = bool(int(os.environ.get("NUCEL_RECOIL", "1")))
 # fibre, cables, connectors, Kapton) are 4-8 % hydrogen by mass -- 0.33 g/cm2,
 # 2.7 % of the path -- and hydrogen alone reproduces the whole elastic-loss
 # excess the rounded model misses (p-bar 0.295 vs 0.295 MeV per track).
-# With this ON and an export that carries the material table (`msmatv` +
-# the `materials` tree), each step's material is a rate-weighted mixture of
-# its elements' kernels, for the angle AND the recoil.  Files without the table
-# fall back to the rounded element, bit for bit.  Set NUCEL_ELEMENTS=0 to A/B.
+# With this ON each step's material is a rate-weighted mixture of its
+# elements' kernels, for the angle, the recoil and the joint law: the material
+# comes from the export's `msmatv` + `materials` tree, or, for records
+# written without them, from the step's exported (effZ, effA, zzp1OverA)
+# (`nucel_tables.Table.identify`, exact against the Geant4 table).
+# NUCEL_ELEMENTS=0 replaces every step's material by its rounded element
+# (Z = rint(effZ), A = rint(effA)) to A/B the minority targets.
 NUCEL_ELEMENTS = bool(int(os.environ.get("NUCEL_ELEMENTS", "1")))
 
 # THE JOINT LAW OF ONE ELASTIC COLLISION.  The angular and recoil families
@@ -139,22 +152,19 @@ NUCEL_ELEMENTS = bool(int(os.environ.get("NUCEL_ELEMENTS", "1")))
 # 171, the clean arm's level; K_S unchanged).
 NUCEL_JOINT = bool(int(os.environ.get("NUCEL_JOINT", "1")))
 
-PHYSICS_GLOBALS = ("NUCEL_CHANNEL", "NUCEL_RECOIL", "NUCEL_ELEMENTS",
-                   "NUCEL_JOINT")
-_NOT_PHYSICS = ("NUCEL_NSAMP", "NUCEL_SEED", "NUCEL_NU", "NUCEL_UMIN",
-                "NUCEL_UMAX", "NUCEL_NBIN", "NUCEL_JBIN", "NUCEL_JSHARE")
+# The shipped per-element tables (see THE TABLES above).  A physics switch: a
+# different table is a different kernel.
+NUCEL_TABLE = os.environ.get(
+    "NUCEL_TABLE", "/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/"
+                   "TrackPropagation/Geant4e/data/cvhcf_nucel_v2.bin")
 
-# sampling/tabulation knobs -- resolution of the numerics, not physics
+PHYSICS_GLOBALS = ("NUCEL_CHANNEL", "NUCEL_RECOIL", "NUCEL_ELEMENTS",
+                   "NUCEL_JOINT", "NUCEL_TABLE")
+_NOT_PHYSICS = ("NUCEL_NSAMP", "NUCEL_SEED")
+
+# the driver's sampling knobs (`_run_driver`, the diagnostics' direct runs)
 NUCEL_NSAMP = int(os.environ.get("NUCEL_NSAMP", "2000000"))
 NUCEL_SEED = int(os.environ.get("NUCEL_SEED", "20260817"))
-NUCEL_NU = 4000          # points in the log-u kernel table
-NUCEL_NBIN = 100000      # log-theta bins used to quadrature the sampled kernel
-NUCEL_UMIN = 1e-4        # below this J0 -> 1 to double precision for our thetas
-NUCEL_UMAX = 1e9
-NUCEL_JBIN = 200         # log-theta bins per element in the joint (theta, dE) table
-NUCEL_JSHARE = 1e-5      # elements below this share of a material's rate are dropped
-                         # from its joint table (trace elements; the families keep them)
-_TABLE_VERSION = 1       # bump when a persisted table's construction changes
 
 
 def physics_state():
@@ -163,7 +173,9 @@ def physics_state():
 
 
 # --------------------------------------------------------------------------
-# driver plumbing
+# direct driver runs: the diagnostics' own samples at one (species, target,
+# energy) -- the recoil census, the per-element tail models.  The channel
+# itself reads only the tables.
 # --------------------------------------------------------------------------
 
 def _driver():
@@ -179,7 +191,7 @@ def _driver():
 
 
 def _cachedir():
-    """`NUCEL_CACHEDIR` relocates the kernel cache.  Buckets are keyed on
+    """`NUCEL_CACHEDIR` relocates the sample cache.  Buckets are keyed on
     (species, Z, A, ekin, NSAMP, SEED) and are bit-reproducible, so the
     location never changes a result."""
     d = os.environ.get("NUCEL_CACHEDIR")
@@ -200,10 +212,9 @@ _REF_LEN = 100.0          # mm
 
 
 def _bucket(pdg, Z, A, ekin):
-    """Collapse the ~150 exported steps onto a few driver calls.  The elastic
-    cross section and the angular kernel vary by well under a per cent over the
-    0.8 % that the momentum drops across the whole track, so ekin is binned at
-    1 % exactly as the radiative driver bins it."""
+    """The cache key of one driver run: ekin binned at 1 %, as the radiative
+    driver bins it (the elastic cross section and kernels vary by well under a
+    per cent over it)."""
     return (int(pdg), round(float(Z), 4), round(float(A), 4),
             float(f"{float(ekin):.4g}"))
 
@@ -226,12 +237,11 @@ def _load_npz(npz):
 def _run_driver(pdg, Z, A, ekin):
     """Return (mu [cm^2/g], theta samples [rad]).  Cached on disk by bucket.
 
-    CONCURRENCY.  `fisher_norm.plane_scales` evaluates the CF under a
-    multiprocessing pool, so up to `nplane` workers reach this function for the
-    SAME bucket within milliseconds of each other.  A plain savez plus a plain
-    load kills the run with `BadZipFile: File is not a zip file` -- a worker
-    reading a file another worker is still writing.  Two mechanisms, both
-    needed:
+    CONCURRENCY.  A diagnostic under a multiprocessing pool reaches this
+    function from several workers for the SAME bucket within milliseconds of
+    each other.  A plain savez plus a plain load kills the run with
+    `BadZipFile: File is not a zip file` -- a worker reading a file another
+    worker is still writing.  Two mechanisms, both needed:
       * an exclusive flock per bucket, so exactly one process runs the driver
         and the rest wait and then read the finished file;
       * an ATOMIC publish (write to a private temp name in the same directory,
@@ -301,194 +311,110 @@ def _build_bucket(pdg, Z, A, ekin, tag, npz):
     return mu, theta
 
 
-def warm(legs):
-    """Pre-build every kernel these legs need, in the PARENT process.
+# --------------------------------------------------------------------------
+# the tables
+# --------------------------------------------------------------------------
+_TABLE = [None]
 
-    `plane_scales` and `closure_rows` both fan out over planes with a forking
-    pool.  Warming here means the children inherit a populated `_KERNEL_CACHE`
-    through the fork and never touch the driver, the lock or the disk at all --
-    which is both much faster than N workers queueing on one flock and one
-    fewer way for a half-written file to be observed.  Safe to call when the
-    channel is off (it returns immediately) or on a muon (no kernel exists).
-    """
+
+def table():
+    """The shipped tables (`NUCEL_TABLE`) as a `nucel_tables.Table`, loaded once
+    per path; its material mixtures are built on first use and kept."""
+    t = _TABLE[0]
+    if t is None or t.path != NUCEL_TABLE:
+        d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ksclosure", "nucel")
+        if d not in sys.path:
+            sys.path.insert(0, d)
+        import nucel_tables
+        t = nucel_tables.Table(NUCEL_TABLE)
+        _TABLE[0] = t
+    return t
+
+
+_FILEMATS = {}
+_ROUNDED = {}
+
+
+def _filemats(mattab):
+    """The leg's material table ({index: dict(name, Z, A, W)}) as the list
+    `Table.register` takes; one list per table object, so the registration is
+    cached across the legs of a file."""
+    hit = _FILEMATS.get(id(mattab))
+    if hit is None or hit[0] is not mattab:
+        hit = (mattab, [dict(index=int(i), name=m["name"], Z=m["Z"], A=m["A"], W=m["W"])
+                        for i, m in sorted(mattab.items())])
+        _FILEMATS[id(mattab)] = hit
+    return hit[1]
+
+
+def leg_materials(T, leg):
+    """Table material row of every MS row of the leg: through `msmat` and the
+    leg's material table when it carries them, else identified from the
+    row's exported (effZ, effA, zzp1OverA) (columns 0, 1, 7).  -1: not
+    resolved.  Under NUCEL_ELEMENTS=0 every row's material is its rounded
+    element instead."""
+    ms = np.asarray(leg["ms"])
+    if not NUCEL_ELEMENTS:
+        out = np.full(len(ms), -1, dtype=np.int64)
+        for s_ in range(len(ms)):
+            z, a = int(np.rint(ms[s_, 0])), int(np.rint(ms[s_, 1]))
+            if z < 1 or a < 1:
+                continue
+            key = (id(T), z, a)
+            if key not in _ROUNDED:
+                _ROUNDED[key] = T._add_material(dict(index=-(10 ** 6) - len(_ROUNDED),
+                                                     name=f"rounded:Z{z}A{a}",
+                                                     Z=[float(z)], A=[float(a)], W=[1.0]))
+            out[s_] = _ROUNDED[key]
+        return out
+    if leg.get("msmat") is not None and leg.get("mattab") is not None:
+        rowmap = T.register(_filemats(leg["mattab"]))
+        return np.array([rowmap.get(int(i), -1) for i in leg["msmat"]], dtype=np.int64)
+    r = T.identify(ms[:, 0], ms[:, 1], ms[:, 7])
+    return np.where(r >= 0, r, -1)
+
+
+def warm(legs):
+    """Load the tables and build every material mixture these legs need, in
+    the PARENT process: `plane_scales` and `closure_rows` fan out over planes
+    with a forking pool, and the children then inherit the mixtures instead
+    of each rebuilding them.  Safe to call when the channel is off (it
+    returns immediately) or on a muon (nothing to build)."""
     if not NUCEL_CHANNEL:
-        return
+        return 0
+    T = table()
+    n = 0
     for leg in legs:
         if not len(np.asarray(leg["ms"])):
             continue
         pdg = pdg_from_leg(leg)
         if pdg is None:
             continue
-        leg_rates(leg, pdg, mass_of(pdg), nsub=1)
-        if NUCEL_RECOIL:
-            # the recoil kernels too: a forked worker that builds one reads a
-            # 16 MB sample file and runs a 4000 x 1e5 complex quadrature
-            dE_step_kernels(leg, pdg)
+        isp = T.species_index(pdg)
+        for im in np.unique(leg_materials(T, leg)):
+            if im >= 0:
+                T.mixture(isp, int(im))
+                n += 1
+    return n
 
 
-# --------------------------------------------------------------------------
-# persisted tabulations.  Tabulating one bucket's angular kernel is 4e8 J0
-# evaluations (~20 s); a leg set needs ~200 buckets per species, so a closure
-# spent ~70 min per species rebuilding tables that depend only on the bucket
-# and the grid.  They are written next to the driver samples, keyed by the
-# bucket's sample tag and every grid parameter, and published atomically.
-# --------------------------------------------------------------------------
-
-def _bucket_tag(pdg, Z, A, ekin):
-    return hashlib.sha256(repr((_bucket(pdg, Z, A, ekin), NUCEL_NSAMP,
-                                NUCEL_SEED)).encode()).hexdigest()[:16]
-
-
-def _table_path(kind, pdg, Z, A, ekin, grid):
-    gtag = hashlib.sha256(repr((kind, grid, _TABLE_VERSION)).encode()).hexdigest()[:8]
-    return os.path.join(_cachedir(), f"{kind}_{_bucket_tag(pdg, Z, A, ekin)}_{gtag}.npz")
-
-
-def _table_load(path, names):
-    if not os.path.exists(path):
-        return None
-    try:
-        d = np.load(path)
-        return tuple(d[n] for n in names)
-    except Exception:
-        return None
-
-
-def _table_store(path, **arrays):
-    tmp = f"{path}.tmp{os.getpid()}.npz"
-    np.savez(tmp, **arrays)
-    os.replace(tmp, path)
-
-
-def _paired_samples(pdg, Z, A, ekin):
-    """(theta [rad], dE [MeV]) of the SAME collisions: the driver writes both
-    per sample in one run; a prefix is used only when both files are there and
-    have equal length.  Without a pair the driver is rerun (same seed, so the
-    samples are the ones the cached kernels were built from)."""
-    import glob as _g
-    tag = _bucket_tag(pdg, Z, A, ekin)
-    for th in sorted(_g.glob(os.path.join(_cachedir(), f"drv_{tag}_*.theta.bin"))):
-        el = th[:-len(".theta.bin")] + ".eloss.bin"
-        if os.path.exists(el) and os.path.getsize(el) == os.path.getsize(th):
-            return np.fromfile(th, dtype=np.float64), np.fromfile(el, dtype=np.float64)
-    npz = os.path.join(_cachedir(), f"nucel_{tag}.npz")
-    with open(npz + ".lock", "w") as lf:
-        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
-        prefix = os.path.join(_cachedir(), f"drv_{tag}_{os.getpid()}")
-        cmd = [_driver(), "--pdg", "%d" % int(pdg), "--Z", "%.17g" % float(Z),
-               "--A", "%.17g" % float(A), "--rho", "%.17g" % float(_REF_RHO),
-               "--ekin", "%.17g" % float(ekin), "--len", "%.17g" % float(_REF_LEN),
-               "--n", "%d" % int(NUCEL_NSAMP), "--seed", "%d" % int(NUCEL_SEED),
-               "--out", prefix]
-        r = subprocess.run(cmd, capture_output=True, text=True)
-        if r.returncode != 0:
-            raise SystemExit(f"nucel_g4driver failed for the paired samples of "
-                             f"{(pdg, Z, A, ekin)}:\n{r.stderr[-2000:]}")
-    return (np.fromfile(prefix + ".theta.bin", dtype=np.float64),
-            np.fromfile(prefix + ".eloss.bin", dtype=np.float64))
-
-
-_EJ_CACHE = {}
-
-
-def element_joint(pdg, Z, A, ekin):
-    """(theta, dE, w) of one bucket on NUCEL_JBIN log-theta bins: the bin's
-    mean deflection, its mean recoil, and its share of ALL collisions (zero
-    deflections carry no joint term and are left out of the bins, not of the
-    normalisation).  Elastic two-body kinematics makes dE one-to-one in theta,
-    so the per-bin mean is the exact relation up to the bin width."""
-    key = _bucket(pdg, Z, A, ekin)
-    hit = _EJ_CACHE.get(key)
-    if hit is not None:
-        return hit
-    kf = _table_path("joint", pdg, Z, A, ekin, (NUCEL_JBIN,))
-    got = _table_load(kf, ("theta", "dE", "w"))
-    if got is None:
-        th, dE = _paired_samples(pdg, Z, A, ekin)
-        pos = th > 0.0
-        t, e = th[pos], dE[pos]
-        edges = np.geomspace(t.min(), t.max() * (1.0 + 1e-12), NUCEL_JBIN + 1)
-        idx = np.clip(np.searchsorted(edges, t, side="right") - 1, 0, NUCEL_JBIN - 1)
-        cnt = np.bincount(idx, minlength=NUCEL_JBIN).astype(np.float64)
-        st = np.bincount(idx, weights=t, minlength=NUCEL_JBIN)
-        se = np.bincount(idx, weights=e, minlength=NUCEL_JBIN)
-        m = cnt > 0
-        got = (st[m] / cnt[m], se[m] / cnt[m], cnt[m] / float(th.size))
-        _table_store(kf, theta=got[0], dE=got[1], w=got[2])
-    _EJ_CACHE[key] = got
-    return got
-
-
-_MJ_CACHE = {}
-
-
-def material_joint(pdg, comp, ekin):
-    """(theta, dE, W) of a compound: its elements' joint bins, each weighted by
-    the element's share w_i mu_i / sum_j w_j mu_j of the collisions (the
-    mixture `material_kernel` uses); elements below NUCEL_JSHARE are dropped."""
-    key = (int(pdg), comp, float(f"{float(ekin):.4g}"))
-    hit = _MJ_CACHE.get(key)
-    if hit is not None:
-        return hit
-    rates = []
-    for z, a, w in comp:
-        mu, _ = _run_driver(pdg, z, a, ekin)
-        rates.append(w * mu)
-    tot = float(sum(rates))
-    if tot <= 0.0:
-        _MJ_CACHE[key] = None
-        return None
-    th, de, ww = [], [], []
-    for (z, a, w), r in zip(comp, rates):
-        if r / tot < NUCEL_JSHARE:
-            continue
-        t, e, f = element_joint(pdg, z, a, ekin)
-        th.append(t)
-        de.append(e)
-        ww.append(f * (r / tot))
-    out = (np.concatenate(th), np.concatenate(de), np.concatenate(ww))
-    _MJ_CACHE[key] = out
-    return out
-
-
-def joint_exponent(tau, nrate, jt, w, wq, E=None, p=None, chunk=2048):
-    """The per-collision joint correction of one MS row (see NUCEL_JOINT):
-    nrate * sum_i W_i [(J0(t w th_i) - 1)(e^{i t wq X_i} - 1) + (e^{i t wq X_i}
-    - e^{i t wq dE_i})], with X = T_eff(dE) when cf_knockon.QOP_EXACT and the
-    row's (E, p) [GeV] are given, else X = dE.  `wq` is the signed recoil weight
-    [z per MeV] of the recoil family, `w` the row's angular weight."""
-    tau = np.asarray(tau, dtype=np.float64)
-    out = np.zeros(len(tau), dtype=np.complex128)
-    if jt is None or nrate <= 0.0 or (w <= 0.0 and wq == 0.0):
-        return out
-    th, dE, W = jt
-    X = dE
-    exact = False
-    if E is not None and p is not None:
-        import cf_knockon as _ck
-        if _ck.QOP_EXACT:
-            X = _ck.t_eff(dE, 1e3 * E, 1e3 * p)
-            exact = True
-    for lo in range(0, len(tau), chunk):
-        t = tau[lo:lo + chunk][:, None]
-        jm1 = j0(t * (w * th)[None, :]) - 1.0
-        yx = t * (wq * X)[None, :]
-        term = jm1 * np.expm1(1j * yx)
-        if exact:
-            term = term + (np.exp(1j * yx) - np.exp(1j * t * (wq * dE)[None, :]))
-        out[lo:lo + chunk] = nrate * (term @ W)
-    return out
+def prewarm(legs_list, nproc=None):
+    """`warm` over several leg sets (the ditrack's two legs); the mixtures are
+    cheap enough to build serially, so `nproc` is not used."""
+    return sum(warm(legs) for legs in legs_list)
 
 
 def rows_exponent(S, leg, tau, rid, wb, frac, wq_row, wb_mid):
     """THE nuclear-elastic exponent of one leg's scattering ROWS (`cf_rows`),
-    accumulated INTO `S` in place:
+    accumulated INTO `S` in place -- `nucel_tables.Table.rows` on the leg's
+    rows, species and materials:
       angular  per entry (row rid, angular weight wb, share frac of the row's
                collisions);
       recoil   per row at weight wq_row[s] [z per MeV of recoil energy: the
                q/p weight times the step's q/p per MeV, cs 1e-3]
-               (NUCEL_RECOIL), the row's whole rate;
-      joint    per row at (wb_mid[s], wq_row[s]) (NUCEL_JOINT).
+               (NUCEL_RECOIL);
+      joint    per row at (wb_mid[s], wq_row[s]) (NUCEL_JOINT, with the
+               recoil), X = T_eff(dE) under cf_knockon.QOP_EXACT.
     `leg` carries the rows (`ms`), their materials (`msmat`, `mattab`) and
     the species (`pdg_from_leg`)."""
     if not NUCEL_CHANNEL or not len(leg["ms"]):
@@ -496,309 +422,54 @@ def rows_exponent(S, leg, tau, rid, wb, frac, wq_row, wb_mid):
     pdg = pdg_from_leg(leg)
     if pdg is None:
         return S
-    r = leg_rates(leg, pdg, mass_of(pdg), nsub=1)
-    if r is None:
-        return S
-    nrate, kidx, kernels = r
-    for e in range(len(rid)):
-        s_ = rid[e]
-        if nrate[s_] <= 0.0 or wb[e] <= 0.0:
-            continue
-        ugrid, gtab = kernels[kidx[s_]]
-        S += nucel_step_exponent(tau, nrate[s_] * frac[e], ugrid, gtab, wb[e])
-    if not NUCEL_RECOIL:
-        return S
-    dkidx, dkern = dE_step_kernels(leg, pdg)
-    for s_ in range(len(nrate)):
-        if nrate[s_] <= 0.0:
-            continue
-        vg, gq = dkern[dkidx[s_]]
-        S += nucel_qop_exponent(tau, nrate[s_], vg, gq, wq_row[s_])
-    if NUCEL_JOINT and _has_composition(leg):
-        ms = np.asarray(leg["ms"])
-        m = mass_of(pdg)
-        p0 = float(ms[0, 3])
-        ekin = (np.sqrt(p0 * p0 + m * m) - m) * 1e3
-        for s_ in range(len(nrate)):
-            if nrate[s_] <= 0.0:
-                continue
-            comp = step_composition(leg, s_)
-            jt = material_joint(pdg, comp, ekin) if comp else None
-            ps = float(ms[s_, 3])
-            S += joint_exponent(tau, nrate[s_], jt, wb_mid[s_], wq_row[s_],
-                                np.sqrt(ps * ps + m * m), ps)
+    import cf_knockon
+    T = table()
+    _, ang, rec, jnt = T.rows(tau, np.asarray(leg["ms"]), leg_materials(T, leg), pdg,
+                              mass_of(pdg), rid, wb, frac, wq_row, wb_mid,
+                              recoil=NUCEL_RECOIL, joint=NUCEL_JOINT,
+                              exact=bool(cf_knockon.QOP_EXACT))
+    S += ang
+    S += rec
+    S += jnt
     return S
 
 
-def leg_exponent(S, leg, A_ms, A_ms_start, A_ioni, avec, sigma, tau, nsub):
-    """The nuclear-elastic exponent of one clean-propagation leg at plane k,
-    INTO `S`: its scattering rows at the exact transport weights (`cf_rows`),
-    NSUB sub-steps for the angular family.  The recoil takes the leg-mean
-    ionisation weight (the ionisation and scattering logs are not parallel)
-    and the joint term the step-midpoint angular weight.  The one place both
-    CF builders call -- `cf_propagation_test.model_phi` (the closure) and
-    `cgf_channels.block_cf_exponent` (the Fisher scale)."""
-    if not NUCEL_CHANNEL or not len(leg["ms"]) or pdg_from_leg(leg) is None:
-        return S
+def leg_entries(leg, A_ms, A_ms_start, A_ioni, avec, sigma, nsub):
+    """The entries of one clean-propagation leg at plane k: its scattering rows
+    at the exact transport weights (`cf_rows.transport_entries`, NSUB
+    sub-steps, for the angular family), the recoil weight per row -- the
+    leg-mean ionisation weight per MeV (the ionisation and scattering logs are
+    not parallel) -- and the step-midpoint angular weight of the joint term.
+    (rid, wb, frac, wq_row, wb_mid)."""
     import cf_rows
-    rid, wq_s, wb, frac = cf_rows.transport_entries(leg, A_ms, A_ms_start, avec,
-                                                    sigma, nsub, "length")
+    rid, _, wb, frac = cf_rows.transport_entries(leg, A_ms, A_ms_start, avec,
+                                                 sigma, nsub, "length")
     _, wb_end = cf_rows.end_weights(leg, A_ms, avec, sigma)
     _, wb_start = cf_rows.end_weights(leg, A_ms_start, avec, sigma)
     wb_mid = 0.5 * (wb_end + wb_start)
     wq_eff = 0.0
     if NUCEL_RECOIL and len(leg["ioni"]):
-        # the leg-mean ionisation weight per MeV: column 10 of the ionisation
-        # record is q/p per GeV (the 1e-3: per MeV of recoil)
+        # column 10 of the ionisation record is q/p per GeV (the 1e-3: per
+        # MeV of recoil)
         wq_all, _ = cf_rows.end_weights(leg, A_ioni, avec, sigma)
         cs_all = np.asarray(leg["ioni"])[:, 10] * 1e-3
         wq_eff = float(np.mean(wq_all * cs_all)) \
             if len(wq_all) == len(cs_all) \
             else float(np.mean(wq_all) * np.mean(cs_all))
-    wq_row = np.full(len(leg["ms"]), wq_eff)
-    return rows_exponent(S, leg, tau, rid, wb, frac, wq_row, wb_mid)
+    return rid, wb, frac, np.full(len(leg["ms"]), wq_eff), wb_mid
 
 
-def prewarm(legs_list, nproc=None):
-    """Tabulate, in a forked pool, every bucket these legs need -- angular
-    kernel, recoil kernel (NUCEL_RECOIL), joint table (NUCEL_JOINT) -- so the
-    persisted tables are there before `warm` runs serially in the parent.
-    Only buckets whose driver samples are cached are farmed out; a missing
-    sample set is left to `warm`, which holds the per-bucket lock."""
-    if not NUCEL_CHANNEL:
-        return 0
-    jobs = set()
-    for legs in legs_list:
-        for leg in legs:
-            ms = np.asarray(leg["ms"])
-            if not len(ms):
-                continue
-            pdg = pdg_from_leg(leg)
-            if pdg is None:
-                continue
-            m = mass_of(pdg)
-            p_ = float(ms[0, 3])
-            ekin = (np.sqrt(p_ * p_ + m * m) - m) * 1e3
-            if _has_composition(leg):
-                for s in range(len(ms)):
-                    for z, a, _ in step_composition(leg, s):
-                        jobs.add((int(pdg), z, a, float(ekin)))
-    jobs = sorted(j for j in jobs if os.path.exists(
-        os.path.join(_cachedir(), f"nucel_{_bucket_tag(*j)}.npz")))
-    if not jobs:
-        return 0
-    import multiprocessing as mp
-    n = nproc or min(len(jobs), max(1, len(os.sched_getaffinity(0)) // 2))
-    with mp.get_context("fork").Pool(processes=n) as pool:
-        pool.map(_prewarm_one, jobs, chunksize=1)
-    return len(jobs)
-
-
-def _prewarm_one(job):
-    pdg, z, a, ekin = job
-    species_kernel(pdg, z, a, ekin)
-    if NUCEL_RECOIL:
-        dE_kernel(pdg, z, a, ekin)
-    if NUCEL_JOINT:
-        element_joint(pdg, z, a, ekin)
-
-
-_KERNEL_CACHE = {}
-
-
-def species_kernel(pdg, Z, A, ekin):
-    """(mu [cm^2/g], ugrid, gtab) for one bucket.
-
-    `gtab[i] = < J0(ugrid[i] * theta) >` over the sampled deflections, i.e. the
-    projected single-collision CF.  Interpolated in log u by `_g_of`.
-    """
-    if abs(int(pdg)) == 13:
-        raise SystemExit(
-            "cf_nucel_exact: the muon has no hadElastic process; there is no "
-            "nuclear elastic kernel for it.  This is the physics null -- the "
-            "channel must not be applied to muons at all.")
-    key = _bucket(pdg, Z, A, ekin)
-    hit = _KERNEL_CACHE.get(key)
-    if hit is not None:
-        return hit
-    kf = _table_path("kern", pdg, Z, A, ekin,
-                     (NUCEL_NU, NUCEL_NBIN, NUCEL_UMIN, NUCEL_UMAX))
-    got = _table_load(kf, ("mu", "u", "g"))
-    if got is not None:
-        out = (float(got[0]), got[1], got[2])
-        _KERNEL_CACHE[key] = out
-        return out
-    mu, theta = _run_driver(pdg, Z, A, ekin)
-    u = np.concatenate(([0.0], np.geomspace(NUCEL_UMIN, NUCEL_UMAX, NUCEL_NU)))
-    # g(u) = <J0(u*theta)> over the SAMPLED deflections, evaluated as a
-    # quadrature over the empirical distribution rather than as a direct mean
-    # over 2e6 samples: the direct form is 4001 x 2e6 = 8e9 J0 evaluations per
-    # species and dominates the whole closure.  Binning theta on a fine LOG
-    # grid first makes it 4001 x NUCEL_NBIN and changes nothing that matters --
-    # the residual phase error within a bin is u*theta*dln(theta), which is
-    # ~1e-2 rad only where u*theta >~ 100, and there g is already consistent
-    # with zero so the term has collapsed to the constant -nrate.
-    pos = theta[theta > 0.0]
-    nzero = theta.size - pos.size
-    if pos.size == 0:
-        raise SystemExit("cf_nucel_exact: every sampled deflection is zero -- "
-                         "the model was not initialised (see the couple-table "
-                         "trap in nucel_g4driver.cc)")
-    edges = np.geomspace(pos.min(), pos.max() * (1.0 + 1e-12), NUCEL_NBIN + 1)
-    cnt, _ = np.histogram(pos, bins=edges)
-    ctr = np.sqrt(edges[:-1] * edges[1:])
-    wgt = cnt / float(theta.size)
-    g = np.empty(len(u))
-    CH = 256
-    for i0 in range(0, len(u), CH):
-        uu = u[i0:i0 + CH]
-        g[i0:i0 + CH] = (j0(uu[:, None] * ctr[None, :]) * wgt[None, :]).sum(axis=1)
-    # exactly-zero deflections contribute J0(0) = 1 at every u
-    g += nzero / float(theta.size)
-    out = (mu, u, g)
-    _table_store(kf, mu=mu, u=u, g=g)
-    _KERNEL_CACHE[key] = out
-    return out
-
-
-def dE_kernel(pdg, Z, A, ekin):
-    """(vgrid, gqtab) with gqtab[i] = < exp(i*vgrid[i]*dE) > over the sampled
-    recoils -- the single-collision CF of the recoil energy loss.
-
-    Complex, unlike the angular kernel: the recoil is one-signed (the primary
-    always LOSES energy), so this term carries skew, exactly as the ionization
-    and radiative channels do.
-    """
-    key = _bucket(pdg, Z, A, ekin) + ("dE",)
-    hit = _DEK_CACHE.get(key)
-    if hit is not None:
-        return hit
-    kf = _table_path("dek", pdg, Z, A, ekin, (NUCEL_NU, NUCEL_NBIN))
-    got = _table_load(kf, ("v", "g"))
-    if got is not None:
-        out = (got[0], got[1])
-        _DEK_CACHE[key] = out
-        return out
-    _, theta = _run_driver(pdg, Z, A, ekin)
-    prefix = None
-    # the driver writes eloss alongside theta; recover it from the same bucket
-    import glob as _g
-    tag = hashlib.sha256(repr((_bucket(pdg, Z, A, ekin), NUCEL_NSAMP,
-                               NUCEL_SEED)).encode()).hexdigest()[:16]
-    cand = sorted(_g.glob(os.path.join(_cachedir(), f"drv_{tag}_*.eloss.bin")))
-    if not cand:
-        raise SystemExit(f"cf_nucel_exact: no eloss for bucket {key}; the "
-                         f"driver scratch files were cleaned -- rerun it")
-    dE = np.fromfile(cand[-1], dtype=np.float64)
-    v = np.concatenate(([0.0], np.geomspace(1e-6, 1e4, NUCEL_NU)))
-    pos = dE[dE > 0.0]
-    nz = dE.size - pos.size
-    edges = np.geomspace(pos.min(), pos.max() * (1 + 1e-12), NUCEL_NBIN + 1)
-    cnt, _ = np.histogram(pos, bins=edges)
-    ctr = np.sqrt(edges[:-1] * edges[1:])
-    wgt = cnt / float(dE.size)
-    g = np.empty(len(v), dtype=np.complex128)
-    CH = 256
-    for i0 in range(0, len(v), CH):
-        vv = v[i0:i0 + CH]
-        g[i0:i0 + CH] = (np.exp(1j * vv[:, None] * ctr[None, :]) * wgt[None, :]).sum(axis=1)
-    g += nz / float(dE.size)
-    out = (v, g)
-    _table_store(kf, v=v, g=g)
-    _DEK_CACHE[key] = out
-    return out
-
-
-_DEK_CACHE = {}
-
-
-def dE_kernel_for(leg, pdg):
-    """dE kernel for the leg's DOMINANT target (the one carrying most xg).
-
-    The recoil is a small correction to a small channel, so a per-leg dominant
-    target is enough here; the ANGULAR kernel is per step, where it mattered.
-    """
-    ms = np.asarray(leg["ms"])
-    xg = ms[:, 2].astype(np.float64)
-    zs = np.rint(ms[:, 0].astype(np.float64)).astype(int)
-    as_ = np.rint(ms[:, 1].astype(np.float64)).astype(int)
-    best, bw = None, -1.0
-    for z, a in set(zip(zs.tolist(), as_.tolist())):
-        if z < 1 or a < 1:
-            continue
-        w = float(xg[(zs == z) & (as_ == a)].sum())
-        if w > bw:
-            best, bw = (z, a), w
-    p_ = float(ms[0, 3])
-    m = mass_of(pdg)
-    ekin = (np.sqrt(p_ * p_ + m * m) - m) * 1e3
-    return dE_kernel(pdg, float(best[0]), float(best[1]), ekin)
-
-
-def nucel_qop_exponent(tau, nrate, vgrid, gqtab, wq):
-    """Compound-Poisson exponent of the RECOIL energy loss for one (sub-)step.
-
-        S(t) = nrate * ( < exp(i * t * wq * dE) > - 1 )
-
-    `wq` is the qop weight the ionization channel uses (q * (a^T A)_qop / sigma)
-    times the record's cs = E/p^3, i.e. it already converts MeV to d(q/p).
-    NOT centred: unlike ionization and radiative, the propagator's mean-loss
-    table never subtracted a nuclear-elastic recoil, so the mean belongs here.
-    """
-    if nrate <= 0.0 or wq == 0.0:
-        return np.zeros(len(tau), dtype=np.complex128)
-    x = np.abs(wq) * np.asarray(tau, dtype=np.float64)
-    out = np.ones(len(x), dtype=np.complex128)
-    m = x > vgrid[1]
-    if m.any():
-        xl = np.log(np.clip(x[m], vgrid[1], vgrid[-1]))
-        lv = np.log(vgrid[1:])
-        out[m] = (np.interp(xl, lv, gqtab[1:].real)
-                  + 1j * np.sign(wq) * np.interp(xl, lv, gqtab[1:].imag))
-    return nrate * (out - 1.0)
-
-
-def _g_of(ugrid, gtab, x):
-    """E_theta[J0(x*theta)] by log-u interpolation, clamped to the table.
-
-    Below the table g -> 1 (no kick can be resolved); above it g -> the last
-    tabulated value, which is already consistent with zero to MC precision.
-    Interpolating in log u rather than u matters: the kernel falls over four
-    decades of u and a linear grid would need ~10^6 points for the same
-    accuracy near the knee.
-    """
-    x = np.asarray(x, dtype=np.float64)
-    out = np.ones_like(x)
-    m = x > ugrid[1]
-    if m.any():
-        xl = np.log(np.clip(x[m], ugrid[1], ugrid[-1]))
-        out[m] = np.interp(xl, np.log(ugrid[1:]), gtab[1:])
-    return out
-
-
-def nucel_step_exponent(tau, nrate, ugrid, gtab, w):
-    """Compound-Poisson log-CF exponent of ONE (sub-)step, in standardized-z
-    units.
-
-        S(t) = nrate * ( E_theta[J0(t * w * theta)] - 1 )
-
-    `nrate` is the expected number of elastic collisions in this (sub-)step and
-    `w` the same `weff` the MS channel builds -- the quadrature sum of the two
-    projected-angle transport weights divided by sigma.
-
-    Real-valued: J0 is real and the kick is symmetric, so this channel adds no
-    skew.  Returned complex only so it can be added to the complex exponent
-    without an upcast at every call site.
-    """
-    if nrate <= 0.0 or w <= 0.0:
-        return np.zeros(len(tau), dtype=np.complex128)
-    g = _g_of(ugrid, gtab, np.abs(w) * np.asarray(tau, dtype=np.float64))
-    # g - 1 is the small quantity; for w*tau*theta << 1 it is -(w*tau*theta)^2/4
-    # and cancels to ~1e-16 if formed as (g) - (1).  np.interp already returns
-    # g to full precision, and the subtraction is exact in IEEE for g near 1,
-    # so no expm1-style rewrite is needed -- but the guard on the ARGUMENT
-    # rather than on nrate is deliberate, as in the delta-ray term.
-    return (nrate * (g - 1.0)).astype(np.complex128)
+def leg_exponent(S, leg, A_ms, A_ms_start, A_ioni, avec, sigma, tau, nsub):
+    """The nuclear-elastic exponent of one clean-propagation leg at plane k,
+    INTO `S`, at the entries of `leg_entries`.  The one place both CF builders
+    call -- `cf_propagation_test.model_phi` (the closure) and
+    `cgf_channels.block_cf_exponent` (the Fisher scale)."""
+    if not NUCEL_CHANNEL or not len(leg["ms"]) or pdg_from_leg(leg) is None:
+        return S
+    import cf_rows
+    cx = cf_rows._cxx()
+    fn = cx.rows_exponent if cx is not None else rows_exponent
+    return fn(S, leg, tau, *leg_entries(leg, A_ms, A_ms_start, A_ioni, avec, sigma, nsub))
 
 
 # masses in GeV; the ONLY species this channel is defined for (plus the muon,
@@ -858,156 +529,3 @@ def step_composition(leg, s):
     return tuple((round(float(z), 6), round(float(a), 6), round(float(w), 12))
                  for z, a, w in zip(m["Z"], m["A"], m["W"])
                  if z >= 1.0 and w > 0.0)
-
-
-_MIX_CACHE = {}
-
-
-def material_kernel(pdg, comp, ekin):
-    """(mu, ugrid, gtab) of a compound: the rate-weighted mixture of its
-    elements' kernels.  A collision in the compound picks element i with
-    probability w_i mu_i / sum_j w_j mu_j, so the single-collision CF is that
-    mixture and the per-gram rate is sum_i w_i mu_i.  Every element kernel is
-    tabulated on the same u grid, so the mixture is exact on the grid."""
-    key = (int(pdg), comp, float(f"{float(ekin):.4g}"))
-    hit = _MIX_CACHE.get(key)
-    if hit is not None:
-        return hit
-    tot, gmix, ug = 0.0, None, None
-    for z, a, w in comp:
-        mu, u, g = species_kernel(pdg, z, a, ekin)
-        r = w * mu
-        tot += r
-        gmix = r * g if gmix is None else gmix + r * g
-        ug = u
-    out = (tot, ug, gmix / tot) if tot > 0.0 else None
-    _MIX_CACHE[key] = out
-    return out
-
-
-_DEMIX_CACHE = {}
-
-
-def material_dE_kernel(pdg, comp, ekin):
-    """(vgrid, gqtab) of a compound's recoil: the same rate-weighted mixture
-    as `material_kernel`, of the per-element recoil CFs (common v grid)."""
-    key = (int(pdg), comp, float(f"{float(ekin):.4g}"))
-    hit = _DEMIX_CACHE.get(key)
-    if hit is not None:
-        return hit
-    tot, gmix, vg = 0.0, None, None
-    for z, a, w in comp:
-        mu, _ = _run_driver(pdg, z, a, ekin)
-        v, g = dE_kernel(pdg, z, a, ekin)
-        r = w * mu
-        tot += r
-        gmix = r * g if gmix is None else gmix + r * g
-        vg = v
-    out = (vg, gmix / tot) if tot > 0.0 else None
-    _DEMIX_CACHE[key] = out
-    return out
-
-
-def dE_step_kernels(leg, pdg):
-    """(kidx[nsteps], kernels) for the recoil, one kernel per MS step's
-    material, aligned with `leg_rates`.  Without a material table every step
-    gets the leg's dominant rounded target -- the original per-leg kernel, so
-    that path is unchanged bit for bit."""
-    ms = np.asarray(leg["ms"])
-    if not _has_composition(leg):
-        return np.zeros(len(ms), dtype=int), [dE_kernel_for(leg, pdg)]
-    m = mass_of(pdg)
-    p_ = float(ms[0, 3])
-    ekin = (np.sqrt(p_ * p_ + m * m) - m) * 1e3
-    kidx = np.zeros(len(ms), dtype=int)
-    kernels, seen = [], {}
-    for s in range(len(ms)):
-        comp = step_composition(leg, s)
-        if not comp:
-            continue
-        if comp not in seen:
-            k = material_dE_kernel(pdg, comp, ekin)
-            if k is None:
-                continue
-            seen[comp] = len(kernels)
-            kernels.append(k)
-        kidx[s] = seen[comp]
-    if not kernels:
-        kernels.append((np.array([0.0, 1.0]), np.array([1.0 + 0j, 1.0 + 0j])))
-    return kidx, kernels
-
-
-def leg_rates(leg, pdg, mass_gev, nsub=1):
-    """Per-MS-step expected collision counts for one leg, with a PER-STEP target.
-
-    Returns (nrate[nsteps], kidx[nsteps], kernels) where kernels[kidx[s]] is the
-    (ugrid, gtab) pair for step s, or None when the leg has no material.
-
-    THE TARGET VARIES WITHIN A LEG, so Z and A are read PER STEP and never
-    from ms[0].  On the layered toy leg 0 contains effZ in {1, 4, 7.37, 8}, and
-    even legs that start at Z=8 contain Z=1 steps.  Reading only the first step
-    assigns 8.8 % of the modelled path (legs 0 and 2, whose first step happens
-    to be Z=1) to a HYDROGEN target -- and pbar-hydrogen is both the largest
-    per-nucleon elastic cross section of anything here and the one case
-    G4AntiNuclElastic special-cases (theTargetDef == theProton), so it
-    over-injects collisions with the wrong kernel, worst for the antiproton.
-
-    With a material table on the leg (`msmat` + `mattab`, see
-    `step_composition`) and NUCEL_ELEMENTS on, every step's material is the
-    rate-weighted mixture of its elements (`material_kernel`), so minority
-    nuclei -- above all hydrogen in composites -- are targets in their own
-    right.  Without the table (older exports) Z and A are rounded to integers
-    for the bucket because the driver builds a real G4Material and the
-    exported effZ can be fractional (7.374 for a mixture); that rounding
-    replaces a compound by its dominant element and DROPS its hydrogen, which
-    the real-material closure showed fails the far tails at up to -24 sigma.
-    """
-    ms = np.asarray(leg["ms"])
-    if ms.size == 0:
-        return None
-    xg = ms[:, 2].astype(np.float64)                 # g/cm^2 per step
-    p = float(ms[0, 3])                              # GeV
-    ekin = (np.sqrt(p * p + mass_gev ** 2) - mass_gev) * 1e3   # MeV
-
-    nrate = np.zeros(len(xg))
-    kidx = np.zeros(len(xg), dtype=int)
-    kernels = []
-    seen = {}
-    if _has_composition(leg):
-        # per-element targets from the exported material table
-        for s in range(len(xg)):
-            comp = step_composition(leg, s)
-            mk = material_kernel(pdg, comp, ekin) if comp else None
-            if mk is None:
-                if not kernels:
-                    kernels.append((np.array([0.0, 1.0]), np.array([1.0, 1.0])))
-                continue
-            if comp not in seen:
-                seen[comp] = (len(kernels), mk[0])
-                kernels.append((mk[1], mk[2]))
-            i, mu = seen[comp]
-            kidx[s] = i
-            nrate[s] = mu * xg[s] / max(int(nsub), 1)
-        if not kernels:
-            return None
-        return nrate, kidx, kernels
-    zs = np.rint(ms[:, 0].astype(np.float64)).astype(int)
-    as_ = np.rint(ms[:, 1].astype(np.float64)).astype(int)
-    for s in range(len(xg)):
-        key = (int(zs[s]), int(as_[s]))
-        if key[0] < 1 or key[1] < 1:
-            nrate[s] = 0.0
-            kidx[s] = 0
-            if not kernels:
-                kernels.append((np.array([0.0, 1.0]), np.array([1.0, 1.0])))
-            continue
-        if key not in seen:
-            mu, ug, gt = species_kernel(pdg, float(key[0]), float(key[1]), ekin)
-            seen[key] = (len(kernels), mu)
-            kernels.append((ug, gt))
-        i, mu = seen[key]
-        kidx[s] = i
-        nrate[s] = mu * xg[s] / max(int(nsub), 1)
-    if not kernels:
-        return None
-    return nrate, kidx, kernels

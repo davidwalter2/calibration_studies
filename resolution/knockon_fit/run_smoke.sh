@@ -1,9 +1,10 @@
 #!/bin/bash
-# Knock-on export smoke runs in the dev2 area.  usage: run_smoke.sh <arm> <case>
-#   arm  = off (exportCfKnockon=False: must reproduce the nuclear-elastic gate
-#          outputs of the same case bit for bit) | on (knock-on + group split
-#          + nuclear elastic)
-#   case = mu kaon jpsi   (the step records are on, for the branch-level check)
+# CF-export smoke runs in the dev2 area.  usage: run_smoke.sh <arm> <case>
+#   arm  = off (the CF model's knock-on switches off: cfKnockonJoint=False
+#          cfQopExact=False, cf_knockon's CF_KNOCKON_JOINT=0 CF_QOP_EXACT=0) |
+#          on (the default model + group split + nuclear elastic)
+#   case = mu kaon jpsi   (the step records are on, for the branch-level check
+#          of cvhcf_validate.py --compare-branches)
 set -uo pipefail
 ARM=$1; CASE=$2
 BASE=/ceph/submit/data/user/d/david_w/ZMass/cvh/knockon_trackfit_260927
@@ -21,8 +22,8 @@ case $CASE in
   *) echo "unknown case $CASE"; exit 2;;
 esac
 case $ARM in
-  off) ARGS="$ARGS exportCfKnockon=False";;
-  on)  ARGS="${ARGS/exportCfGroupExponents=True /} exportCfKnockon=True exportCfGroupExponents=True exportCfNucel=True";;
+  off) ARGS="$ARGS cfKnockonJoint=False cfQopExact=False";;
+  on)  ARGS="${ARGS/exportCfGroupExponents=True /} exportCfGroupExponents=True exportCfNucel=True";;
   *) echo "unknown arm $ARM"; exit 2;;
 esac
 OUT=$BASE/$ARM/$CASE

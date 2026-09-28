@@ -316,6 +316,94 @@ def filon(x, h, a):
     return np.sum(D * e0 * (h0 * f0 + c1 * D * f1 + c2 * D * D * f2), axis=1)
 
 
+def _fmom_centred(z):
+    """(f_n, g_n, q_n)(z), n = 0, 1, 2: f_n = INT_0^1 s^n e^{zs} ds (`_fmom`),
+    g_n = INT_0^1 s^n (e^{zs} - 1) ds and q_n = INT_0^1 s^n (e^{zs} - 1 - zs) ds.
+    Series sum_{k >= 0, 1, 2} z^k/(k! (n+k+1)) for |z| < _ZSER (no
+    cancellation: g_n, q_n are O(z), O(z^2) there), closed forms beyond."""
+    f = [np.empty_like(z) for _ in range(3)]
+    g = [np.empty_like(z) for _ in range(3)]
+    q = [np.empty_like(z) for _ in range(3)]
+    sm = np.abs(z) < _ZSER
+    if sm.any():
+        w = z[sm]
+        term = np.ones_like(w)
+        af = [np.zeros_like(w) for _ in range(3)]
+        ag = [np.zeros_like(w) for _ in range(3)]
+        aq = [np.zeros_like(w) for _ in range(3)]
+        for k in range(_NSER):
+            if k:
+                term = term * w / k
+            for n in range(3):
+                t = term / (n + k + 1)
+                af[n] += t
+                if k >= 1:
+                    ag[n] += t
+                if k >= 2:
+                    aq[n] += t
+        for n in range(3):
+            f[n][sm], g[n][sm], q[n][sm] = af[n], ag[n], aq[n]
+    b = ~sm
+    if b.any():
+        w = z[b]
+        ez = np.exp(w)
+        fb = (np.expm1(w) / w, (ez * (w - 1.0) + 1.0) / (w * w),
+              (ez * (w * w - 2.0 * w + 2.0) - 2.0) / (w * w * w))
+        for n in range(3):
+            f[n][b] = fb[n]
+            g[n][b] = fb[n] - 1.0 / (n + 1)
+            q[n][b] = g[n][b] - w / (n + 2)
+    return f, g, q
+
+
+_SINM_C = (-1.0 / 6.0, 1.0 / 120.0, -1.0 / 5040.0, 1.0 / 362880.0, -1.0 / 39916800.0,
+           1.0 / 6227020800.0, -1.0 / 1307674368000.0, 1.0 / 355687428096000.0)
+
+
+def _sinm(y):
+    """sin(y) - y without the cancellation at small y: the Taylor series (Horner
+    in y^2, complete to double precision) below |y| = 0.5, the direct form
+    above."""
+    y = np.asarray(y, dtype=np.float64)
+    y2 = y * y
+    p = np.full(y.shape, _SINM_C[-1])
+    for c in _SINM_C[-2::-1]:
+        p = p * y2 + c
+    return np.where(np.abs(y) < 0.5, p * y2 * y, np.sin(y) - y)
+
+
+def filon_centred(x, h, a):
+    """INT h(x) (e^{i a x} - 1 - i a x) dx on the Filon-Simpson panels of
+    `filon` (h quadratic per panel, the phase exact), the phase's constant and
+    linear terms subtracted INSIDE each panel: with x = x0 + s D, y = a x0 and
+    z = i a D,
+        e^{iax} - 1 - iax = E0 e^{zs} + (e^{zs} - 1 - zs) + i y (e^{zs} - 1),
+        E0 = e^{iy} - 1 - iy = -2 sin^2(y/2) + i (sin y - y),
+    every piece O(a^2) or O(a) x O(a) where a is small, so the result keeps
+    its relative precision for any a -- where `filon` minus the Simpson terms
+    would be the O(a^2) difference of O(1) sums.  x: (n,) odd, h: (n,), a:
+    (nt,).  Returns (nt,) complex."""
+    if len(x) % 2 == 0:
+        raise ValueError("filon needs an odd node count")
+    x0, x1, x2 = x[0:-2:2], x[1:-1:2], x[2::2]
+    h0, h1, h2 = h[0:-2:2], h[1:-1:2], h[2::2]
+    d01 = (h1 - h0) / (x1 - x0)
+    d12 = (h2 - h1) / (x2 - x1)
+    c2 = (d12 - d01) / (x2 - x0)
+    c1 = d01 - c2 * (x1 - x0)
+    D = x2 - x0
+    y = a[:, None] * x0[None, :]
+    z = 1j * a[:, None] * D[None, :]
+    f, g, q = _fmom_centred(z)
+    hy = np.sin(0.5 * y)
+    E0 = (-2.0 * hy * hy) + 1j * _sinm(y)
+    c1D, c2D2 = c1 * D, c2 * D * D
+    tot = (E0 * (h0 * f[0] + c1D * f[1] + c2D2 * f[2])
+           + (h0 * q[0] + c1D * q[1] + c2D2 * q[2])
+           + (1j * y) * (h0 * g[0] + c1D * g[1] + c2D2 * g[2]))
+    return np.sum(D * tot, axis=1)
+
+
 def simpson(x, h):
     """filon at a = 0 (the same panels, real amplitude): (nt,) from (nt, n)."""
     x0, x1, x2 = x[0:-2:2], x[1:-1:2], x[2::2]
@@ -378,7 +466,7 @@ def knockon_rows(tau, st, rid, wq, wb, frac, part="all"):
     g = st[:, 10] * 1e-3
     p = E * np.sqrt(b2)
     kok_on = ctr.IONI_KOKOULIN != 0.0
-    ismu = ctr._is_muon_record(b2, E) & (E - ctr._MMU > ctr._KOK_MUMIN)
+    ismu = ctr._is_muon_record(b2, E, reg) & (E - ctr._MMU > ctr._KOK_MUMIN)
     act = np.isin(reg, EXACT_REGIMES) & (xi > 0) & (tmax > e0) & (e0 > 0)
     joint, exact = bool(KNOCKON_JOINT), bool(QOP_EXACT)
     xmax = float(xi[act].max()) if act.any() else 0.0
@@ -417,7 +505,7 @@ def knockon_exponent(leg, A_end, A_start, avec, sigma, tau):
     import cf_rows
     rid, wq, wb, frac = cf_rows.transport_entries(leg, A_end, A_start, avec,
                                                   sigma, KNOCKON_NSUB, "vector")
-    return knockon_rows(tau, leg["ioni"], rid, wq, wb, frac)
+    return cf_rows.knockon_rows(tau, leg["ioni"], rid, wq, wb, frac)
 
 
 def mean_shift(leg, A_end, A_start, avec, sigma):
@@ -437,7 +525,7 @@ def mean_shift(leg, A_end, A_start, avec, sigma):
     v1 = np.einsum("i,sij->sj", avec, A_end)
     v0 = np.einsum("i,sij->sj", avec, A_start)
     kok_on = ctr.IONI_KOKOULIN != 0.0
-    ismu = ctr._is_muon_record(b2, E) & (E - ctr._MMU > ctr._KOK_MUMIN)
+    ismu = ctr._is_muon_record(b2, E, reg) & (E - ctr._MMU > ctr._KOK_MUMIN)
     act = np.isin(reg, EXACT_REGIMES) & (xi > 0) & (tmax > e0) & (e0 > 0)
     out = 0.0
     for s in np.flatnonzero(act):
@@ -530,7 +618,7 @@ def map_rows(rows, alpha, tau):
     b2, E = rows[:, 11], rows[:, 12]
     p = E * np.sqrt(b2)
     kok_on = ctr.IONI_KOKOULIN != 0.0
-    ismu = ctr._is_muon_record(b2, E) & (E - ctr._MMU > ctr._KOK_MUMIN)
+    ismu = ctr._is_muon_record(b2, E, reg) & (E - ctr._MMU > ctr._KOK_MUMIN)
     alpha = np.broadcast_to(np.asarray(alpha, dtype=np.float64), (len(rows),))
     act = (((reg == 2) | (reg == 3)) & (xi > 0) & (tmax > e0) & (e0 > 0)
            & (alpha != 0.0))
@@ -591,7 +679,7 @@ def map_mean(rows, wstd):
     p = E * np.sqrt(b2)
     al = wstd * rows[:, 10].astype(np.float64) * 1e-3
     kok_on = ctr.IONI_KOKOULIN != 0.0
-    ismu = ctr._is_muon_record(b2, E) & (E - ctr._MMU > ctr._KOK_MUMIN)
+    ismu = ctr._is_muon_record(b2, E, reg) & (E - ctr._MMU > ctr._KOK_MUMIN)
     act = ((reg == 2) | (reg == 3)) & (xi > 0) & (tmax > e0) & (e0 > 0)
     out = 0.0
     for s in np.flatnonzero(act):

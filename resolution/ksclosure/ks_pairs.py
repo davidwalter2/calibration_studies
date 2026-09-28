@@ -42,9 +42,8 @@ M_PI = 0.13957039
 
 # cf_inmaker's cache layout, reused verbatim so make_card.py and every other
 # consumer read this cache unchanged.
-FAM_KEYS = ("Sms", "Sdel", "Sio_re", "Sio_im", "Srad_re", "Srad_im")
-FAM_BRANCHES = [f"cfmass_{s}" for s in
-                ("ms", "del", "ioni_re", "ioni_im", "rad_re", "rad_im")]
+FAM_KEYS = tuple(k for k, _ in cf_inmaker._FAMS)
+FAM_BRANCHES = [f"cfmass_{s}" for _, s in cf_inmaker._FAMS]
 # columns the truth join needs, on top of cf_inmaker's own aux set
 _GEOM = ("Jpsi_x", "Jpsi_y", "Jpsi_z", "Muplus_phi", "Muminus_phi")
 # truth column -> cache column

@@ -20,8 +20,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
 import prodfiles  # noqa: E402
 
-CMP = ['cfmass_ms', 'cfmass_del', 'cfmass_ioni_re', 'cfmass_ioni_im',
-       'cfmass_rad_re', 'cfmass_rad_im', 'cfmass_vgf', 'cfmass_ok',
+CMP = ['cfmass_ms', 'cfmass_ioni_re', 'cfmass_ioni_im', 'cfmass_rad_re', 'cfmass_rad_im',
+       'cfmass_kx_re', 'cfmass_kx_im', 'cfmass_kj_re', 'cfmass_kj_im', 'cfmass_vgf', 'cfmass_ok',
        'Jpsi_mass', 'Jpsi_sigmamass', 'chisqval', 'ndof', 'Muplus_pt', 'Muminus_pt',
        'Muplus_eta', 'Muminus_eta', 'Jpsi_x', 'Jpsi_y', 'Jpsi_z', 'resinfcov',
        'resinfvarv', 'reseigidx', 'Jpsi_covrefmom']

@@ -115,6 +115,9 @@ def refine_spectra(recs, spec, vg, nsub):
     lv = np.log(vg)
     vf = np.exp(np.interp(np.linspace(0.0, nb - 1.0, (nb - 1) * nsub + 1),
                           np.arange(nb), lv))
+    # the exported nodes exactly: exp(log(v)) is not always v, and the
+    # spectrum's support below is decided by comparing against them
+    vf[::nsub] = vg
     lvf = np.log(vf)
     out = np.zeros((len(recs), 2 * len(vf)))
     for s, (rec, sp) in enumerate(zip(recs, spec)):

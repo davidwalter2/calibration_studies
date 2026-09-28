@@ -91,7 +91,9 @@ def gate_iii(cache, ncand, R=40.0):
     S = (-0.5 * d['vgf'][idx][:, None] * tg[None, :] ** 2 + d['Sms'][idx]
          + d['Sio_re'][idx] + 1j * d['Sio_im'][idx]
          + d['Srad_re'][idx] + 1j * d['Srad_im'][idx]
-         + d['Snuc_ang'][idx] + d['Snuc_rec_re'][idx] + 1j * d['Snuc_rec_im'][idx]).astype(np.complex128)
+         + d['Skx_re'][idx] + 1j * d['Skx_im'][idx] + d['Skj_re'][idx] + 1j * d['Skj_im'][idx]
+         + d['Snuc_ang'][idx] + d['Snuc_rec_re'][idx] + 1j * d['Snuc_rec_im'][idx]
+         + d['Snuc_jnt_re'][idx] + 1j * d['Snuc_jnt_im'][idx]).astype(np.complex128)
     s0 = np.abs(S[:, 0]).max()
     Sf = CubicSpline(tg, S.real, axis=1)(tf) + 1j * CubicSpline(tg, S.imag, axis=1)(tf)
     phi = np.exp(Sf)

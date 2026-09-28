@@ -42,7 +42,8 @@ VECTORS = [
     "Muplus_refParms", "Muminus_refParms", "Jpsi_covvtx", "Jpsi_covrefmom",
     "Jpsi_bscov",
     "cfmass_ms", "cfmass_ioni_re", "cfmass_ioni_im",
-    "cfmass_rad_re", "cfmass_rad_im", "cfmass_del", "cfmass_hitv",
+    "cfmass_rad_re", "cfmass_rad_im", "cfmass_kx_re", "cfmass_kx_im",
+    "cfmass_kj_re", "cfmass_kj_im", "cfmass_hitv",
     "hitdiag_dx", "hitdiag_dy", "hitdiag_exx", "hitdiag_eyy",
 ]
 KEYS = ["run", "lumi", "event"]

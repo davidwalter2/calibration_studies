@@ -27,11 +27,29 @@ The caller owns the weights and the sub-step rule; the physics of a record is
 evaluated once however many entries share it.
 """
 
+import os
+
 import numpy as np
 
 import cf_brems_exact
 import cf_knockon
 import cf_track_resolution as ctr
+
+# WHICH IMPLEMENTATION EVALUATES THE CHANNELS: "cxx" -- the makers' own C++
+# (`cvhcf`, through `cvhcf_rows` and `cxx/libcvhcfshim.so`), so a closure tests
+# the in-maker CF itself; "py" -- the numpy reference below, which the C++
+# ports and `cxx/gate_cvhcf_rows.py` compares against.  The switches are the
+# reference modules' globals on both sides (cvhcf_rows.sync_config).
+BACKEND = os.environ.get("CF_ROWS_BACKEND", "cxx")
+
+
+def _cxx():
+    if BACKEND == "py":
+        return None
+    if BACKEND != "cxx":
+        raise ValueError(f"CF_ROWS_BACKEND = {BACKEND!r}: 'cxx' or 'py'")
+    import cvhcf_rows
+    return cvhcf_rows
 
 
 # ---------------------------------------------------------------- entries
@@ -84,6 +102,9 @@ def ioni_rows(tau, rows, wq):
     """The ionisation channel (Urban excitations + the record's knock-on law,
     linear map): each record at its own q/p weight, folded into the record's
     q/p-per-MeV column so the vectorised exponent runs once."""
+    cx = _cxx()
+    if cx is not None:
+        return cx.ioni_rows(tau, rows, wq)
     if not len(rows):
         return np.zeros(len(tau), dtype=np.complex128)
     steps = np.array(rows, dtype=np.float64, copy=True)
@@ -95,6 +116,9 @@ def ms_rows(tau, rows, rid, wb, frac, scale=1.0):
     """Multiple scattering: one isotropic 2D Moliere kick per entry, the
     entry's share `frac` of the record's material, at angular weight wb.
     Entries with wb <= 0 carry nothing."""
+    cx = _cxx()
+    if cx is not None:
+        return cx.ms_rows(tau, rows, rid, wb, frac, scale)
     S = np.zeros(len(tau), dtype=np.complex128)
     if not len(rid):
         return S
@@ -119,6 +143,9 @@ def rad_rows(tau, recs, spec, vg, rid, wq, wb, frac, exact_qop=None):
     map under `exact_qop`) and the primary's recoil against the photon at
     angular weight wb (`cf_brems_exact.rad_exponent`).  The entry's share of
     the record scales the step length (the spectrum's normalisation)."""
+    cx = _cxx()
+    if cx is not None:
+        return cx.rad_rows(tau, recs, spec, vg, rid, wq, wb, frac, exact_qop)
     if exact_qop is None:
         exact_qop = bool(cf_knockon.QOP_EXACT)
     if not len(rid):
@@ -136,6 +163,9 @@ def knockon_rows(tau, rows, rid, wq, wb, frac, part="all"):
     the correction to the ionisation channel's linear map and the scattering
     channel's independent electron term, per record's law (regimes 2-5).
     part "map" / "joint" split it into the exact-map and the joint piece."""
+    cx = _cxx()
+    if cx is not None:
+        return cx.knockon_rows(tau, rows, rid, wq, wb, frac, part)
     return cf_knockon.knockon_rows(tau, rows, rid, wq, wb, frac, part)
 
 
