@@ -674,8 +674,6 @@ def _variant(nucel, recoil=True):
     import cf_knockon as ck
     kt = (f"_kj{int(bool(ck.KNOCKON_JOINT))}_qx{int(bool(ck.QOP_EXACT))}"
           if ck.active() else "")
-    if cpt.LAYER_PATH:
-        kt += "_lp"               # the layered-material loss coupling in the transports
     if ARM == "off" and not nucel and not MODEL_TAG:
         return kt
     v = f"_{ARM}_nucel{int(nucel)}" + ("" if (recoil or not nucel) else "_norecoil")
