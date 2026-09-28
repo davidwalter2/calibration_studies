@@ -103,11 +103,29 @@ MS_NSUB = 4       # sub-step quadrature of the MS kick; 1 = point-like
 # with CVH_IONONLY=1 -- because the three are one convention, not three knobs
 # (toy_radoff.py, Documents/Resolution/NOTES_RADOFF.md).
 RAD_CHANNEL = True
+# The energy loss's dependence on the DIRECTION in layered material.  The
+# export's step Jacobians (gen_transport_jacobian.py) transport between
+# CURVILINEAR planes -- the path of a deviated track runs to the plane
+# perpendicular to the nominal direction at the step end -- and charge the
+# step's dE/dx over the change of that path (q/p row, off-diagonal).  That is
+# a uniform medium.  In layered material the loss is set by the path INSIDE
+# each layer, between its own boundaries: a layer of thickness t crossed at
+# transverse incidence alpha and dip lambda is traversed over
+# t / (cos(alpha) cos(lambda)), so a deviation changes the loss by
+#     d(Delta E) = Delta E [tan(lambda) d lambda + tan(alpha) d alpha],
+#     d alpha   = d phi - d x_T / (r cos(alpha))      (the crossing point moves)
+# With this ON the transports carry that coupling instead of the
+# curvilinear-plane one (`step_transports`, `_layer_path_rows`): the q/p rows
+# of the exported F and step Jacobians keep only their q/p column, and the
+# layer term is added to first order.  The geometry is the reference helix
+# from the origin through coaxial cylinders (the realmat toys); the energy
+# loss's own q/p dependence is untouched.
+LAYER_PATH = bool(int(os.environ.get("CF_LAYER_PATH", "0")))
 
 # The knob registry (see cf_track_resolution.PHYSICS_GLOBALS for why it
 # exists).  `_NOT_PHYSICS` names the globals that look like knobs and only
 # control chunking or cache capacity.
-PHYSICS_GLOBALS = ("KMS_SCALE", "MS_NSUB", "RAD_CHANNEL")
+PHYSICS_GLOBALS = ("KMS_SCALE", "MS_NSUB", "RAD_CHANNEL", "LAYER_PATH")
 _NOT_PHYSICS = ("ECF_CHUNK", "_PHI_CACHE_MAX")
 
 
@@ -500,17 +518,18 @@ def step_transports(legs, k, ioni_start=False):
     aligned with the ioniurbanv records (cf_knockon's sub-step rule), is
     appended; the default return is unchanged.
     """
+    Fs = [_qop_row_stripped(L["F"]) if LAYER_PATH else L["F"] for L in legs[:k + 1]]
     # suffix products P_j = F_k F_{k-1} ... F_{j+1}
     suffix = [np.eye(5)]
     for m in range(k, 0, -1):
-        suffix.append(suffix[-1] @ legs[m]["F"])
+        suffix.append(suffix[-1] @ Fs[m])
     suffix = suffix[::-1]  # suffix[j] = F_k...F_{j+1}, for j = 0..k
 
     A_ms, A_ioni, A_ms_start, A_ioni_start = [], [], [], []
     for j in range(k + 1):
         leg = legs[j]
-        Pj = suffix[j] @ leg["F"]  # = F_k ... F_j
-        jacc = leg["jacc"]
+        Pj = suffix[j] @ Fs[j]  # = F_k ... F_j
+        jacc = _qop_row_stripped(leg["jacc"]) if LAYER_PATH else leg["jacc"]
         if len(jacc) == 0:
             A_ms.append(np.zeros((0, 5, 5)))
             A_ioni.append(np.zeros((0, 5, 5)))
@@ -538,9 +557,132 @@ def step_transports(legs, k, ioni_start=False):
             Astart[s] = Pj @ np.linalg.inv(jacc[s - 1]) if s > 0 else Pj
         A_ms_start.append(Astart[idx_ms])
         A_ioni_start.append(Astart[idx_io])
+    if LAYER_PATH:
+        _layer_path_correct(legs, k, A_ms, A_ioni, A_ms_start, A_ioni_start)
     if ioni_start:
         return A_ms, A_ioni, A_ms_start, A_ioni_start
     return A_ms, A_ioni, A_ms_start
+
+
+_LAYER_CACHE = {}
+_BFIELD_T = 3.8
+
+
+def _qop_row_stripped(M):
+    """A transport (5x5 or a stack) whose q/p row keeps only its q/p column:
+    the export's curvilinear-plane loss coupling removed.  Exact for the
+    accumulated step products too, since each step's q/p then depends on q/p
+    alone."""
+    M = np.array(M, dtype=np.float64, copy=True)
+    M[..., 0, 1:] = 0.0
+    return M
+
+
+def _layer_path_rows(legs):
+    """Per leg, per MS row (one per Geant4 step, parallel to the radiative
+    rows): the row vector g of the extra q/p change at the step's end per unit
+    curvilinear deviation (q/p, lambda, phi, x_T, y_T) at its start,
+        g = q cs dE (0, tan(lambda), tan(alpha), -tan(alpha)/(r cos(alpha)), 0),
+    with dE the step's mean loss [GeV] (the radiative records carry the energy
+    at the step END), cs = E/p^3, and (r, alpha) at the step midpoint on the
+    reference helix from the origin (curvature 0.3 B / pT, bending clockwise
+    for q > 0 in +z).  Checks the helix against the planes' radii."""
+    key = id(legs)
+    hit = _LAYER_CACHE.get(key)
+    if hit is not None and hit[0] is legs:
+        return hit[1]
+    q = float(np.sign(legs[0]["refqop"]) or 1.0)
+    coslam = float(legs[0]["refpt"] / legs[0]["refp"])
+    tanlam = np.sqrt(max(1.0 - coslam * coslam, 0.0)) / coslam
+    R = [np.asarray(L["rad"]) if L.get("rad") is not None else np.zeros((0, 11))
+         for L in legs]
+    Eall = np.concatenate([r[:, cf_brems_exact.R_ETOT] for r in R])
+    xall = np.concatenate([r[:, cf_brems_exact.R_XG] for r in R])
+    dE = np.empty_like(Eall)
+    dE[1:] = Eall[:-1] - Eall[1:]
+    good = xall[1:] > 0
+    dedx = np.median(dE[1:][good] / xall[1:][good]) if good.any() else 0.0
+    dE[0] = dedx * xall[0]
+    x = y = 0.0
+    phi = 0.0
+    out, o = [], 0
+    for j, r in enumerate(R):
+        g = np.zeros((len(r), 5))
+        for i in range(len(r)):
+            rec = r[i]
+            p = rec[cf_brems_exact.R_P]
+            kap = 0.0029979 * _BFIELD_T / max(p * coslam, 1e-9)   # 1/cm
+            ds = rec[cf_brems_exact.R_STEPCM] * coslam            # transverse
+            # half step, evaluate, half step
+            for half in (0, 1):
+                dphi = -q * kap * 0.5 * ds
+                x += 0.5 * ds * np.cos(phi + 0.5 * dphi)
+                y += 0.5 * ds * np.sin(phi + 0.5 * dphi)
+                phi += dphi
+                if half == 0:
+                    rr = np.hypot(x, y)
+                    alpha = phi - np.arctan2(y, x) if rr > 0 else 0.0
+                    alpha = (alpha + np.pi) % (2 * np.pi) - np.pi
+            ta, ca = np.tan(alpha), np.cos(alpha)
+            fac = q * rec[cf_brems_exact.R_CS] * dE[o + i]
+            g[i] = fac * np.array([0.0, tanlam, ta,
+                                   -ta / (rr * ca) if rr > 0 else 0.0, 0.0])
+        o += len(r)
+        out.append(g)
+        rend = np.hypot(x, y)
+        rref = float(legs[j].get("refglobr", rend)) if "refglobr" in legs[j] else rend
+        if abs(rend - rref) > 0.5:
+            raise ValueError(f"layer-path helix: leg {j} ends at r = {rend:.2f} cm, "
+                             f"the plane is at {rref:.2f} cm")
+    _LAYER_CACHE[key] = (legs, out)
+    return out
+
+
+def _layer_path_correct(legs, k, A_ms, A_ioni, A_ms_start, A_ioni_start):
+    """First-order layer-path coupling in every transport to plane k, in place:
+    a deviation x at the start of step m adds g_m . x to q/p at its end, so the
+    noise of step s reaches k through (I + sum_{m after s} M_m) A_s with
+    M_m = A_end,m e_qop g_m^T A_start,m^{-1} (rank one)."""
+    G = _layer_path_rows(legs)
+    # M per step, grouped per leg by the step index the MS rows map to
+    Msteps = []
+    for j in range(k + 1):
+        leg = legs[j]
+        nstep = len(leg["jacc"])
+        Mj = np.zeros((max(nstep, 1), 5, 5))
+        if nstep and len(leg["ms"]):
+            idx = np.clip(np.searchsorted(leg["nms"], np.arange(len(leg["ms"])) + 1,
+                                          side="left"), 0, nstep - 1)
+            for m in range(len(leg["ms"])):
+                gm = G[j][m]
+                if not np.any(gm):
+                    continue
+                Mj[idx[m]] += np.outer(A_ms[j][m][:, 0], gm @ np.linalg.inv(A_ms_start[j][m]))
+        Msteps.append(Mj)
+    # after[j][t] = sum of M over steps strictly after step t of leg j, to k
+    tail = np.zeros((5, 5))
+    after = [None] * (k + 1)
+    for j in range(k, -1, -1):
+        Mj = Msteps[j]
+        cum = np.cumsum(Mj[::-1], axis=0)[::-1]          # inclusive suffix
+        excl = np.concatenate([cum[1:], np.zeros((1, 5, 5))]) + tail
+        after[j] = (excl, cum + tail)
+        tail = tail + cum[0]
+    I5 = np.eye(5)
+    for j in range(k + 1):
+        leg = legs[j]
+        nstep = len(leg["jacc"])
+        if not nstep:
+            continue
+        excl, incl = after[j]
+        im = np.clip(np.searchsorted(leg["nms"], np.arange(len(leg["ms"])) + 1, side="left"),
+                     0, nstep - 1)
+        ii = np.clip(np.searchsorted(leg["nioni"], np.arange(len(leg["ioni"])) + 1, side="left"),
+                     0, nstep - 1)
+        A_ms[j] = np.einsum("sab,sbc->sac", I5 + excl[im], A_ms[j])
+        A_ms_start[j] = np.einsum("sab,sbc->sac", I5 + incl[im], A_ms_start[j])
+        A_ioni[j] = np.einsum("sab,sbc->sac", I5 + excl[ii], A_ioni[j])
+        A_ioni_start[j] = np.einsum("sab,sbc->sac", I5 + incl[ii], A_ioni_start[j])
 
 
 def model_variance(legs, k, avec):

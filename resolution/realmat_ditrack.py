@@ -223,9 +223,10 @@ def variant():
     """File tag of the sim arm, the elastic channel (`_nojoint` when its joint
     law is off) and the knock-on state: realmat_closure's own (`_variant`), so
     the J/psi names are unchanged;
-    `_hel<x>` when H's energy-loss term is scaled (hbasis.H_ELOSS != 1)."""
+    `_hel<x>` when H's energy-loss term is on (hbasis.H_ELOSS != 0, a
+    diagnostic: the closure geometries are layered)."""
     he = hb._canonical().H_ELOSS
-    return rc._variant(NUCEL) + ("" if he == 1.0 else f"_hel{he:g}")
+    return rc._variant(NUCEL) + ("" if he == 0.0 else f"_hel{he:g}")
 
 
 def sim_path(leg, seed):
