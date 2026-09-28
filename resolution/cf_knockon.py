@@ -116,13 +116,19 @@ def _flag(name, dflt):
 # independent-channel model bit for bit.
 KNOCKON_JOINT = 1.0 if _flag("CF_KNOCKON_JOINT", True) else 0.0
 QOP_EXACT = 1.0 if _flag("CF_QOP_EXACT", True) else 0.0
-# The q/p VARIABLE of the exact map (with QOP_EXACT).  0: q/p itself, one
-# collision's change q (1/p' - 1/p).  1: q/p on a LOGARITHMIC scale,
-# |q/p|_ref ln(|q/p| / |q/p|_ref) -- q ln(p/p')/p per collision, which ADDS
-# over successive collisions exactly (p_final = p0 prod(1 - v_i)), so
-# repeated radiation compounds without error; both reduce to q cs T as
-# T -> 0.  The closure's statistic follows the switch (`qop_dev`).
-QOP_LOG = 1.0 if _flag("CF_QOP_LOG", False) else 0.0
+# The q/p VARIABLE of the exact map (with QOP_EXACT), DEFAULT ON.  1: q/p on
+# a LOGARITHMIC scale, |q/p|_ref ln(|q/p| / |q/p|_ref) -- q ln(p/p')/p per
+# collision, which ADDS over successive collisions exactly (p_final = p0
+# prod(1 - v_i)), so repeated radiation compounds without error; for an
+# energy-additive loss it halves the second-order cross term of the q/p map.
+# 0 (CF_QOP_LOG=0): q/p itself, q (1/p' - 1/p) per collision.  Both reduce to
+# q cs T as T -> 0; for muons and hadrons the two differ by ~1e-7.
+# The clean-propagation statistic follows the switch (`qop_dev`).  The
+# FIT-LEVEL observables (cf_track_resolution, cf_mass_likelihood, the cards)
+# stay LINEAR in q/p and in the mass by design: the fit's Gaussian core is
+# additive in curvature, and on a log scale it would gain a mean
+# -sigma^2/(2|q/p|) (1e-4 at the Z mass) that no family carries.
+QOP_LOG = 1.0 if _flag("CF_QOP_LOG", True) else 0.0
 KNOCKON_NSUB = 1
 KNOCKON_NPERDEC = 40
 # The joint law starts at the SIMULATION's e- production threshold: below it

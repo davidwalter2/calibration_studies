@@ -18,6 +18,9 @@ Stages:
              the per-block signed weights u_b = a^T B_b (needs resinfbv,
              production 260802b); saves the per-candidate mass-CF
              exponents on the shared t-grid
+  (the observables are LINEAR in the mass by design, whatever the exact
+  map's q/p variable, cf_knockon.QOP_LOG: the fit's Gaussian core is
+  additive in curvature)
   --closure  mass pull closure: (m_reco - m_gen)/sigma_pred vs the
              predicted candidate lineshape (candidate-level analogue of
              the track closure)

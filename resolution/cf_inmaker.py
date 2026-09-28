@@ -16,8 +16,9 @@ IT IS A READER, NOT A MODEL. Nothing here computes an exponent. The physics
 lives in `cvhcf` (the row functions of `cf_rows`, validated against them by
 `cxx/gate_cvhcf_rows.py` and `cvhcf_validate.py`) and the offline modules
 remain the reference definition.  The knock-on families enter the cache as
-`Skx_*` / `Skj_*` with `knockon_model` = [map, joint], the switches the maker
-ran with (its `cfmodel` tag), exactly as the offline extractors write them.
+`Skx_*` / `Skj_*` with `knockon_model` = [map, joint, log], the switches the
+maker ran with (its `cfmodel` tag), exactly as the offline extractors write
+them.
 
 THE GRID. The maker exports 64 tau, the stride-4 subset of the offline
 `linspace(0, 14, 448)` truncated at 8, and writes it into the runtree as
@@ -219,13 +220,23 @@ def _fam_arrays(t, prefix):
 
 
 def knockon_model(tag):
-    """[map, joint]: the knock-on switches (cf_knockon QOP_EXACT,
-    KNOCKON_JOINT) the maker's `cfmodel` tag records."""
+    """[map, joint, log]: the knock-on switches (cf_knockon QOP_EXACT,
+    KNOCKON_JOINT, QOP_LOG) the maker's `cfmodel` tag records -- log from
+    "knockon:qopLog=1", absent = 0.  A tag whose map variable differs from
+    the offline module's is refused: the exported knock-on, radiative and
+    recoil families would describe another variable than the one read."""
     import re
+    import cf_knockon
     m = re.search(r"knockon:joint=(\d),qopExact=(\d)", tag)
     if m is None:
         raise SystemExit(f"the model tag carries no knock-on switches: {tag!r}")
-    return [int(m.group(2)), int(m.group(1))]
+    mx, jt = int(m.group(2)), int(m.group(1))
+    lg = int(bool(mx) and "knockon:qopLog=1" in tag)
+    want = int(bool(cf_knockon.QOP_EXACT and cf_knockon.QOP_LOG))
+    if mx and lg != want:
+        raise SystemExit(f"the maker's exact map has qopLog={lg}, the offline "
+                         f"model qopLog={want} (CF_QOP_LOG): {tag!r}")
+    return [mx, jt, lg]
 
 
 def _jac_block(t, stop, idx, jaccat, fn):
@@ -388,7 +399,7 @@ def read_files(args, mass):
             stop = min(t.num_entries, 3 * int(args.max_tracks) + 100)
         a = t.arrays(need, library="np", entry_stop=stop)
 
-        kx_on, kj_on = knockon_model(tag)
+        kx_on, kj_on, _ = knockon_model(tag)
         S = {k: _stack(a, n, nt) for (k, _), n in zip(_FAMS, fams)
              if not ((k.startswith("Skx") and not kx_on)
                      or (k.startswith("Skj") and not kj_on))}
@@ -643,9 +654,9 @@ def write_cache(path, tgrid, tag, cols, mass, nsel, ndrop, hitclass,
     out["rad_model"] = np.array(int("rad:" in tag))
     # the knock-on switches the families were built under, as
     # cf_track_resolution.knockon_arrays writes them (nothing when both off)
-    kx_on, kj_on = knockon_model(tag)
+    kx_on, kj_on, lg = knockon_model(tag)
     if kx_on or kj_on:
-        out["knockon_model"] = np.array([kx_on, kj_on])
+        out["knockon_model"] = np.array([kx_on, kj_on, lg])
     if mass:
         # The sign of an ionization block in the candidate mass CF is -1 for
         # both legs and both charges, hard-wired in the maker.

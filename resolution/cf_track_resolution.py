@@ -9,7 +9,8 @@ feeding q/p carries an entry.
 
 Independence of the blocks then gives the full non-Gaussian CF of the
 standardized momentum error z = (qop_reco - qop_gen)/sigma, sigma^2 =
-refCov(0,0):
+refCov(0,0) -- LINEAR in q/p by design, whatever the map's variable
+(cf_knockon.QOP_LOG): the fit's Gaussian core is additive in curvature:
 
   log phi_z(t) = -(Vg/sigma^2) t^2/2                        [hits, Gaussian]
       -- or, with --hitmode class, the MEASURED per-hit densities:
@@ -1842,11 +1843,15 @@ def hit_exponent(d, args, bank):
 def knockon_arrays(Skx_l, Skj_l, kx_on, kj_on):
     """The cache arrays of the knock-on families: nothing when both are off
     (the cache is then the pre-knock-on one bit for bit), else
-    `knockon_model` = [map, joint] (the switches the arrays were built
-    under) and Skx_re/_im, Skj_re/_im for the switched-on pieces."""
+    `knockon_model` = [map, joint, log] (the switches the arrays -- and the
+    radiative family, built on the same map -- were built under; log is
+    cf_knockon.QOP_LOG, the map's q/p variable) and Skx_re/_im, Skj_re/_im
+    for the switched-on pieces."""
+    import cf_knockon
     if not (kx_on or kj_on):
         return {}
-    out = dict(knockon_model=np.array([int(kx_on), int(kj_on)]))
+    out = dict(knockon_model=np.array([int(kx_on), int(kj_on),
+                                       int(bool(kx_on and cf_knockon.QOP_LOG))]))
     for nm, on, lst in (("Skx", kx_on, Skx_l), ("Skj", kj_on, Skj_l)):
         if on:
             a = np.array(lst).reshape(len(lst), len(TG))
@@ -1859,7 +1864,8 @@ def knockon_exponent(d):
     """Skx + Skj of a cache under the module's switches (0 when both are
     off).  A cache built without an array the switches ask for, or with the
     joint piece under the other map setting, is an error, never a silent
-    zero."""
+    zero.  The map's q/p variable (QOP_LOG) must match as well: a missing
+    third entry is a cache built on q/p itself."""
     import cf_knockon
     kx = bool(cf_knockon.active() and cf_knockon.QOP_EXACT)
     kj = bool(cf_knockon.active() and cf_knockon.KNOCKON_JOINT)
@@ -1869,11 +1875,14 @@ def knockon_exponent(d):
     if "knockon_model" not in keys:
         raise ValueError("the knock-on switches are on and the cache has no "
                          "knock-on families; re-extract with the switches on")
-    cx, cj = (bool(v) for v in np.asarray(d["knockon_model"]))
-    if (kx and not cx) or (kj and not cj) or (kj and cx != kx):
+    km = [int(v) for v in np.asarray(d["knockon_model"])]
+    cx, cj = bool(km[0]), bool(km[1])
+    cl = bool(km[2]) if len(km) > 2 else False
+    kl = bool(kx and cf_knockon.QOP_LOG)
+    if (kx and not cx) or (kj and not cj) or (kj and cx != kx) or (cx and cl != kl):
         raise ValueError(f"cache knock-on families built under map={cx:d} "
-                         f"joint={cj:d}, switches ask for map={kx:d} "
-                         f"joint={kj:d}")
+                         f"joint={cj:d} log={cl:d}, switches ask for map={kx:d} "
+                         f"joint={kj:d} log={kl:d}")
     S = 0.0
     if kx:
         S = S + (d["Skx_re"] + 1j * d["Skx_im"])
