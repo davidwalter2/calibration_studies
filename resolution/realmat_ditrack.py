@@ -213,6 +213,24 @@ DPHI = None
 M_PARENT = None
 RES = None
 NUCEL = False     # the elastic channel in the prediction (`closure --nucel`)
+# the CORE statistic (`closure --core`): for e+- the pairs that have not
+# radiated form a narrow core far above the mean-loss reference (+745 MeV for
+# Z -> ee at plane 0) carrying a few % by the middle planes, and the full
+# distribution's Fisher scale is set by the bremsstrahlung continuum (GeV at
+# the outer planes), where every statistic is blind.  --core centres both sides
+# on the model density's mode (the core peak) and scales them by the Fisher
+# width of the no-radiation distribution (ionisation and scattering only):
+# the even probe tests the core's shape and weight, the odd probe the sim's
+# peak location against the model's, in MeV.
+CORE = False
+# the IONISATION-ONLY reference (`--ionref`, the `_ion` exports, CVH_IONONLY)
+# with the full sim: the no-radiation trajectory, on which the e+- core sits.
+# The radiative channel is then uncentred (the reference carries no radiative
+# mean): only the momentum-state model (cleanprop/momentum_state_ms.py) does
+# that, and sets UNCENTRED_RAD_MODEL; the standard rows centre, so a closure
+# with the standard model refuses the ionisation-only reference.
+IONREF = False
+UNCENTRED_RAD_MODEL = False
 XSTAT = False     # the extended sample: sim/ plus sim_xstat/ (`--xstat`)
 XSTAT_JOBS = 80   # jobs of 20 000 events per leg and arm in sim_xstat/
 
@@ -339,7 +357,7 @@ def model_path(leg):
     else:
         path = os.path.join(rc.OUT, "model",
                             f"model_{leg}_{DEC['tag']}_pt{_ptstr(L['pt'])}_all4.root")
-    return path[:-5] + "_ion.root" if rc.ARM == "norad" else path
+    return path[:-5] + "_ion.root" if (rc.ARM == "norad" or IONREF) else path
 
 
 def planes_path(leg):
@@ -881,6 +899,18 @@ def leg_vectors(legs, g):
 _CTX = None
 
 
+def _mode_from_phi(phi, tau, guess, half=60.0, step=0.01):
+    """Mode of the density with CF `phi` on `tau` (t >= 0), searched in
+    [guess - half, guess + half]: p(z) = (1/pi) int_0 Re(phi e^{-itz}) dt."""
+    z = guess + np.arange(-half, half + step, step)
+    w = np.zeros(len(tau))
+    dt = np.diff(tau)
+    w[:-1] += 0.5 * dt
+    w[1:] += 0.5 * dt
+    p = (np.cos(np.outer(z, tau)) * phi.real + np.sin(np.outer(z, tau)) * phi.imag) @ w
+    return float(z[int(np.argmax(p))])
+
+
 def _plane_model(k):
     """Everything model-side for plane k: sigma, s_F, the product CF on the
     closure grid, and the product exponent on the density grid."""
@@ -897,20 +927,41 @@ def _plane_model(k):
     z, p, dp = cc.invert_cf(S, ts, npad=32, nt=1 << 17, deriv=True)
     I, info = cc.fisher_exact(z, p, dp, floor=1e-8)
     sF = sig * math.sqrt(1.0 / I)
+    centre = 0.0
+    if CORE:
+        # the scale: the no-radiation distribution's Fisher width; the centre:
+        # the full model density's mode (the core peak), in the mass units
+        chn = ("ioni", "ms")
+        S0 = (cc.block_cf_exponent(lm, k, am, sig, ts, channels=chn)
+              + cc.block_cf_exponent(lp, k, ap, sig, ts, channels=chn))
+        z0, p0, dp0 = cc.invert_cf(S0, ts, npad=32, nt=1 << 17, deriv=True)
+        I0, _ = cc.fisher_exact(z0, p0, dp0, floor=1e-8)
+        sF = sig * math.sqrt(1.0 / I0)
+        # first guess: the mode of the full (centred) standard density; with
+        # the ionisation-only reference the core sits at the reference
+        centre = 0.0 if IONREF else sig * float(z[int(np.argmax(p))])
     tau = fn.closure_tau(float(np.max(probes)))
     phi = (cpt.model_phi(lm, k, am, sF, tau) * cpt.model_phi(lp, k, ap, sF, tau))
+    if CORE:
+        # the centre: the mode of the model actually in use, from its CF
+        centre = sF * _mode_from_phi(phi, tau, centre / sF)
+        phi = phi * np.exp(-1j * tau * centre / sF)
     even = np.array([cpt.weier_scalar(phi, u, tau) for u in probes])
     odd = np.array([weier_odd(phi, u, tau) for u in probes])
     D = np.array([weier_shift(phi, u, tau) for u in probes])
     # model mean of z from the slope of Im phi at the origin (smallest t)
     i1 = 1
     mean_z = float(phi[i1].imag / tau[i1])
-    return dict(sigma=sig, sF=sF, invI=1.0 / I, mass_frac=info.get("mass_frac"),
+    return dict(sigma=sig, sF=sF, centre=centre, invI=1.0 / I,
+                mass_frac=info.get("mass_frac"),
                 even=even, odd=odd, D=D, mean_z=mean_z, S=S, ts=ts)
 
 
 def cmd_closure(args):
     _setup_physics()
+    if IONREF and not UNCENTRED_RAD_MODEL:
+        raise SystemExit("--ionref needs a model with an uncentred radiative channel "
+                         "(cleanprop/momentum_state_ms.py ditrack ...)")
     os.makedirs(RES, exist_ok=True)
     probes = np.asarray(fn.UCURVE)
     m0, g, worst = _check_gradient()
@@ -997,9 +1048,9 @@ def cmd_closure(args):
             dq_lin = -q * (psim - pref) / pref ** 2
             jensen[leg] = 1e3 * float(b[0] * np.mean(dl[:, 0] - dq_lin))
             dsh += dl[rng.permutation(n), 0] * b[0] + dl[:, 1:] @ b[1:]
-        zsh = dsh / md["sF"]
+        zsh = (dsh - md["centre"]) / md["sF"]
         esh = np.exp(-probes[:, None] * zsh[None, :] ** 2).mean(axis=1) - md["even"]
-        z = dmt[good] / md["sF"]
+        z = (dmt[good] - md["centre"]) / md["sF"]
         e = np.exp(-probes[:, None] * z[None, :] ** 2)
         o = z[None, :] * e
         even = e.mean(axis=1) - md["even"]
@@ -1034,6 +1085,7 @@ def cmd_closure(args):
               + f";  jensen(q/p slot) {sum(jensen.values()):+.4f} MeV;  "
               f"shuffled even u=1 {esh[iu1]:+.4f}", flush=True)
         rows.append(dict(k=k, r=r, n=n, sigma=md["sigma"], sF=md["sF"],
+                         centre_MeV=1e3 * md["centre"],
                          invI=md["invI"], mass_frac=md["mass_frac"],
                          even=even.tolist(), even_err=ee.tolist(),
                          odd=odd.tolist(), odd_err=eo.tolist(),
@@ -1076,7 +1128,7 @@ def cmd_closure(args):
                            odd=lad_o.tolist(), odd_err=err_lad_o.tolist()),
                planes=rows)
     full = args.planes is None
-    tag = variant() + (f"_only{args.only}" if args.only else "")
+    tag = variant() + ("_ionref" if IONREF else "") + ("_core" if CORE else "") + (f"_only{args.only}" if args.only else "")
     p = os.path.join(RES, (f"ditrack_closure{tag}.json" if full else
                            f"ditrack_closure{tag}_planes_"
                            + "_".join(map(str, ks)) + ".json"))
@@ -1266,6 +1318,9 @@ def main():
     ap.add_argument("--model-tag", default="",
                     help="the old leg's model-file suffix (`_mat`: the export with "
                          "the per-step material table the elastic channel needs)")
+    ap.add_argument("--ionref", action="store_true",
+                    help="the ionisation-only reference (`_ion` exports) with the full "
+                         "sim (e+-: the no-radiation trajectory the core sits on)")
     ap.add_argument("--xstat", action="store_true",
                     help="the extended sample (sim/ plus sim_xstat/, 1.8 M per leg "
                          "and arm): `sim` makes the extension for both legs, the "
@@ -1299,6 +1354,9 @@ def main():
     s.add_argument("--only", default=None,
                    help="one leg's share of the mass direction (the other "
                         "leg's weights set to zero)")
+    s.add_argument("--core", action="store_true",
+                   help="the core statistic: centred on the model's mode, scaled "
+                        "by the no-radiation Fisher width (e+-)")
     s.set_defaults(f=cmd_closure)
     sub.add_parser("summary").set_defaults(f=cmd_summary)
     s = sub.add_parser("recentre")
@@ -1311,11 +1369,13 @@ def main():
     s.add_argument("--nucel", action="store_true")
     s.set_defaults(f=cmd_legclosure)
     a = ap.parse_args()
-    global NUCEL, XSTAT, RES
+    global NUCEL, XSTAT, RES, CORE, IONREF
     configure(a.decay)
     rc.ARM = a.arm
     rc.MODEL_TAG = a.model_tag
     NUCEL = bool(getattr(a, "nucel", False))
+    CORE = bool(getattr(a, "core", False))
+    IONREF = bool(getattr(a, "ionref", False))
     XSTAT = a.xstat
     if XSTAT:
         RES += "_xstat"

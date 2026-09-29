@@ -194,6 +194,13 @@ def _rebin(v, qb, qp, nb):
     return -np.expm1(-Um[ok] / Q[ok]), B[ok], P[ok], np.flatnonzero(h), remap[ib]
 
 
+def _rad_centred():
+    """False with realmat_ditrack's ionisation-only reference: the reference
+    then carries no radiative mean, so the radiative channel is uncentred."""
+    rd = sys.modules.get("realmat_ditrack")
+    return not (rd is not None and getattr(rd, "IONREF", False))
+
+
 def coupled_phi2d(legs, k, avec, sigma, tau):
     """The momentum-state CF of the functional `avec` at plane k on `tau`."""
     A_ms, A_ioni, A_ms_start, A_ioni_start = cpt.step_transports(legs, k, ioni_start=True)
@@ -206,6 +213,7 @@ def coupled_phi2d(legs, k, avec, sigma, tau):
           np.concatenate([[0.0], np.geomspace(1e-4, tmax, NT_MODEL)]))
     TL = np.concatenate([[0.0], np.geomspace(1e-5, tmax * np.exp(LGRID[-1]) * 1.01, 800)])
     ents = []
+    centred = _rad_centred()
     c1 = 0.0          # slope of the radiative centring phase, -i c1 t in S
     for j in range(k + 1):
         leg = legs[j]
@@ -252,8 +260,9 @@ def coupled_phi2d(legs, k, avec, sigma, tau):
                 g = 1.0 + cbe.rad_angle_cfm1(np.outer(tau * wb_r[n], (T / pp * M / E)[soft]), M)
                 S += (ph * g) @ qb[soft] + ph @ qp[soft] - q[soft].sum()
                 # the whole row's centring (linear, state-free)
-                S -= 1j * a * float((q * T).sum())
-                c1 += cs * float((q * T).sum())
+                if centred:
+                    S -= 1j * a * float((q * T).sum())
+                    c1 += cs * float((q * T).sum())
                 reb = _rebin(v, qb, qp, NVBIN)
                 s_soft = float((q[soft] * -np.log1p(-v[soft])).sum())
                 ent["d"] = np.log1p(-m) + s_soft
@@ -404,7 +413,10 @@ if __name__ == "__main__":
         gc.model_phi = coupled_phi2d
         cpt.model_phi = coupled_phi2d
         _variant = rd.variant
-        rd.variant = lambda: _variant() + "_mstate"      # own result files
+        STATE = not os.environ.get("MSTATE_FROZEN")      # frozen: the independent product
+        tag = "_mstate" if STATE else "_mfrozen"
+        rd.variant = lambda: _variant() + tag            # own result files
+        rd.UNCENTRED_RAD_MODEL = True
         sys.argv = [sys.argv[0]] + sys.argv[2:]
         rd.main()
     else:
