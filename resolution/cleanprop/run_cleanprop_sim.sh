@@ -23,6 +23,11 @@ PARTID=${7:-13}
 # tasks (not reproducible in isolation with the same seed, i.e. a resource
 # effect, not physics). Keep it at or below 100.
 NPAR=${NPAR:-64}
+# PRODCUT: global production cut [cm] (runCleanPropSim prodCut; unset = CMS regions).
+# SEED0: offset of the task seeds -- two samples that must be independent (the
+# legs of a ditrack) need disjoint seeds, equal seeds replay the same stream.
+PRODCUT=${PRODCUT:-0}
+SEED0=${SEED0:-0}
 
 CFG=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2/src/Analysis/HitAnalyzer/test/runCleanPropSim.py
 AREA=/work/submit/david_w/ZMass/CMSSW_15_0_19_patch2_dev2
@@ -46,13 +51,13 @@ run_task() {
     source /cvmfs/cms.cern.ch/cmsset_default.sh
     eval "$(scramv1 runtime -sh)"
     cd "$OUT"
-    cmsRun "$CFG" nEvents="$NEV" pt="$PT" eta="$ETA" phi="$PHI" seed="$((idx + 1))" \
-        partId="$PARTID" \
+    cmsRun "$CFG" nEvents="$NEV" pt="$PT" eta="$ETA" phi="$PHI" seed="$((SEED0 + idx + 1))" \
+        partId="$PARTID" prodCut="$PRODCUT" \
         output="$tmp" > "$OUT/task_$(printf '%04d' "$idx").log" 2>&1
   ) && { mv -f "$tmp" "$f"; echo "[done] $idx"; } || { rm -f "$tmp"; echo "[FAIL] $idx"; }
 }
 export -f run_task
-export OUT CFG AREA NEV PT ETA PHI PARTID CLEANPROP_LOOSE_STEPPER
+export OUT CFG AREA NEV PT ETA PHI PARTID PRODCUT SEED0 CLEANPROP_LOOSE_STEPPER
 
 echo "output -> $OUT   ($NTASK tasks x $NEV events = $((NTASK * NEV)))"
 seq 0 $((NTASK - 1)) | xargs -P "$NPAR" -I{} bash -c 'run_task {}'

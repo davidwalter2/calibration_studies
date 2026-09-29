@@ -76,6 +76,13 @@ and azimuth), the same tracker.xml, its own seeds and its own model export:
     lam   p   + pi- (pT 0.8, seeds 401-410)
     phi   K-  + K+  (pT 3,   seeds 801-810)
     kstar K+  + pi- (pT 3,   seeds 901-910)
+    jpsi_real  mu- + mu+ on the REAL tracker (full CMS geometry, ideal
+          alignment, production cut at the Geant4 floor): both legs are
+          run_cleanprop_sim.sh samples, scored on the entry faces of the
+          sim's modal module sequence (`targets`), with runCleanPropModel
+          exports along it (`export`); `setup`, `sim` and `recentre` are the
+          toy's.  The H basis is rebuilt from the export (curv2local.frames,
+          global z in the module plane: barrel modules, stereo included).
 The cylinders are azimuthally symmetric but the field is the real 3D map, so a
 new leg is simulated and exported at its own azimuth rather than rotated from
 the phi = 0.70 sample (`pairs` prints the difference for equal pT).
@@ -182,7 +189,22 @@ DECAYS = {
     "kstar": dict(tex=r"K^{*0} \to K \pi", mass=0.89555, old=321, new=-211, pt_new=3.0,
                   geom="kstar_pim", tag="kstar", seed0=901,
                   res="realmat_ditrack_kstar_260928", fig="ditrack_cleanprop_kstar"),
+    # the REAL tracker (the full CMS geometry, ideal alignment): both legs are
+    # runCleanPropSim samples (cleanprop/run_cleanprop_sim.sh, production cut
+    # at the Geant4 floor, `simtag`), scored on the entry faces of the modules
+    # the sim's modal sequence crosses (`targets`), with runCleanPropModel
+    # exports along that sequence (`export`)
+    "jpsi_real": dict(tex=r"J/\psi \ \mathrm{real\ tracker}", mass=3.0969, old=13,
+                      new=-13, pt_new=3.0, pt_old=3.0, tag="jpsireal", seed0=0,
+                      real=True, simtag="260928cut1e4",
+                      res="realtrk_ditrack_jpsi_260928",
+                      fig="ditrack_cleanprop_jpsi_real"),
 }
+REAL_CEPH = "/ceph/submit/data/user/d/david_w/ZMass/cvh/cleanprop"
+
+
+def is_real():
+    return bool(DEC.get("real"))
 DECAY = None      # the configured decay (`configure`)
 DEC = None
 LEGS = {}         # leg key -> dict(pdg, q, pt, phi, geom, mass, new, seeds)
@@ -226,14 +248,17 @@ def configure(decay):
     L0, L1 = rc.lab(old), rc.lab(new)
     qo, qn = float(hp.SPECIES[old]["q"]), float(hp.SPECIES[new]["q"])
     LEGS = {L0: dict(pdg=old, q=qo, pt=pt_old, phi=rc.PHI,
-                     geom=DEC["geom_old"] if own_old else rc.gkey(old),
+                     geom=(DEC.get("geom_old") if own_old else rc.gkey(old)),
                      mass=_mass(old), new=own_old,
                      seeds=list(range(DEC["seed0"] + 50, DEC["seed0"] + 60))),
             L1: dict(pdg=new, q=qn, pt=DEC["pt_new"], phi=rc.PHI + DPHI,
-                     geom=DEC["geom"], mass=_mass(new), new=True,
+                     geom=DEC.get("geom"), mass=_mass(new), new=True,
                      seeds=list(range(DEC["seed0"], DEC["seed0"] + 10)))}
+    # the real tracker's gun azimuths as the sim directories spell them
+    LEGS[L0]["phistr"] = f"{rc.PHI:.2f}"
+    LEGS[L1]["phistr"] = f"{rc.PHI + DPHI:.6f}"
     for L in LEGS.values():
-        if L["new"]:
+        if L["new"] and not is_real():
             rc.GEOM[L["geom"]] = (f"realmat_full_{L['geom']}",
                                   f"toyPlanes_realmat_full_{L['geom']}_pt{_ptstr(L['pt'])}",
                                   L["q"])
@@ -260,10 +285,29 @@ def sim_path(leg, seed):
     return os.path.join(rc.OUT, "sim_xstat" if XSTAT else "sim", base)
 
 
+def real_simdir(leg):
+    """A real-tracker leg's run_cleanprop_sim.sh output directory."""
+    L = LEGS[leg]
+    d = (f"{REAL_CEPH}/sim_{DEC['simtag']}_pt{L['pt']:g}_eta{rc.ETA:.2f}_"
+         f"phi{L['phistr']}")
+    return d if L["pdg"] == 13 else f"{d}_pdg{L['pdg']}"
+
+
+def targets_path(leg):
+    """A real-tracker leg's target surfaces: (detid, entry-face local z) of the
+    sim's modal module sequence (cf_propagation_test.write_targets)."""
+    L = LEGS[leg]
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "cleanprop",
+                        "targets", f"targets_real_{leg}_{DEC['tag']}_"
+                                   f"pt{_ptstr(L['pt'])}.txt")
+
+
 def sim_glob(leg):
     """The leg's sample: its ten seeds in sim/ (the old leg: realmat_closure's
     sample); under `--xstat` every seed of the leg in sim/ and sim_xstat/."""
     L = LEGS[leg]
+    if is_real():
+        return os.path.join(real_simdir(leg), "simstates_*.root")
     if XSTAT:
         stem = os.path.basename(sim_path(leg, 0))[:-len("0_sim.root")]
         return os.path.join(rc.OUT, "sim*", stem + "*_sim.root")
@@ -287,6 +331,9 @@ def model_path(leg):
     table in any case.  The `norad` arm's model is the ionisation-only export
     (`_ion`: the reference without the radiative mean, CVH_IONONLY)."""
     L = LEGS[leg]
+    if is_real():
+        return os.path.join(REAL_CEPH, "model", f"model_real_{leg}_{DEC['tag']}_"
+                                                f"pt{_ptstr(L['pt'])}_all4.root")
     if not L["new"]:
         path = rc.model_path(L["pdg"])
     else:
@@ -546,7 +593,63 @@ def cmd_sim(args):
         raise SystemExit(f"{bad} jobs failed")
 
 
+def cmd_targets(args):
+    """The real tracker: each leg's target surfaces from its sim."""
+    if not is_real():
+        raise SystemExit("targets: the real-tracker decays only")
+    import argparse as _ap
+    for leg in LEGS:
+        out = targets_path(leg)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        cpt.write_targets(_ap.Namespace(sim=sim_glob(leg), out=out))
+        print(f"{leg}: {sum(1 for l in open(out) if not l.startswith('#'))} "
+              f"surfaces -> {out}")
+
+
+def _export_real(leg, force):
+    """runCleanPropModel.py along the leg's target surfaces, the realmat
+    exports' switch set (the four ionisation corrections), ideal geometry."""
+    import subprocess
+    L = LEGS[leg]
+    out = model_path(leg)
+    log = out[:-5] + ".log"
+    if os.path.exists(out) and not force:
+        print(f"exists -> {out}")
+        return
+    import shutil
+    import tempfile
+    swopts, _ = ctr.split_switches(dict(rc.FOUR_ON))
+    work = tempfile.mkdtemp(prefix=f"export_{leg}_")
+    tmp = os.path.join(work, os.path.basename(out))
+    cmd = ("source /cvmfs/cms.cern.ch/cmsset_default.sh >/dev/null 2>&1 && "
+           f"cd {rc.SRC} && eval $(scramv1 runtime -sh) && "
+           f"cd {work} && exec cmsRun {rc.SRCTEST}/runCleanPropModel.py "
+           f"pt={L['pt']:g} eta={rc.ETA:.2f} phi={L['phistr']} partId={L['pdg']} "
+           f"targets={targets_path(leg)} output={tmp} useIdealGeometry=True {swopts}")
+    wlog = os.path.join(work, "export.log")
+    with open(wlog, "w") as fh:
+        fh.write(f"# {cmd}\n")
+        fh.flush()
+        # the CMSSW environment only: the analysis venv must not leak into it
+        r = subprocess.run(["bash", "-c", cmd], stdout=fh, stderr=subprocess.STDOUT,
+                           env=rc.ds._clean_env({})).returncode
+    shutil.copyfile(wlog, log)
+    if r or not os.path.exists(tmp):
+        raise SystemExit(f"{leg}: export failed (rc={r}), see {log}")
+    shutil.copyfile(tmp, out + ".part")
+    os.replace(out + ".part", out)
+    shutil.rmtree(work, ignore_errors=True)
+    t = open(log, errors="ignore").read()
+    eff = re.search(r"\[cvh\] effective: (.*)", t)
+    print(f"{leg}: -> {out}\n    {eff.group(0) if eff else '*** no [cvh] effective line ***'}")
+
+
 def cmd_export(args):
+    if is_real():
+        os.makedirs(os.path.join(REAL_CEPH, "model"), exist_ok=True)
+        for leg in ([args.leg] if getattr(args, "leg", None) else list(LEGS)):
+            _export_real(leg, args.force)
+        return
     os.makedirs(os.path.join(rc.OUT, "model"), exist_ok=True)
     legs = [args.leg] if getattr(args, "leg", None) else new_legs()
     for leg in legs:
@@ -576,6 +679,9 @@ _SIMC = {}
 
 def load_sim(leg):
     key = (DECAY, leg, rc.ARM, XSTAT)
+    if key not in _SIMC and is_real():
+        # per-plane acceptance: the modal-sequence cut drops rays tail-first
+        _SIMC[key] = cpt.load_sim(sim_glob(leg), acceptance="perplane")
     if key not in _SIMC:
         from toy_loader import load_toy_sim
         ns = {}
@@ -643,11 +749,40 @@ def _live_one(leg):
           f"{100 * v.all(axis=1).mean():.3f} %, outermost {100 * v[:, -1].mean():.3f} %")
 
 
+def _pairs_real(args):
+    """The real tracker's pair gate per leg: the model's module sequence IS the
+    sim's modal one (by DetId), the reference crosses where the sim's median
+    does (local x, each plane), and the reference's mean loss agrees with the
+    sim's."""
+    bad = False
+    for leg in LEGS:
+        m = gc._model_meta(model_path(leg))
+        sim = load_sim(leg)
+        seq = np.asarray(sim["detid"])
+        seqok = len(m["detid"]) == len(seq) and bool(np.array_equal(np.asarray(m["detid"]), seq))
+        dxs = np.array([np.nanmedian(sim["locx"][sim["valid"][:, k], k]) - m["reflocx"][k]
+                        for k in range(min(len(seq), len(m["reflocx"])))])
+        v = sim["valid"].all(axis=1)
+        dE_s = 1e3 * float(np.mean(sim["pabs"][v, 0] - sim["pabs"][v, -1]))
+        dE_m = 1e3 * float(m["refp"][0] - m["refp"][-1])
+        ok = seqok and np.abs(dxs).max() < 0.05 and abs(dE_m - dE_s) < 0.02 * dE_m
+        print(f"--- {leg}  {len(seq)} planes, {sim['valid'].shape[0]} events; "
+              f"sequence identical {seqok}; max |median locx - reflocx| "
+              f"{1e4 * np.abs(dxs).max():.1f} um; dE plane 0 -> last: model "
+              f"{dE_m:.3f} sim(mean, all planes) {dE_s:.3f} MeV  "
+              f"{'PASS' if ok else '*** FAIL ***'}")
+        bad |= not ok
+    if bad and not args.nofail:
+        raise SystemExit("pair gate failed")
+
+
 def cmd_pairs(args):
     """realmat_closure's pair gate for both legs, then -- when the new leg has
     the old leg's pT -- the rotation comparison with the same species at
     phi = 0.70 (informational: the material is azimuthally symmetric, the
     field map is not exactly)."""
+    if is_real():
+        return _pairs_real(args)
     for leg in (L0, L1):
         mp = model_path(leg)
         m = gc._model_meta(mp)
@@ -1147,6 +1282,7 @@ def main():
     s.add_argument("--force", action="store_true")
     s.set_defaults(f=cmd_sim)
     sub.add_parser("live").set_defaults(f=cmd_live)
+    sub.add_parser("targets").set_defaults(f=cmd_targets)
     s = sub.add_parser("export")
     s.add_argument("--force", action="store_true")
     s.add_argument("--leg", default=None, help="one dedicated leg; default all")
