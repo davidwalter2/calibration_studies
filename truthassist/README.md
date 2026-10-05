@@ -1,5 +1,7 @@
 # Truth-assisted corrections on realistic-alignment MC and their single-track closure
 
+> Correction sets are numbered v719, v720, ... and registered in `truthassist/CORRECTIONS.md` (+ `corrections_registry.json`). Old labels: corv718 = v722 (realistic) / v725 (ideal), cor6dofT = v724 / v726, in-fit 6dof = v723 (do not use).
+
 Workflow (2026-09-24):
 
 1. `task.sbatch` + `tasks_260924.txt` (slurm array, 63 tasks): `runCvhTruthAssisted.py`
